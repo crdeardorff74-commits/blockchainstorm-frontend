@@ -1,7 +1,7 @@
 // render-utils.js - Complete rendering utilities with full beveling implementation
 
 const RenderUtils = {
-    RenderUtils.adjustBrightness(color, factor) {
+    adjustBrightness(color, factor) {
     // Parse hex color
     const hex = color.replace('#', '');
     let r = parseInt(hex.substring(0, 2), 16);
