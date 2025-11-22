@@ -2021,6 +2021,7 @@
     <script>
         // ===== API INTEGRATION =====
         const API_URL = 'https://blockchainstorm.onrender.com/api';
+		let gameStartTime = 0;
 		
 		// Leaderboard System
         let currentLeaderboardMode = null;
@@ -13597,7 +13598,7 @@
         }
 
         function startGame(mode) {
-			const gameStartTime = Date.now(); // Add this line
+			gameStartTime = Date.now(); 
             gameMode = mode;
             lastPlayedMode = mode; // Remember this mode for next time
             
