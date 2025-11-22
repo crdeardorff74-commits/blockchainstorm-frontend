@@ -2,6 +2,35 @@
         const API_URL = 'https://blockchainstorm.onrender.com/api';
 		let gameStartTime = 0;
 		
+		// Debug function to test high score system
+        window.testHighScore = async function(testScore = 1000000) {
+            console.log('Testing high score system with score:', testScore);
+            const scoreData = {
+                game: 'blockchainstorm',
+                difficulty: 'drizzle',
+                mode: 'normal',
+                score: testScore,
+                lines: 100,
+                level: 10,
+                strikes: 5,
+                tsunamis: 3,
+                blackholes: 2,
+                volcanoes: 1,
+                duration: 300
+            };
+            
+            const isTopTen = await checkIfTopTen('drizzle', testScore);
+            console.log('Is this score in the top 10?', isTopTen);
+            
+            if (isTopTen) {
+                console.log('Score makes top 10! Showing name entry prompt...');
+                promptForName(scoreData);
+            } else {
+                console.log('Score does not make top 10. Showing leaderboard only...');
+                await displayLeaderboard('drizzle', testScore);
+            }
+        };
+		
 		// Leaderboard System
         let currentLeaderboardMode = null;
         let lastPlayerScore = null;
@@ -10,15 +39,51 @@
         // Fetch leaderboard for a specific difficulty
         async function fetchLeaderboard(difficulty) {
             try {
-                const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/normal`);
+                console.log(`Fetching leaderboard for ${difficulty} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/normal`);
+                const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/normal`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('Leaderboard data received:', data);
                 return data.leaderboard || [];
             } catch (error) {
-                console.error('Error fetching leaderboard:', error);
-                return null;
+                console.error('Error fetching leaderboard, using local storage fallback:', error);
+                // Fallback to local storage
+                return getLocalLeaderboard(difficulty);
+            }
+        }
+        
+        // Local storage fallback for leaderboard
+        function getLocalLeaderboard(difficulty) {
+            const key = `blockchainstorm_leaderboard_${difficulty}`;
+            const stored = localStorage.getItem(key);
+            if (stored) {
+                try {
+                    return JSON.parse(stored);
+                } catch (e) {
+                    console.error('Error parsing local leaderboard:', e);
+                    return [];
+                }
+            }
+            return [];
+        }
+        
+        // Save to local leaderboard
+        function saveLocalLeaderboard(difficulty, scores) {
+            const key = `blockchainstorm_leaderboard_${difficulty}`;
+            try {
+                // Keep only top 10 scores
+                const topScores = scores.slice(0, 10);
+                localStorage.setItem(key, JSON.stringify(topScores));
+            } catch (e) {
+                console.error('Error saving local leaderboard:', e);
             }
         }
 
@@ -157,21 +222,43 @@
 
         // Check if score makes top 10
         async function checkIfTopTen(difficulty, score) {
+            console.log(`Checking if score ${score} makes top 10 for ${difficulty}`);
             const scores = await fetchLeaderboard(difficulty);
-            if (!scores || scores.length === 0) return true; // First score!
-            if (scores.length < 10) return true; // Less than 10 scores
+            
+            // Always treat as array, even if null (fetchLeaderboard now returns array always)
+            if (!scores || scores.length === 0) {
+                console.log('No existing scores, this is a high score!');
+                return true; // First score!
+            }
+            if (scores.length < 10) {
+                console.log(`Only ${scores.length} scores exist, this makes top 10!`);
+                return true; // Less than 10 scores
+            }
             
             // Check if score beats the 10th place
             const tenthPlace = scores[9];
-            return score > tenthPlace.score;
+            const beatsIt = score > tenthPlace.score;
+            console.log(`10th place score is ${tenthPlace.score}, our score ${beatsIt ? 'beats' : 'does not beat'} it`);
+            return beatsIt;
         }
 
         // Prompt user for name
         function promptForName(scoreData) {
+            console.log('promptForName called with score:', scoreData.score);
             const overlay = document.getElementById('nameEntryOverlay');
             const input = document.getElementById('nameEntryInput');
             const scoreDisplay = document.getElementById('nameEntryScore');
             const submitBtn = document.getElementById('nameEntrySubmit');
+            
+            if (!overlay || !input || !scoreDisplay || !submitBtn) {
+                console.error('Name entry modal elements not found!', {
+                    overlay: !!overlay,
+                    input: !!input,
+                    scoreDisplay: !!scoreDisplay,
+                    submitBtn: !!submitBtn
+                });
+                return;
+            }
             
             // Store score data for later submission
             lastScoreData = scoreData;
@@ -181,6 +268,7 @@
             
             // Show overlay
             overlay.style.display = 'flex';
+            console.log('Name entry overlay shown');
             input.value = '';
             input.focus();
             
@@ -215,6 +303,29 @@
 
         // Submit score with username
         async function submitNamedScore(username, scoreData) {
+            // Always save to local storage first
+            const localScores = await fetchLeaderboard(scoreData.difficulty);
+            const newScore = {
+                username: username,
+                score: scoreData.score,
+                lines: scoreData.lines,
+                level: scoreData.level,
+                date: new Date().toISOString(),
+                strikes: scoreData.strikes || 0,
+                tsunamis: scoreData.tsunamis || 0,
+                blackholes: scoreData.blackholes || 0,
+                volcanoes: scoreData.volcanoes || 0
+            };
+            
+            // Add new score and sort
+            localScores.push(newScore);
+            localScores.sort((a, b) => b.score - a.score);
+            
+            // Save to local storage
+            saveLocalLeaderboard(scoreData.difficulty, localScores);
+            console.log('Score saved to local leaderboard');
+            
+            // Try to submit to server as well
             try {
                 const dataToSubmit = {
                     ...scoreData,
@@ -231,20 +342,16 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('Score submitted successfully:', result);
-                    
-                    // Display leaderboard with player's score highlighted
-                    await displayLeaderboard(scoreData.difficulty, scoreData.score);
+                    console.log('Score submitted successfully to server:', result);
                 } else {
-                    console.error('Failed to submit score:', response.status);
-                    // Still show leaderboard even if submission failed
-                    await displayLeaderboard(scoreData.difficulty, scoreData.score);
+                    console.error('Server submission failed (but saved locally):', response.status);
                 }
             } catch (error) {
-                console.error('Error submitting score:', error);
-                // Still show leaderboard even if submission failed
-                await displayLeaderboard(scoreData.difficulty, scoreData.score);
+                console.error('Error submitting score to server (but saved locally):', error);
             }
+            
+            // Always display leaderboard with player's score highlighted
+            await displayLeaderboard(scoreData.difficulty, scoreData.score);
         }
 
         // Keyboard navigation for leaderboards
@@ -11377,6 +11484,7 @@
                 strikes: strikeCount,
                 tsunamis: tsunamiCount,
                 blackholes: blackHoleCount,
+                volcanoes: volcanoCount || 0, // Add volcanoes count
                 duration: Math.floor((Date.now() - gameStartTime) / 1000)
             };
             
@@ -11387,28 +11495,11 @@
             const isTopTen = await checkIfTopTen(gameMode, score);
             
             if (isTopTen) {
-                // Prompt for name
+                // Prompt for name - this is a high score!
                 promptForName(scoreData);
             } else {
-                // Submit anonymously
-                scoreData.username = 'Anonymous';
-                try {
-                    const response = await fetch(`${API_URL}/scores/submit`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(scoreData)
-                    });
-
-                    if (response.ok) {
-                        console.log('Anonymous score submitted');
-                    }
-                } catch (error) {
-                    console.error('Error submitting anonymous score:', error);
-                }
-                
-                // Display leaderboard
+                // Score didn't make top 10, just display the leaderboard
+                console.log('Score did not make top 10, displaying leaderboard without submission');
                 await displayLeaderboard(gameMode, score);
             }
         }
@@ -12913,3 +13004,8 @@
                 startMenuMusic();
             }
         }, { once: true });
+        
+        // Initialize high score system
+        console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
+        console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
+        console.log('📊 Leaderboard uses server if available, falls back to local storage');
