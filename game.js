@@ -31,8 +31,17 @@
             rulesPanel.style.display = 'none';
             container.style.display = 'flex';
 			container.style.flexDirection = 'column';
+			
+			const mainArea = document.querySelector('.main-area');
+			const mainRect = mainArea.getBoundingClientRect();
+			const gameContainer = document.querySelector('.game-container');
+			const gcRect = gameContainer.getBoundingClientRect();
+
+			// Position to the left of the game board with some margin
+			const leftPos = (mainRect.left - gcRect.left) - 350; // 350px = leaderboard width + margin
+
 			container.style.position = 'absolute';
-			container.style.left = '0';
+			container.style.left = `${leftPos}px`;
 			container.style.top = '0';
 			container.style.zIndex = '10';
             
