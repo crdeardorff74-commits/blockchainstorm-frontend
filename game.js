@@ -23,30 +23,30 @@
         }
 
         // Display leaderboard in the left panel
-        // Display leaderboard in the left panel
         async function displayLeaderboard(difficulty, playerScore = null) {
             const rulesPanel = document.querySelector('.rules-panel');
-            const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
             
-            // Save original rules content if not already saved
-            if (!rulesPanel.dataset.originalContent) {
-                rulesPanel.dataset.originalContent = rulesInstructions.innerHTML;
-            }
-            
+            // Store current leaderboard mode
             currentLeaderboardMode = difficulty;
             
-            // Hide histogram and planet stats
-            const histogramCanvas = rulesPanel.querySelector('#histogramCanvas');
-            const planetStatsLeft = rulesPanel.querySelector('#planetStatsLeft');
-            if (histogramCanvas) histogramCanvas.style.display = 'none';
-            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+            // Hide the entire rules panel
+            rulesPanel.style.display = 'none';
             
-            // Ensure rules panel is visible and instructions are shown
-            rulesPanel.style.display = 'block';
-            rulesInstructions.style.display = 'block';
+            // Create or get leaderboard container
+            let leaderboardContainer = document.getElementById('leaderboardDisplay');
+            if (!leaderboardContainer) {
+                // Create leaderboard container if it doesn't exist
+                leaderboardContainer = document.createElement('div');
+                leaderboardContainer.id = 'leaderboardDisplay';
+                leaderboardContainer.className = 'rules-panel'; // Use same class for consistent styling
+                rulesPanel.parentNode.insertBefore(leaderboardContainer, rulesPanel);
+            }
             
-            // Show loading state in rules instructions div
-            rulesInstructions.innerHTML = `
+            // Show leaderboard container
+            leaderboardContainer.style.display = 'block';
+            
+            // Show loading state
+            leaderboardContainer.innerHTML = `
                 <div class="leaderboard-loading">
                     Loading ${difficulty} leaderboard...
                 </div>
@@ -55,7 +55,7 @@
             const scores = await fetchLeaderboard(difficulty);
             
             if (!scores) {
-                rulesInstructions.innerHTML = `
+                leaderboardContainer.innerHTML = `
                     <div class="leaderboard-error">
                         Failed to load leaderboard.<br>
                         Check your connection.
@@ -65,7 +65,7 @@
             }
             
             if (scores.length === 0) {
-                rulesInstructions.innerHTML = `
+                leaderboardContainer.innerHTML = `
                     <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
                     <div class="leaderboard-loading">No scores yet. Be the first!</div>
                 `;
@@ -120,23 +120,104 @@
                 </table>
             `;
             
-            rulesInstructions.innerHTML = html;
+            leaderboardContainer.innerHTML = html;
         }
-        
-        // Function to restore original rules content
-        function restoreRulesContent() {
+
+        // Function to hide leaderboard and show rules panel
+        function hideLeaderboard() {
             const rulesPanel = document.querySelector('.rules-panel');
-            const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
+            const leaderboardContainer = document.getElementById('leaderboardDisplay');
             
-            if (rulesPanel.dataset.originalContent) {
-                rulesInstructions.innerHTML = rulesPanel.dataset.originalContent;
+            // Hide leaderboard if it exists
+            if (leaderboardContainer) {
+                leaderboardContainer.style.display = 'none';
             }
             
-            // Show histogram if in game
-            const histogramCanvas = rulesPanel.querySelector('#histogramCanvas');
-            if (histogramCanvas && gameRunning) {
-                histogramCanvas.style.display = 'block';
+            // Show rules panel
+            rulesPanel.style.display = 'block';
+        }
+
+			container.style.top = '0';
+			container.style.zIndex = '10';
+            
+            currentLeaderboardMode = difficulty;
+            
+            // Show loading state
+            container.innerHTML = `
+                <div class="leaderboard-loading">
+                    Loading ${difficulty} leaderboard...
+                </div>
+            `;
+            
+            const scores = await fetchLeaderboard(difficulty);
+            
+            if (!scores) {
+                container.innerHTML = `
+                    <div class="leaderboard-error">
+                        Failed to load leaderboard.<br>
+                        Check your connection.
+                    </div>
+                `;
+                return;
             }
+            
+            if (scores.length === 0) {
+                container.innerHTML = `
+                    <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
+                    <div class="leaderboard-loading">No scores yet. Be the first!</div>
+                `;
+                return;
+            }
+            
+            // Build leaderboard HTML
+            let html = `
+                <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
+                <div class="leaderboard-mode-selector">
+                    Use <strong>↑↓</strong> arrows to browse difficulties
+                    <br>
+                    Press <strong>Enter</strong> to play <span class="current-mode">${getModeDisplayName(difficulty)}</span>
+                </div>
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="rank">#</th>
+                            <th class="name">Name</th>
+                            <th class="score">Score</th>
+                            <th>Lines</th>
+                            <th>Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            scores.forEach((entry, index) => {
+                const isPlayerScore = playerScore && Math.abs(entry.score - playerScore) < 100;
+                const rowClass = isPlayerScore ? 'player-score' : '';
+                
+                // Format special events
+                let events = [];
+                if (entry.strikes > 0) events.push(`⚡${entry.strikes}`);
+                if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
+                if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
+                const eventsStr = events.length > 0 ? `<br><span class="special-events">${events.join(' ')}</span>` : '';
+                
+                html += `
+                    <tr class="${rowClass}">
+                        <td class="rank">${index + 1}</td>
+                        <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
+                        <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
+                        <td>${entry.lines}</td>
+                        <td>${entry.level}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
         }
 
         // Get display name for difficulty mode
@@ -251,12 +332,10 @@
         }
 
         // Keyboard navigation for leaderboards
-
-        // Keyboard navigation for leaderboards
         document.addEventListener('keydown', (e) => {
-            // Check if leaderboard is visible by checking if rules panel contains leaderboard content
-            const rulesInstructions = document.querySelector('.rules-instructions');
-            const leaderboardVisible = rulesInstructions && rulesInstructions.querySelector('.leaderboard-title') !== null;
+            // Check if leaderboard is visible
+            const leaderboardContainer = document.getElementById('leaderboardDisplay');
+            const leaderboardVisible = leaderboardContainer && leaderboardContainer.style.display !== 'none';
             if (!leaderboardVisible || gameRunning) return;
             
             const modes = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
@@ -11607,12 +11686,13 @@
         }
 
         function startGame(mode) {
-            // Restore original rules content if leaderboard was shown
-            restoreRulesContent();
+            // Hide leaderboard if it was shown
+            hideLeaderboard();
             
-            gameStartTime = Date.now(); 
+			gameStartTime = Date.now(); 
             gameMode = mode;
             lastPlayedMode = mode; // Remember this mode for next time
+            
             // CRITICAL: Clear the canvas immediately to remove any leftover rendering
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
