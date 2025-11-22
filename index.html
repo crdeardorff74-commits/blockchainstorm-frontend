@@ -91,11 +91,13 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
+            gap: 0;
             position: relative;
             z-index: 1;
             height: 100%;
             max-height: 85vh;
-            width: 100%;
+            width: fit-content;
+            margin: 0 auto;
         }
         .main-area {
             background: transparent;
@@ -290,8 +292,9 @@
             height: 85vh;
             box-sizing: border-box;
             font-size: 1.8vh;
-            position: absolute;
-            right: 0;
+            position: relative;
+            margin-left: 1.5vw;
+            flex-shrink: 0;
             transition: right 0.3s ease, width 0.3s ease;
         }
         
@@ -327,8 +330,9 @@
             display: flex;
             flex-direction: column;
             gap: 1vh;
-            position: absolute;
-            left: 0;
+            position: relative;
+            margin-right: 1.5vw;
+            flex-shrink: 0;
             transition: left 0.3s ease, width 0.3s ease;
         }
         .rules-instructions {
@@ -1312,7 +1316,7 @@
             max-height: 100%;
         }
         
-        /* When leaderboard is shown, position it properly relative to game container */
+        /* When leaderboard is shown, position it properly */
         #leaderboardDisplay {
             background: rgba(30, 60, 120, 0.35);
             padding: 2vh 1.5vw;
@@ -1323,20 +1327,9 @@
             max-width: 22vw;
             height: 85vh;
             box-sizing: border-box;
-            position: absolute;
-            left: calc(50% - 35vw); /* Default position for normal width */
-            top: 0;
-            z-index: 10;
-        }
-        
-        /* Adjust leaderboard position for thinner mode */
-        body:has(canvas.thinner-mode) #leaderboardDisplay {
-            left: calc(50% - 28vw); /* Closer to center for narrower canvas */
-        }
-        
-        /* Adjust leaderboard position for thicker mode (12-wide modes) */
-        body:has(canvas.thicker-mode) #leaderboardDisplay {
-            left: calc(50% - 42vw); /* Further from center for wider canvas */
+            position: relative;
+            margin-right: 1.5vw;
+            flex-shrink: 0;
         }
         
         .leaderboard-title {
@@ -1616,11 +1609,6 @@
             <div id="planetStatsLeft">
                 <div id="planetStatsLeftContent"></div>
             </div>
-        </div>
-		
-		<!-- Leaderboard Display (shows after game over) -->
-        <div id="leaderboardDisplay" class="leaderboard-container rules-panel" style="display: none;">
-            <!-- Populated by JavaScript -->
         </div>
         
         <!-- Name Entry Modal -->
