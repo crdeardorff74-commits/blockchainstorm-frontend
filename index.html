@@ -81,23 +81,28 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 1vh 1vw;
+            padding: 1vh 2vw; /* More horizontal padding */
             position: relative;
             z-index: 1;
             height: calc(93vh - 7vh);
             box-sizing: border-box;
+            width: 100%;
+            overflow: hidden; /* Prevent overflow */
         }
         .game-container {
             display: flex;
-            justify-content: center;
+            justify-content: space-between; /* Space between panels */
             align-items: flex-start;
-            gap: 1.5vw; /* Add proper gap between panels */
+            gap: 2vw; /* Larger gap between panels */
             position: relative;
             z-index: 1;
             height: 100%;
             max-height: 85vh;
-            width: 100%; /* Use full width of content area */
+            width: 100%; /* Use full width */
+            max-width: 100%; /* Prevent overflow */
             margin: 0 auto;
+            box-sizing: border-box;
+        }
         }
         .main-area {
             background: transparent;
@@ -111,6 +116,8 @@
             align-items: center;
             justify-content: center; /* Center content vertically */
             flex-shrink: 0; /* Prevent shrinking */
+            flex-grow: 1; /* Allow growing to take available space */
+            min-width: 0; /* Allow shrinking below content width */
         }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
@@ -285,17 +292,41 @@
             padding: 2vh 1.5vw;
             border-radius: 1vh;
             color: white;
-            width: 22vw;
-            min-width: 22vw;
-            max-width: 22vw;
+            width: 20vw; /* Slightly smaller */
+            min-width: 200px; /* Minimum width in pixels */
+            max-width: 25vw; /* Maximum width */
             display: flex;
             flex-direction: column;
             height: 85vh;
             box-sizing: border-box;
             font-size: 1.8vh;
             position: relative;
-            flex-shrink: 0;
+            flex-shrink: 1; /* Allow some shrinking if needed */
+            flex-grow: 0; /* Don't grow */
             transition: right 0.3s ease, width 0.3s ease;
+        }
+        }
+        
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 1400px) {
+            .rules-panel, .side-panel {
+                width: 18vw;
+                min-width: 150px;
+            }
+            .game-container {
+                gap: 1vw;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .rules-panel, .side-panel {
+                width: 16vw;
+                min-width: 120px;
+                font-size: 1.4vh;
+            }
+            .game-container {
+                gap: 0.5vw;
+            }
         }
         
         /* Global custom scrollbar styling */
@@ -320,9 +351,9 @@
             padding: 2vh 1.5vw;
             border-radius: 1vh;
             color: white;
-            width: 22vw;
-            min-width: 22vw;
-            max-width: 22vw;
+            width: 20vw; /* Slightly smaller */
+            min-width: 200px; /* Minimum width in pixels */
+            max-width: 25vw; /* Maximum width */
             height: 85vh;
             box-sizing: border-box;
             overflow: visible; /* Allow tick labels to extend past edge */
@@ -331,8 +362,10 @@
             flex-direction: column;
             gap: 1vh;
             position: relative;
-            flex-shrink: 0;
+            flex-shrink: 1; /* Allow some shrinking if needed */
+            flex-grow: 0; /* Don't grow */
             transition: left 0.3s ease, width 0.3s ease;
+        }
         }
         .rules-instructions {
             display: block;
@@ -1072,8 +1105,8 @@
         
         /* Make both side panels symmetric when Thicker mode is active */
         body:has(canvas.thicker-mode) .game-container {
-            gap: 1.5vw; /* Consistent gap with normal mode */
-            justify-content: center; /* Center the content */
+            gap: 2vw; /* Consistent gap with normal mode */
+            justify-content: space-between; /* Maintain spacing */
         }
         
         /* Removed thicker-mode panel width adjustments - panels now reposition via JavaScript */
@@ -1610,26 +1643,6 @@
             </div>
         </div>
         
-        <!-- Name Entry Modal -->
-        <div class="name-entry-overlay" id="nameEntryOverlay">
-            <div class="name-entry-popup">
-                <div class="name-entry-title">🏆 High Score! 🏆</div>
-                <div class="name-entry-message">
-                    Congratulations! Your score of <span class="name-entry-score" id="nameEntryScore"></span> 
-                    made it to the top 10!
-                    <br><br>
-                    Enter your name for the leaderboard:
-                </div>
-                <input type="text" 
-                       id="nameEntryInput" 
-                       class="name-entry-input" 
-                       placeholder="Enter your name" 
-                       maxlength="20"
-                       autocomplete="off">
-                <button id="nameEntrySubmit" class="name-entry-button">Submit Score</button>
-            </div>
-        </div>
-        
         <div class="main-area">
             <canvas id="gameCanvas" width="350" height="700"></canvas>
             <div class="mode-menu" id="modeMenu">
@@ -2029,6 +2042,26 @@
                 <button class="combo-modal-btn cancel" id="comboCancelBtn">Cancel</button>
                 <button class="combo-modal-btn apply" id="comboApplyBtn">Apply</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- Name Entry Modal (moved outside game-container for proper layout) -->
+    <div class="name-entry-overlay" id="nameEntryOverlay">
+        <div class="name-entry-popup">
+            <div class="name-entry-title">🏆 High Score! 🏆</div>
+            <div class="name-entry-message">
+                Congratulations! Your score of <span class="name-entry-score" id="nameEntryScore"></span> 
+                made it to the top 10!
+                <br><br>
+                Enter your name for the leaderboard:
+            </div>
+            <input type="text" 
+                   id="nameEntryInput" 
+                   class="name-entry-input" 
+                   placeholder="Enter your name" 
+                   maxlength="20"
+                   autocomplete="off">
+            <button id="nameEntrySubmit" class="name-entry-button">Submit Score</button>
         </div>
     </div>
 	
