@@ -23,31 +23,30 @@
         }
 
         // Display leaderboard in the left panel
+        // Display leaderboard in the left panel
         async function displayLeaderboard(difficulty, playerScore = null) {
-            const container = document.getElementById('leaderboardDisplay');
-            const rulesPanel = document.querySelector('.rules-instructions').parentElement;
+            const rulesPanel = document.querySelector('.rules-panel');
+            const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
             
-            // Hide rules, show leaderboard
-            rulesPanel.style.display = 'none';
-            container.style.display = 'flex';
-			container.style.flexDirection = 'column';
-			
-			const mainArea = document.querySelector('.main-area');
-			const mainRect = mainArea.getBoundingClientRect();
-			const gameContainer = document.querySelector('.game-container');
-			const gcRect = gameContainer.getBoundingClientRect();
-			
-			const leftPos = (mainRect.left - gcRect.left) - 450; // 450px = leaderboard width + margin
-
-			container.style.position = 'absolute';
-			container.style.left = `${leftPos}px`;
-			container.style.top = '0';
-			container.style.zIndex = '10';
+            // Save original rules content if not already saved
+            if (!rulesPanel.dataset.originalContent) {
+                rulesPanel.dataset.originalContent = rulesInstructions.innerHTML;
+            }
             
             currentLeaderboardMode = difficulty;
             
-            // Show loading state
-            container.innerHTML = `
+            // Hide histogram and planet stats
+            const histogramCanvas = rulesPanel.querySelector('#histogramCanvas');
+            const planetStatsLeft = rulesPanel.querySelector('#planetStatsLeft');
+            if (histogramCanvas) histogramCanvas.style.display = 'none';
+            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+            
+            // Ensure rules panel is visible and instructions are shown
+            rulesPanel.style.display = 'block';
+            rulesInstructions.style.display = 'block';
+            
+            // Show loading state in rules instructions div
+            rulesInstructions.innerHTML = `
                 <div class="leaderboard-loading">
                     Loading ${difficulty} leaderboard...
                 </div>
@@ -56,7 +55,7 @@
             const scores = await fetchLeaderboard(difficulty);
             
             if (!scores) {
-                container.innerHTML = `
+                rulesInstructions.innerHTML = `
                     <div class="leaderboard-error">
                         Failed to load leaderboard.<br>
                         Check your connection.
@@ -66,7 +65,7 @@
             }
             
             if (scores.length === 0) {
-                container.innerHTML = `
+                rulesInstructions.innerHTML = `
                     <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
                     <div class="leaderboard-loading">No scores yet. Be the first!</div>
                 `;
@@ -121,7 +120,23 @@
                 </table>
             `;
             
-            container.innerHTML = html;
+            rulesInstructions.innerHTML = html;
+        }
+        
+        // Function to restore original rules content
+        function restoreRulesContent() {
+            const rulesPanel = document.querySelector('.rules-panel');
+            const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
+            
+            if (rulesPanel.dataset.originalContent) {
+                rulesInstructions.innerHTML = rulesPanel.dataset.originalContent;
+            }
+            
+            // Show histogram if in game
+            const histogramCanvas = rulesPanel.querySelector('#histogramCanvas');
+            if (histogramCanvas && gameRunning) {
+                histogramCanvas.style.display = 'block';
+            }
         }
 
         // Get display name for difficulty mode
@@ -236,9 +251,12 @@
         }
 
         // Keyboard navigation for leaderboards
+
+        // Keyboard navigation for leaderboards
         document.addEventListener('keydown', (e) => {
-            // Only handle when leaderboard is visible and game is over
-            const leaderboardVisible = document.getElementById('leaderboardDisplay').style.display !== 'none';
+            // Check if leaderboard is visible by checking if rules panel contains leaderboard content
+            const rulesInstructions = document.querySelector('.rules-instructions');
+            const leaderboardVisible = rulesInstructions && rulesInstructions.querySelector('.leaderboard-title') !== null;
             if (!leaderboardVisible || gameRunning) return;
             
             const modes = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
@@ -11589,10 +11607,12 @@
         }
 
         function startGame(mode) {
-			gameStartTime = Date.now(); 
+            // Restore original rules content if leaderboard was shown
+            restoreRulesContent();
+            
+            gameStartTime = Date.now(); 
             gameMode = mode;
             lastPlayedMode = mode; // Remember this mode for next time
-            
             // CRITICAL: Clear the canvas immediately to remove any leftover rendering
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
