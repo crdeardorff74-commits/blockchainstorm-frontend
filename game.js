@@ -29,7 +29,8 @@
             
             // Hide rules, show leaderboard
             rulesPanel.style.display = 'none';
-            container.style.display = 'block';
+            container.style.display = 'flex';
+			container.style.flexDirection = 'column';
             
             currentLeaderboardMode = difficulty;
             
