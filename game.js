@@ -31,6 +31,10 @@
             rulesPanel.style.display = 'none';
             container.style.display = 'flex';
 			container.style.flexDirection = 'column';
+			container.style.position = 'absolute';
+			container.style.left = '0';
+			container.style.top = '0';
+			container.style.zIndex = '10';
             
             currentLeaderboardMode = difficulty;
             
