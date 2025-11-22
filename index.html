@@ -2065,7 +2065,11 @@
         </div>
     </div>
 	
-	<script type="text/javascript" src="game.js"></script>
+	<!-- Load game modules in order -->
+	<script src="debug-logging.js"></script>
+	<script src="device-input.js"></script>
+	<script src="api-leaderboard.js"></script>
+	<script src="game-core.js"></script>
 
 </body>
 </html>
