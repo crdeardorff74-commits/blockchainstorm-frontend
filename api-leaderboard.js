@@ -90,7 +90,17 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     const rulesPanel = document.querySelector('.rules-panel');
     
     currentLeaderboardMode = difficulty;
-    rulesPanel.style.display = 'none';
+    
+    // Hide rules panel
+    if (rulesPanel) {
+        rulesPanel.style.display = 'none';
+    }
+    
+    // Hide histogram canvas if visible
+    const histogramCanvas = document.getElementById('histogramCanvas');
+    if (histogramCanvas) {
+        histogramCanvas.style.display = 'none';
+    }
     
     let leaderboardContainer = document.getElementById('leaderboardContainer');
     if (!leaderboardContainer) {
@@ -111,8 +121,16 @@ async function displayLeaderboard(difficulty, playerScore = null) {
             font-size: 1.6vh;
             display: flex;
             flex-direction: column;
+            position: relative;
+            flex-shrink: 0;
         `;
-        rulesPanel.parentNode.insertBefore(leaderboardContainer, rulesPanel);
+        // Insert leaderboard into the game container at the correct position
+        const gameContainer = document.querySelector('.game-container');
+        if (gameContainer && rulesPanel) {
+            gameContainer.insertBefore(leaderboardContainer, rulesPanel);
+        } else if (rulesPanel && rulesPanel.parentNode) {
+            rulesPanel.parentNode.insertBefore(leaderboardContainer, rulesPanel);
+        }
     }
     
     leaderboardContainer.style.display = 'flex';
@@ -208,9 +226,25 @@ function hideLeaderboard() {
         leaderboardContainer.style.display = 'none';
     }
     
+    // Check if game is running by looking for histogram canvas
+    const histogramCanvas = document.getElementById('histogramCanvas');
     const rulesPanel = document.querySelector('.rules-panel');
-    if (rulesPanel) {
-        rulesPanel.style.display = 'flex';
+    
+    // If histogram exists and was being used (game was running), show histogram
+    // Otherwise show rules panel
+    if (histogramCanvas && histogramCanvas.dataset.wasVisible === 'true') {
+        histogramCanvas.style.display = 'block';
+        if (rulesPanel) {
+            rulesPanel.style.display = 'none';
+        }
+    } else {
+        // Game not running, show rules panel
+        if (rulesPanel) {
+            rulesPanel.style.display = 'flex';
+        }
+        if (histogramCanvas) {
+            histogramCanvas.style.display = 'none';
+        }
     }
     
     currentLeaderboardMode = null;
@@ -364,8 +398,11 @@ function promptForName(scoreData) {
     
     submitBtn.addEventListener('click', handleSubmit);
     skipBtn.addEventListener('click', handleSubmit);
+    
+    // Add Enter key support for input field
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
+            e.preventDefault();
             handleSubmit();
         }
     });
@@ -504,5 +541,18 @@ window.GameAPI = {
     getLastPlayerScore: () => lastPlayerScore,
     setLastPlayerScore: (score) => { lastPlayerScore = score; },
     getLastScoreData: () => lastScoreData,
-    setLastScoreData: (data) => { lastScoreData = data; }
+    setLastScoreData: (data) => { lastScoreData = data; },
+    // Helper to track histogram visibility state
+    markHistogramVisible: () => {
+        const histogramCanvas = document.getElementById('histogramCanvas');
+        if (histogramCanvas) {
+            histogramCanvas.dataset.wasVisible = 'true';
+        }
+    },
+    markHistogramHidden: () => {
+        const histogramCanvas = document.getElementById('histogramCanvas');
+        if (histogramCanvas) {
+            histogramCanvas.dataset.wasVisible = 'false';
+        }
+    }
 };
