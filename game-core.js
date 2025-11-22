@@ -10385,6 +10385,11 @@
                 settingsBtn.classList.add('hidden-during-play');
                 histogramCanvas.style.display = 'block';
                 if (title) title.style.display = 'none';
+                
+                // Mark histogram as visible for leaderboard system
+                if (window.GameAPI && window.GameAPI.markHistogramVisible) {
+                    window.GameAPI.markHistogramVisible();
+                }
             }
         }
 
@@ -11135,6 +11140,11 @@
             gameOverDiv.style.display = 'none';
             modeMenu.classList.remove('hidden');
             toggleUIElements(true); // Show UI elements when returning to menu
+            
+            // Mark histogram as hidden for leaderboard system
+            if (window.GameAPI && window.GameAPI.markHistogramHidden) {
+                window.GameAPI.markHistogramHidden();
+            }
             
             // Clear pieces from previous game
             currentPiece = null;
