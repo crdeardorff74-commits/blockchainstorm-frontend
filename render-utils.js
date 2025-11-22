@@ -1,6 +1,6 @@
 // render-utils.js - Complete rendering utilities with full beveling implementation
 
-export function adjustBrightness(color, factor) {
+function adjustBrightness(color, factor) {
     // Parse hex color
     const hex = color.replace('#', '');
     let r = parseInt(hex.substring(0, 2), 16);
@@ -16,7 +16,7 @@ export function adjustBrightness(color, factor) {
     return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
-export function drawSolidShape(ctx, positions, color, blockSize, useGold = false, faceOpacity = 1.0) {
+function drawSolidShape(ctx, positions, color, blockSize, useGold = false, faceOpacity = 1.0) {
     if (positions.length === 0) return;
 
     ctx.save();
@@ -307,7 +307,7 @@ export function drawSolidShape(ctx, positions, color, blockSize, useGold = false
 }
 
 // Helper functions for starfield/planet rendering
-export function lightenColor(color, percent) {
+function lightenColor(color, percent) {
     const num = parseInt(color.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
     const R = Math.min(255, (num >> 16) + amt);
@@ -316,7 +316,7 @@ export function lightenColor(color, percent) {
     return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
-export function darkenColor(color, percent) {
+function darkenColor(color, percent) {
     const num = parseInt(color.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
     const R = Math.max(0, (num >> 16) - amt);
