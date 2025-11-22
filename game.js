@@ -37,11 +37,8 @@
 			const gameContainer = document.querySelector('.game-container');
 			const gcRect = gameContainer.getBoundingClientRect();
 
-			// Position to the left of the game board with some margin
-			const leftPos = (mainRect.left - gcRect.left) - 350; // 350px = leaderboard width + margin
-
 			container.style.position = 'absolute';
-			container.style.left = `${leftPos}px`;
+			container.style.left = `calc(50% - 645px)`;
 			container.style.top = '0';
 			container.style.zIndex = '10';
             
