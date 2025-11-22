@@ -91,14 +91,11 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            gap: 1.5vw;
             position: relative;
             z-index: 1;
             height: 100%;
             max-height: 85vh;
             width: 100%;
-            padding: 0 2vw;
-            box-sizing: border-box;
         }
         .main-area {
             background: transparent;
@@ -111,7 +108,6 @@
             flex-direction: column;
             align-items: center;
             justify-content: center; /* Center content vertically */
-            flex-shrink: 0;
         }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
@@ -294,8 +290,8 @@
             height: 85vh;
             box-sizing: border-box;
             font-size: 1.8vh;
-            position: relative;
-            flex-shrink: 0;
+            position: absolute;
+            right: 0;
             transition: right 0.3s ease, width 0.3s ease;
         }
         
@@ -331,8 +327,8 @@
             display: flex;
             flex-direction: column;
             gap: 1vh;
-            position: relative;
-            flex-shrink: 0;
+            position: absolute;
+            left: 0;
             transition: left 0.3s ease, width 0.3s ease;
         }
         .rules-instructions {
@@ -1316,7 +1312,7 @@
             max-height: 100%;
         }
         
-        /* When leaderboard is shown, position it properly */
+        /* When leaderboard is shown, position it properly relative to game container */
         #leaderboardDisplay {
             background: rgba(30, 60, 120, 0.35);
             padding: 2vh 1.5vw;
@@ -1327,8 +1323,10 @@
             max-width: 22vw;
             height: 85vh;
             box-sizing: border-box;
-            position: relative;
-            flex-shrink: 0;
+            position: absolute;
+            left: calc(50% - 35vw); /* Center minus half of total width (22vw panel + 35vw canvas + 22vw panel) */
+            top: 0;
+            z-index: 10;
         }
         
         .leaderboard-title {
