@@ -37,7 +37,7 @@
 			const gameContainer = document.querySelector('.game-container');
 			const gcRect = gameContainer.getBoundingClientRect();
 			
-			const leftPos = (mainRect.left - gcRect.left) - 550; // 350px = leaderboard width + margin
+			const leftPos = (mainRect.left - gcRect.left) - 450; // 450px = leaderboard width + margin
 
 			container.style.position = 'absolute';
 			container.style.left = `${leftPos}px`;
