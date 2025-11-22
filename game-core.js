@@ -257,10 +257,14 @@ function gameOver() {
 
 // Start game
 function startGame(mode) {
+    console.log('🚀 Starting game in mode:', mode);
+    
     GameState.gameMode = mode;
     GameState.lastPlayedMode = mode;
     
     const config = MODE_CONFIG[mode];
+    console.log('⚙️ Mode config:', config);
+    
     GameState.COLS = config.cols;
     GameState.hailstormEnabled = config.hailstorm;
     GameState.currentColorSet = COLORS.slice(0, config.colorCount);
@@ -278,6 +282,8 @@ function startGame(mode) {
     gameOverDiv.style.display = 'none';
     modeMenu.classList.add('hidden');
     
+    console.log('✨ Game started! Current piece:', GameState.currentPiece);
+    
     update();
 }
 
@@ -285,9 +291,12 @@ function startGame(mode) {
 modeButtons.forEach(button => {
     button.addEventListener('click', () => {
         const mode = button.getAttribute('data-mode');
+        console.log('🎯 Mode selected:', mode);
         startGame(mode);
     });
 });
+
+console.log('📋 Mode buttons initialized:', modeButtons.length);
 
 playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
@@ -352,8 +361,29 @@ console.log('StormEffects loaded:', typeof StormEffects !== 'undefined');
 
 try {
     updateCanvasSize();
+    GameState.initBoard();
     drawBoard();
     console.log('✅ Game initialized successfully!');
 } catch (error) {
     console.error('❌ Initialization error:', error);
+}
+
+// Handle start overlay
+const startOverlay = document.getElementById('startOverlay');
+if (startOverlay) {
+    const handleStart = () => {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        startOverlay.style.display = 'none';
+        console.log('🎬 Start overlay dismissed, game ready!');
+    };
+    
+    startOverlay.addEventListener('click', handleStart);
+    
+    document.addEventListener('keydown', (e) => {
+        if (startOverlay.style.display !== 'none') {
+            handleStart();
+        }
+    }, { once: true });
 }
