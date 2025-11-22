@@ -1324,9 +1324,19 @@
             height: 85vh;
             box-sizing: border-box;
             position: absolute;
-            left: calc(50% - 35vw); /* Center minus half of total width (22vw panel + 35vw canvas + 22vw panel) */
+            left: calc(50% - 35vw); /* Default position for normal width */
             top: 0;
             z-index: 10;
+        }
+        
+        /* Adjust leaderboard position for thinner mode */
+        body:has(canvas.thinner-mode) #leaderboardDisplay {
+            left: calc(50% - 28vw); /* Closer to center for narrower canvas */
+        }
+        
+        /* Adjust leaderboard position for thicker mode (12-wide modes) */
+        body:has(canvas.thicker-mode) #leaderboardDisplay {
+            left: calc(50% - 42vw); /* Further from center for wider canvas */
         }
         
         .leaderboard-title {
