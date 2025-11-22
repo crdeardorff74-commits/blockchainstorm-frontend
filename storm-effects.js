@@ -215,5 +215,126 @@ const StormEffects = {
                 return splash.life > 0;
             }
         });
+    },
+    
+    drawStormParticles(ctx, canvas, gameState) {
+        const stormEffectsToggle = document.getElementById('stormEffectsToggle');
+        if (!stormEffectsToggle.checked || (gameState.stormParticles.length === 0 && gameState.splashParticles.length === 0)) return;
+        
+        ctx.save();
+        
+        // Draw main storm particles
+        gameState.stormParticles.forEach(particle => {
+            ctx.globalAlpha = particle.opacity;
+            
+            if (particle.type === 'rain') {
+                ctx.strokeStyle = particle.color;
+                ctx.lineWidth = particle.size;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(particle.x, particle.y);
+                ctx.lineTo(particle.x, particle.y - particle.vy * 2);
+                ctx.stroke();
+            } else if (particle.type === 'hail') {
+                ctx.save();
+                ctx.translate(particle.x, particle.y);
+                ctx.rotate(particle.rotation);
+                
+                ctx.fillStyle = particle.color;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${particle.opacity})`;
+                ctx.lineWidth = 1;
+                
+                const sides = 5 + Math.floor(Math.random() * 3);
+                ctx.beginPath();
+                for (let i = 0; i < sides; i++) {
+                    const angle = (Math.PI * 2 / sides) * i;
+                    const radius = particle.size * (0.8 + Math.random() * 0.4);
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(-particle.size * 0.2, -particle.size * 0.2, particle.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            } else if (particle.type === 'blizzard') {
+                ctx.save();
+                ctx.translate(particle.x, particle.y);
+                ctx.rotate(particle.rotation);
+                
+                ctx.strokeStyle = particle.color;
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                
+                for (let i = 0; i < 6; i++) {
+                    ctx.save();
+                    ctx.rotate((Math.PI / 3) * i);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(particle.size * 1.5, 0);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                ctx.restore();
+            } else if (particle.type === 'hurricane') {
+                ctx.strokeStyle = particle.color;
+                ctx.lineWidth = particle.size;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(particle.x, particle.y);
+                ctx.lineTo(particle.x - particle.vx * 3, particle.y - particle.vy * 0.5);
+                ctx.stroke();
+            }
+        });
+        
+        // Draw splash particles
+        gameState.splashParticles.forEach(splash => {
+            ctx.globalAlpha = splash.opacity;
+            
+            if (splash.type === 'bouncing') {
+                ctx.save();
+                ctx.translate(splash.x, splash.y);
+                ctx.rotate(splash.rotation);
+                
+                ctx.fillStyle = splash.color;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${splash.opacity})`;
+                ctx.lineWidth = 1;
+                
+                const sides = 5 + Math.floor(Math.random() * 3);
+                ctx.beginPath();
+                for (let i = 0; i < sides; i++) {
+                    const angle = (Math.PI * 2 / sides) * i;
+                    const radius = splash.size * (0.8 + Math.random() * 0.4);
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${splash.opacity * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(-splash.size * 0.2, -splash.size * 0.2, splash.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            } else {
+                ctx.fillStyle = 'rgba(180, 220, 255, 1)';
+                ctx.beginPath();
+                ctx.arc(splash.x, splash.y, splash.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+        
+        ctx.restore();
     }
 };
