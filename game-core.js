@@ -28,9 +28,6 @@ const levelDisplay = document.getElementById('level');
 const strikesDisplay = document.getElementById('strikes');
 const tsunamisDisplay = document.getElementById('tsunamis');
 const blackHolesDisplay = document.getElementById('blackholes');
-const volcanosDisplay = document.getElementById('volcanos');
-const tornadosDisplay = document.getElementById('tornados');
-const earthquakesDisplay = document.getElementById('earthquakes');
 const finalScoreDisplay = document.getElementById('finalScore');
 const finalStatsDisplay = document.getElementById('finalStats');
 
@@ -344,5 +341,19 @@ document.addEventListener('keydown', e => {
 });
 
 // Initialize
-updateCanvasSize();
-drawBoard();
+console.log('🎮 Initializing BLOCKCHaiNSTORM...');
+console.log('Config loaded:', typeof COLORS !== 'undefined');
+console.log('GameState loaded:', typeof GameState !== 'undefined');
+console.log('AudioSystem loaded:', typeof AudioSystem !== 'undefined');
+console.log('RenderUtils loaded:', typeof RenderUtils !== 'undefined');
+console.log('BlobDetection loaded:', typeof BlobDetection !== 'undefined');
+console.log('PieceManager loaded:', typeof PieceManager !== 'undefined');
+console.log('StormEffects loaded:', typeof StormEffects !== 'undefined');
+
+try {
+    updateCanvasSize();
+    drawBoard();
+    console.log('✅ Game initialized successfully!');
+} catch (error) {
+    console.error('❌ Initialization error:', error);
+}
