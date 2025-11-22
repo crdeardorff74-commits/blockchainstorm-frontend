@@ -266,11 +266,42 @@
             // Display the score
             scoreDisplay.textContent = formatAsBitcoin(scoreData.score);
             
-            // Show overlay
+            // Hide the game over div to prevent overlap
+            const gameOverDiv = document.getElementById('gameOver');
+            if (gameOverDiv) {
+                gameOverDiv.style.display = 'none';
+            }
+            
+            // Show overlay with explicit styling to ensure visibility
             overlay.style.display = 'flex';
-            console.log('Name entry overlay shown');
+            overlay.style.zIndex = '10000';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            
+            // Make sure the popup itself is visible
+            const popup = overlay.querySelector('.name-entry-popup');
+            if (popup) {
+                popup.style.display = 'block';
+            }
+            
+            console.log('Name entry overlay shown with styles:', {
+                display: overlay.style.display,
+                zIndex: overlay.style.zIndex,
+                visibility: window.getComputedStyle(overlay).visibility,
+                opacity: window.getComputedStyle(overlay).opacity
+            });
+            
             input.value = '';
-            input.focus();
+            
+            // Small delay to ensure overlay is rendered before focusing
+            setTimeout(() => {
+                input.focus();
+            }, 100);
             
             // Handle submit
             const handleSubmit = async () => {
@@ -288,6 +319,12 @@
                 overlay.style.display = 'none';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Score';
+                
+                // Show the game over div again after submission
+                const gameOverDiv = document.getElementById('gameOver');
+                if (gameOverDiv) {
+                    gameOverDiv.style.display = 'block';
+                }
             };
             
             // Button click handler
@@ -11470,6 +11507,7 @@
             }
             finalStatsDisplay.innerHTML = statsHTML;
             
+            // Show the game over div initially
             gameOverDiv.style.display = 'block';
             toggleUIElements(true);
             
@@ -11496,10 +11534,12 @@
             
             if (isTopTen) {
                 // Prompt for name - this is a high score!
+                // The prompt will hide the game over div temporarily
                 promptForName(scoreData);
             } else {
                 // Score didn't make top 10, just display the leaderboard
                 console.log('Score did not make top 10, displaying leaderboard without submission');
+                // Keep game over div visible while showing leaderboard
                 await displayLeaderboard(gameMode, score);
             }
         }
