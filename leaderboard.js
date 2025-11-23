@@ -282,9 +282,16 @@ function promptForName(scoreData) {
         console.log('Game over div hidden');
     }
     
-    // Show overlay with maximum priority
+    // Show overlay with maximum priority - FORCE ALL STYLES
     console.log('Setting overlay to display: flex');
-    overlay.style.display = 'flex';
+    overlay.style.setProperty('display', 'flex', 'important');
+    overlay.style.setProperty('visibility', 'visible', 'important');
+    overlay.style.setProperty('opacity', '1', 'important');
+    overlay.style.setProperty('z-index', '999999', 'important');
+    overlay.style.setProperty('pointer-events', 'all', 'important');
+    
+    // Remove any hidden class if present
+    overlay.classList.remove('hidden');
     
     // Force a reflow to ensure the style is applied
     overlay.offsetHeight;
@@ -293,9 +300,12 @@ function promptForName(scoreData) {
     setTimeout(() => {
         console.log('Overlay display style after timeout:', overlay.style.display);
         console.log('Overlay computed style after timeout:', window.getComputedStyle(overlay).display);
+        console.log('Overlay visibility:', window.getComputedStyle(overlay).visibility);
+        console.log('Overlay opacity:', window.getComputedStyle(overlay).opacity);
+        console.log('Overlay z-index:', window.getComputedStyle(overlay).zIndex);
         if (overlay.style.display !== 'flex') {
             console.error('❌ WARNING: Overlay display changed unexpectedly! Forcing back to flex');
-            overlay.style.display = 'flex';
+            overlay.style.setProperty('display', 'flex', 'important');
         }
     }, 100);
     
