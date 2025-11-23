@@ -11005,8 +11005,6 @@
             }
             finalStatsDisplay.innerHTML = statsHTML;
             
-            // Show the game over div initially
-            gameOverDiv.style.display = 'block';
             toggleUIElements(true);
             
             // Prepare score data for submission
@@ -11026,16 +11024,19 @@
             
             
             // Check if score makes top 10
+            console.log('Checking if score makes top 10...');
             const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score);
+            console.log('Is top ten:', isTopTen);
             
             if (isTopTen) {
-                // Prompt for name - this is a high score!
-                // The prompt will hide the game over div temporarily
+                // DON'T show game over div - go straight to name prompt
+                console.log('Score is top 10! Showing name entry prompt...');
+                gameOverDiv.style.display = 'none';
                 window.leaderboard.promptForName(scoreData);
             } else {
-                // Score didn't make top 10, just display the leaderboard
-                console.log('Score did not make top 10, displaying leaderboard without submission');
-                // Keep game over div visible while showing leaderboard
+                // Score didn't make top 10, show game over div and leaderboard
+                console.log('Score did not make top 10, displaying game over and leaderboard');
+                gameOverDiv.style.display = 'block';
                 await window.leaderboard.displayLeaderboard(gameMode, score);
             }
         }
