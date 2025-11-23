@@ -845,6 +845,12 @@
         
         animateStarfield();
         
+        // UFO Easter Egg Function - stub for now
+        function drawUFO() {
+            // UFO easter egg not yet implemented in modular version
+            // This prevents the ReferenceError
+        }
+        
         // Placeholder functions - these should be defined in game-core.js or UI module
         function showPlanetStats(planet) {
             // This will be overridden by the actual implementation
