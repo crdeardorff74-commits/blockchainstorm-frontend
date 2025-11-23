@@ -128,88 +128,463 @@
         let journeyProgress = 0; // Distance traveled from sun
         let gameRunning = false; // Will be set by game
         
-        // ============================================
-        // DEVICE DETECTION & TABLET MODE SYSTEM
-        // ============================================
+        function createStar() {
+            return {
+                x: (Math.random() - 0.5) * 2000,
+                y: (Math.random() - 0.5) * 2000,
+                z: Math.random() * maxDepth
+            };
+        }
         
-        
-                console.log('📱 Device detected:', deviceType);
-                console.log('   Touch:', DeviceDetection.isTouch);
-                console.log('   Mobile:', DeviceDetection.isMobile);
-                console.log('   Tablet:', DeviceDetection.isTablet);
-                
-                // Enable tablet mode if mobile/tablet AND no controller
-                this.updateMode();
-            },
+        function resizeStarfield() {
+            // Make canvas slightly larger than viewport to ensure full coverage
+            starfieldCanvas.width = window.innerWidth * 1.1;
+            starfieldCanvas.height = window.innerHeight * 1.1;
+            centerX = starfieldCanvas.width / 2;
+            centerY = starfieldCanvas.height / 2;
             
-            updateMode() {
-                // Enable if: (mobile OR tablet) AND no controller connected
-                // OR manual override is active (for testing)
-                const shouldEnable = this.manualOverride || 
-                                   ((DeviceDetection.isMobile || DeviceDetection.isTablet) && 
-                                    !GamepadController.connected);
-                
-                if (shouldEnable !== this.enabled) {
-                    this.enabled = shouldEnable;
-                    this.applyMode();
-                    console.log('📱 Tablet mode:', this.enabled ? 'ENABLED' : 'DISABLED');
-                }
-            },
-            
-            applyMode() {
-                const touchControls = document.getElementById('touchControls');
-                const planetStats = document.getElementById('planetStats');
-                const planetStatsLeft = document.getElementById('planetStatsLeft');
-                const controls = document.querySelector('.controls');
-                const pauseBtn = document.getElementById('pauseBtn');
-                const settingsBtn = document.getElementById('settingsBtn');
-                
-                if (this.enabled) {
-                    // Show touch controls in right panel
-                    if (touchControls) touchControls.style.display = 'grid';
-                    // Hide keyboard controls
-                    if (controls) controls.style.display = 'none';
-                    // Hide planet stats from right panel
-                    if (planetStats) planetStats.style.display = 'none';
-                    // Show planet stats in left panel
-                    if (planetStatsLeft) planetStatsLeft.style.display = 'block';
-                    // Show pause button (will be toggled by game state)
-                    if (pauseBtn) pauseBtn.style.display = 'block';
-                    // Hide settings button in tablet mode during gameplay
-                    if (settingsBtn && !settingsBtn.classList.contains('hidden-during-play')) {
-                        settingsBtn.style.display = 'none';
-                    }
-                } else {
-                    // Hide touch controls
-                    if (touchControls) touchControls.style.display = 'none';
-                    // Show keyboard controls
-                    if (controls) controls.style.display = 'block';
-                    // Show planet stats in right panel (when active)
-                    // Hide planet stats from left panel
-                    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-                    // Hide pause button
-                    if (pauseBtn) pauseBtn.style.display = 'none';
-                    // Show settings button in normal mode
-                    if (settingsBtn) settingsBtn.style.display = 'block';
-                }
-            },
-            
-            toggle() {
-                // Toggle manual override for testing
-                this.manualOverride = !this.manualOverride;
-                this.updateMode();
+            // Recreate stars to ensure proper coverage of new viewport
+            stars.length = 0;
+            for (let i = 0; i < numStars; i++) {
+                stars.push(createStar());
             }
-        };
+        }
         
-        // Initialize device detection
-        DeviceDetection.detect();
+        resizeStarfield();
+        window.addEventListener('resize', resizeStarfield);
         
-        // ============================================
-        // END DEVICE DETECTION & TABLET MODE
-        // ============================================
+        function drawSun() {
+            // Sun transitions from large orange disk to small white star
+            // Calculate size with easing - slows down as it gets smaller
+            const maxJourney = 3920 * 2; // Journey distance to reach minimum size (doubled for half speed)
+            const journeyRatio = Math.min(1, journeyProgress / maxJourney);
+            
+            // Apply easing - quadratic ease-out (fast at first, slow at end)
+            const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
+            
+            const rawSize = 800 - (easedRatio * 796); // 800 down to 4 (doubled again from 400)
+            const sunSize = Math.max(4, rawSize);
+            
+            // Calculate morph progress between image and white star
+            // Start morphing when sun gets very small (between 8 and 4 pixels)
+            const morphStart = 8;
+            const morphEnd = 4;
+            let morphToWhite = 0;
+            if (sunSize <= morphStart) {
+                morphToWhite = (morphStart - sunSize) / (morphStart - morphEnd);
+                morphToWhite = Math.max(0, Math.min(1, morphToWhite)); // Clamp 0-1
+            }
+            
+            // Calculate distance progress for color transition
+            // Only transition to white when sun is VERY small (3-4 pixels)
+            // Stay yellow/orange until then
+            const transitionStart = 800; // Size where we start (full size - doubled to 800)
+            const transitionEnd = 4; // Size where transition completes (minimum size)
+            const colorTransitionStart = 4; // Only start color shift at 4 pixels!
+            
+            // Color stays orange/yellow until sun reaches 4 pixels, then transitions to white
+            let transitionProgress = 0;
+            if (sunSize <= colorTransitionStart) {
+                // Transition from 4 pixels to minimum
+                transitionProgress = 1.0; // Snap to white when at or below 4 pixels
+            }
+            
+            // Transition from orange to white as distance increases
+            // Close: orange/yellow, Far: pure white
+            const r = Math.floor(255);
+            const g = Math.floor(200 + (55 * transitionProgress)); // 200 -> 255
+            const b = Math.floor(100 * transitionProgress); // 0 -> 100 (slight blue tint when far)
+            
+            if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
+                // Draw sun image
+                starfieldCtx.save();
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                starfieldCtx.clip();
+                
+                starfieldCtx.drawImage(
+                    sunImage,
+                    centerX - sunSize,
+                    centerY - sunSize,
+                    sunSize * 2,
+                    sunSize * 2
+                );
+                
+                starfieldCtx.restore();
+                
+                // If we're in morph range, blend with white
+                if (morphToWhite > 0) {
+                    starfieldCtx.save();
+                    starfieldCtx.globalAlpha = morphToWhite;
+                    starfieldCtx.fillStyle = '#FFFFFF';
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    starfieldCtx.restore();
+                }
+                
+                // Outer glow - transitions from orange to white
+                const glowGradient = starfieldCtx.createRadialGradient(
+                    centerX, centerY, sunSize,
+                    centerX, centerY, sunSize * 1.8
+                );
+                const glowAlpha = 0.4 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5); // Fade glow as it morphs
+                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                
+                starfieldCtx.fillStyle = glowGradient;
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+                starfieldCtx.fill();
+            } else {
+                // When tiny, draw as bright white star
+                if (sunSize <= 4) {
+                    // Small bright star - pure white, only when truly tiny
+                    starfieldCtx.fillStyle = '#FFFFFF';
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    // Bright glow around the star
+                    const starGlow = starfieldCtx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, sunSize * 3
+                    );
+                    starGlow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                    starGlow.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
+                    starGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    
+                    starfieldCtx.fillStyle = starGlow;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(centerX, centerY, sunSize * 3, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                } else {
+                    // Medium size - procedural sun with color transition
+                    // Outer glow
+                    const glowGradient = starfieldCtx.createRadialGradient(
+                        centerX, centerY, sunSize,
+                        centerX, centerY, sunSize * 1.8
+                    );
+                    const glowAlpha = 0.6 * (1 - transitionProgress * 0.5);
+                    glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+                    glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                    
+                    starfieldCtx.fillStyle = glowGradient;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    // Sun body - gradient based on distance
+                    const bodyGradient = starfieldCtx.createRadialGradient(
+                        centerX - sunSize * 0.3, centerY - sunSize * 0.3, sunSize * 0.1,
+                        centerX, centerY, sunSize
+                    );
+                    
+                    // Color transitions from yellow/orange to white
+                    const centerR = 255;
+                    const centerG = Math.floor(250 - (transitionProgress * 5)); // Bright yellow -> white
+                    const centerB = Math.floor(205 + (transitionProgress * 50)); // Yellow -> white
+                    
+                    bodyGradient.addColorStop(0, `rgb(${centerR}, ${centerG}, ${centerB})`);
+                    bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor(b * 0.5)})`);
+                    bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 0.95)}, ${Math.floor(g * 0.9)}, ${Math.floor(b * 0.3)})`);
+                    
+                    starfieldCtx.fillStyle = bodyGradient;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                }
+            }
+        }
         
-        // Log capture system - FIFO queue for copying console logs
-        // Press CTRL+D to copy all captured logs to clipboard
+        function drawPlanet(planet, position) {
+            const x = centerX + position.x;
+            const y = centerY + position.y;
+            
+            // Try to use loaded image first
+            if (planetImages[planet.name]) {
+                const img = planetImages[planet.name];
+                
+                // Draw image as a circle
+                starfieldCtx.save();
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                starfieldCtx.clip();
+                
+                // Draw the image to fill the circle
+                starfieldCtx.drawImage(
+                    img,
+                    x - planet.size,
+                    y - planet.size,
+                    planet.size * 2,
+                    planet.size * 2
+                );
+                
+                starfieldCtx.restore();
+                
+                // Add subtle shading for 3D effect
+                const shadingGradient = starfieldCtx.createRadialGradient(
+                    x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
+                    x, y, planet.size
+                );
+                shadingGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+                shadingGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0)');
+                shadingGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+                
+                starfieldCtx.fillStyle = shadingGradient;
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                starfieldCtx.fill();
+            } else {
+                // Fallback to procedural rendering
+                // Special rendering for Earth - simple blue with green/white
+                if (planet.name === 'Earth') {
+                    // Base ocean sphere
+                    const earthGradient = starfieldCtx.createRadialGradient(
+                        x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
+                        x, y, planet.size
+                    );
+                    earthGradient.addColorStop(0, '#87CEEB'); // Sky blue
+                    earthGradient.addColorStop(0.7, '#4169E1'); // Royal blue
+                    earthGradient.addColorStop(1, '#191970'); // Midnight blue
+                    starfieldCtx.fillStyle = earthGradient;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    // Simple land masses
+                    starfieldCtx.fillStyle = '#228B22';
+                    starfieldCtx.globalAlpha = 1.0;
+                    
+                    starfieldCtx.beginPath();
+                    starfieldCtx.ellipse(x + planet.size * 0.2, y - planet.size * 0.1, planet.size * 0.35, planet.size * 0.25, 0.5, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    starfieldCtx.beginPath();
+                    starfieldCtx.ellipse(x - planet.size * 0.3, y + planet.size * 0.2, planet.size * 0.2, planet.size * 0.15, -0.3, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    // Ice caps
+                    starfieldCtx.fillStyle = '#FFFFFF';
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(x, y - planet.size * 0.75, planet.size * 0.25, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(x + planet.size * 0.4, y - planet.size * 0.25, planet.size * 0.15, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    starfieldCtx.globalAlpha = 1.0;
+                } else {
+                    // Standard gradient rendering
+                    const bodyGradient = starfieldCtx.createRadialGradient(
+                        x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
+                        x, y, planet.size
+                    );
+                    
+                    bodyGradient.addColorStop(0, lightenColor(planet.color, 40));
+                    bodyGradient.addColorStop(0.5, planet.color);
+                    bodyGradient.addColorStop(1, darkenColor(planet.color, 40));
+                    
+                    starfieldCtx.fillStyle = bodyGradient;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                }
+            }
+            
+            // Saturn's rings (always drawn procedurally)
+            if (planet.hasRings) {
+                starfieldCtx.globalAlpha = 1.0;
+                starfieldCtx.strokeStyle = '#D4A76A';
+                starfieldCtx.lineWidth = planet.size * 0.15;
+                starfieldCtx.beginPath();
+                starfieldCtx.ellipse(x, y, planet.size * 1.8, planet.size * 0.4, 0, 0, Math.PI * 2);
+                starfieldCtx.stroke();
+                
+                starfieldCtx.strokeStyle = '#8B7355';
+                starfieldCtx.lineWidth = planet.size * 0.08;
+                starfieldCtx.beginPath();
+                starfieldCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
+                starfieldCtx.stroke();
+                starfieldCtx.globalAlpha = 1.0;
+            }
+        }
+        
+        // Generate random asteroids for the belt
+        function generateAsteroids() {
+            asteroids = [];
+            const numAsteroids = 120; // Increased for dense asteroid belt effect
+            
+            for (let i = 0; i < numAsteroids; i++) {
+                // Random size - mix of large, medium, and small
+                const sizeCategory = Math.random();
+                let baseSize;
+                if (sizeCategory < 0.1) baseSize = 40 + Math.random() * 40; // 10% very large
+                else if (sizeCategory < 0.3) baseSize = 20 + Math.random() * 20; // 20% large
+                else if (sizeCategory < 0.6) baseSize = 10 + Math.random() * 10; // 30% medium
+                else baseSize = 3 + Math.random() * 7; // 40% small
+                
+                // Vertical spread across screen
+                const startY = (Math.random() - 0.5) * starfieldCanvas.height * 1.5;
+                
+                // Stagger start positions for continuous flow
+                // In reverse mode, start on left; normal mode, start on right
+                const startX = cameraReversed 
+                    ? -starfieldCanvas.width * 0.6 - (Math.random() * starfieldCanvas.width * 2)
+                    : starfieldCanvas.width * 0.6 + (Math.random() * starfieldCanvas.width * 2);
+                
+                // Random rotation and speed
+                const rotation = Math.random() * Math.PI * 2;
+                const rotationSpeed = (Math.random() - 0.5) * 0.02;
+                const speed = 2 + Math.random() * 3; // Horizontal speed
+                
+                // Create irregular shape (8-10 points for simpler, chunkier look)
+                const numPoints = 8 + Math.floor(Math.random() * 3);
+                const shape = [];
+                for (let j = 0; j < numPoints; j++) {
+                    const angle = (j / numPoints) * Math.PI * 2;
+                    const radius = baseSize * (0.7 + Math.random() * 0.3); // Less variation for smoother outline
+                    shape.push({ angle, radius });
+                }
+                
+                // Gray-brown colors like the reference image
+                const colorChoices = [
+                    '#8B8680', '#A8A39D', '#756F68', '#9B9489', '#6B6560',
+                    '#8C8273', '#A39E93', '#7A7568', '#918B7F', '#6E6962'
+                ];
+                const color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+                
+                asteroids.push({
+                    x: startX,
+                    y: startY,
+                    baseSize,
+                    rotation,
+                    rotationSpeed,
+                    speed,
+                    shape,
+                    color,
+                    depth: Math.random() // For parallax
+                });
+            }
+        }
+        
+        function drawAsteroid(asteroid, scale) {
+            const size = asteroid.baseSize * scale;
+            if (size < 0.5) return; // Too small to render
+            
+            starfieldCtx.save();
+            starfieldCtx.translate(centerX + asteroid.x, centerY + asteroid.y);
+            starfieldCtx.rotate(asteroid.rotation);
+            
+            // Draw irregular asteroid shape with moderate rounding
+            starfieldCtx.beginPath();
+            
+            for (let i = 0; i < asteroid.shape.length; i++) {
+                const prevPoint = asteroid.shape[(i - 1 + asteroid.shape.length) % asteroid.shape.length];
+                const currentPoint = asteroid.shape[i];
+                const nextPoint = asteroid.shape[(i + 1) % asteroid.shape.length];
+                
+                const prevX = Math.cos(prevPoint.angle) * prevPoint.radius * scale;
+                const prevY = Math.sin(prevPoint.angle) * prevPoint.radius * scale;
+                const currentX = Math.cos(currentPoint.angle) * currentPoint.radius * scale;
+                const currentY = Math.sin(currentPoint.angle) * currentPoint.radius * scale;
+                const nextX = Math.cos(nextPoint.angle) * nextPoint.radius * scale;
+                const nextY = Math.sin(nextPoint.angle) * nextPoint.radius * scale;
+                
+                // Calculate positions along edges
+                const t = 0.35; // How far from vertex to start curve (0.35 = 35% from vertex)
+                
+                if (i === 0) {
+                    // Start position
+                    const startX = prevX * t + currentX * (1 - t);
+                    const startY = prevY * t + currentY * (1 - t);
+                    starfieldCtx.moveTo(startX, startY);
+                }
+                
+                // End position for this curve
+                const endX = currentX * (1 - t) + nextX * t;
+                const endY = currentY * (1 - t) + nextY * t;
+                
+                // Draw curve through the vertex point
+                starfieldCtx.quadraticCurveTo(currentX, currentY, endX, endY);
+            }
+            
+            starfieldCtx.closePath();
+            
+            // Draw multiple layers of the asteroid shape at different scales and colors
+            // This creates a gradient that follows the irregular shape
+            const layers = 16; // More layers = smoother gradient
+            
+            for (let layer = layers; layer >= 0; layer--) {
+                const layerProgress = layer / layers;
+                const layerScale = 0.3 + (layerProgress * 0.7); // Scale from 30% to 100%
+                const offsetX = -size * 0.2 * (1 - layerProgress);
+                const offsetY = -size * 0.2 * (1 - layerProgress);
+                
+                starfieldCtx.beginPath();
+                for (let i = 0; i < asteroid.shape.length; i++) {
+                    const prevPoint = asteroid.shape[(i - 1 + asteroid.shape.length) % asteroid.shape.length];
+                    const currentPoint = asteroid.shape[i];
+                    const nextPoint = asteroid.shape[(i + 1) % asteroid.shape.length];
+                    
+                    const prevX = Math.cos(prevPoint.angle) * prevPoint.radius * scale * layerScale + offsetX;
+                    const prevY = Math.sin(prevPoint.angle) * prevPoint.radius * scale * layerScale + offsetY;
+                    const currentX = Math.cos(currentPoint.angle) * currentPoint.radius * scale * layerScale + offsetX;
+                    const currentY = Math.sin(currentPoint.angle) * currentPoint.radius * scale * layerScale + offsetY;
+                    const nextX = Math.cos(nextPoint.angle) * nextPoint.radius * scale * layerScale + offsetX;
+                    const nextY = Math.sin(nextPoint.angle) * nextPoint.radius * scale * layerScale + offsetY;
+                    
+                    const t = 0.35;
+                    
+                    if (i === 0) {
+                        const startX = prevX * t + currentX * (1 - t);
+                        const startY = prevY * t + currentY * (1 - t);
+                        starfieldCtx.moveTo(startX, startY);
+                    }
+                    
+                    const endX = currentX * (1 - t) + nextX * t;
+                    const endY = currentY * (1 - t) + nextY * t;
+                    
+                    starfieldCtx.quadraticCurveTo(currentX, currentY, endX, endY);
+                }
+                starfieldCtx.closePath();
+                
+                // Smaller range - from medium-light (center) to darker (edges)
+                const r = Math.round(125 - layerProgress * 50); // 125 to 75
+                const g = Math.round(120 - layerProgress * 49); // 120 to 71
+                const b = Math.round(115 - layerProgress * 48); // 115 to 67
+                
+                starfieldCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                starfieldCtx.fill();
+            }
+            
+            // Add subtle edge highlight
+            starfieldCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            starfieldCtx.lineWidth = 0.5;
+            starfieldCtx.stroke();
+            
+            starfieldCtx.restore();
+        }
+        
+        // Helper functions for planet shading
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+        
+        function darkenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max(0, (num >> 16) - amt);
+            const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
+            const B = Math.max(0, (num & 0x0000FF) - amt);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+        
         function animateStarfield() {
             starfieldCtx.fillStyle = '#000';
             starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
