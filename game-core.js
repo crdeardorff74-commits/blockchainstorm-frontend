@@ -387,3 +387,8 @@ if (startOverlay) {
         }
     }, { once: true });
 }
+// Export functions to global scope
+window.startGame = startGame;
+window.hardDrop = hardDrop;
+window.updateCanvasSize = updateCanvasSize;
+window.drawBoard = drawBoard;
