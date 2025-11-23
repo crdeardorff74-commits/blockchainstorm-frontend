@@ -5348,9 +5348,6 @@
             ctx.restore();
         }
 
-        // Sound effects using Web Audio API
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
         let board = [];
         let isRandomBlock = []; // Track which blocks are random hailstorm blocks
         let isLatticeBlock = []; // Track which blocks are pre-filled lattice blocks (immune to gravity until absorbed)
