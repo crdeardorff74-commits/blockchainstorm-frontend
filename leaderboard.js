@@ -233,58 +233,69 @@ async function checkIfTopTen(difficulty, score) {
 // Prompt for player name when they get a high score
 function promptForName(scoreData) {
     console.log('promptForName called with score:', scoreData.score);
+    const overlay = document.getElementById('nameEntryOverlay');
+    const input = document.getElementById('nameEntryInput');
+    const scoreDisplay = document.getElementById('nameEntryScore');
+    const submitBtn = document.getElementById('nameEntrySubmit');
     
-    lastScoreData = scoreData;
-    
-    const rulesPanel = document.querySelector('.rules-panel');
-    rulesPanel.style.display = 'none';
-    
-    let promptContainer = document.getElementById('namePromptDisplay');
-    if (!promptContainer) {
-        promptContainer = document.createElement('div');
-        promptContainer.id = 'namePromptDisplay';
-        promptContainer.className = 'rules-panel';
-        rulesPanel.parentNode.insertBefore(promptContainer, rulesPanel);
+    if (!overlay || !input || !scoreDisplay || !submitBtn) {
+        console.error('Name entry modal elements not found!', {
+            overlay: !!overlay,
+            input: !!input,
+            scoreDisplay: !!scoreDisplay,
+            submitBtn: !!submitBtn
+        });
+        return;
     }
     
-    promptContainer.style.display = 'block';
+    // Store score data for later submission
+    lastScoreData = scoreData;
     
-    promptContainer.innerHTML = `
-        <div class="name-prompt-container">
-            <div class="leaderboard-title">🎉 HIGH SCORE! 🎉</div>
-            <div class="high-score-message">
-                You scored <strong>₿${(scoreData.score / 10000000).toFixed(4)}</strong>
-                <br>
-                That's a <strong>TOP 10</strong> score!
-            </div>
-            <div class="name-input-section">
-                <label for="playerNameInput">Enter your name:</label>
-                <input type="text" 
-                       id="playerNameInput" 
-                       maxlength="20" 
-                       placeholder="Your Name"
-                       autocomplete="off"
-                       spellcheck="false">
-                <button id="submitNameBtn" class="submit-name-btn">Submit Score</button>
-            </div>
-            <div class="skip-section">
-                <button id="skipNameBtn" class="skip-name-btn">Skip (Anonymous)</button>
-            </div>
-        </div>
-    `;
+    // Display the score
+    scoreDisplay.textContent = formatAsBitcoin(scoreData.score);
     
-    const nameInput = document.getElementById('playerNameInput');
-    const submitBtn = document.getElementById('submitNameBtn');
-    const skipBtn = document.getElementById('skipNameBtn');
+    // Hide the game over div to prevent overlap
+    const gameOverDiv = document.getElementById('gameOver');
+    if (gameOverDiv) {
+        gameOverDiv.style.display = 'none';
+    }
     
-    nameInput.focus();
+    // Show overlay with explicit styling to ensure visibility
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '10000';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
     
-    const submitScore = async () => {
-        const username = nameInput.value.trim() || 'Anonymous';
+    // Make sure the popup itself is visible
+    const popup = overlay.querySelector('.name-entry-popup');
+    if (popup) {
+        popup.style.display = 'block';
+    }
+    
+    console.log('Name entry overlay shown');
+    
+    // Clear any previous input
+    input.value = '';
+    input.focus();
+    
+    // Remove any existing event listeners by cloning the button
+    const newSubmitBtn = submitBtn.cloneNode(true);
+    submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+    
+    // Add submit handler
+    const handleSubmit = async () => {
+        const username = input.value.trim() || 'Anonymous';
         console.log('Submitting score with username:', username);
         
-        promptContainer.innerHTML = '<div class="leaderboard-loading">Submitting score...</div>';
+        // Hide the overlay
+        overlay.style.display = 'none';
         
+        // Save to local leaderboard
         const localScores = await fetchLeaderboard(scoreData.difficulty);
         
         const newEntry = {
@@ -305,6 +316,7 @@ function promptForName(scoreData) {
         saveLocalLeaderboard(scoreData.difficulty, updatedScores);
         console.log('Score saved to local leaderboard');
         
+        // Try to submit to server
         try {
             const dataToSubmit = {
                 ...scoreData,
@@ -329,16 +341,16 @@ function promptForName(scoreData) {
             console.error('Error submitting score to server (but saved locally):', error);
         }
         
+        // Display leaderboard with player's score highlighted
         await displayLeaderboard(scoreData.difficulty, scoreData.score);
     };
     
-    submitBtn.addEventListener('click', submitScore);
-    skipBtn.addEventListener('click', () => submitScore());
+    newSubmitBtn.addEventListener('click', handleSubmit);
     
-    nameInput.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            submitScore();
+            handleSubmit();
         }
     });
 }
@@ -447,6 +459,12 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Format score as Bitcoin
+function formatAsBitcoin(points) {
+    const btc = points / 10000000;
+    return '₿' + btc.toFixed(4);
 }
 
 // Initialize auth check on load
