@@ -149,3 +149,5 @@ const GameState = {
         this.disintegrationParticles = [];
     }
 };
+// Export to global scope
+window.GameState = GameState;
