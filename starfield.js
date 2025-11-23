@@ -11,6 +11,14 @@
         const maxDepth = 1000;
         let centerX, centerY;
         
+        // Variables that will be set by other modules
+        let cameraReversed = false;
+        let planetAnimations = {};
+        let asteroidBeltActive = false;
+        let asteroidBeltProgress = 0;
+        let asteroidBeltShown = false;
+        let asteroids = [];
+        
         // UFO animation state for 42 lines easter egg
         let ufoActive = false;
         let ufoX = 0;
@@ -127,6 +135,7 @@
         let currentGameLevel = 1; // Track current game level
         let journeyProgress = 0; // Distance traveled from sun
         let gameRunning = false; // Will be set by game
+        let paused = false; // Will be set by game
         
         function createStar() {
             return {
@@ -835,3 +844,13 @@
         }
         
         animateStarfield();
+        
+        // Placeholder functions - these should be defined in game-core.js or UI module
+        function showPlanetStats(planet) {
+            // This will be overridden by the actual implementation
+            console.log('Planet stats:', planet.name);
+        }
+        
+        function hidePlanetStats() {
+            // This will be overridden by the actual implementation
+        }
