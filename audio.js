@@ -1,8 +1,9 @@
 // Audio System Module for BLOCKCHaiNSTORM
 // Handles all sound effects, music, and audio context management
 
-// Initialize Web Audio API
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+(function() {
+    // Initialize Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 // Music system state
 let musicPlaying = false;
@@ -1018,14 +1019,15 @@ function playSoundEffect(effect, soundToggle) {
     }
 }
 
-// Export all public functions for use in main game
-window.AudioSystem = {
-    audioContext,
-    startMusic,
-    stopMusic,
-    startMenuMusic,
-    stopMenuMusic,
-    playSoundEffect,
-    playEnhancedThunder,
-    playThunder
-};
+    // Export all public functions for use in main game
+    window.AudioSystem = {
+        audioContext,
+        startMusic,
+        stopMusic,
+        startMenuMusic,
+        stopMenuMusic,
+        playSoundEffect,
+        playEnhancedThunder,
+        playThunder
+    };
+})(); // End IIFE
