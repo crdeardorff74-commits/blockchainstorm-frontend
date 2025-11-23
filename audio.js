@@ -197,3 +197,6 @@ const AudioSystem = {
         oscillator.stop(audioContext.currentTime + 0.15);
     }
 };
+// Export to global scope for cross-module access
+window.AudioSystem = AudioSystem;
+window.audioContext = audioContext;
