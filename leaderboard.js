@@ -275,16 +275,29 @@ function promptForName(scoreData) {
     scoreDisplay.textContent = formatAsBitcoin(scoreData.score);
     console.log('Score display updated to:', scoreDisplay.textContent);
     
-    // Hide the game over div to prevent overlap
+    // CRITICAL: Hide the game over div FIRST to prevent overlap
     const gameOverDiv = document.getElementById('gameOver');
     if (gameOverDiv) {
         gameOverDiv.style.display = 'none';
         console.log('Game over div hidden');
     }
     
-    // Show overlay
+    // Show overlay with maximum priority
     console.log('Setting overlay to display: flex');
     overlay.style.display = 'flex';
+    
+    // Force a reflow to ensure the style is applied
+    overlay.offsetHeight;
+    
+    // Double-check the overlay is visible
+    setTimeout(() => {
+        console.log('Overlay display style after timeout:', overlay.style.display);
+        console.log('Overlay computed style after timeout:', window.getComputedStyle(overlay).display);
+        if (overlay.style.display !== 'flex') {
+            console.error('❌ WARNING: Overlay display changed unexpectedly! Forcing back to flex');
+            overlay.style.display = 'flex';
+        }
+    }, 100);
     
     console.log('Overlay display style is now:', overlay.style.display);
     console.log('Overlay computed style:', window.getComputedStyle(overlay).display);
@@ -293,8 +306,14 @@ function promptForName(scoreData) {
     
     // Clear any previous input
     input.value = '';
-    input.focus();
-    console.log('Input cleared and focused');
+    
+    // Focus after a slight delay to ensure visibility
+    setTimeout(() => {
+        input.focus();
+        console.log('Input focused');
+    }, 150);
+    
+    console.log('Input cleared and will be focused');
     
     // Remove any existing event listeners by cloning the button
     const newSubmitBtn = submitBtn.cloneNode(true);
