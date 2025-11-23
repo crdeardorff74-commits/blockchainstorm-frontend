@@ -1,7 +1,47 @@
-// Storm Effects System
-const StormEffects = {
-    createStormParticle() {
-        const canvas = document.getElementById('gameCanvas');
+// Storm Particle System Module
+// Handles weather effects for different game modes
+
+const StormEffects = (() => {
+    // Storm particle arrays
+    let stormParticles = [];
+    let splashParticles = [];
+    const MAX_STORM_PARTICLES = 800;
+    
+    // Settings reference (will be set by init)
+    let stormEffectsToggle = null;
+    let soundToggle = null;
+    let audioContext = null;
+    let gameMode = null;
+    let gameRunning = false;
+    let paused = false;
+    let canvas = null;
+    let ctx = null;
+    let BLOCK_SIZE = 35;
+    let ROWS = 20;
+    let COLS = 10;
+    let board = null;
+    let isRandomBlock = null;
+    
+    function init(config) {
+        stormEffectsToggle = config.stormEffectsToggle;
+        soundToggle = config.soundToggle;
+        audioContext = config.audioContext;
+        canvas = config.canvas;
+        ctx = config.ctx;
+        board = config.board;
+        isRandomBlock = config.isRandomBlock;
+    }
+    
+    function updateGameState(state) {
+        gameMode = state.gameMode;
+        gameRunning = state.gameRunning;
+        paused = state.paused;
+        BLOCK_SIZE = state.BLOCK_SIZE;
+        ROWS = state.ROWS;
+        COLS = state.COLS;
+    }
+    
+    function createStormParticle() {
         const particle = {
             x: Math.random() * canvas.width,
             y: -10,
@@ -15,21 +55,21 @@ const StormEffects = {
             color: 'rgba(255, 255, 255, 0.7)'
         };
         
-        if (!GameState.gameMode || GameState.gameMode === 'drizzle') {
+        if (!gameMode || gameMode === 'drizzle') {
             particle.type = 'rain';
             particle.vx = 0;
             particle.vy = Math.random() * 3 + 5;
             particle.size = Math.random() * 1 + 1;
             particle.opacity = Math.random() * 0.3 + 0.2;
             particle.color = `rgba(180, 200, 255, ${particle.opacity})`;
-        } else if (GameState.gameMode === 'downpour') {
+        } else if (gameMode === 'downpour') {
             particle.type = 'rain';
             particle.vx = 0;
             particle.vy = Math.random() * 6 + 12;
             particle.size = Math.random() * 1.5 + 1.5;
             particle.opacity = Math.random() * 0.4 + 0.3;
             particle.color = `rgba(180, 200, 255, ${particle.opacity})`;
-        } else if (GameState.gameMode === 'hailstorm') {
+        } else if (gameMode === 'hailstorm') {
             particle.type = 'hail';
             particle.vx = 0;
             particle.vy = Math.random() * 6 + 12;
@@ -38,9 +78,8 @@ const StormEffects = {
             particle.rotation = Math.random() * Math.PI * 2;
             particle.rotationSpeed = (Math.random() - 0.5) * 0.3;
             particle.color = `rgba(200, 230, 255, ${particle.opacity})`;
-        } else if (GameState.gameMode === 'blizzard') {
+        } else if (gameMode === 'blizzard') {
             particle.type = 'blizzard';
-            
             if (Math.random() < 0.7) {
                 particle.x = -20;
                 particle.y = Math.random() * canvas.height;
@@ -48,7 +87,6 @@ const StormEffects = {
                 particle.x = Math.random() * canvas.width;
                 particle.y = -20;
             }
-            
             particle.vx = Math.random() * 7 + 9;
             particle.vy = Math.random() * 4 + 2;
             particle.size = Math.random() * 3.5 + 1.5;
@@ -56,9 +94,8 @@ const StormEffects = {
             particle.rotation = Math.random() * Math.PI * 2;
             particle.rotationSpeed = (Math.random() - 0.5) * 0.12;
             particle.color = `rgba(240, 248, 255, ${particle.opacity})`;
-        } else if (GameState.gameMode === 'hurricane') {
+        } else if (gameMode === 'hurricane') {
             particle.type = 'hurricane';
-            
             if (Math.random() < 0.8) {
                 particle.x = -20;
                 particle.y = Math.random() * canvas.height;
@@ -66,7 +103,6 @@ const StormEffects = {
                 particle.x = Math.random() * (canvas.width * 0.3);
                 particle.y = -20;
             }
-            
             particle.vx = Math.random() * 16 + 28;
             particle.vy = Math.random() * 1 + 0.5;
             particle.size = Math.random() * 2.5 + 1.5;
@@ -75,14 +111,14 @@ const StormEffects = {
         }
         
         return particle;
-    },
+    }
     
-    createSplash(x, y, size) {
+    function createSplash(x, y, size) {
         const numDroplets = Math.floor(Math.random() * 3) + 3;
         for (let i = 0; i < numDroplets; i++) {
             const angle = Math.random() * Math.PI - Math.PI / 2;
             const speed = Math.random() * 2 + 1;
-            GameState.splashParticles.push({
+            splashParticles.push({
                 x: x,
                 y: y,
                 vx: Math.cos(angle) * speed,
@@ -94,28 +130,27 @@ const StormEffects = {
                 maxLife: 15
             });
         }
-    },
+    }
     
-    checkCollisionWithBlocks(x, y) {
-        const canvas = document.getElementById('gameCanvas');
-        const gridX = Math.floor(x / GameState.BLOCK_SIZE);
-        const gridY = Math.floor(y / GameState.BLOCK_SIZE);
+    function checkCollisionWithBlocks(x, y) {
+        const gridX = Math.floor(x / BLOCK_SIZE);
+        const gridY = Math.floor(y / BLOCK_SIZE);
         
         if (y >= canvas.height) {
             return { collision: true, y: canvas.height };
         }
         
-        const nextGridY = Math.floor((y + GameState.BLOCK_SIZE * 0.1) / GameState.BLOCK_SIZE);
-        if (nextGridY >= 0 && nextGridY < GameState.ROWS && gridX >= 0 && gridX < GameState.COLS) {
-            if (GameState.board[nextGridY] && GameState.board[nextGridY][gridX]) {
-                return { collision: true, y: nextGridY * GameState.BLOCK_SIZE };
+        const nextGridY = Math.floor((y + BLOCK_SIZE * 0.1) / BLOCK_SIZE);
+        if (nextGridY >= 0 && nextGridY < ROWS && gridX >= 0 && gridX < COLS) {
+            if (board[nextGridY] && board[nextGridY][gridX]) {
+                return { collision: true, y: nextGridY * BLOCK_SIZE };
             }
         }
         
         return { collision: false };
-    },
+    }
     
-    createHailBounce(x, y, size, vy) {
+    function createHailBounce(x, y, size, vy) {
         return {
             x: x,
             y: y,
@@ -132,38 +167,56 @@ const StormEffects = {
             life: 60,
             color: `rgba(220, 240, 255, 0.8)`
         };
-    },
+    }
     
-    updateStormParticles() {
-        const stormEffectsToggle = document.getElementById('stormEffectsToggle');
+    function playBloopSound() {
+        if (!soundToggle.checked) return;
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.15);
+        
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+    }
+    
+    function update() {
         if (!stormEffectsToggle.checked) {
-            GameState.stormParticles = [];
-            GameState.splashParticles = [];
+            stormParticles = [];
+            splashParticles = [];
             return;
         }
         
-        const canvas = document.getElementById('gameCanvas');
-        
-        if (GameState.stormParticles.length < GameState.MAX_STORM_PARTICLES && GameState.gameRunning && !GameState.paused) {
+        if (stormParticles.length < MAX_STORM_PARTICLES && gameRunning && !paused) {
             let spawnChance = 0.3;
-            if (GameState.gameMode === 'downpour') spawnChance = 2.0;
-            else if (GameState.gameMode === 'hailstorm') spawnChance = 0.4;
-            else if (GameState.gameMode === 'blizzard') spawnChance = 19.2;
-            else if (GameState.gameMode === 'hurricane') spawnChance = 30.0;
+            if (gameMode === 'downpour') spawnChance = 2.0;
+            else if (gameMode === 'hailstorm') spawnChance = 0.4;
+            else if (gameMode === 'blizzard') spawnChance = 19.2;
+            else if (gameMode === 'hurricane') spawnChance = 30.0;
             
             const numToSpawn = Math.floor(spawnChance);
             const fractionalChance = spawnChance - numToSpawn;
             
             for (let i = 0; i < numToSpawn; i++) {
-                GameState.stormParticles.push(this.createStormParticle());
+                stormParticles.push(createStormParticle());
             }
             
             if (Math.random() < fractionalChance) {
-                GameState.stormParticles.push(this.createStormParticle());
+                stormParticles.push(createStormParticle());
             }
         }
         
-        GameState.stormParticles = GameState.stormParticles.filter(particle => {
+        stormParticles = stormParticles.filter(particle => {
             particle.x += particle.vx;
             particle.y += particle.vy;
             
@@ -171,18 +224,18 @@ const StormEffects = {
                 particle.rotation += particle.rotationSpeed;
             }
             
-            if (particle.type === 'rain' && GameState.gameMode === 'downpour') {
-                const collision = this.checkCollisionWithBlocks(particle.x, particle.y);
+            if (particle.type === 'rain' && gameMode === 'downpour') {
+                const collision = checkCollisionWithBlocks(particle.x, particle.y);
                 if (collision.collision) {
-                    this.createSplash(particle.x, collision.y, particle.size);
+                    createSplash(particle.x, collision.y, particle.size);
                     return false;
                 }
             }
             
             if (particle.type === 'hail') {
-                const collision = this.checkCollisionWithBlocks(particle.x, particle.y);
+                const collision = checkCollisionWithBlocks(particle.x, particle.y);
                 if (collision.collision) {
-                    GameState.splashParticles.push(this.createHailBounce(particle.x, collision.y, particle.size, particle.vy));
+                    splashParticles.push(createHailBounce(particle.x, collision.y, particle.size, particle.vy));
                     return false;
                 }
             }
@@ -190,7 +243,7 @@ const StormEffects = {
             return particle.y < canvas.height + 20 && particle.x > -20 && particle.x < canvas.width + 20;
         });
         
-        GameState.splashParticles = GameState.splashParticles.filter(splash => {
+        splashParticles = splashParticles.filter(splash => {
             splash.x += splash.vx;
             splash.y += splash.vy;
             splash.vy += splash.gravity;
@@ -200,7 +253,7 @@ const StormEffects = {
                 splash.life--;
                 
                 if (splash.vy > 0) {
-                    const collision = this.checkCollisionWithBlocks(splash.x, splash.y);
+                    const collision = checkCollisionWithBlocks(splash.x, splash.y);
                     if (collision.collision && splash.bounces < splash.maxBounces) {
                         splash.vy = -Math.abs(splash.vy) * 0.4;
                         splash.y = collision.y;
@@ -215,16 +268,14 @@ const StormEffects = {
                 return splash.life > 0;
             }
         });
-    },
+    }
     
-    drawStormParticles(ctx, canvas, gameState) {
-        const stormEffectsToggle = document.getElementById('stormEffectsToggle');
-        if (!stormEffectsToggle.checked || (gameState.stormParticles.length === 0 && gameState.splashParticles.length === 0)) return;
+    function draw() {
+        if (!stormEffectsToggle.checked || (stormParticles.length === 0 && splashParticles.length === 0)) return;
         
         ctx.save();
         
-        // Draw main storm particles
-        gameState.stormParticles.forEach(particle => {
+        stormParticles.forEach(particle => {
             ctx.globalAlpha = particle.opacity;
             
             if (particle.type === 'rain') {
@@ -294,8 +345,7 @@ const StormEffects = {
             }
         });
         
-        // Draw splash particles
-        gameState.splashParticles.forEach(splash => {
+        splashParticles.forEach(splash => {
             ctx.globalAlpha = splash.opacity;
             
             if (splash.type === 'bouncing') {
@@ -337,4 +387,17 @@ const StormEffects = {
         
         ctx.restore();
     }
-};
+    
+    function reset() {
+        stormParticles = [];
+        splashParticles = [];
+    }
+    
+    return {
+        init,
+        updateGameState,
+        update,
+        draw,
+        reset
+    };
+})();
