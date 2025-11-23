@@ -282,30 +282,12 @@ function promptForName(scoreData) {
         console.log('Game over div hidden');
     }
     
-    // Show overlay with explicit styling
+    // Show overlay
     console.log('Setting overlay to display: flex');
     overlay.style.display = 'flex';
-    overlay.style.zIndex = '10000';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.background = 'rgba(0, 0, 0, 0.85)';
     
     console.log('Overlay display style is now:', overlay.style.display);
     console.log('Overlay computed style:', window.getComputedStyle(overlay).display);
-    
-    // Make sure the popup itself is visible
-    const popup = overlay.querySelector('.name-entry-popup');
-    if (popup) {
-        popup.style.display = 'block';
-        console.log('Popup display set to block');
-    } else {
-        console.error('❌ Could not find .name-entry-popup inside overlay!');
-    }
     
     console.log('✅ Name entry overlay should now be visible');
     
