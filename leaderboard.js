@@ -232,15 +232,33 @@ async function checkIfTopTen(difficulty, score) {
 
 // Prompt for player name when they get a high score
 function promptForName(scoreData) {
-    console.log('promptForName called with score:', scoreData.score);
+    console.log('=== promptForName START ===');
+    console.log('Score:', scoreData.score);
+    console.log('Difficulty:', scoreData.difficulty);
+    
+    // Get elements
     const overlay = document.getElementById('nameEntryOverlay');
     const input = document.getElementById('nameEntryInput');
     const scoreDisplay = document.getElementById('nameEntryScore');
     const submitBtn = document.getElementById('nameEntrySubmit');
     
-    if (!overlay || !input || !scoreDisplay || !submitBtn) {
-        console.error('Name entry modal elements not found!', {
-            overlay: !!overlay,
+    console.log('Element lookup results:', {
+        overlay: !!overlay,
+        input: !!input,
+        scoreDisplay: !!scoreDisplay,
+        submitBtn: !!submitBtn
+    });
+    
+    if (!overlay) {
+        console.error('❌ CRITICAL: nameEntryOverlay element not found!');
+        console.log('Checking DOM for all elements with IDs...');
+        const allIds = Array.from(document.querySelectorAll('[id]')).map(el => el.id);
+        console.log('All IDs in document:', allIds);
+        return;
+    }
+    
+    if (!input || !scoreDisplay || !submitBtn) {
+        console.error('❌ Missing required elements inside overlay!', {
             input: !!input,
             scoreDisplay: !!scoreDisplay,
             submitBtn: !!submitBtn
@@ -248,19 +266,24 @@ function promptForName(scoreData) {
         return;
     }
     
+    console.log('✅ All required elements found');
+    
     // Store score data for later submission
     lastScoreData = scoreData;
     
     // Display the score
     scoreDisplay.textContent = formatAsBitcoin(scoreData.score);
+    console.log('Score display updated to:', scoreDisplay.textContent);
     
     // Hide the game over div to prevent overlap
     const gameOverDiv = document.getElementById('gameOver');
     if (gameOverDiv) {
         gameOverDiv.style.display = 'none';
+        console.log('Game over div hidden');
     }
     
-    // Show overlay with explicit styling to ensure visibility
+    // Show overlay with explicit styling
+    console.log('Setting overlay to display: flex');
     overlay.style.display = 'flex';
     overlay.style.zIndex = '10000';
     overlay.style.position = 'fixed';
@@ -270,18 +293,26 @@ function promptForName(scoreData) {
     overlay.style.height = '100%';
     overlay.style.justifyContent = 'center';
     overlay.style.alignItems = 'center';
+    overlay.style.background = 'rgba(0, 0, 0, 0.85)';
+    
+    console.log('Overlay display style is now:', overlay.style.display);
+    console.log('Overlay computed style:', window.getComputedStyle(overlay).display);
     
     // Make sure the popup itself is visible
     const popup = overlay.querySelector('.name-entry-popup');
     if (popup) {
         popup.style.display = 'block';
+        console.log('Popup display set to block');
+    } else {
+        console.error('❌ Could not find .name-entry-popup inside overlay!');
     }
     
-    console.log('Name entry overlay shown');
+    console.log('✅ Name entry overlay should now be visible');
     
     // Clear any previous input
     input.value = '';
     input.focus();
+    console.log('Input cleared and focused');
     
     // Remove any existing event listeners by cloning the button
     const newSubmitBtn = submitBtn.cloneNode(true);
@@ -346,6 +377,7 @@ function promptForName(scoreData) {
     };
     
     newSubmitBtn.addEventListener('click', handleSubmit);
+    console.log('Submit button click handler attached');
     
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -353,6 +385,9 @@ function promptForName(scoreData) {
             handleSubmit();
         }
     });
+    console.log('Enter key handler attached to input');
+    
+    console.log('=== promptForName END ===');
 }
 
 // Keyboard navigation for leaderboards
