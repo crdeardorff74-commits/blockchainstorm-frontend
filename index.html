@@ -2075,4 +2075,2081 @@
 	<script src="game.js"></script>
 
 </body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLOCKCHaiNSTORM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            min-height: 100%;
+            z-index: 0;
+            display: block;
+            object-fit: fill;
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4vh 1vw 1vh 1vw;
+            position: relative;
+            z-index: 1;
+            height: 7vh;
+            box-sizing: border-box;
+        }
+        .title {
+            font-size: 3.5vh;
+            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            letter-spacing: 0.3vh;
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
+                    drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+        @keyframes titlePulse {
+            0%, 100% { 
+                filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
+                        drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            }
+            50% { 
+                filter: drop-shadow(0 0.3vh 0.6vh rgba(255, 215, 0, 0.8))
+                        drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            }
+        }
+        .content-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1vh 2vw; /* More horizontal padding */
+            position: relative;
+            z-index: 1;
+            height: calc(93vh - 7vh);
+            box-sizing: border-box;
+            width: 100%;
+            overflow: hidden; /* Prevent overflow */
+        }
+        .game-container {
+            display: flex;
+            justify-content: space-between; /* Space between panels */
+            align-items: flex-start;
+            gap: 2vw; /* Larger gap between panels */
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            max-height: 85vh;
+            width: 100%; /* Use full width */
+            max-width: 100%; /* Prevent overflow */
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        }
+        .main-area {
+            background: transparent;
+            padding: 0;
+            border-radius: 1vh;
+            position: relative;
+            height: 85vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center content vertically */
+            flex-shrink: 0; /* Prevent shrinking */
+            flex-grow: 1; /* Allow growing to take available space */
+            min-width: 0; /* Allow shrinking below content width */
+        }
+        canvas {
+            border: 0.3vh solid rgba(255, 255, 255, 0.5);
+            display: block;
+            background: transparent;
+            box-shadow: 0 0 2vh rgba(0, 0, 0, 0.5);
+            max-height: 85vh;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        canvas.tsunami-active {
+            border-color: gold;
+            box-shadow: 0 0 3vh rgba(255, 215, 0, 0.8), 0 0 1vh rgba(255, 215, 0, 0.6);
+            animation: tsunamiPulse 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes tsunamiPulse {
+            from {
+                box-shadow: 0 0 3vh rgba(255, 215, 0, 0.8), 0 0 1vh rgba(255, 215, 0, 0.6);
+            }
+            to {
+                box-shadow: 0 0 4vh rgba(255, 215, 0, 1), 0 0 2vh rgba(255, 215, 0, 0.8);
+            }
+        }
+        canvas.blackhole-active {
+            border-color: #8b00ff;
+            box-shadow: 0 0 3vh rgba(139, 0, 255, 0.9), 0 0 1.5vh rgba(75, 0, 130, 0.7);
+            animation: blackholePulse 0.4s ease-in-out infinite alternate;
+        }
+        @keyframes blackholePulse {
+            from {
+                box-shadow: 0 0 3vh rgba(139, 0, 255, 0.9), 0 0 1.5vh rgba(75, 0, 130, 0.7);
+            }
+            to {
+                box-shadow: 0 0 5vh rgba(139, 0, 255, 1), 0 0 3vh rgba(75, 0, 130, 0.9), inset 0 0 2vh rgba(139, 0, 255, 0.5);
+            }
+        }
+        canvas.touchdown-active {
+            border-color: #00ff00;
+            box-shadow: 0 0 3vh rgba(0, 255, 0, 0.9), 0 0 2vh rgba(0, 200, 0, 0.7);
+            animation: touchdownPulse 0.3s ease-in-out infinite alternate;
+        }
+        @keyframes touchdownPulse {
+            from {
+                box-shadow: 0 0 3vh rgba(0, 255, 0, 0.9), 0 0 2vh rgba(0, 200, 0, 0.7);
+            }
+            to {
+                box-shadow: 0 0 6vh rgba(0, 255, 0, 1), 0 0 4vh rgba(0, 200, 0, 0.9), inset 0 0 2vh rgba(0, 255, 0, 0.5);
+            }
+        }
+        
+        /* Nervous mode shake animation */
+        @keyframes nervousShake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-0.5vh, 0.3vh); }
+            20% { transform: translate(0.6vh, -0.4vh); }
+            30% { transform: translate(-0.4vh, 0.6vh); }
+            40% { transform: translate(0.5vh, -0.3vh); }
+            50% { transform: translate(-0.6vh, 0.4vh); }
+            60% { transform: translate(0.3vh, -0.6vh); }
+            70% { transform: translate(-0.4vh, 0.3vh); }
+            80% { transform: translate(0.6vh, -0.5vh); }
+            90% { transform: translate(-0.3vh, 0.5vh); }
+        }
+        
+        @keyframes nervousShakeLongAgo {
+            0%, 100% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(0, 0); }
+            10% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(-0.5vh, 0.3vh); }
+            20% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(0.6vh, -0.4vh); }
+            30% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(-0.4vh, 0.6vh); }
+            40% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(0.5vh, -0.3vh); }
+            50% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(-0.6vh, 0.4vh); }
+            60% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(0.3vh, -0.6vh); }
+            70% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(-0.4vh, 0.3vh); }
+            80% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(0.6vh, -0.5vh); }
+            90% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translate(-0.3vh, 0.5vh); }
+        }
+        
+        @keyframes nervousShakeComingSoon {
+            0%, 100% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(0, 0); }
+            10% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(-0.5vh, 0.3vh); }
+            20% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(0.6vh, -0.4vh); }
+            30% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(-0.4vh, 0.6vh); }
+            40% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(0.5vh, -0.3vh); }
+            50% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(-0.6vh, 0.4vh); }
+            60% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(0.3vh, -0.6vh); }
+            70% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(-0.4vh, 0.3vh); }
+            80% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(0.6vh, -0.5vh); }
+            90% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translate(-0.3vh, 0.5vh); }
+        }
+        
+        canvas.nervous-active {
+            animation: nervousShake 0.1s infinite linear;
+        }
+        
+        /* When both Nervous and Long Ago are active */
+        canvas.nervous-active.longago-mode {
+            animation: nervousShakeLongAgo 0.1s infinite linear;
+        }
+        
+        /* When both Nervous and Coming Soon are active */
+        canvas.nervous-active.comingsoon-mode {
+            animation: nervousShakeComingSoon 0.1s infinite linear;
+        }
+        
+        /* When both Nervous and Thinner are active */
+        @keyframes nervousShakeThinner {
+            0%, 100% { transform: scaleX(0.6) translateX(0); }
+            25% { transform: scaleX(0.6) translateX(-0.3vh); }
+            75% { transform: scaleX(0.6) translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thinner-mode {
+            animation: nervousShakeThinner 0.1s infinite linear;
+        }
+        
+        /* When both Nervous and Thicker are active */
+        @keyframes nervousShakeThicker {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-0.3vh); }
+            75% { transform: translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thicker-mode {
+            animation: nervousShakeThicker 0.1s infinite linear;
+        }
+        
+        /* Three-way combinations: Nervous + Thinner + Long Ago */
+        @keyframes nervousShakeThinnerLongAgo {
+            0%, 100% { transform: perspective(800px) rotateX(45deg) scaleX(0.6) scale(1.5) translateY(-25%) translateX(0); }
+            25% { transform: perspective(800px) rotateX(45deg) scaleX(0.6) scale(1.5) translateY(-25%) translateX(-0.3vh); }
+            75% { transform: perspective(800px) rotateX(45deg) scaleX(0.6) scale(1.5) translateY(-25%) translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thinner-mode.longago-mode {
+            animation: nervousShakeThinnerLongAgo 0.1s infinite linear;
+        }
+        
+        /* Three-way combinations: Nervous + Thinner + Coming Soon */
+        @keyframes nervousShakeThinnerComingSoon {
+            0%, 100% { transform: perspective(800px) rotateX(-45deg) scaleX(0.6) scale(1.5) translateY(25%) translateX(0); }
+            25% { transform: perspective(800px) rotateX(-45deg) scaleX(0.6) scale(1.5) translateY(25%) translateX(-0.3vh); }
+            75% { transform: perspective(800px) rotateX(-45deg) scaleX(0.6) scale(1.5) translateY(25%) translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thinner-mode.comingsoon-mode {
+            animation: nervousShakeThinnerComingSoon 0.1s infinite linear;
+        }
+        
+        /* Three-way combinations: Nervous + Thicker + Long Ago */
+        @keyframes nervousShakeThickerLongAgo {
+            0%, 100% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translateX(0); }
+            25% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translateX(-0.3vh); }
+            75% { transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%) translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thicker-mode.longago-mode {
+            animation: nervousShakeThickerLongAgo 0.1s infinite linear;
+        }
+        
+        /* Three-way combinations: Nervous + Thicker + Coming Soon */
+        @keyframes nervousShakeThickerComingSoon {
+            0%, 100% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translateX(0); }
+            25% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translateX(-0.3vh); }
+            75% { transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%) translateX(0.3vh); }
+        }
+        
+        canvas.nervous-active.thicker-mode.comingsoon-mode {
+            animation: nervousShakeThickerComingSoon 0.1s infinite linear;
+        }
+        
+        .side-panel {
+            background: rgba(30, 60, 120, 0.35);
+            padding: 2vh 1.5vw;
+            border-radius: 1vh;
+            color: white;
+            width: 20vw; /* Slightly smaller */
+            min-width: 200px; /* Minimum width in pixels */
+            max-width: 25vw; /* Maximum width */
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            box-sizing: border-box;
+            font-size: 1.8vh;
+            position: relative;
+            flex-shrink: 1; /* Allow some shrinking if needed */
+            flex-grow: 0; /* Don't grow */
+            transition: right 0.3s ease, width 0.3s ease;
+        }
+        }
+        
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 1400px) {
+            .rules-panel, .side-panel {
+                width: 18vw;
+                min-width: 150px;
+            }
+            .game-container {
+                gap: 1vw;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .rules-panel, .side-panel {
+                width: 16vw;
+                min-width: 120px;
+                font-size: 1.4vh;
+            }
+            .game-container {
+                gap: 0.5vw;
+            }
+        }
+        
+        /* Global custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.5);
+        }
+        
+        .rules-panel {
+            background: rgba(30, 60, 120, 0.35);
+            padding: 2vh 1.5vw;
+            border-radius: 1vh;
+            color: white;
+            width: 20vw; /* Slightly smaller */
+            min-width: 200px; /* Minimum width in pixels */
+            max-width: 25vw; /* Maximum width */
+            height: 85vh;
+            box-sizing: border-box;
+            overflow: visible; /* Allow tick labels to extend past edge */
+            font-size: 1.6vh;
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+            position: relative;
+            flex-shrink: 1; /* Allow some shrinking if needed */
+            flex-grow: 0; /* Don't grow */
+            transition: left 0.3s ease, width 0.3s ease;
+        }
+        }
+        .rules-instructions {
+            display: block;
+            overflow-y: auto; /* Only instructions can scroll if needed */
+            flex-shrink: 1; /* Allow instructions to shrink when histogram/stats appear */
+            max-height: 100%; /* Can take full height when alone */
+        }
+        
+        /* When histogram is visible, limit instructions height */
+        .rules-panel:has(.histogram-canvas[style*="display: block"]) .rules-instructions {
+            max-height: 0;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+        }
+        .histogram-canvas {
+            width: 100%;
+            flex: 1; /* Take available space */
+            min-height: 30vh; /* Ensure minimum height for histograms */
+            display: none; /* Hidden by default, shown during gameplay */
+            border: none; /* Remove any border */
+            box-shadow: none; /* Remove drop shadow */
+            background: transparent; /* Explicit transparent background */
+        }
+        
+        /* Touch Controls for Tablet Mode */
+        #touchControls {
+            display: none; /* Hidden by default, shown in tablet mode */
+            grid-template-columns: repeat(6, 1fr); /* 6 columns for easy 50/50 bottom split */
+            grid-template-rows: auto auto auto;
+            column-gap: 0.5vh; /* Horizontal gap between buttons */
+            row-gap: 0.5vh; /* Match vertical gap to horizontal */
+            padding: 0.5vh;
+            margin-top: 2.1vh; /* Decreased slightly from 2.35vh */
+            height: auto;
+            max-height: 24vh;
+        }
+        
+        .touch-btn {
+            background: rgba(30, 60, 120, 0.9);
+            border: 0.3vh solid rgba(255, 255, 255, 0.6);
+            border-radius: 0.8vh;
+            color: white;
+            font-size: 3.2vh;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: all 0.1s;
+            padding: 0;
+            min-height: 5.5vh;
+            max-height: 7vh;
+        }
+        
+        .touch-btn:active {
+            background: rgba(50, 100, 180, 1);
+            border-color: #FFD700;
+            transform: scale(0.95);
+        }
+        
+        /* Row 1: Single ROTATE CCW button spanning all 6 columns */
+        .touch-btn.touch-btn-rotate-ccw {
+            grid-column: 1 / 7;
+            grid-row: 1 / 2;
+        }
+        
+        /* Row 2: Three buttons, each spanning 2 columns (2+2+2 = 6) */
+        .touch-btn.touch-btn-left {
+            grid-column: 1 / 3;
+            grid-row: 2 / 3;
+        }
+        
+        .touch-btn.touch-btn-rotate {
+            grid-column: 3 / 5;
+            grid-row: 2 / 3;
+        }
+        
+        .touch-btn.touch-btn-right {
+            grid-column: 5 / 7;
+            grid-row: 2 / 3;
+        }
+        
+        /* Row 3: Two buttons, each spanning 3 columns (3+3 = 6, perfect 50/50 split) */
+        .touch-btn.touch-btn-down {
+            grid-column: 1 / 4;
+            grid-row: 3 / 4;
+        }
+        
+        .touch-btn.touch-btn-drop {
+            grid-column: 4 / 7;
+            grid-row: 3 / 4;
+        }
+        
+        /* Pause Button (top-right corner during tablet mode gameplay) */
+        .pause-btn {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 1vh;
+            right: 1.5vw;
+            padding: 1vh 1.5vw;
+            font-size: 2.5vh;
+            background: rgba(30, 60, 120, 0.9);
+            color: white;
+            border: 0.3vh solid rgba(255, 255, 255, 0.6);
+            border-radius: 0.8vh;
+            cursor: pointer;
+            transition: all 0.1s;
+            z-index: 10;
+        }
+        
+        .pause-btn:hover {
+            background: rgba(50, 100, 180, 1);
+            border-color: #FFD700;
+        }
+        
+        .pause-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Planet Stats in Left Panel (Tablet Mode) */
+        #planetStatsLeft {
+            display: none; /* Hidden by default, shown in tablet mode */
+            margin-top: 0;
+            padding: 0.6vh 0.6vw;
+            background: rgba(20, 40, 80, 0.9);
+            border-radius: 0.5vh;
+            border: 0.2vh solid rgba(255, 215, 0, 0.5);
+            font-size: 0.95vh;
+            color: white;
+            box-shadow: 0 0 1vh rgba(255, 215, 0, 0.3);
+            max-height: 12vh;
+            overflow-y: auto;
+            flex-shrink: 0; /* Don't shrink */
+        }
+        
+        #planetStatsLeftContent {
+            font-size: 0.95vh;
+            line-height: 1.15;
+        }
+        
+        .rules-title {
+            font-size: 2.2vh;
+            font-weight: bold;
+            margin-bottom: 1.5vh;
+            text-align: center;
+        }
+        .rules-section {
+            margin-bottom: 15px;
+            font-size: clamp(10.56px, 1.37vh, 14.78px);
+            line-height: 1.4;
+        }
+        .rules-section h3 {
+            font-size: clamp(12.67px, 1.58vh, 16.9px);
+            margin-bottom: 8px;
+            color: #FFA07A;
+        }
+        .rules-section ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .rules-section li {
+            margin-bottom: 5px;
+        }
+        .tsunami-scoring {
+            display: inline-block;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        .score-display {
+            font-size: 2.8vh;
+            margin-bottom: 0.75vh;
+        }
+        .score-display > div:not(.score-label) {
+            text-align: center;
+        }
+        .score-label {
+            font-size: 1.6vh;
+            opacity: 0.8;
+            text-align: left;
+        }
+        
+        /* Special Events Grid - 2 columns */
+        .special-events-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 1vw;
+            row-gap: 1vh;
+            margin-top: 2.05vh; /* Reduced from 2.55vh to compensate for canvas increase */
+        }
+        .special-events-grid .score-display {
+            margin-bottom: 0;
+        }
+        
+        .next-piece {
+            margin-top: 0.35vh;
+            margin-bottom: 0.3vh;
+            flex-shrink: 0;
+        }
+        .next-piece .score-label {
+            text-align: left;
+        }
+        .next-canvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.1);
+            margin-top: 3vh; /* Increased from 2.5vh to add more space below "Next Piece" label */
+            margin-bottom: 0.5vh;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            width: 180px;
+            height: 180px;
+            /* Crisp pixel rendering to prevent lines in fullscreen */
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .controls {
+            margin-top: auto;
+            font-size: 1.35vh;
+            line-height: 1.5;
+            flex-grow: 0;
+            flex-shrink: 0;
+            overflow-y: auto;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .controls > div:not(.controls-title) {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1ch;
+        }
+        .controls .control-key {
+            text-align: right;
+        }
+        .controls > div:not(.controls-title) > span:last-child {
+            text-align: left;
+        }
+        .controls-title {
+            margin-bottom: 0.5vh;
+            text-align: left;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 24px;
+            display: none;
+            min-width: 250px;
+        }
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            gap: 20px;
+        }
+        .start-message {
+            text-align: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            position: relative;
+            height: 120px;
+            min-height: 120px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        
+        /* Make clickMessage clickable when it contains the anagram */
+        #clickMessage {
+            cursor: default;
+        }
+        
+        /* Question mark cursor - when showing YOU'RE OKAY or anagram */
+        #clickMessage.anagram-active {
+            cursor: pointer;
+        }
+        
+        #clickMessage.anagram-active:hover {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="28" font-size="28">❓</text></svg>') 16 16, pointer;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        .letter {
+            display: inline-block;
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
+        }
+        .letter.animating {
+            animation: letterFloat 2s ease-in-out;
+        }
+        @keyframes letterFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(var(--tx1), var(--ty1)) rotate(var(--r1)); }
+            50% { transform: translate(var(--tx2), var(--ty2)) rotate(var(--r2)); }
+            75% { transform: translate(var(--tx3), var(--ty3)) rotate(var(--r3)); }
+        }
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 2vh 2vw;
+            box-sizing: border-box;
+        }
+        .settings-popup {
+            background: rgba(30, 60, 120, 0.95);
+            padding: 2vh 2vw;
+            border-radius: 1.5vh;
+            border: 0.3vh solid #fff;
+            color: white;
+            min-width: 30vw;
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 3vh rgba(0, 0, 0, 0.8);
+            font-size: 1.6vh;
+        }
+        .settings-title {
+            font-size: 2.8vh;
+            font-weight: bold;
+            margin-bottom: 2vh;
+            text-align: center;
+            text-shadow: 0.2vh 0.2vh 0.4vh rgba(0, 0, 0, 0.5);
+        }
+        .settings-option {
+            margin-bottom: 1.8vh;
+            padding: 1.5vh 1.5vw;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0.8vh;
+        }
+        .settings-option label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 1.8vh;
+        }
+        .settings-option input[type="checkbox"] {
+            width: 2vh;
+            height: 2vh;
+            margin-right: 1.2vw;
+            cursor: pointer;
+            display: none; /* Hide default checkbox */
+        }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 5.5vh;
+            height: 2.8vh;
+            margin-right: 1.2vw;
+            flex-shrink: 0;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            border-radius: 3vh;
+            border: 0.2vh solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 2vh;
+            width: 2vh;
+            left: 0.3vh;
+            bottom: 0.2vh;
+            background-color: white;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            box-shadow: 0 0.2vh 0.5vh rgba(0, 0, 0, 0.3);
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(2.6vh);
+        }
+        
+        .toggle-slider:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        input:checked + .toggle-slider:hover {
+            border-color: #5cbf60;
+        }
+        
+        /* Label adjustment for toggle switches */
+        .settings-option label.toggle-label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 1.8vh;
+            justify-content: space-between;
+        }
+        
+        .toggle-label-text {
+            flex-grow: 1;
+        }
+        .settings-option input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 0.8vh;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 0.5vh;
+            outline: none;
+        }
+        .settings-option input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 2vh;
+            height: 2vh;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 0.2vh solid white;
+        }
+        .settings-option input[type="range"]::-moz-range-thumb {
+            width: 2vh;
+            height: 2vh;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 0.2vh solid white;
+        }
+        .settings-close-btn {
+            width: 100%;
+            margin-top: 2vh;
+            padding: 1.2vh 3vw;
+            font-size: 1.8vh;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 0.8vh;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .settings-close-btn:hover {
+            background: #45a049;
+        }
+        
+        /* Challenge dropdown styles */
+        .settings-option select {
+            width: 100%;
+            padding: 0.8vh 0.8vw;
+            font-size: 1.6vh;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 0.2vh solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5vh;
+            cursor: pointer;
+            margin-top: 0.8vh;
+        }
+        .settings-option select option {
+            background: #1e3c78;
+            color: white;
+        }
+        
+        /* Responsive adjustments for small screens */
+        @media (max-height: 600px), (max-width: 600px) {
+            .settings-popup {
+                padding: 1.5vh 2vw;
+                font-size: 1.4vh;
+                min-width: 50vw;
+            }
+            .settings-title {
+                font-size: 2.2vh;
+                margin-bottom: 1.5vh;
+            }
+            .settings-option {
+                margin-bottom: 1.2vh;
+                padding: 1vh 1.2vw;
+            }
+            .settings-option label {
+                font-size: 1.5vh;
+            }
+            .settings-close-btn {
+                padding: 1vh 2vw;
+                font-size: 1.5vh;
+            }
+        }
+        
+        /* Ensure scrollbar is styled on the settings popup */
+        .settings-popup::-webkit-scrollbar {
+            width: 0.8vw;
+        }
+        .settings-popup::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.4vw;
+        }
+        .settings-popup::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 0.4vw;
+        }
+        .settings-popup::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Combo challenge modal */
+        .combo-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .combo-modal {
+            background: rgba(30, 60, 120, 0.95);
+            padding: 2vh 3vw;
+            border-radius: 1.5vh;
+            border: 0.3vh solid #FFD700;
+            color: white;
+            min-width: 40vw; /* Back to original width */
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 4vh rgba(255, 215, 0, 0.5);
+        }
+        .combo-modal-title {
+            font-size: 1.8vh;
+            font-weight: bold;
+            margin-bottom: 1.2vh;
+            text-align: center;
+            color: #FFD700;
+        }
+        .combo-bonus-display {
+            text-align: center;
+            font-size: 1.5vh;
+            font-weight: bold;
+            color: #4CAF50;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.8vh;
+            border-radius: 0.8vh;
+            margin-bottom: 1.2vh;
+            border: 0.2vh solid rgba(76, 175, 80, 0.5);
+        }
+        .combo-bonus-display span {
+            color: #FFD700;
+            font-size: 1.7vh;
+        }
+        .combo-checkboxes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 1vh 1.5vw; /* Reduced horizontal gap for narrower modal */
+            margin-bottom: 1.5vh;
+        }
+        .combo-checkbox-option {
+            margin: 0;
+            padding: 0.8vh 1vw;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0.8vh;
+            border: 0.2vh solid transparent;
+            transition: all 0.3s;
+        }
+        .combo-checkbox-option:hover {
+            border-color: rgba(255, 215, 0, 0.5);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        .combo-checkbox-option label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 1.3vh;
+        }
+        .combo-checkbox-option input[type="checkbox"] {
+            display: none; /* Hide default checkbox */
+        }
+        .combo-checkbox-option .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 2.4vh;  /* Reduced from 4.5vh - about half size */
+            height: 1.2vh;  /* Reduced from 2.3vh - about half size */
+            margin-right: 1vh;  /* Space between switch and label */
+            flex-shrink: 0;
+        }
+        .combo-checkbox-option .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            border-radius: 1.5vh;
+            border: 0.1vh solid rgba(255, 255, 255, 0.3);
+        }
+        .combo-checkbox-option .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 0.9vh;  /* Reduced from 1.7vh */
+            width: 0.9vh;   /* Reduced from 1.7vh */
+            left: 0.1vh;
+            bottom: 0.05vh;
+            background-color: white;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            box-shadow: 0 0.05vh 0.2vh rgba(0, 0, 0, 0.3);
+        }
+        .combo-checkbox-option input:checked + .toggle-slider {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .combo-checkbox-option input:checked + .toggle-slider:before {
+            transform: translateX(1.1vh);  /* Reduced from 2.1vh */
+        }
+        .combo-checkbox-option .challenge-description {
+            font-size: 1.2vh; /* Increased from 1.0vh */
+            opacity: 0.85; /* Slightly more visible */
+            margin-top: 0.3vh;
+            margin-left: 3.4vh;  /* Updated to align with label (2.4vh switch + 1vh spacing) */
+        }
+        .combo-modal-buttons {
+            display: flex;
+            gap: 1vw;
+            margin-top: 1.5vh;
+            position: sticky;
+            bottom: 0;
+            background: rgba(30, 60, 120, 0.95);
+            padding-top: 1vh;
+        }
+        .combo-modal-btn {
+            flex: 1;
+            padding: 1vh 2vw;
+            font-size: 1.6vh;
+            border: none;
+            border-radius: 0.8vh;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .combo-modal-btn.apply {
+            background: #4CAF50;
+            color: white;
+        }
+        .combo-modal-btn.apply:hover {
+            background: #45a049;
+        }
+        .combo-modal-btn.cancel {
+            background: #f44336;
+            color: white;
+        }
+        .combo-modal-btn.cancel:hover {
+            background: #da190b;
+        }
+        
+        /* Upside-down mode */
+        html.stranger-mode {
+            transform: rotate(180deg);
+        }
+        
+        /* Thinner mode - make canvas narrower */
+        canvas.thinner-mode {
+            transform: scaleX(0.6);
+        }
+        
+        /* Thicker mode - canvas dimensions handled by JavaScript updateCanvasSize() */
+        canvas.thicker-mode {
+            /* Dimensions set via style attribute in updateCanvasSize() */
+            /* This creates actual layout space unlike transform */
+            margin: auto; /* Center the canvas */
+        }
+        
+        /* Allow main area to properly center the thicker canvas */
+        body:has(canvas.thicker-mode) .main-area {
+            overflow: visible; /* Allow scaled canvas to extend beyond */
+            padding: 1vh 0.25vw; /* Reduce side padding */
+            z-index: 10; /* Ensure it renders on top */
+            justify-content: center; /* Center vertically */
+        }
+        
+        /* Make both side panels symmetric when Thicker mode is active */
+        body:has(canvas.thicker-mode) .game-container {
+            gap: 2vw; /* Consistent gap with normal mode */
+            justify-content: space-between; /* Maintain spacing */
+        }
+        
+        /* Removed thicker-mode panel width adjustments - panels now reposition via JavaScript */
+        
+        /* Make the instructions text smaller in thicker mode */
+        body:has(canvas.thicker-mode) .rules-instructions {
+            font-size: 1.3vh;
+        }
+        
+        /* Adjust the controls/stats section */
+        body:has(canvas.thicker-mode) .controls {
+            font-size: 1.15vh; /* Smaller text */
+        }
+        
+        /* Make stats displays more compact */
+        body:has(canvas.thicker-mode) .stat-value {
+            font-size: 1.6vh;
+        }
+        
+        /* Adjust score displays in Thicker mode */
+        body:has(canvas.thicker-mode) .score-display {
+            font-size: 1.4vh;
+        }
+        
+        body:has(canvas.thicker-mode) .score-display > div:not(.score-label) {
+            font-size: 1.8vh; /* Smaller score values */
+        }
+        
+        /* Histogram adjustments */
+        body:has(canvas.thicker-mode) .histogram-canvas {
+            min-height: 25vh; /* Smaller histogram */
+        }
+        
+        /* Long Ago mode - Star Wars opening crawl perspective */
+        canvas.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        /* Coming Soon mode - Reverse perspective (top wide, bottom narrow) */
+        canvas.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        /* Combined mode: Thinner + Long Ago */
+        canvas.thinner-mode.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scaleX(0.6) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        /* Combined mode: Thinner + Coming Soon */
+        canvas.thinner-mode.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scaleX(0.6) scale(1.5) translateY(25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        /* Combined mode: Thicker + Long Ago */
+        canvas.thicker-mode.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        /* Combined mode: Thicker + Coming Soon */
+        canvas.thicker-mode.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%);
+            transform-origin: center center;
+            filter: brightness(0.9);
+        }
+        
+        .settings-btn {
+            position: absolute;
+            top: 1vh;
+            right: 1.5vw;
+            padding: 1vh 1.5vw;
+            font-size: 1.8vh;
+            background: rgba(30, 60, 120, 0.8);
+            color: white;
+            border: 0.2vh solid rgba(255, 255, 255, 0.5);
+            border-radius: 0.8vh;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+        .settings-btn:hover {
+            background: rgba(30, 60, 120, 1);
+            border-color: #fff;
+        }
+        
+        /* Hide UI elements during gameplay */
+        .hidden-during-play {
+            display: none !important;
+        }
+        
+        .mode-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .mode-menu.hidden {
+            display: none;
+        }
+        .mode-button {
+            width: 90%;
+            max-width: 250px;
+            margin: 8px 0;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(30, 60, 120, 0.9);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        .mode-button:hover {
+            background: rgba(50, 80, 140, 1);
+            border-color: #fff;
+            transform: scale(1.05);
+        }
+        .mode-button:active {
+            transform: scale(0.98);
+        }
+        .mode-button.selected {
+            background: rgba(50, 80, 140, 1);
+            border-color: #FFD700;
+            border-width: 3px;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        }
+        .mode-button[data-tooltip] {
+            position: relative;
+        }
+        .mode-button[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            right: 110%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #000000;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: nowrap;
+            z-index: 9999;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            animation: tooltipFadeIn 0.2s ease-in;
+        }
+        .mode-button[data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 8px solid transparent;
+            border-left-color: #000000;
+            z-index: 9998;
+            pointer-events: none;
+        }
+        @keyframes tooltipFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50%) translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(-50%) translateX(0);
+            }
+        }
+        .game-credits {
+            margin-top: 20px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.6;
+        }
+        .game-credits a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+        }
+        .game-credits a:hover {
+            color: #fff;
+        }
+        .challenge-selector {
+            margin-top: 25px;
+            text-align: center;
+        }
+        .challenge-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .challenge-selector select {
+            width: 80%;
+            max-width: 300px;
+            padding: 8px;
+            font-size: 13px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .challenge-selector select:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.7);
+        }
+        .challenge-selector select:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.7);
+        }
+        /* Leaderboard Styles */
+        .leaderboard-container {
+            padding: 20px;
+            color: white;
+            overflow-y: auto;
+            max-height: 100%;
+        }
+        
+        /* When leaderboard is shown, position it properly */
+        #leaderboardDisplay {
+            background: rgba(30, 60, 120, 0.35);
+            padding: 2vh 1.5vw;
+            border-radius: 1vh;
+            color: white;
+            width: 22vw;
+            min-width: 22vw;
+            max-width: 22vw;
+            height: 85vh;
+            box-sizing: border-box;
+            position: relative;
+            margin-right: 1.5vw;
+            flex-shrink: 0;
+        }
+        
+        .leaderboard-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #FFD700;
+        }
+        
+        .leaderboard-mode-selector {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .leaderboard-mode-selector .current-mode {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .leaderboard-table th {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 4px;
+            text-align: left;
+            border-bottom: 2px solid #FFD700;
+            font-weight: bold;
+        }
+        
+        .leaderboard-table td {
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .leaderboard-table tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .leaderboard-table tr.player-score {
+            background: rgba(255, 215, 0, 0.2);
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .leaderboard-table .rank {
+            width: 30px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .leaderboard-table .name {
+            width: 35%;
+        }
+        
+        .leaderboard-table .score {
+            width: 25%;
+        }
+        
+        .special-events {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .leaderboard-loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .leaderboard-error {
+            text-align: center;
+            padding: 40px;
+            color: #ff6b6b;
+        }
+        
+        /* Name Entry Modal */
+        .name-entry-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: rgba(0, 0, 0, 0.9) !important;
+            z-index: 99999 !important; /* Maximum to ensure it's always on top */
+            display: none;
+            justify-content: center !important;
+            align-items: center !important;
+            pointer-events: all !important; /* Ensure it captures clicks */
+        }
+        
+        .name-entry-popup {
+            background: linear-gradient(135deg, rgba(30, 60, 120, 0.95), rgba(20, 40, 80, 0.95));
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 0 60px rgba(255, 215, 0, 0.3);
+            min-width: 400px;
+            max-width: 500px;
+            position: relative;
+            z-index: 100000;
+            display: block !important; /* Always visible when parent is flex */
+        }
+        
+        .name-entry-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .name-entry-message {
+            font-size: 18px;
+            color: white;
+            text-align: center;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .name-entry-score {
+            font-size: 24px;
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .name-entry-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        
+        .name-entry-input:focus {
+            outline: none;
+            border-color: #FFA500;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        .name-entry-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        
+        .name-entry-button:hover {
+            background: #45a049;
+        }
+        
+        .name-entry-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-message" id="dontPanicText">Don't Panic!</div>
+        <div class="start-message" id="clickMessage">Click anywhere to start...</div>
+    </div>
+    <canvas id="starfield"></canvas>
+    <button class="settings-btn" id="settingsBtn">⚙️ Settings</button>
+    <div class="header">
+        <div class="title">
+            ₿L<span style="position: relative; display: inline-block;">
+                <span style="position: relative; z-index: 1; -webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">O</span>
+                <svg style="position: absolute; left: 62%; top: 50%; transform: translate(-50%, -50%) rotate(10deg) scaleX(1.2); width: 150%; height: 150%; pointer-events: none; z-index: 2;" viewBox="0 0 10 10">
+                    <defs>
+                        <filter id="lightning-glow">
+                            <feGaussianBlur stdDeviation="0.125" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <!-- Gold lightning bolt with dark outline -->
+                    <path d="M 5.5535055,0.41389914 2,5 4.0571956,4.9630996 1.5,9.5 5.9797048,4.3769988 3.6476015,4.3154982 Z" 
+                          fill="#FFD700"
+                          stroke="#000000"
+                          stroke-width="0.15"
+                          stroke-opacity="0.6"
+                          filter="url(#lightning-glow)"/>
+                </svg>
+            </span>CK<span style="-webkit-text-fill-color: #B87700; color: #B87700; background: none;">CH</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">ai</span><span style="-webkit-text-fill-color: #B87700; color: #B87700; background: none;">N</span>ST<span style="position: relative; display: inline-block;">
+                <span style="position: relative; z-index: 1; -webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">O</span>
+                <svg style="position: absolute; left: 62%; top: 50%; transform: translate(-50%, -50%) rotate(10deg) scaleX(1.2); width: 150%; height: 150%; pointer-events: none; z-index: 2;" viewBox="0 0 10 10">
+                    <defs>
+                        <filter id="lightning-glow2">
+                            <feGaussianBlur stdDeviation="0.125" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <!-- Gold lightning bolt with dark outline -->
+                    <path d="M 5.5535055,0.41389914 2,5 4.0571956,4.9630996 1.5,9.5 5.9797048,4.3769988 3.6476015,4.3154982 Z" 
+                          fill="#FFD700"
+                          stroke="#000000"
+                          stroke-width="0.15"
+                          stroke-opacity="0.6"
+                          filter="url(#lightning-glow2)"/>
+                </svg>
+            </span>RM
+        </div>
+    </div>
+                          filter="url(#lightning-glow2)"/>
+                </svg>
+            </span>RM
+        </div>
+    </div>
+    <div class="content-area">
+        <div class="game-container">
+        <div class="rules-panel">
+            <div class="rules-instructions">
+                <div class="rules-title">How to Play</div>
+                
+                <div class="rules-section">
+                    <h3>🎮 Goal</h3>
+                    Stack colored blocks to form connected groups (blobs). Clear rows to break up blobs and score points!
+                </div>
+                
+                <div class="rules-section">
+                    <h3>✨ Special Events</h3>
+                    <strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points and a lightning strike!
+                    <br><br>
+                    <strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the ENTIRE blob clears for massive points!
+                    <br><br>
+                    <strong>🌋 Volcano:</strong> When a blob touching any edge is completely surrounded by another blob, it turns to lava, erupting upward and raining down as single blocks. Lava blocks combine like normal colors. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
+                    <br><br>
+                    <strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in ALL blocks from both blobs! Purple border, huge points!
+                </div>
+                
+                <div class="rules-section">
+                    <h3>📊 Scoring</h3>
+                    <strong>Normal:</strong> (Blob Size)² × Blocks Cleared × 100 × Level
+                    <ul>
+                        <li>Strike bonus: 2× all points</li>
+                        <li>Bigger blobs = exponentially more points!</li>
+                    </ul>
+                    <strong class="tsunami-scoring">Tsunami:</strong> (Size)³ × 200 × Level
+                    <br>
+                    <strong>Volcano:</strong>
+                    <ul>
+                        <li>Inner (lava): (Size)³ × 500 × Level</li>
+                        <li>Lava in lines: 2<sup>n</sup> multiplier (n = # of lava segments)</li>
+                    </ul>
+                    <strong>Black Hole:</strong>
+                    <ul>
+                        <li>Inner (core): (Size)³ × 800 × Level</li>
+                        <li>Outer (sucked in): (Size)³ × 800 × Level</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Histogram Canvas -->
+            <canvas id="histogramCanvas" class="histogram-canvas"></canvas>
+            
+            <!-- Planet Stats in Left Panel (Tablet Mode) -->
+            <div id="planetStatsLeft">
+                <div id="planetStatsLeftContent"></div>
+            </div>
+        </div>
+        
+        <div class="main-area">
+            <canvas id="gameCanvas" width="350" height="700"></canvas>
+            <div class="mode-menu" id="modeMenu">
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                    Choose your difficulty level...
+                </div>
+                <button class="mode-button" data-mode="drizzle" data-tooltip="Easy mode - 4 colors, standard 10-wide board">🌧️ Drizzle</button>
+                <button class="mode-button" data-mode="downpour" data-tooltip="Standard mode - 6 colors, 10-wide board">⛈️ Downpour</button>
+                <button class="mode-button" data-mode="hailstorm" data-tooltip="8 colors for maximum challenge">🧊 Hailstorm</button>
+                <button class="mode-button" data-mode="blizzard" data-tooltip="12-wide board with 5-block pieces, 5 colors">❄️ Blizzard</button>
+                <button class="mode-button" data-mode="hurricane" data-tooltip="Ultimate challenge - 12-wide + 5-block pieces, 7 colors">🌀 Hurricane</button>
+                
+                <div class="challenge-selector">
+                    <label>Challenge Mode</label>
+                    <select id="challengeSelectMain">
+                        <option value="normal">Normal</option>
+                        <option value="stranger">Stranger (Upside-Down) +8%</option>
+                        <option value="phantom">Phantom (Invisible Stack) +7%</option>
+                        <option value="rubber">Rubber & Glue (Bouncing) +5%</option>
+                        <option value="oz">Oz (Grayscale Until Landing) +5%</option>
+                        <option value="thinner">Thinner (Skinny Well) +4%</option>
+                        <option value="thicker">Thicker (Wide Well) +3%</option>
+                        <option value="carrie">Carrie (Blood Rain) +3%</option>
+                        <option value="nokings">No Kings (Poo Rain) +3%</option>
+                        <option value="longago">Long Ago... (Star Wars Perspective) +4%</option>
+                        <option value="comingsoon">Coming Soon... (Reverse Perspective) +4%</option>
+                        <option value="nervous">Nervous (Vibrating Well) +2%</option>
+                        <option value="sixseven">Six Seven (???) +4%</option>
+                        <option value="gremlins">Gremlins (Chaos Blocks) +6%</option>
+                        <option value="lattice">Lattice (Pre-filled Blocks) +5%</option>
+                        <option value="yesand">Yes, And... (Base Reality+) +5%</option>
+                        <option value="sorandom">So Random (Mode Switching) +5%</option>
+                        <option value="mercurial">Mercurial (Color-Shifting Pieces) +4%</option>
+                        <option value="combo">Combo (Multiple Challenges)</option>
+                    </select>
+                </div>
+                
+                <div class="game-credits">
+                    <div><strong>Game Design:</strong> C. Ryan Deardorff</div>
+                    <div><strong>Programming:</strong> Claude AI (Anthropic)</div>
+                </div>
+            </div>
+            <div class="game-over" id="gameOver">
+                <div style="font-size: 32px; margin-bottom: 20px;">GAME OVER</div>
+                <div id="finalScore"></div>
+                <div id="finalStats" style="margin-top: 20px; font-size: 16px; color: rgba(255,255,255,0.8); white-space: nowrap;"></div>
+                <button id="playAgainBtn">Play Again</button>
+            </div>
+        </div>
+        <div class="side-panel">
+            <div class="score-display">
+                <div class="score-label">Score</div>
+                <div id="score">0</div>
+            </div>
+            <div class="score-display">
+                <div class="score-label">Lines</div>
+                <div id="lines">0</div>
+            </div>
+            <div class="score-display">
+                <div class="score-label">Level</div>
+                <div id="level">1</div>
+            </div>
+            <div class="next-piece" id="nextPieceSection">
+                <div class="score-label">Next Piece</div>
+                <canvas id="nextCanvas" class="next-canvas" style="width: min(100%, 18vh); height: min(100%, 18vh); aspect-ratio: 1; display: block;"></canvas>
+            </div>
+            
+            <!-- Special Events Grid (2 columns) -->
+            <div class="special-events-grid">
+                <div class="score-display">
+                    <div class="score-label">⚡ Strikes</div>
+                    <div id="strikes">0</div>
+                </div>
+                <div class="score-display">
+                    <div class="score-label">🕳️ Black Holes</div>
+                    <div id="blackholes">0</div>
+                </div>
+                <div class="score-display">
+                    <div class="score-label">🌊 Tsunamis</div>
+                    <div id="tsunamis">0</div>
+                </div>
+                <div class="score-display">
+                    <div class="score-label">🌋 Volcanoes</div>
+                    <div id="volcanoes">0</div>
+                </div>
+            </div>
+            
+            <!-- Controls and Planet Stats occupy the same space -->
+            <div class="controls">
+                <div><span class="control-key">← → :</span><span>Move</span></div>
+                <div><span class="control-key">↓ :</span><span>Soft Drop</span></div>
+                <div><span class="control-key">↑ :</span><span>Rotate CW</span></div>
+                <div><span class="control-key">Space :</span><span>Hard Drop</span></div>
+                <div><span class="control-key">P :</span><span>Pause</span></div>
+                <div><span class="control-key">PgUp/PgDn :</span><span>Toggle Fullscreen</span></div>
+                <div style="margin-top: 10px;"><span class="control-key">Numpad 4/6 :</span><span>Move</span></div>
+                <div><span class="control-key">Numpad 2 :</span><span>Soft Drop</span></div>
+                <div><span class="control-key">Numpad 5 :</span><span>Rotate CCW</span></div>
+                <div><span class="control-key">Numpad 0 :</span><span>Hard Drop</span></div>
+            </div>
+            
+            <!-- Planet Stats Display - Appears in same location as controls during gameplay -->
+            <div id="planetStats" style="display: none; margin-top: 2.4vh; padding: 1vh 0.9vw; background: rgba(20, 40, 80, 0.9); border-radius: 0.8vh; border: 0.2vh solid rgba(255, 215, 0, 0.5); font-size: 1.25vh; color: white; box-shadow: 0 0 1vh rgba(255, 215, 0, 0.3);">
+                <div id="planetStatsContent"></div>
+            </div>
+            
+            <!-- Touch Controls for Tablet Mode -->
+            <div id="touchControls">
+                <button class="touch-btn touch-btn-rotate-ccw" id="touchRotateCCW">↺</button>
+                <button class="touch-btn touch-btn-left" id="touchLeft">⬅</button>
+                <button class="touch-btn touch-btn-rotate" id="touchRotate">↻</button>
+                <button class="touch-btn touch-btn-right" id="touchRight">➡</button>
+                <button class="touch-btn touch-btn-down" id="touchDown">⬇</button>
+                <button class="touch-btn touch-btn-drop" id="touchDrop">⬇⬇</button>
+            </div>
+        </div>
+    </div>
+    </div>
+    
+    <!-- Pause Button (shown in top-right during tablet mode gameplay) -->
+    <button class="pause-btn" id="pauseBtn">⏸️</button>
+    
+    <!-- Settings Popup -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-popup">
+            <div class="settings-title">⚙️ Settings</div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Music</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="musicToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Sound Effects</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="soundToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Background Storm Effects</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="stormEffectsToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Reverse Camera (sun behind)</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="cameraOrientationToggle">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Training Wheels (shows shadow, -50% points)</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="trainingWheelsToggle">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                    Shows a shadow where pieces will land, but all points earned are cut in half.
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label style="display: block; margin-bottom: 1vh;">
+                    Piece Opacity
+                </label>
+                <input type="range" id="opacitySlider" min="0" max="100" step="1" value="42" 
+                       style="width: 100%; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
+                    <span>Transparent</span>
+                    <span>Opaque</span>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label style="display: block; margin-bottom: 1vh;">
+                    Starfield Speed
+                </label>
+                <input type="range" id="starSpeedSlider" min="0" max="4" step="0.5" value="1" 
+                       style="width: 100%; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
+                    <span>Slow</span>
+                    <span>Fast</span>
+                </div>
+            </div>
+            
+            <button class="settings-close-btn" id="settingsCloseBtn">Close</button>
+        </div>
+    </div>
+
+    <!-- Combo Challenge Modal -->
+    <div class="combo-modal-overlay" id="comboModalOverlay">
+        <div class="combo-modal">
+            <div class="combo-modal-title">🎯 Select Challenge Combination</div>
+            <div class="combo-bonus-display" id="comboBonusDisplay">
+                Score Bonus: <span id="comboBonusPercent">0%</span>
+            </div>
+            
+            <div class="combo-checkboxes-grid">
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboStranger" value="stranger">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Stranger (Upside-Down) +8%</span>
+                </label>
+                <div class="challenge-description">Entire screen rotates 180°, pieces fall upward</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboPhantom" value="phantom">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Phantom (Invisible Stack) +7%</span>
+                </label>
+                <div class="challenge-description">Stack fades out after each piece lands</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboRubber" value="rubber">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Rubber & Glue (Bouncing) +5%</span>
+                </label>
+                <div class="challenge-description">Pieces bounce if they don't touch same-colored blobs</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboOz" value="oz">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Oz (Grayscale Until Landing) +5%</span>
+                </label>
+                <div class="challenge-description">Falling pieces are grayscale, reveal color on landing</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboThinner" value="thinner">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Thinner (Skinny Well) +4%</span>
+                </label>
+                <div class="challenge-description">Blocks are half as wide, making a narrow well</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboThicker" value="thicker">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Thicker (Wide Well) +3%</span>
+                </label>
+                <div class="challenge-description">Well is 2/3 height and 20% wider, creating a wide playing field</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboCarrie" value="carrie">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Carrie (Blood Rain) +3%</span>
+                </label>
+                <div class="challenge-description">Blood rains down and runs down the stack</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboNokings" value="nokings">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>No Kings (Poo Rain) +3%</span>
+                </label>
+                <div class="challenge-description">Poo rains down and runs down the stack</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboLongAgo" value="longago">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Long Ago... (Star Wars Perspective) +4%</span>
+                </label>
+                <div class="challenge-description">Well tilts back in 3D perspective like Star Wars opening</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboComingSoon" value="comingsoon">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Coming Soon... (Inverse Star Wars Perspective) +4%</span>
+                </label>
+                <div class="challenge-description">Well tilts forward - pieces drop into distance</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboNervous" value="nervous">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Nervous (Vibrating Well) +2%</span>
+                </label>
+                <div class="challenge-description">The entire well vibrates up and down constantly</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboSixSeven" value="sixseven">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Six Seven (???) +4%</span>
+                </label>
+                <div class="challenge-description">???</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboGremlins" value="gremlins">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Gremlins (Chaos Blocks) +6%</span>
+                </label>
+                <div class="challenge-description">Blocks randomly appear or disappear from the stack</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboLattice" value="lattice">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Lattice (Pre-filled Blocks) +5%</span>
+                </label>
+                <div class="challenge-description">Start with random blocks in bottom half of well</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboYesAnd" value="yesand">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Yes, And... (Base Reality+) +5%</span>
+                </label>
+                <div class="challenge-description">Pieces spawn random extra blocks when they land</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboMercurial" value="mercurial">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Mercurial (Color-Shifting Pieces) +4%</span>
+                </label>
+                <div class="challenge-description">Falling pieces randomly change color every 2-4 seconds</div>
+            </div>
+            </div> <!-- End of combo-checkboxes-grid -->
+            
+            <div class="combo-buttons">            
+            <div class="combo-modal-buttons">
+                <button class="combo-modal-btn cancel" id="comboCancelBtn">Cancel</button>
+                <button class="combo-modal-btn apply" id="comboApplyBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Name Entry Modal (moved outside game-container for proper layout) -->
+    <div class="name-entry-overlay" id="nameEntryOverlay">
+        <div class="name-entry-popup">
+            <div class="name-entry-title">🏆 High Score! 🏆</div>
+            <div class="name-entry-message">
+                Congratulations! Your score of <span class="name-entry-score" id="nameEntryScore"></span> 
+                made it to the top 10!
+                <br><br>
+                Enter your name for the leaderboard:
+            </div>
+            <input type="text" 
+                   id="nameEntryInput" 
+                   class="name-entry-input" 
+                   placeholder="Enter your name" 
+                   maxlength="20"
+                   autocomplete="off">
+            <button id="nameEntrySubmit" class="name-entry-button">Submit Score</button>
+        </div>
+    </div>
+	
+	<script src="leaderboard.js"></script>
+	<script src="storm-effects.js"></script>
+	<script src="render-utils.js"></script>
+	<script src="game.js"></script>
+
+</body>
 </html>
