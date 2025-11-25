@@ -6130,9 +6130,9 @@ function hardDrop() {
 function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
     
-    // Constant hard drop speed (slightly faster than original Earth gravity)
-    const hardDropAcceleration = 0.55;
-    const hardDropMaxVelocity = 5.5;
+    // Constant hard drop speed - fast but visible
+    const hardDropAcceleration = 2.0;
+    const hardDropMaxVelocity = 25;
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
@@ -6461,10 +6461,10 @@ function update(time = 0) {
 
 // Initialize Special Effects System
 SpecialEffects.init({
-    board: board,
-    isRandomBlock: isRandomBlock,
-    fadingBlocks: fadingBlocks,
-    isLattice: isLatticeBlock,
+    getBoard: () => board,
+    getIsRandomBlock: () => isRandomBlock,
+    getFadingBlocks: () => fadingBlocks,
+    getIsLattice: () => isLatticeBlock,
     canvas: canvas,
     ctx: ctx,
     BLOCK_SIZE: BLOCK_SIZE,
