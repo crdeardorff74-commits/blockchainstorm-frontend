@@ -790,7 +790,12 @@ function updateCanvasSize() {
     if (gameRunning && currentPiece) {
         drawBoard();
         if (currentPiece && currentPiece.shape) {
-            drawPiece(currentPiece);
+            if (hardDropping) {
+                const pixelOffset = hardDropPixelY - (currentPiece.y * BLOCK_SIZE);
+                drawPiece(currentPiece, ctx, 0, 0, pixelOffset);
+            } else {
+                drawPiece(currentPiece);
+            }
         }
         if (nextPiece) {
             drawNextPiece();
@@ -5851,7 +5856,7 @@ function triggerLightning(targetY) {
     playThunder(soundToggle);
 }
 
-function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0) {
+function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0, pixelOffsetY = 0) {
     if (!piece || !piece.shape || piece.shape.length === 0) return;
     
     const positions = [];
@@ -5859,7 +5864,9 @@ function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0) {
         if (row) {
             row.forEach((value, x) => {
                 if (value) {
-                    positions.push([piece.x + x + offsetX, piece.y + y + offsetY]);
+                    // Use fractional Y position for smooth rendering
+                    const yPos = piece.y + y + offsetY + (pixelOffsetY / BLOCK_SIZE);
+                    positions.push([piece.x + x + offsetX, yPos]);
                 }
             });
         }
@@ -8725,7 +8732,8 @@ function dropPiece() {
 // Hard drop animation state
 let hardDropping = false;
 let hardDropVelocity = 0;
-let hardDropFractionalY = 0; // Track fractional position for smooth animation
+let hardDropPixelY = 0; // Track pixel position for smooth visual animation
+let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
     if (animatingLines || !currentPiece || hardDropping) return;
@@ -8735,7 +8743,8 @@ function hardDrop() {
     // Start animated drop
     hardDropping = true;
     hardDropVelocity = 0;
-    hardDropFractionalY = 0; // Start with no fractional offset
+    hardDropStartY = currentPiece.y;
+    hardDropPixelY = currentPiece.y * BLOCK_SIZE; // Start at current position in pixels
     
     playSoundEffect('move', soundToggle); // Initial sound
 }
@@ -8755,29 +8764,42 @@ function updateHardDrop() {
     const baseGravity = 0.45;
     const baseMaxVelocity = 4.5;
     
-    // Scale by celestial body's gravity
-    const hardDropAcceleration = baseGravity * gravityMultiplier;
-    const hardDropMaxVelocity = baseMaxVelocity * gravityMultiplier;
+    // Scale by celestial body's gravity with minimum floors
+    const minGravity = 0.8;
+    const minMaxVelocity = 8.0;
+    const hardDropAcceleration = Math.max(baseGravity * gravityMultiplier, minGravity);
+    const hardDropMaxVelocity = Math.max(baseMaxVelocity * gravityMultiplier, minMaxVelocity);
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
     
-    // Add velocity to fractional position (smooth movement)
-    hardDropFractionalY += hardDropVelocity;
+    // Update pixel position
+    hardDropPixelY += hardDropVelocity;
     
-    // Move piece down by integer blocks
-    while (hardDropFractionalY >= 1.0) {
+    // Calculate the target grid Y based on pixel position
+    const targetGridY = Math.floor(hardDropPixelY / BLOCK_SIZE);
+    
+    // Move piece grid position to catch up with visual position (for collision detection)
+    while (currentPiece.y < targetGridY) {
         if (!collides(currentPiece, 0, 1)) {
             currentPiece.y++;
-            hardDropFractionalY -= 1.0;
         } else {
             // Hit something - stop hard drop and place piece
             hardDropping = false;
             hardDropVelocity = 0;
-            hardDropFractionalY = 0;
+            hardDropPixelY = 0;
             dropPiece();
             return;
         }
+    }
+    
+    // Check if we've hit something at the current position
+    if (collides(currentPiece, 0, 1)) {
+        // Snap visual to final grid position
+        hardDropPixelY = currentPiece.y * BLOCK_SIZE;
+        hardDropping = false;
+        hardDropVelocity = 0;
+        dropPiece();
     }
 }
 
@@ -9015,7 +9037,13 @@ function update(time = 0) {
     drawBouncingPieces(); // Draw bouncing pieces (Rubber & Glue mode)
     if (currentPiece && currentPiece.shape) {
         drawShadowPiece(currentPiece);
-        drawPiece(currentPiece);
+        // During hard drop, use smooth pixel-based rendering
+        if (hardDropping) {
+            const pixelOffset = hardDropPixelY - (currentPiece.y * BLOCK_SIZE);
+            drawPiece(currentPiece, ctx, 0, 0, pixelOffset);
+        } else {
+            drawPiece(currentPiece);
+        }
     }
     
     // Draw dripping liquids ON TOP of everything (obscuring the stack)
@@ -9159,7 +9187,8 @@ function startGame(mode) {
     // Clear hard drop state
     hardDropping = false;
     hardDropVelocity = 0;
-    hardDropFractionalY = 0;
+    hardDropPixelY = 0;
+    hardDropStartY = 0;
     
     // Clear all pressed keys
     customKeyRepeat.keys.clear();
