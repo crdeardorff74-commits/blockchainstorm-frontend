@@ -8752,23 +8752,9 @@ function hardDrop() {
 function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
     
-    // Get current celestial body's gravity multiplier (same as falling blocks)
-    let gravityMultiplier = 1.0; // Default to Earth gravity
-    const planets = StarfieldSystem.getPlanets();
-    const currentBody = planets.find(p => p.level === currentGameLevel);
-    if (currentBody && currentBody.gravity !== undefined) {
-        gravityMultiplier = currentBody.gravity;
-    }
-    
-    // Use same base values as falling blocks gravity system
-    const baseGravity = 0.45;
-    const baseMaxVelocity = 4.5;
-    
-    // Scale by celestial body's gravity with minimum floors
-    const minGravity = 0.8;
-    const minMaxVelocity = 8.0;
-    const hardDropAcceleration = Math.max(baseGravity * gravityMultiplier, minGravity);
-    const hardDropMaxVelocity = Math.max(baseMaxVelocity * gravityMultiplier, minMaxVelocity);
+    // Constant hard drop speed (slightly faster than original Earth gravity)
+    const hardDropAcceleration = 0.55;
+    const hardDropMaxVelocity = 5.5;
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
