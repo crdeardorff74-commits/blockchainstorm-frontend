@@ -95,10 +95,10 @@ const SpecialEffects = (function() {
     // DEPENDENCIES (injected from game.js)
     // ============================================
     let deps = {
-        board: null,
-        isRandomBlock: null,
-        fadingBlocks: null,
-        isLattice: null,
+        getBoard: null,           // Function that returns current board
+        getIsRandomBlock: null,   // Function that returns current isRandomBlock
+        getFadingBlocks: null,    // Function that returns current fadingBlocks
+        getIsLattice: null,       // Function that returns current isLattice
         canvas: null,
         ctx: null,
         BLOCK_SIZE: 35,
@@ -146,9 +146,9 @@ const SpecialEffects = (function() {
         blackHoleOuterBlob = outerBlob;
         
         innerBlob.positions.forEach(([x, y]) => {
-            deps.board[y][x] = null;
-            deps.isRandomBlock[y][x] = false;
-            deps.fadingBlocks[y][x] = null;
+            deps.getBoard()[y][x] = null;
+            deps.getIsRandomBlock()[y][x] = false;
+            deps.getFadingBlocks()[y][x] = null;
         });
         
         blackHoleBlocks = [];
@@ -271,9 +271,9 @@ const SpecialEffects = (function() {
                 
                 if (block.pullProgress >= 1) {
                     block.removed = true;
-                    deps.board[block.y][block.x] = null;
-                    deps.isRandomBlock[block.y][block.x] = false;
-                    deps.fadingBlocks[block.y][block.x] = null;
+                    deps.getBoard()[block.y][block.x] = null;
+                    deps.getIsRandomBlock()[block.y][block.x] = false;
+                    deps.getFadingBlocks()[block.y][block.x] = null;
                 }
             }
         });
@@ -416,7 +416,7 @@ const SpecialEffects = (function() {
                 volcanoStartTime = Date.now();
                 
                 volcanoLavaBlob.positions.forEach(([x, y]) => {
-                    deps.board[y][x] = volcanoLavaColor;
+                    deps.getBoard()[y][x] = volcanoLavaColor;
                 });
                 
                 deps.playEnhancedThunder(deps.soundToggle);
@@ -446,16 +446,16 @@ const SpecialEffects = (function() {
                     const gridX = Math.floor(proj.x / deps.BLOCK_SIZE);
                     const gridY = Math.floor(proj.y / deps.BLOCK_SIZE);
                     
-                    if (gridY >= deps.ROWS || gridY >= 0 && gridX >= 0 && gridX < deps.COLS && deps.board[gridY] && deps.board[gridY][gridX] !== null) {
+                    if (gridY >= deps.ROWS || gridY >= 0 && gridX >= 0 && gridX < deps.COLS && deps.getBoard()[gridY] && deps.getBoard()[gridY][gridX] !== null) {
                         proj.landed = true;
                         
                         let landY = gridY - 1;
-                        while (landY >= 0 && deps.board[landY] && deps.board[landY][gridX] !== null) {
+                        while (landY >= 0 && deps.getBoard()[landY] && deps.getBoard()[landY][gridX] !== null) {
                             landY--;
                         }
                         
                         if (landY >= 0 && gridX >= 0 && gridX < deps.COLS) {
-                            deps.board[landY][gridX] = volcanoLavaColor;
+                            deps.getBoard()[landY][gridX] = volcanoLavaColor;
                         }
                     }
                     
@@ -467,8 +467,8 @@ const SpecialEffects = (function() {
             
             if (eruptProgress >= 1 && volcanoProjectiles.every(p => p.landed)) {
                 volcanoLavaBlob.positions.forEach(([x, y]) => {
-                    deps.board[y][x] = null;
-                    deps.isRandomBlock[y][x] = false;
+                    deps.getBoard()[y][x] = null;
+                    deps.getIsRandomBlock()[y][x] = false;
                 });
                 
                 volcanoAnimating = false;
@@ -671,22 +671,22 @@ const SpecialEffects = (function() {
                 removed: false,
                 collapsing: true
             });
-            deps.board[y][x] = null;
-            deps.isRandomBlock[y][x] = false;
+            deps.getBoard()[y][x] = null;
+            deps.getIsRandomBlock()[y][x] = false;
         });
         
         tsunamiPushedBlocks = [];
         for (let checkY = minY - 1; checkY >= 0; checkY--) {
             for (let checkX = 0; checkX < deps.COLS; checkX++) {
-                if (deps.board[checkY][checkX] !== null) {
-                    const blobAbove = deps.findBlob(checkX, checkY, deps.board[checkY][checkX]);
+                if (deps.getBoard()[checkY][checkX] !== null) {
+                    const blobAbove = deps.findBlob(checkX, checkY, deps.getBoard()[checkY][checkX]);
                     if (blobAbove) {
                         blobAbove.positions.forEach(([bx, by]) => {
                             if (!tsunamiPushedBlocks.find(b => b.x === bx && b.y === by)) {
                                 tsunamiPushedBlocks.push({
                                     x: bx,
                                     y: by,
-                                    color: deps.board[by][bx],
+                                    color: deps.getBoard()[by][bx],
                                     currentY: by * deps.BLOCK_SIZE,
                                     originalY: by,
                                     pushAmount: 0
@@ -909,8 +909,8 @@ const SpecialEffects = (function() {
                 
                 if (gridY < deps.ROWS && gridX >= 0 && gridX < COLS) {
                     for (let checkY = gridY; checkY < deps.ROWS; checkY++) {
-                        if (deps.board[checkY][gridX] !== null) {
-                            const blob = deps.findBlob(gridX, checkY, deps.board[checkY][gridX]);
+                        if (deps.getBoard()[checkY][gridX] !== null) {
+                            const blob = deps.findBlob(gridX, checkY, deps.getBoard()[checkY][gridX]);
                             if (blob && canLiftBlob(blob)) {
                                 tornadoPickedBlob = blob;
                                 tornadoState = 'lifting';
@@ -923,8 +923,8 @@ const SpecialEffects = (function() {
                                 tornadoLiftHeight = 0;
                                 
                                 blob.positions.forEach(([x, y]) => {
-                                    deps.board[y][x] = null;
-                                    deps.isRandomBlock[y][x] = false;
+                                    deps.getBoard()[y][x] = null;
+                                    deps.getIsRandomBlock()[y][x] = false;
                                 });
                                 
                                 console.log('🌪️ Picked up blob:', blob.color, 'size:', blob.positions.length);
@@ -1034,7 +1034,7 @@ const SpecialEffects = (function() {
         for (const [x, y] of blob.positions) {
             const newX = x + offsetX;
             for (let checkY = 0; checkY < deps.ROWS; checkY++) {
-                if (deps.board[checkY][newX] !== null) {
+                if (deps.getBoard()[checkY][newX] !== null) {
                     highestLanding = Math.min(highestLanding, checkY);
                     break;
                 }
@@ -1049,7 +1049,7 @@ const SpecialEffects = (function() {
             const newX = x + offsetX;
             const newY = y + offsetY;
             if (newY >= 0 && newY < deps.ROWS && newX >= 0 && newX < deps.COLS) {
-                deps.board[newY][newX] = blob.color;
+                deps.getBoard()[newY][newX] = blob.color;
             }
         });
         
@@ -1166,7 +1166,7 @@ const SpecialEffects = (function() {
         let tallestRow = deps.ROWS;
         for (let y = 0; y < deps.ROWS; y++) {
             for (let x = 0; x < deps.COLS; x++) {
-                if (deps.board[y][x] !== null) {
+                if (deps.getBoard()[y][x] !== null) {
                     tallestRow = Math.min(tallestRow, y);
                     break;
                 }
@@ -1267,13 +1267,13 @@ const SpecialEffects = (function() {
             const crackX = earthquakeCrackMap.get(y) || Math.floor(deps.COLS / 2);
             
             for (let x = 0; x < deps.COLS; x++) {
-                if (deps.board[y][x] !== null) {
+                if (deps.getBoard()[y][x] !== null) {
                     const block = {
                         x: x,
                         y: y,
-                        color: deps.board[y][x],
-                        isRandom: deps.isRandomBlock[y][x],
-                        isLattice: deps.isLattice ? deps.isLattice[y][x] : false
+                        color: deps.getBoard()[y][x],
+                        isRandom: deps.getIsRandomBlock()[y][x],
+                        isLattice: deps.getIsLattice() ? deps.getIsLattice()[y][x] : false
                     };
                     
                     if (x < crackX) {
@@ -1289,27 +1289,27 @@ const SpecialEffects = (function() {
     function applyEarthquakeShift() {
         for (let y = 0; y < deps.ROWS; y++) {
             for (let x = 0; x < deps.COLS; x++) {
-                deps.board[y][x] = null;
-                deps.isRandomBlock[y][x] = false;
-                if (deps.isLattice) deps.isLattice[y][x] = false;
+                deps.getBoard()[y][x] = null;
+                deps.getIsRandomBlock()[y][x] = false;
+                if (deps.getIsLattice()) deps.getIsLattice()[y][x] = false;
             }
         }
         
         earthquakeLeftBlocks.forEach(block => {
             const newX = block.x - 1;
             if (newX >= 0 && newX < deps.COLS) {
-                deps.board[block.y][newX] = block.color;
-                deps.isRandomBlock[block.y][newX] = block.isRandom;
-                if (deps.isLattice) deps.isLattice[block.y][newX] = block.isLattice;
+                deps.getBoard()[block.y][newX] = block.color;
+                deps.getIsRandomBlock()[block.y][newX] = block.isRandom;
+                if (deps.getIsLattice()) deps.getIsLattice()[block.y][newX] = block.isLattice;
             }
         });
         
         earthquakeRightBlocks.forEach(block => {
             const newX = block.x + 1;
             if (newX >= 0 && newX < deps.COLS) {
-                deps.board[block.y][newX] = block.color;
-                deps.isRandomBlock[block.y][newX] = block.isRandom;
-                if (deps.isLattice) deps.isLattice[block.y][newX] = block.isLattice;
+                deps.getBoard()[block.y][newX] = block.color;
+                deps.getIsRandomBlock()[block.y][newX] = block.isRandom;
+                if (deps.getIsLattice()) deps.getIsLattice()[block.y][newX] = block.isLattice;
             }
         });
     }
