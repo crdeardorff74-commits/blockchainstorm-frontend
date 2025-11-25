@@ -8037,6 +8037,7 @@ function updateFallingBlocks() {
     // Get current celestial body's gravity multiplier
     // Find the planet/sun for the current level
     let gravityMultiplier = 1.0; // Default to Earth gravity
+    const planets = StarfieldSystem.getPlanets();
     const currentBody = planets.find(p => p.level === currentGameLevel);
     if (currentBody && currentBody.gravity !== undefined) {
         gravityMultiplier = currentBody.gravity;
@@ -8744,6 +8745,7 @@ function updateHardDrop() {
     
     // Get current celestial body's gravity multiplier (same as falling blocks)
     let gravityMultiplier = 1.0; // Default to Earth gravity
+    const planets = StarfieldSystem.getPlanets();
     const currentBody = planets.find(p => p.level === currentGameLevel);
     if (currentBody && currentBody.gravity !== undefined) {
         gravityMultiplier = currentBody.gravity;
@@ -9280,6 +9282,7 @@ function startGame(mode) {
     StarfieldSystem.hidePlanetStats();
     
     // Show Sun stats at level 1
+    const planets = StarfieldSystem.getPlanets();
     const sun = planets.find(p => p.isSun);
     if (sun) {
         StarfieldSystem.showPlanetStats(sun);
