@@ -2189,7 +2189,7 @@ function advanceToNextPlanet() {
         // Advance to next planet's level
         level = nextPlanet.level;
         currentGameLevel = level; StarfieldSystem.setCurrentGameLevel(level);
-        lines = (level - 1) * 10; // Update lines to match level
+        lines = (level - 1) * 11; // Update lines to match level
         dropInterval = calculateDropInterval(lines);
         updateStats();
         console.log(`🪐 Advanced to ${nextPlanet.name} (Level ${level})`);
@@ -8417,7 +8417,7 @@ function clearLines() {
         }
         
         const oldLevel = level;
-        level = Math.floor(lines / 10) + 1;
+        level = Math.min(11, Math.floor(lines / 11) + 1); // Spinal Tap tribute - this one goes to 11!
         currentGameLevel = level; StarfieldSystem.setCurrentGameLevel(level); // Update starfield journey
         dropInterval = calculateDropInterval(lines);
         
