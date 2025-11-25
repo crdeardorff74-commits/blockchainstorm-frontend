@@ -900,1278 +900,11 @@ let frameCount = 0; // Frame counter for liquid pooling timing
 const MAX_STORM_PARTICLES = 800; // Maximum number of particles at once (increased for hurricane deluge)
 let splashParticles = []; // Separate array for splash effects
 
-// Tornado System
-let tornadoActive = false;
-let tornadoY = 0; // Current Y position of tornado tip
-let tornadoX = 0; // X position (center column)
-let tornadoRotation = 0; // Rotation angle for visual effect
-let tornadoSpeed = 1.5; // Pixels per frame descending (slowed to half)
-let tornadoPickedBlob = null; // Blob currently being lifted
-let tornadoState = 'descending'; // 'descending', 'lifting', 'carrying', 'dropping', 'dissipating'
-let tornadoDropTargetX = 0; // Where to drop the blob
-let tornadoLiftStartY = 0; // Where lift started
-let tornadoBlobRotation = 0; // Rotation of the lifted blob
-let tornadoVerticalRotation = 0; // Rotation around vertical axis (for 3D effect)
-let tornadoOrbitStartTime = null; // When blob started orbiting
-let tornadoOrbitRadius = 0; // Distance from tornado center
-let tornadoOrbitAngle = 0; // Current angle around tornado
-let tornadoLiftHeight = 0; // Current height of blob as it climbs
-let tornadoDropStartY = 0; // Y position when dropping starts
-let tornadoFadeProgress = 0; // 0 to 1 for dissipation animation
-let tornadoSnakeVelocity = 0; // Current horizontal velocity
-let tornadoSnakeDirection = 1; // 1 or -1
-let tornadoSnakeChangeCounter = 0; // Frames until direction change
-let tornadoParticles = []; // Swirling particles around tornado
-
-let disintegrationParticles = []; // Particles for blob explosion
-
-// Earthquake state
-let earthquakeActive = false;
-let earthquakePhase = 'shake'; // 'shake' (2s horizontal shake), 'crack', 'shift', 'done'
-let earthquakeShakeProgress = 0;
-let earthquakeShakeIntensity = 0; // Used for horizontal shaking throughout earthquake
-let earthquakeCrack = []; // Array of {x, y, edge} points forming the crack
-let earthquakeCrackProgress = 0;
-let earthquakeCrackMap = new Map(); // Map of Y -> X position for fast lookup
-let earthquakeShiftProgress = 0;
-let earthquakeLeftBlocks = []; // Blocks on left side of crack
-let earthquakeRightBlocks = []; // Blocks on right side of crack
-
-// Black Hole Animation System
-let blackHoleActive = false;
-let blackHoleAnimating = false;
-let blackHoleCenterX = 0;
-let blackHoleCenterY = 0;
-let blackHoleBlocks = []; // Blocks to be sucked in: {x, y, color, distance, pulled}
-let blackHoleStartTime = 0;
-let blackHoleDuration = 2500; // 2.5 seconds for full animation
-let blackHoleShakeIntensity = 0;
-let blackHoleInnerBlob = null;
-let blackHoleOuterBlob = null;
-
 // Falling Blocks Animation System
 let fallingBlocks = []; // Blocks that are animating falling: {x, y, targetY, color, progress, isRandom}
 let gravityAnimating = false;
 
-// Tsunami Animation System
-let tsunamiActive = false;
-let tsunamiAnimating = false;
-let tsunamiBlob = null;
-let tsunamiBlocks = []; // Blocks collapsing: {x, y, color, targetY, currentY, removed}
-let tsunamiPushedBlocks = []; // Blocks above tsunami that get pushed up
-let tsunamiStartTime = 0;
-let tsunamiDuration = 2000; // 2 seconds
-let tsunamiWobbleIntensity = 0;
 
-// Volcano Animation System
-let volcanoActive = false;
-let volcanoAnimating = false;
-let volcanoPhase = 'warming'; // 'warming' (vibration + color change), 'erupting' (projectiles)
-let volcanoLavaBlob = null; // The blob that turned to lava
-let volcanoLavaColor = '#FF4500'; // Intense glowing red-orange (OrangeRed)
-let volcanoEruptionColumn = -1; // Which column to erupt through
-let volcanoEdgeType = ''; // Which edge(s) the lava blob is against: 'left', 'right', 'bottom', or combinations
-let volcanoProjectiles = []; // Lava blocks flying: {x, y, vx, vy, gravity, color, landed}
-let volcanoStartTime = 0;
-let volcanoWarmingDuration = 3000; // 3 seconds of warming/vibration before eruption
-let volcanoEruptionDuration = 2000; // 2 seconds of eruption
-let volcanoVibrateOffset = { x: 0, y: 0 }; // Current vibration offset for warming phase
-let volcanoColorProgress = 0; // 0 to 1, tracks color transition during warming
-let volcanoOriginalColor = null; // Store original color to transition from
-let volcanoProjectilesSpawned = 0; // Track how many projectiles have been spawned
-let volcanoTargetProjectiles = 0; // How many projectiles to spawn (matches blob size)
-
-
-// Get pulsing lava color (oscillates between darker and brighter)
-function getLavaColor() {
-    // Pulse over 2 seconds (slower, more dramatic)
-    const pulse = Math.sin(Date.now() / 1000) * 0.5 + 0.5; // 0.0 to 1.0
-    
-    // Base color: #FF4500 (255, 69, 0)
-    const baseR = 255;
-    const baseG = 69;
-    const baseB = 0;
-    
-    // Oscillate between 70% and 130% brightness
-    const minBrightness = 0.7;
-    const maxBrightness = 1.3;
-    const brightness = minBrightness + pulse * (maxBrightness - minBrightness);
-    
-    // Apply brightness
-    const r = Math.min(255, Math.round(baseR * brightness));
-    const g = Math.min(255, Math.round(baseG * brightness));
-    const b = Math.min(255, Math.round(baseB * brightness));
-    
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function triggerBlackHole(innerBlob, outerBlob) {
-    // Calculate center of black hole (center of inner blob)
-    const innerXs = innerBlob.positions.map(p => p[0]);
-    const innerYs = innerBlob.positions.map(p => p[1]);
-    blackHoleCenterX = (Math.min(...innerXs) + Math.max(...innerXs)) / 2;
-    blackHoleCenterY = (Math.min(...innerYs) + Math.max(...innerYs)) / 2;
-    
-    // Store references
-    blackHoleInnerBlob = innerBlob;
-    blackHoleOuterBlob = outerBlob;
-    
-    // Remove inner blob from board immediately (we'll render it as dark vortex)
-    innerBlob.positions.forEach(([x, y]) => {
-        board[y][x] = null;
-        isRandomBlock[y][x] = false;
-        fadingBlocks[y][x] = null;
-    });
-    
-    // Create list of all blocks to animate (only outer blob gets sucked in)
-    blackHoleBlocks = [];
-    
-    // Add outer blob blocks (these get sucked in)
-    outerBlob.positions.forEach(([x, y]) => {
-        const dx = x - blackHoleCenterX;
-        const dy = y - blackHoleCenterY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        blackHoleBlocks.push({
-            x, y,
-            color: outerBlob.color,
-            distance,
-            isInner: false,
-            animating: false,
-            removed: false,
-            pullProgress: 0,
-            currentX: x,
-            currentY: y,
-            startX: x,
-            startY: y,
-            scale: 1,
-            rotation: 0
-        });
-    });
-    
-    // Sort by distance (farthest first)
-    blackHoleBlocks.sort((a, b) => b.distance - a.distance);
-    
-    blackHoleActive = true;
-    blackHoleAnimating = true;
-    blackHoleStartTime = Date.now();
-    blackHoleShakeIntensity = 8; // pixels
-    
-    // Add visual effect
-    canvas.classList.add('blackhole-active');
-    playEnhancedThunder(soundToggle);
-}
-
-function createDisintegrationExplosion(blob) {
-    // Create particles for each block in the blob
-    blob.positions.forEach(([x, y]) => {
-        const blockCenterX = x * BLOCK_SIZE + BLOCK_SIZE / 2;
-        const blockCenterY = y * BLOCK_SIZE + BLOCK_SIZE / 2;
-        
-        // Create 12-16 particles per block
-        const particleCount = 12 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < particleCount; i++) {
-            const angle = (Math.random() * Math.PI * 2);
-            const speed = 2 + Math.random() * 4;
-            const size = 3 + Math.random() * 5;
-            
-            disintegrationParticles.push({
-                x: blockCenterX,
-                y: blockCenterY,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 1, // Slight upward bias
-                size: size,
-                color: blob.color,
-                opacity: 1,
-                life: 1, // 0 to 1
-                decay: 0.015 + Math.random() * 0.01,
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 0.3
-            });
-        }
-    });
-}
-
-function updateDisintegrationParticles() {
-    disintegrationParticles = disintegrationParticles.filter(p => {
-        // Apply physics
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.2; // Gravity
-        p.vx *= 0.98; // Air resistance
-        p.rotation += p.rotationSpeed;
-        
-        // Fade out
-        p.life -= p.decay;
-        p.opacity = p.life;
-        
-        return p.life > 0;
-    });
-}
-
-function drawDisintegrationParticles() {
-    disintegrationParticles.forEach(p => {
-        ctx.save();
-        ctx.globalAlpha = p.opacity;
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotation);
-        
-        // Draw as small square chunks
-        ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-        
-        // Add some darker edge for depth
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-p.size / 2, -p.size / 2, p.size, p.size);
-        
-        ctx.restore();
-    });
-}
-
-function updateBlackHoleAnimation() {
-    if (!blackHoleAnimating) return;
-    
-    const elapsed = Date.now() - blackHoleStartTime;
-    const progress = Math.min(elapsed / blackHoleDuration, 1);
-    
-    // Shake intensity decreases over time
-    blackHoleShakeIntensity = 8 * (1 - progress * 0.5);
-    
-    // Update each block's animation state
-    blackHoleBlocks.forEach((block, index) => {
-        // Each block starts being pulled at different times
-        const blockStartDelay = (index / blackHoleBlocks.length) * 0.7; // First 70% of animation
-        const blockProgress = Math.max(0, Math.min(1, (progress - blockStartDelay) / 0.3)); // 30% duration per block
-        
-        if (blockProgress > 0 && !block.animating) {
-            block.animating = true;
-            block.startX = block.x;
-            block.startY = block.y;
-        }
-        
-        if (block.animating) {
-            block.pullProgress = blockProgress;
-            
-            // Spiral path to center
-            const spiralRotations = 2; // 2 full rotations as it spirals in
-            const angle = blockProgress * Math.PI * 2 * spiralRotations;
-            
-            // Distance from center decreases
-            const startDist = block.distance;
-            const currentDist = startDist * (1 - blockProgress);
-            
-            // Calculate position (spiral inward)
-            const centerX = blackHoleCenterX;
-            const centerY = blackHoleCenterY;
-            const dx = block.startX - centerX;
-            const dy = block.startY - centerY;
-            const startAngle = Math.atan2(dy, dx);
-            
-            block.currentX = centerX + Math.cos(startAngle + angle) * currentDist;
-            block.currentY = centerY + Math.sin(startAngle + angle) * currentDist;
-            
-            // Scale decreases as it approaches center
-            block.scale = 1 - blockProgress;
-            
-            // Rotation increases
-            block.rotation = angle;
-            
-            // Remove from board once it reaches the center
-            if (blockProgress >= 1 && !block.removed) {
-                block.removed = true;
-                if (board[block.y] && board[block.y][block.x]) {
-                    board[block.y][block.x] = null;
-                    isRandomBlock[block.y][block.x] = false;
-                    fadingBlocks[block.y][block.x] = null;
-                }
-            }
-        }
-    });
-    
-    // Animation complete
-    if (progress >= 1) {
-        console.log('🕳️ Black hole animation complete');
-        blackHoleAnimating = false;
-        blackHoleActive = false;
-        blackHoleShakeIntensity = 0;
-        canvas.classList.remove('blackhole-active');
-        
-        console.log('🕳️ Black hole calling applyGravity()');
-        // Apply gravity after black hole
-        applyGravity();
-        // Note: checkForSpecialFormations will be called after gravity animation completes
-    }
-}
-
-function drawBlackHole() {
-    if (!blackHoleActive) return;
-    
-    ctx.save();
-    
-    // Note: The vortex is now drawn BEHIND blocks in drawBoard()
-    // Here we only draw the animating outer blocks (spiraling and shrinking)
-    
-    blackHoleBlocks.forEach(block => {
-        if (block.animating && !block.removed && block.scale > 0.05) {
-            ctx.save();
-            
-            const px = block.currentX * BLOCK_SIZE;
-            const py = block.currentY * BLOCK_SIZE;
-            const centerX = px + BLOCK_SIZE / 2;
-            const centerY = py + BLOCK_SIZE / 2;
-            
-            // Translate to center, rotate and scale
-            ctx.translate(centerX, centerY);
-            ctx.rotate(block.rotation);
-            ctx.scale(block.scale, block.scale);
-            ctx.translate(-centerX, -centerY);
-            
-            // Fade as it approaches center
-            ctx.globalAlpha = block.scale;
-            
-            // Draw the block
-            drawSolidShape(ctx, [[block.currentX, block.currentY]], block.color, BLOCK_SIZE, false, getFaceOpacity());
-            
-            ctx.restore();
-            
-            // Add trailing particles
-            if (Math.random() < 0.3 && block.pullProgress < 0.9) {
-                disintegrationParticles.push({
-                    x: px + BLOCK_SIZE / 2,
-                    y: py + BLOCK_SIZE / 2,
-                    vx: (Math.random() - 0.5) * 2,
-                    vy: (Math.random() - 0.5) * 2,
-                    size: 2 + Math.random() * 3,
-                    color: block.color,
-                    opacity: 0.8,
-                    life: 0.8,
-                    decay: 0.03,
-                    gravity: 0,
-                    rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: (Math.random() - 0.5) * 0.3
-                });
-            }
-        }
-    });
-    ctx.restore();
-}
-
-// ============================================
-// VOLCANO SYSTEM
-// ============================================
-
-function triggerVolcano(lavaBlob, eruptionColumn, edgeType = 'bottom') {
-    console.log('🌋 Volcano triggered! Starting warming phase...', 'Lava blob size:', lavaBlob.positions.length, 'Eruption column:', eruptionColumn, 'Edge:', edgeType);
-    
-    volcanoActive = true;
-    volcanoAnimating = true;
-    volcanoPhase = 'warming'; // Start with warming phase
-    volcanoLavaBlob = lavaBlob;
-    volcanoEruptionColumn = eruptionColumn;
-    volcanoEdgeType = edgeType;
-    volcanoStartTime = Date.now();
-    volcanoProjectiles = [];
-    volcanoVibrateOffset = { x: 0, y: 0 };
-    volcanoColorProgress = 0;
-    volcanoProjectilesSpawned = 0; // Reset counter
-    volcanoTargetProjectiles = lavaBlob.positions.length; // Set target to blob size
-    
-    // Store the original color of the lava blob for gradual transition
-    if (lavaBlob.positions.length > 0) {
-        const [x, y] = lavaBlob.positions[0];
-        volcanoOriginalColor = board[y][x];
-    }
-    
-    // DON'T remove blocks yet - they stay on board during warming
-    // They'll be removed when eruption phase starts
-    
-    // Play rumble sound to indicate volcano is warming up
-    playSoundEffect('rumble', soundToggle);
-}
-
-function updateVolcanoAnimation() {
-    if (!volcanoAnimating) return;
-    
-    const elapsed = Date.now() - volcanoStartTime;
-    
-    if (volcanoPhase === 'warming') {
-        // WARMING PHASE: Vibrate and gradually change color
-        const warmingProgress = Math.min(elapsed / volcanoWarmingDuration, 1);
-        volcanoColorProgress = warmingProgress;
-        
-        // Vibration gets more intense as it heats up
-        const intensity = 0.5 + warmingProgress * 1.5; // 0.5 to 2.0 pixels
-        const frequency = 0.1 - warmingProgress * 0.05; // Faster vibration over time
-        volcanoVibrateOffset.x = Math.sin(Date.now() * frequency) * intensity;
-        volcanoVibrateOffset.y = Math.cos(Date.now() * frequency * 1.3) * intensity;
-        
-        // When warming completes, transition to eruption phase
-        if (warmingProgress >= 1) {
-            console.log('🌋 Warming complete! Starting eruption...');
-            volcanoPhase = 'erupting';
-            volcanoStartTime = Date.now(); // Reset timer for eruption phase
-            volcanoVibrateOffset = { x: 0, y: 0 }; // Stop vibrating
-            
-            // NOW remove blocks and clear the eruption column
-            const colX = volcanoEruptionColumn;
-            const lavaMaxY = Math.max(...volcanoLavaBlob.positions.map(p => p[1]));
-            
-            // Remove lava blob from board
-            volcanoLavaBlob.positions.forEach(([x, y]) => {
-                board[y][x] = null;
-                isRandomBlock[y][x] = false;
-                fadingBlocks[y][x] = null;
-            });
-            
-            // Disintegrate blocks in eruption column above lava
-            for (let y = 0; y < lavaMaxY; y++) {
-                if (board[y] && board[y][colX]) {
-                    // Create disintegration particles
-                    for (let i = 0; i < 3; i++) {
-                        disintegrationParticles.push({
-                            x: colX * BLOCK_SIZE + Math.random() * BLOCK_SIZE,
-                            y: y * BLOCK_SIZE + Math.random() * BLOCK_SIZE,
-                            vx: (Math.random() - 0.5) * 4,
-                            vy: (Math.random() - 0.5) * 4 - 2, // Slight upward bias
-                            size: 2 + Math.random() * 4,
-                            color: board[y][colX],
-                            opacity: 1,
-                            life: 1,
-                            decay: 0.02,
-                            gravity: 0.15,
-                            rotation: Math.random() * Math.PI * 2,
-                            rotationSpeed: (Math.random() - 0.5) * 0.2
-                        });
-                    }
-                    board[y][colX] = null;
-                    isRandomBlock[y][colX] = false;
-                }
-            }
-            
-            // Play explosion sound
-            playSoundEffect('explosion', soundToggle);
-        }
-        
-    } else if (volcanoPhase === 'erupting') {
-        // ERUPTING PHASE: Spawn projectiles and update physics
-        const eruptionProgress = Math.min(elapsed / volcanoEruptionDuration, 1);
-        
-        // Spawn lava projectiles evenly throughout eruption
-        // Calculate how many should have been spawned by now
-        const targetSpawnedByNow = Math.floor(volcanoTargetProjectiles * eruptionProgress);
-        
-        // Spawn any missing projectiles
-        while (volcanoProjectilesSpawned < targetSpawnedByNow && volcanoProjectilesSpawned < volcanoTargetProjectiles) {
-            spawnLavaProjectile();
-            volcanoProjectilesSpawned++;
-        }
-        
-        // Update projectiles
-        volcanoProjectiles = volcanoProjectiles.filter(p => {
-            // Apply gravity
-            p.vy += p.gravity;
-            
-            // Update position
-            p.x += p.vx;
-            p.y += p.vy;
-            
-            // Check if landed on board or bottom
-            const gridX = Math.round(p.x / BLOCK_SIZE);
-            const gridY = Math.round(p.y / BLOCK_SIZE);
-            
-            // If below board, place it at bottom if column is valid
-            if (p.y >= ROWS * BLOCK_SIZE) {
-                if (gridX >= 0 && gridX < COLS) {
-                    // Find highest empty spot in this column
-                    for (let y = ROWS - 1; y >= 0; y--) {
-                        if (!board[y][gridX]) {
-                            board[y][gridX] = volcanoLavaColor;
-                            isRandomBlock[y][gridX] = false;
-                            p.landed = true;
-                            playSoundEffect('drop', soundToggle);
-                            return false; // Remove projectile
-                        }
-                    }
-                }
-                return false; // Off board, remove
-            }
-            
-            // Check if hit existing block
-            if (gridY >= 0 && gridY < ROWS && gridX >= 0 && gridX < COLS) {
-                // Check if next position down has a block
-                const nextY = gridY + 1;
-                if (nextY < ROWS && board[nextY] && board[nextY][gridX]) {
-                    // Land on top of this block
-                    if (!board[gridY][gridX]) {
-                        board[gridY][gridX] = volcanoLavaColor;
-                        isRandomBlock[gridY][gridX] = false;
-                        p.landed = true;
-                        playSoundEffect('drop', soundToggle);
-                        return false;
-                    }
-                }
-            }
-            
-            return true; // Keep projectile
-        });
-        
-        // When eruption completes, apply gravity
-        if (eruptionProgress >= 1) {
-            console.log('🌋 Volcano eruption complete, applying gravity');
-            volcanoAnimating = false;
-            volcanoActive = false;
-            volcanoPhase = 'warming'; // Reset for next volcano
-            applyGravity();
-        }
-    }
-}
-
-function spawnLavaProjectile() {
-    if (!volcanoLavaBlob || volcanoEruptionColumn < 0) return;
-    
-    // Find the top of the lava blob in the eruption column
-    const lavaInColumn = volcanoLavaBlob.positions.filter(([x, y]) => x === volcanoEruptionColumn);
-    if (lavaInColumn.length === 0) return;
-    
-    const topY = Math.min(...lavaInColumn.map(p => p[1]));
-    
-    // Spawn from top of lava blob
-    const spawnX = volcanoEruptionColumn * BLOCK_SIZE + BLOCK_SIZE / 2;
-    const spawnY = topY * BLOCK_SIZE;
-    
-    // Determine horizontal direction based on which edge the volcano is against
-    let direction;
-    if (volcanoEdgeType.includes('left') && !volcanoEdgeType.includes('right')) {
-        // Against left wall - shoot right only
-        direction = 1;
-    } else if (volcanoEdgeType.includes('right') && !volcanoEdgeType.includes('left')) {
-        // Against right wall - shoot left only
-        direction = -1;
-    } else {
-        // Against bottom only, or in a corner - random direction
-        direction = Math.random() < 0.5 ? -1 : 1;
-    }
-    
-    // Launch velocity
-    const vx = direction * (1 + Math.random() * 3); // 1-4 pixels/frame horizontal
-    const vy = -(8 + Math.random() * 6); // -8 to -14 pixels/frame vertical (upward)
-    
-    volcanoProjectiles.push({
-        x: spawnX,
-        y: spawnY,
-        vx: vx,
-        vy: vy,
-        gravity: 0.3, // Same as other falling physics
-        color: volcanoLavaColor,
-        landed: false
-    });
-}
-
-function drawVolcano() {
-    if (!volcanoActive && !volcanoAnimating) return;
-    
-    ctx.save();
-    
-    if (volcanoPhase === 'warming') {
-        // WARMING PHASE: Draw the lava blob vibrating and changing color
-        if (!volcanoLavaBlob) return;
-        
-        // Interpolate between original color and lava color
-        const progress = volcanoColorProgress;
-        
-        // Parse original color (assuming hex format #RRGGBB)
-        let startColor = { r: 255, g: 100, b: 100 }; // Default reddish
-        if (volcanoOriginalColor && volcanoOriginalColor.startsWith('#')) {
-            const hex = volcanoOriginalColor.replace('#', '');
-            // Use substring instead of deprecated substr
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            
-            // Validate to prevent NaN
-            if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
-                startColor = { r, g, b };
-            }
-        }
-        
-        // Parse lava color #FF4500
-        const endColor = { r: 255, g: 69, b: 0 };
-        
-        // Interpolate with validation
-        const currentR = Math.floor(startColor.r + (endColor.r - startColor.r) * progress);
-        const currentG = Math.floor(startColor.g + (endColor.g - startColor.g) * progress);
-        const currentB = Math.floor(startColor.b + (endColor.b - startColor.b) * progress);
-        
-        // Ensure no NaN values
-        const validR = isNaN(currentR) ? 255 : Math.max(0, Math.min(255, currentR));
-        const validG = isNaN(currentG) ? 100 : Math.max(0, Math.min(255, currentG));
-        const validB = isNaN(currentB) ? 100 : Math.max(0, Math.min(255, currentB));
-        
-        // Convert to hex format (not rgb) so it works with adjustBrightness
-        const currentColor = `#${validR.toString(16).padStart(2, '0')}${validG.toString(16).padStart(2, '0')}${validB.toString(16).padStart(2, '0')}`;
-
-        
-        // Apply vibration offset
-        ctx.translate(volcanoVibrateOffset.x, volcanoVibrateOffset.y);
-        
-        // Draw the lava blob with gradually changing color
-        const positions = volcanoLavaBlob.positions.map(([x, y]) => [x, y]);
-        drawSolidShape(ctx, positions, currentColor, BLOCK_SIZE, false, getFaceOpacity(), false);
-        
-        // Add glow effect that intensifies as it heats up
-        if (progress > 0.3) {
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha = (progress - 0.3) * 0.6; // Fade in from 30% to 100%
-            
-            // Draw glowing halo around the blob
-            positions.forEach(([x, y]) => {
-                const gradient = ctx.createRadialGradient(
-                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    BLOCK_SIZE * 0.3,
-                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    BLOCK_SIZE * 1.2
-                );
-                gradient.addColorStop(0, currentColor);
-                gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(
-                    x * BLOCK_SIZE - BLOCK_SIZE * 0.2,
-                    y * BLOCK_SIZE - BLOCK_SIZE * 0.2,
-                    BLOCK_SIZE * 1.4,
-                    BLOCK_SIZE * 1.4
-                );
-            });
-            ctx.restore();
-        }
-        
-        // Remove vibration translation
-        ctx.translate(-volcanoVibrateOffset.x, -volcanoVibrateOffset.y);
-        
-    } else if (volcanoPhase === 'erupting') {
-        // ERUPTING PHASE: Draw flying lava projectiles
-        
-        // Get current pulsing lava color
-        const lavaColor = getLavaColor();
-        
-        // Draw flying lava projectiles
-        volcanoProjectiles.forEach(p => {
-            const px = p.x - BLOCK_SIZE / 2;
-            const py = p.y - BLOCK_SIZE / 2;
-            
-            // Trailing glow
-            ctx.save();
-            ctx.globalAlpha = 0.4;
-            const gradient = ctx.createRadialGradient(
-                p.x, p.y, 0,
-                p.x, p.y, BLOCK_SIZE * 0.6
-            );
-            gradient.addColorStop(0, lavaColor);
-            gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(px - BLOCK_SIZE * 0.2, py - BLOCK_SIZE * 0.2, BLOCK_SIZE * 1.4, BLOCK_SIZE * 1.4);
-            ctx.restore();
-            
-            // Draw solid projectile
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = lavaColor;
-            ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-            
-            // Bright center highlight (also pulse)
-            const brightHex = lavaColor.replace('#', '');
-            const r = Math.min(255, parseInt(brightHex.substring(0, 2), 16) + 40);
-            const g = Math.min(255, parseInt(brightHex.substring(2, 4), 16) + 40);
-            const b = Math.min(255, parseInt(brightHex.substring(4, 6), 16));
-            const brightColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-            
-            ctx.fillStyle = brightColor;
-            ctx.fillRect(px + BLOCK_SIZE * 0.25, py + BLOCK_SIZE * 0.25, BLOCK_SIZE * 0.5, BLOCK_SIZE * 0.5);
-        });
-    }
-    
-    ctx.restore();
-}
-
-function detectVolcanoes(blobs) {
-    // Returns array of {lavaBlob, outerBlob, eruptionColumn, edgeType} where lavaBlob touches any edge and is enveloped
-    const volcanoes = [];
-    
-    for (let i = 0; i < blobs.length; i++) {
-        const inner = blobs[i];
-        
-        // Check if ANY block in the blob is touching an edge of the well
-        const touchesBottom = inner.positions.some(([x, y]) => y === ROWS - 1);
-        const touchesLeft = inner.positions.some(([x, y]) => x === 0);
-        const touchesRight = inner.positions.some(([x, y]) => x === COLS - 1);
-        const touchesEdge = touchesBottom || touchesLeft || touchesRight;
-        
-        if (!touchesEdge) continue; // Not touching any edge
-        
-        // Determine which edge(s) are touched for eruption direction
-        let edgeType = '';
-        if (touchesLeft) edgeType += 'left';
-        if (touchesRight) edgeType += 'right';
-        if (touchesBottom) edgeType += 'bottom';
-        
-        // Check if enveloped by another blob (with special volcano rules)
-        for (let j = 0; j < blobs.length; j++) {
-            if (i === j) continue;
-            
-            const outer = blobs[j];
-            
-            if (isBlobEnvelopedForVolcano(inner, outer, edgeType)) {
-                // Check if inner blob is at least 4 blocks in size
-                if (inner.positions.length < 4) {
-                    continue; // Skip small blobs - volcanoes require at least 4 blocks
-                }
-                
-                // Found volcano! Choose random column from inner blob for eruption
-                const innerColumns = [...new Set(inner.positions.map(p => p[0]))];
-                const eruptionColumn = innerColumns[Math.floor(Math.random() * innerColumns.length)];
-                
-                volcanoes.push({
-                    lavaBlob: inner,
-                    outerBlob: outer,
-                    eruptionColumn: eruptionColumn,
-                    edgeType: edgeType
-                });
-                
-                break; // One volcano per inner blob
-            }
-        }
-    }
-    
-    return volcanoes;
-}
-
-function isBlobEnvelopedForVolcano(innerBlob, outerBlob, edgeType) {
-    // Special envelopment check for volcano: allows specified edges to be well walls
-    const outerSet = new Set(outerBlob.positions.map(p => `${p[0]},${p[1]}`));
-    const innerSet = new Set(innerBlob.positions.map(p => `${p[0]},${p[1]}`));
-    
-    for (const [x, y] of innerBlob.positions) {
-        const adjacents = [
-            [x-1, y],   // left
-            [x+1, y],   // right
-            [x, y-1],   // top
-            [x, y+1]    // bottom
-        ];
-        
-        for (const [ax, ay] of adjacents) {
-            const key = `${ax},${ay}`;
-            
-            // Special cases for volcano: edges touching well walls are allowed
-            // Bottom edge touching well floor
-            if (ay >= ROWS && edgeType.includes('bottom')) {
-                continue; // Bottom edge touching well floor is allowed
-            }
-            
-            // Left edge touching left wall
-            if (ax < 0 && edgeType.includes('left')) {
-                continue; // Left edge touching left wall is allowed
-            }
-            
-            // Right edge touching right wall
-            if (ax >= COLS && edgeType.includes('right')) {
-                continue; // Right edge touching right wall is allowed
-            }
-            
-            // If adjacent position is OUT OF BOUNDS and not an allowed edge, NOT enveloped
-            if (ax < 0 || ax >= COLS || ay < 0 || ay >= ROWS) {
-                return false;
-            }
-            
-            // Adjacent is in bounds - check if it's part of outer or inner blob
-            const isOuter = outerSet.has(key);
-            const isInner = innerSet.has(key);
-            
-            // If it's neither outer nor inner, then inner is NOT enveloped
-            if (!isOuter && !isInner) {
-                return false;
-            }
-        }
-    }
-    
-    // All adjacent cells (except allowed edges) are either outer blob or inner blob
-    return true;
-}
-
-// ============================================
-// END VOLCANO SYSTEM
-// ============================================
-
-function triggerTsunamiAnimation(blob) {
-    tsunamiBlob = blob;
-    tsunamiBlocks = [];
-    
-    // Find center Y and bounds of the blob
-    const allY = blob.positions.map(p => p[1]);
-    const centerY = (Math.min(...allY) + Math.max(...allY)) / 2;
-    const minY = Math.min(...allY);
-    const maxY = Math.max(...allY);
-    
-    // Store the original blob positions (integers)
-    blob.positions.forEach(([x, y]) => {
-        tsunamiBlocks.push({
-            x: x,
-            y: y,
-            color: blob.color
-        });
-    });
-    
-    // Store blob info for animation
-    tsunamiBlob.centerY = centerY;
-    tsunamiBlob.minY = minY;
-    tsunamiBlob.maxY = maxY;
-    tsunamiBlob.originalHeight = maxY - minY + 1;
-    
-    // Find all blocks that need to be pushed up
-    // A block needs to be pushed if there's ANY tsunami block below it in the same column
-    // (because that tsunami block will expand upward and hit it)
-    tsunamiPushedBlocks = [];
-    
-    // Create a set of tsunami positions for fast lookup
-    const tsunamiPositions = new Set();
-    blob.positions.forEach(([x, y]) => {
-        tsunamiPositions.add(`${x},${y}`);
-    });
-    
-    console.log('Tsunami color:', blob.color);
-    console.log('Tsunami positions:', blob.positions.length, 'blocks');
-    console.log('Analyzing which blocks have tsunami below them...');
-    
-    // Track which cells we've already processed
-    const processed = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
-    
-    // Mark tsunami blocks as processed so we don't include them
-    blob.positions.forEach(([x, y]) => {
-        processed[y][x] = true;
-    });
-    
-    // Find connected sections - normal flood fill, don't jump over tsunami
-    function findConnectedSection(startX, startY, color) {
-        const section = [];
-        const stack = [[startX, startY]];
-        const visited = new Set();
-        
-        while (stack.length > 0) {
-            const [x, y] = stack.pop();
-            const key = `${x},${y}`;
-            
-            if (visited.has(key)) continue;
-            visited.add(key);
-            
-            // Check bounds
-            if (y < 0 || y >= ROWS || x < 0 || x >= COLS) continue;
-            if (!board[y] || board[y][x] === null) continue;
-            
-            // Skip tsunami blocks completely
-            if (processed[y][x]) continue;
-            
-            // Only add blocks of matching color
-            if (board[y][x] !== color) continue;
-            
-            // Mark as processed and add to section
-            processed[y][x] = true;
-            section.push({
-                x: x,
-                y: y,
-                color: color,
-                isRandom: isRandomBlock[y][x]
-            });
-            
-            // Check adjacent cells
-            stack.push([x + 1, y]);
-            stack.push([x - 1, y]);
-            stack.push([x, y + 1]);
-            stack.push([x, y - 1]);
-        }
-        
-        return section;
-    }
-    
-    // Helper function: does this position have any tsunami block below it in the same column?
-    function hasTsunamiBelowInColumn(x, y) {
-        for (let checkY = y + 1; checkY < ROWS; checkY++) {
-            if (tsunamiPositions.has(`${x},${checkY}`)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    // Find all complete blobs that have tsunami below them
-    console.log(`Searching all positions for blocks with tsunami below them...`);
-    let cellsChecked = 0;
-    let cellsWithBlocks = 0;
-    let cellsNeedingPush = 0;
-    
-    const blobsToPush = [];
-    
-    // Search entire board for non-tsunami blocks
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            cellsChecked++;
-            if (board[y] && board[y][x] !== null) {
-                cellsWithBlocks++;
-                
-                if (!processed[y][x]) {
-                    // Check if this block has tsunami below it
-                    if (hasTsunamiBelowInColumn(x, y)) {
-                        cellsNeedingPush++;
-                        console.log(`  Found block at (${x}, ${y}), color: ${board[y][x]} - has tsunami below`);
-                        
-                        // Found a block that needs to be pushed - get its entire connected blob
-                        const section = findConnectedSection(x, y, board[y][x]);
-                    
-                        if (section.length > 0) {
-                            console.log(`  Found connected section with ${section.length} blocks, color: ${section[0].color}`);
-                            
-                            const tsunamiHeight = maxY - minY + 1;
-                            console.log(`  Tsunami: minY=${minY}, maxY=${maxY}, height=${tsunamiHeight}`);
-                            
-                            let maxPushNeeded = 0;
-                            let blocksNeedingPush = 0;
-                            
-                            section.forEach(block => {
-                                if (hasTsunamiBelowInColumn(block.x, block.y)) {
-                                    blocksNeedingPush++;
-                                    
-                                    let pushNeeded;
-                                    
-                                    // Find the topmost tsunami block in this column
-                                    let topmostTsunamiY = maxY;
-                                    for (let checkY = block.y + 1; checkY <= maxY; checkY++) {
-                                        if (tsunamiPositions.has(`${block.x},${checkY}`)) {
-                                            topmostTsunamiY = checkY;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    // Calculate the height of tsunami from the topmost block to the bottom
-                                    const tsunamiHeightBelow = maxY - topmostTsunamiY + 1;
-                                    
-                                    // Block needs to be pushed by the height of tsunami below it
-                                    // (because that section will expand upward by its own height)
-                                    pushNeeded = tsunamiHeightBelow;
-                                    
-                                    maxPushNeeded = Math.max(maxPushNeeded, pushNeeded);
-                                    console.log(`    Block at (${block.x},${block.y}): topmost tsunami at ${topmostTsunamiY}, height below=${tsunamiHeightBelow}, push=${pushNeeded}`);
-                                }
-                            });
-                            
-                            if (blocksNeedingPush > 0 && maxPushNeeded > 0) {
-                                console.log(`  -> Lifting ENTIRE blob (${section.length} blocks) by ${maxPushNeeded} blocks`);
-                                
-                                const blocksToPush = section.map(block => ({
-                                    x: block.x,
-                                    y: block.y,
-                                    color: block.color,
-                                    isRandom: block.isRandom,
-                                    tsunamiHeightBelow: maxPushNeeded
-                                }));
-                                
-                                blobsToPush.push(blocksToPush);
-                            } else {
-                                console.log(`  -> Blob doesn't need pushing (maxPush=${maxPushNeeded})`);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Now push all blocks from all identified blobs
-    blobsToPush.forEach(section => {
-        section.forEach(block => {
-            tsunamiPushedBlocks.push(block);
-            // Remove from board temporarily
-            board[block.y][block.x] = null;
-            isRandomBlock[block.y][block.x] = false;
-        });
-    });
-    
-    console.log(`Checked ${cellsChecked} cells, found ${cellsWithBlocks} with blocks, ${cellsNeedingPush} need pushing`);
-    console.log(`Total blocks to push: ${tsunamiPushedBlocks.length}`);
-    
-    // Remove tsunami blocks from board immediately (we'll animate them)
-    blob.positions.forEach(([x, y]) => {
-        board[y][x] = null;
-        isRandomBlock[y][x] = false;
-        fadingBlocks[y][x] = null;
-    });
-    
-    tsunamiActive = true;
-    tsunamiAnimating = true;
-    tsunamiStartTime = Date.now();
-    tsunamiWobbleIntensity = 6; // pixels of vertical wobble
-    tsunamiDuration = 2500; // Longer duration for surge + collapse
-    
-    // Visual effects
-    canvas.classList.add('tsunami-active');
-    playSoundEffect('gold', soundToggle);
-    const avgY = blob.positions.reduce((s, p) => s + p[1], 0) / blob.positions.length;
-    triggerTsunami(avgY * BLOCK_SIZE);
-}
-
-function updateTsunamiAnimation() {
-    if (!tsunamiAnimating) return;
-    
-    const elapsed = Date.now() - tsunamiStartTime;
-    const progress = Math.min(elapsed / tsunamiDuration, 1);
-    
-    // Wobble intensity decreases over time
-    tsunamiWobbleIntensity = 6 * (1 - progress * 0.5);
-    
-    // Two phases: surge (0-0.4) and collapse (0.4-1.0)
-    const surgePhaseEnd = 0.4;
-    
-    if (progress <= surgePhaseEnd) {
-        // SURGE PHASE: expand upward to 2x height
-        const surgeProgress = progress / surgePhaseEnd; // 0 to 1
-        const easeProgress = 1 - Math.pow(1 - surgeProgress, 2); // Ease out quad
-        tsunamiBlob.currentScale = 1 + easeProgress; // 1.0 to 2.0
-        
-        // Calculate push distance for blocks above
-        // Blocks need to be pushed by exactly the expansion amount
-        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE;
-        tsunamiBlob.pushDistance = easeProgress * maxPush;
-        
-        if (Math.random() < 0.01) { // Log occasionally to avoid spam
-            console.log(`Surge: scale=${tsunamiBlob.currentScale.toFixed(2)}, pushDistance=${tsunamiBlob.pushDistance.toFixed(1)}px (${(tsunamiBlob.pushDistance/BLOCK_SIZE).toFixed(1)} blocks)`);
-        }
-    } else {
-        // COLLAPSE PHASE: shrink downward from top to bottom (scale down from bottom anchor)
-        const collapseProgress = (progress - surgePhaseEnd) / (1 - surgePhaseEnd); // 0 to 1
-        const easeProgress = Math.pow(collapseProgress, 2); // Ease in quad
-        tsunamiBlob.currentScale = 2 - easeProgress * 2; // 2.0 to 0.0
-        
-        // Blocks fall back smoothly as tsunami collapses
-        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE;
-        tsunamiBlob.pushDistance = maxPush * (1 - easeProgress);
-    }
-    
-    // Animation complete
-    if (progress >= 1) {
-        tsunamiAnimating = false;
-        tsunamiActive = false;
-        tsunamiWobbleIntensity = 0;
-        canvas.classList.remove('tsunami-active');
-        
-        // Put pushed blocks back on board at their original positions
-        // They will then fall naturally with gravity (potentially reconnecting with other blocks)
-        console.log('=== TSUNAMI COMPLETE - PLACING BLOCKS BACK ===');
-        let placedCount = 0;
-        let skippedCount = 0;
-        
-        tsunamiPushedBlocks.forEach(block => {
-            // Place block back at its original position
-            if (block.y >= 0 && block.y < ROWS && board[block.y] && board[block.y][block.x] === null) {
-                board[block.y][block.x] = block.color;
-                isRandomBlock[block.y][block.x] = block.isRandom || false;
-                placedCount++;
-                console.log(`  Placed block at (${block.x}, ${block.y}), color: ${block.color}`);
-            } else {
-                skippedCount++;
-                console.log(`  SKIPPED block at (${block.x}, ${block.y}) - position occupied or invalid`);
-            }
-        });
-        
-        console.log(`Placed ${placedCount} blocks, skipped ${skippedCount} blocks`);
-        
-        // Clear tsunami data AFTER placing blocks to avoid flicker
-        tsunamiPushedBlocks = [];
-        tsunamiBlob = null;
-        tsunamiBlocks = [];
-        
-        // Apply multi-pass gravity to let everything settle
-        // This will cause the pushed blocks to fall properly through multiple passes
-        applyGravity();
-        // Note: checkForSpecialFormations will be called after gravity animation completes
-    }
-}
-
-function drawTsunami() {
-    if (!tsunamiActive || !tsunamiAnimating || !tsunamiBlob) return;
-    
-    const elapsed = Date.now() - tsunamiStartTime;
-    const progress = Math.min(elapsed / tsunamiDuration, 1);
-    
-    const currentScale = tsunamiBlob.currentScale || 1;
-    const pushDistance = tsunamiBlob.pushDistance || 0;
-    
-    ctx.save();
-    
-    // Draw pushed blocks as connected sections
-    // Group blocks by color to draw connected sections together
-    ctx.globalAlpha = 1;
-    
-    // Group pushed blocks by color
-    const blocksByColor = {};
-    tsunamiPushedBlocks.forEach(block => {
-        if (!blocksByColor[block.color]) {
-            blocksByColor[block.color] = [];
-        }
-        blocksByColor[block.color].push(block);
-    });
-    
-    // Draw each color group as potentially multiple connected sections
-    Object.entries(blocksByColor).forEach(([color, blocks]) => {
-        // For each color, group by push amount, then find connected components within each push group
-        const byPushAmount = {};
-        blocks.forEach(block => {
-            const key = block.tsunamiHeightBelow || 0;
-            if (!byPushAmount[key]) {
-                byPushAmount[key] = [];
-            }
-            byPushAmount[key].push(block);
-        });
-        
-        // For each push-amount group, find connected components and draw each separately
-        Object.entries(byPushAmount).forEach(([pushAmount, groupBlocks]) => {
-            const visited = new Set();
-            
-            groupBlocks.forEach(startBlock => {
-                const key = `${startBlock.x},${startBlock.y}`;
-                if (visited.has(key)) return;
-                
-                // Find all blocks connected to this one via flood fill
-                const connectedSection = [];
-                const stack = [startBlock];
-                
-                while (stack.length > 0) {
-                    const block = stack.pop();
-                    const blockKey = `${block.x},${block.y}`;
-                    
-                    if (visited.has(blockKey)) continue;
-                    visited.add(blockKey);
-                    connectedSection.push(block);
-                    
-                    // Find adjacent blocks in the same push group
-                    groupBlocks.forEach(other => {
-                        const otherKey = `${other.x},${other.y}`;
-                        if (visited.has(otherKey)) return;
-                        
-                        const dx = Math.abs(other.x - block.x);
-                        const dy = Math.abs(other.y - block.y);
-                        
-                        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-                            stack.push(other);
-                        }
-                    });
-                }
-                
-                // Draw this connected section (normal rendering, not gold)
-                if (connectedSection.length > 0) {
-                    const positions = connectedSection.map(block => {
-                        const individualPush = (block.tsunamiHeightBelow || 0) * BLOCK_SIZE;
-                        const progressMultiplier = pushDistance / (tsunamiBlob.originalHeight * BLOCK_SIZE);
-                        const adjustedPush = individualPush * progressMultiplier;
-                        const pushedY = block.y - adjustedPush / BLOCK_SIZE;
-                        return [block.x, pushedY];
-                    });
-                    
-                    drawSolidShape(ctx, positions, color, BLOCK_SIZE, false, getFaceOpacity());
-                }
-            });
-        });
-    });
-    
-    // Calculate the anchor point (BOTTOM of blob - surge upward from bottom)
-    const bottomPixelY = tsunamiBlob.maxY * BLOCK_SIZE + BLOCK_SIZE; // Bottom edge of blob
-    
-    // Apply transform to scale upward from bottom
-    ctx.translate(0, bottomPixelY);
-    ctx.scale(1, currentScale);
-    ctx.translate(0, -bottomPixelY);
-    
-    // Fade during collapse phase only (after 40% progress)
-    const surgePhaseEnd = 0.4;
-    if (progress > surgePhaseEnd) {
-        const collapseProgress = (progress - surgePhaseEnd) / (1 - surgePhaseEnd);
-        const alpha = 1 - collapseProgress * 0.7;
-        ctx.globalAlpha = Math.max(0.3, alpha);
-    } else {
-        ctx.globalAlpha = 1;
-    }
-    
-    // Draw tsunami blob as a solid shape with gold edges
-    const positions = tsunamiBlocks.map(block => [block.x, block.y]);
-    drawSolidShape(ctx, positions, tsunamiBlob.color, BLOCK_SIZE, true, getFaceOpacity());
-    
-    ctx.restore();
-    
-    // Add trailing particles during collapse
-    if (Math.random() < 0.2 && progress > surgePhaseEnd) {
-        const randomBlock = tsunamiBlocks[Math.floor(Math.random() * tsunamiBlocks.length)];
-        if (randomBlock) {
-            const px = randomBlock.x * BLOCK_SIZE;
-            const py = randomBlock.y * BLOCK_SIZE;
-            const bottomPixelY = tsunamiBlob.maxY * BLOCK_SIZE + BLOCK_SIZE;
-            const transformedY = bottomPixelY + (py + BLOCK_SIZE / 2 - bottomPixelY) * currentScale;
-            
-            disintegrationParticles.push({
-                x: px + BLOCK_SIZE / 2 + (Math.random() - 0.5) * BLOCK_SIZE,
-                y: transformedY,
-                vx: (Math.random() - 0.5) * 3,
-                vy: (Math.random() - 0.5) * 2,
-                size: 2 + Math.random() * 3,
-                color: tsunamiBlob.color,
-                opacity: 0.6,
-                life: 0.6,
-                decay: 0.04,
-                gravity: 0,
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 0.3
-            });
-        }
-    }
-}
-
-function spawnTornado() {
-    if (tornadoActive || !gameRunning || paused) return;
-    
-    tornadoActive = true;
-    tornadoY = 0;
-    // Start at a random X position
-    tornadoX = (Math.random() * (COLS - 2) + 1) * BLOCK_SIZE + BLOCK_SIZE / 2;
-    tornadoRotation = 0;
-    tornadoState = 'descending';
-    tornadoPickedBlob = null;
-    tornadoParticles = [];
-    tornadoDropTargetX = 0;
-    tornadoBlobRotation = 0;
-    tornadoVerticalRotation = 0;
-    tornadoSnakeVelocity = 0;
-    tornadoSnakeDirection = Math.random() < 0.5 ? 1 : -1;
-    tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20); // Change every 20-50 frames
-    tornadoOrbitStartTime = null;
-    tornadoOrbitRadius = 0;
-    tornadoOrbitAngle = 0;
-    tornadoLiftHeight = 0;
-    tornadoDropStartY = 0;
-    tornadoFadeProgress = 0;
-    
-    // Create initial swirling particles
-    for (let i = 0; i < 50; i++) {
-        const angle = (i / 50) * Math.PI * 2;
-        const radius = 20 + Math.random() * 30;
-        tornadoParticles.push({
-            angle: angle,
-            radius: radius,
-            speed: 0.1 + Math.random() * 0.1,
-            opacity: 0.3 + Math.random() * 0.4
-        });
-    }
-    
-    playSoundEffect('alert', soundToggle);
-    console.log('🌪️ Tornado spawned!');
-}
-
-// Calculate drop interval based on number of lines cleared
 function calculateDropInterval(linesCleared) {
     return Math.max(20, 1000 - (linesCleared * 8.1));
 }
@@ -2204,1365 +937,6 @@ function advanceToNextPlanet() {
 }
 
 // Earthquake effect
-function spawnEarthquake() {
-    if (earthquakeActive || !gameRunning || paused) return;
-    
-    // Check if there's enough of a stack (tallest block must be above row 15, i.e., row 0-15)
-    let tallestRow = ROWS;
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x] !== null) {
-                tallestRow = Math.min(tallestRow, y);
-                break;
-            }
-        }
-        if (tallestRow < ROWS) break;
-    }
-    
-    // If tallest block is in bottom 4 rows (rows 16-19), don't trigger
-    if (tallestRow >= ROWS - 4) {
-        console.log('🚫 Not enough stack height for earthquake (tallest row:', tallestRow, ')');
-        return;
-    }
-    
-    console.log('🌍 Earthquake triggered! Tallest row:', tallestRow);
-    earthquakeActive = true;
-    earthquakePhase = 'shake'; // Start with shaking, crack appears after delay
-    earthquakeShakeProgress = 0;
-    earthquakeShakeIntensity = 6; // Horizontal shaking intensity
-    earthquakeCrack = [];
-    earthquakeCrackMap.clear();
-    earthquakeCrackProgress = 0;
-    earthquakeShiftProgress = 0;
-    earthquakeLeftBlocks = [];
-    earthquakeRightBlocks = [];
-    
-    // Crack will be generated after shake delay completes
-    
-    // Play rumble sound to indicate earthquake starting
-    playSoundEffect('rumble', soundToggle);
-}
-
-function updateTornado() {
-    if (!tornadoActive) return;
-    
-    tornadoRotation += 0.2; // Spin the tornado
-    
-    // Update particle positions (spiral)
-    tornadoParticles.forEach(p => {
-        p.angle += p.speed;
-    });
-    
-    if (tornadoState === 'descending') {
-        tornadoY += tornadoSpeed;
-        
-        // Subtle random snaking - more natural drift
-        tornadoSnakeChangeCounter--;
-        
-        if (tornadoSnakeChangeCounter <= 0) {
-            // Randomly change direction
-            if (Math.random() < 0.3) {
-                tornadoSnakeDirection *= -1;
-            }
-            tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20);
-        }
-        
-        // Gradually accelerate/decelerate in current direction
-        const maxSpeed = 1.5; // Much more subtle max speed
-        tornadoSnakeVelocity += tornadoSnakeDirection * 0.05;
-        tornadoSnakeVelocity = Math.max(-maxSpeed, Math.min(maxSpeed, tornadoSnakeVelocity));
-        
-        // Apply velocity with some damping
-        tornadoX += tornadoSnakeVelocity;
-        tornadoSnakeVelocity *= 0.98; // Gentle damping
-        
-        // Soft bounce off walls instead of hard clamp
-        if (tornadoX < BLOCK_SIZE * 1.5) {
-            tornadoSnakeDirection = 1;
-            tornadoSnakeVelocity = 0.5;
-        } else if (tornadoX > canvas.width - BLOCK_SIZE * 1.5) {
-            tornadoSnakeDirection = -1;
-            tornadoSnakeVelocity = -0.5;
-        }
-        
-        // Keep within bounds
-        tornadoX = Math.max(BLOCK_SIZE, Math.min(canvas.width - BLOCK_SIZE, tornadoX));
-        
-        // Check if tornado touched a blob or bottom
-        const tornadoRow = Math.floor(tornadoY / BLOCK_SIZE);
-        const tornadoCol = Math.floor(tornadoX / BLOCK_SIZE);
-        
-        // Check if hit bottom
-        if (tornadoRow >= ROWS) {
-            // Touched bottom - TOUCHDOWN BONUS!
-            score *= 2;
-            updateStats();
-            canvas.classList.add('touchdown-active');
-            playSoundEffect('gold', soundToggle);
-            setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
-            tornadoActive = false;
-            return;
-        }
-        
-        // Check if hit a blob
-        if (tornadoRow >= 0 && tornadoRow < ROWS && tornadoCol >= 0 && tornadoCol < COLS) {
-            const cell = board[tornadoRow][tornadoCol];
-            if (cell !== null) {
-                // Hit a blob! Find the full blob
-                const blobs = getAllBlobs();
-                const hitBlob = blobs.find(b => 
-                    b.positions.some(([x, y]) => x === tornadoCol && y === tornadoRow)
-                );
-                
-                if (hitBlob) {
-                    // Check if blob can be lifted (not locked by other blobs)
-                    if (canLiftBlob(hitBlob)) {
-                        // Pick it up!
-                        tornadoPickedBlob = {
-                            color: hitBlob.color,
-                            positions: hitBlob.positions.map(([x, y]) => [x, y]) // Clone positions
-                        };
-                        tornadoLiftStartY = tornadoY;
-                        tornadoBlobRotation = 0;
-                        tornadoVerticalRotation = 0;
-                        tornadoDropStartY = 0;
-                        
-                        // Remove blob from board
-                        hitBlob.positions.forEach(([x, y]) => {
-                            board[y][x] = null;
-                            isRandomBlock[y][x] = false;
-                            fadingBlocks[y][x] = null;
-                        });
-                        
-                        tornadoState = 'lifting';
-                        playSoundEffect('rotate', soundToggle); // Pickup sound
-                    } else {
-                        // Disintegrate it (no points) - create explosion!
-                        createDisintegrationExplosion(hitBlob);
-                        
-                        hitBlob.positions.forEach(([x, y]) => {
-                            board[y][x] = null;
-                            isRandomBlock[y][x] = false;
-                            fadingBlocks[y][x] = null;
-                        });
-                        playSoundEffect('rotate', soundToggle); // Disintegrate sound
-                        
-                        // Apply gravity after removing the blob
-                        applyGravity();
-                        
-                        tornadoState = 'dissipating';
-                        tornadoFadeProgress = 0;
-                    }
-                }
-            }
-        }
-    } else if (tornadoState === 'lifting') {
-        // Blob climbs up the tornado while orbiting around it
-        
-        // Initialize orbit tracking
-        if (!tornadoOrbitStartTime) {
-            tornadoOrbitStartTime = Date.now();
-            tornadoOrbitRadius = 30; // Start close
-            tornadoLiftHeight = tornadoY; // Start at pickup point
-            tornadoVerticalRotation = 0;
-        }
-        
-        const orbitTime = Date.now() - tornadoOrbitStartTime;
-        const orbitDuration = 3000; // 3 seconds to climb and orbit
-        const liftProgress = Math.min(orbitTime / orbitDuration, 1.0);
-        
-        // Blob climbs up the tornado from pickup point to top
-        const targetHeight = canvas.height * 0.25; // Climb to 1/4 from top
-        tornadoLiftHeight = tornadoY - (tornadoY - targetHeight) * liftProgress;
-        
-        // Gradually expand orbit radius as it climbs
-        tornadoOrbitRadius = 30 + liftProgress * 40;
-        
-        // Orbit angle increases over time (multiple rotations during climb)
-        tornadoOrbitAngle = (orbitTime / 1000) * Math.PI * 2; // Full rotation per second
-        
-        // Spin the blob as it orbits
-        tornadoBlobRotation += 0.12;
-        tornadoVerticalRotation += 0.08; // Spin around vertical axis too
-        
-        if (liftProgress >= 1.0) {
-            // Reached top - fling free!
-            tornadoState = 'carrying';
-            // Pick random drop column INSIDE the well
-            const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - 
-                             Math.min(...tornadoPickedBlob.positions.map(p => p[0])) + 1;
-            const maxDropCol = COLS - blobWidth;
-            tornadoDropTargetX = Math.floor(Math.random() * maxDropCol + blobWidth / 2) * BLOCK_SIZE + BLOCK_SIZE / 2;
-        }
-    } else if (tornadoState === 'carrying') {
-        // Blob flung free - moves to drop target while still orbiting (but orbit fades out)
-        const dx = tornadoDropTargetX - tornadoX;
-        tornadoBlobRotation += 0.12;
-        tornadoVerticalRotation += 0.08;
-        
-        // Continue orbiting but fade it out
-        if (!tornadoOrbitStartTime) tornadoOrbitStartTime = Date.now();
-        const carryTime = Date.now() - tornadoOrbitStartTime;
-        tornadoOrbitAngle = (carryTime / 1000) * Math.PI * 2;
-        
-        // Gradually reduce orbit radius (blob breaking free)
-        tornadoOrbitRadius = Math.max(0, 70 - carryTime / 20);
-        
-        if (Math.abs(dx) > 5) {
-            tornadoX += Math.sign(dx) * 5;
-        } else {
-            tornadoX = tornadoDropTargetX;
-            tornadoState = 'dropping';
-            tornadoOrbitRadius = 0; // Fully broken free
-            tornadoDropStartY = tornadoLiftHeight; // Start falling from lift height
-        }
-    } else if (tornadoState === 'dropping') {
-        // Blob breaks free from orbit and falls straight down
-        // Start fall from the lift height, not from ground
-        if (!tornadoDropStartY) {
-            tornadoDropStartY = tornadoLiftHeight;
-        }
-        
-        // Fall from lift height
-        tornadoDropStartY += tornadoSpeed * 2;
-        tornadoBlobRotation += 0.15;
-        tornadoVerticalRotation += 0.1; // Spin around vertical axis
-        
-        // Reset orbit tracking
-        tornadoOrbitAngle = 0;
-        tornadoOrbitRadius = 0;
-        
-        // Find where to land the blob
-        if (tornadoPickedBlob) {
-            const dropCol = Math.floor(tornadoX / BLOCK_SIZE);
-            const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
-            const currentBlobBottomY = Math.floor(tornadoDropStartY / BLOCK_SIZE) - minY;
-            
-            // Check if blob should land
-            let shouldLand = false;
-            
-            // Check if hit bottom
-            if (currentBlobBottomY + Math.max(...tornadoPickedBlob.positions.map(p => p[1])) >= ROWS) {
-                shouldLand = true;
-            } else {
-                // Check if blob would collide with existing blocks
-                for (const [bx, by] of tornadoPickedBlob.positions) {
-                    const testY = currentBlobBottomY + by + 1;
-                    if (testY >= 0 && testY < ROWS) {
-                        const minBlobX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
-                        const testX = dropCol - minBlobX + bx;
-                        if (testX >= 0 && testX < COLS && board[testY][testX]) {
-                            shouldLand = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            if (shouldLand) {
-                // Drop the blob
-                dropBlobAt(tornadoPickedBlob, dropCol);
-                playSoundEffect('drop', soundToggle);
-                
-                // Check for line clears after dropping
-                clearLines();
-                
-                tornadoPickedBlob = null;
-                tornadoState = 'dissipating';
-                tornadoFadeProgress = 0;
-            }
-        }
-    } else if (tornadoState === 'dissipating') {
-        // Tornado gradually gets thinner and disappears
-        tornadoFadeProgress += 0.02; // Takes ~50 frames (about 0.8 seconds)
-        
-        if (tornadoFadeProgress >= 1.0) {
-            tornadoActive = false;
-        }
-    }
-}
-
-function canLiftBlob(blob) {
-    // A blob can be lifted if NO OTHER blobs are resting on top of it
-    // Check each block in the blob to see if there's a different blob directly above
-    
-    const blobSet = new Set(blob.positions.map(([x, y]) => `${x},${y}`));
-    
-    for (const [x, y] of blob.positions) {
-        // Check the cell directly ABOVE this block
-        if (y - 1 >= 0) {
-            const cellAbove = board[y - 1][x];
-            
-            // If there's a block above...
-            if (cellAbove !== null) {
-                // Check if it's part of THIS blob
-                const isSameBlob = blobSet.has(`${x},${y - 1}`);
-                
-                // If it's a DIFFERENT blob above, this blob is supporting it - LOCKED
-                if (!isSameBlob) {
-                    return false;
-                }
-            }
-        }
-    }
-    
-    // No different-colored blocks found resting on top - can lift!
-    return true;
-}
-
-function dropBlobAt(blob, centerCol) {
-    // Find the blob's bounding box
-    const minX = Math.min(...blob.positions.map(p => p[0]));
-    const maxX = Math.max(...blob.positions.map(p => p[0]));
-    const minY = Math.min(...blob.positions.map(p => p[1]));
-    const maxY = Math.max(...blob.positions.map(p => p[1]));
-    const blobWidth = maxX - minX + 1;
-    
-    // Calculate offset to place blob at target column, ensuring it fits
-    const blobCenterX = Math.floor((minX + maxX) / 2);
-    let offsetX = centerCol - blobCenterX;
-    
-    // Clamp to ensure blob stays within bounds
-    // Check left edge
-    if (minX + offsetX < 0) {
-        offsetX = -minX;
-    }
-    // Check right edge
-    if (maxX + offsetX >= COLS) {
-        offsetX = COLS - 1 - maxX;
-    }
-    
-    // Find lowest valid Y position for the blob
-    let finalY = ROWS - 1;
-    for (let testY = ROWS - 1; testY >= 0; testY--) {
-        let canPlace = true;
-        for (const [bx, by] of blob.positions) {
-            const newX = bx + offsetX;
-            const newY = testY - (maxY - by);
-            
-            // Check bounds
-            if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
-                canPlace = false;
-                break;
-            }
-            
-            // Check collision with existing blocks
-            if (board[newY][newX] !== null) {
-                canPlace = false;
-                break;
-            }
-        }
-        
-        if (canPlace) {
-            finalY = testY;
-            break;
-        }
-    }
-    
-    // Place the blob (with bounds check as safety)
-    for (const [bx, by] of blob.positions) {
-        const newX = bx + offsetX;
-        const newY = finalY - (maxY - by);
-        
-        if (newX >= 0 && newX < COLS && newY >= 0 && newY < ROWS) {
-            board[newY][newX] = blob.color;
-            isRandomBlock[newY][newX] = false;
-            fadingBlocks[newY][newX] = null;
-        }
-    }
-}
-
-function drawTornado() {
-    if (!tornadoActive) return;
-    
-    ctx.save();
-    
-    const height = Math.max(5, tornadoY);
-    
-    // Apply dissipation fade - reduce all widths
-    const fadeFactor = tornadoState === 'dissipating' ? (1 - tornadoFadeProgress) : 1.0;
-    const topWidth = 100 * fadeFactor;  // Very wide top connected to clouds
-    const midWidth = 18 * fadeFactor;   // Width after quick taper
-    const bottomWidth = 8 * fadeFactor; // Gradually narrow at bottom
-    
-    // Smooth easing function for width taper - creates natural funnel curve
-    const getWidth = (progress) => {
-        // Use cubic ease-out for smooth, natural taper
-        // Quick taper at top, gradual narrowing toward bottom
-        const eased = 1 - Math.pow(1 - progress, 3);
-        return topWidth - (topWidth - bottomWidth) * eased;
-    };
-    
-    // First, draw the base tube shape WITH VERY SUBTLE BENDING
-    // Also fade opacity during dissipation
-    const baseOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress * 0.5) : 0.6;
-    ctx.globalAlpha = baseOpacity;
-    
-    // Brighter, more visible gradient (less shadow-like)
-    const gradient = ctx.createLinearGradient(tornadoX, 0, tornadoX, height);
-    gradient.addColorStop(0, '#9a9890');  // Light gray-tan top
-    gradient.addColorStop(0.5, '#8a8880');  // Medium gray middle
-    gradient.addColorStop(1, '#7a7870');    // Darker gray bottom
-    
-    // Draw left and right edges of tube with very subtle, slow writhing motion
-    ctx.beginPath();
-    
-    // Left edge
-    for (let y = 0; y <= height; y += 1) {
-        const progress = y / height;
-        
-        // Smooth width calculation using cubic ease
-        let width = getWidth(progress);
-        
-        // Smoothly narrow to half width in the last 15% for rounded tip
-        if (progress > 0.85) {
-            const tipProgress = (progress - 0.85) / 0.15;
-            // Use quadratic easing for smoother transition
-            const eased = tipProgress * tipProgress;
-            width = width * (1 - eased * 0.5);
-        }
-        
-        // Add VERY SUBTLE, SLOW writhing/bending
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        
-        const x = tornadoX - width + totalBend;
-        if (y === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    }
-    
-    // Round the bottom tip with an arc (at half the normal bottom width)
-    const bottomProgress = 1.0;
-    const arcWidth = getWidth(bottomProgress) * 0.5;
-    const bottomBend1 = Math.sin(tornadoRotation * 0.5 + bottomProgress * Math.PI * 0.8) * 4;
-    const bottomBend2 = Math.sin(tornadoRotation * 0.3 + bottomProgress * Math.PI * 1.2) * 2;
-    const bottomTotalBend = bottomBend1 + bottomBend2;
-    const bottomCenterX = tornadoX + bottomTotalBend;
-    
-    // Draw arc from left to right at bottom (clockwise for convex curve)
-    ctx.arc(bottomCenterX, height, arcWidth, Math.PI, 0, true);
-    
-    // Right edge (going back up)
-    for (let y = height; y >= 0; y -= 1) {
-        const progress = y / height;
-        
-        // Smooth width calculation using cubic ease
-        let width = getWidth(progress);
-        
-        // Smoothly narrow to half width in the last 15% for rounded tip
-        if (progress > 0.85) {
-            const tipProgress = (progress - 0.85) / 0.15;
-            // Use quadratic easing for smoother transition
-            const eased = tipProgress * tipProgress;
-            width = width * (1 - eased * 0.5);
-        }
-        
-        // Same subtle writhing pattern
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        
-        const x = tornadoX + width + totalBend;
-        ctx.lineTo(x, y);
-    }
-    
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    // Now draw horizontal spiral bands that wrap around the writhing tube
-    const bandOpacity = tornadoState === 'dissipating' ? 0.35 * (1 - tornadoFadeProgress * 0.5) : 0.35;
-    ctx.globalAlpha = bandOpacity;
-    const numBands = 20;
-    
-    for (let band = 0; band < numBands; band++) {
-        const bandProgress = band / numBands;
-        const bandY = bandProgress * height;
-        const progress = bandY / height;
-        
-        // Get width at this height using smooth function
-        const width = getWidth(progress);
-        
-        // Calculate center position with subtle bending
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
-        
-        // Horizontal bands with slight wave for 3D effect
-        const rotation = tornadoRotation + progress * Math.PI * 6;
-        const wave = Math.sin(rotation) * width * 0.3;
-        
-        ctx.beginPath();
-        // Draw ellipse to represent horizontal band wrapping around cylinder
-        for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
-            const x = centerX + Math.cos(angle) * width;
-            const y = bandY + Math.sin(angle) * (width * 0.15) + wave * Math.cos(angle);
-            
-            if (angle === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        
-        // Alternate shading for visible bands
-        const brightness = (Math.sin(rotation) + 1) / 2;
-        ctx.strokeStyle = `rgba(60, 60, 58, ${brightness * 0.5})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
-    
-    // Add cylindrical shading - darker on left/right edges (following the bend)
-    const shadingOpacity = tornadoState === 'dissipating' ? 0.25 * (1 - tornadoFadeProgress * 0.5) : 0.25;
-    ctx.globalAlpha = shadingOpacity;
-    for (let y = 0; y < height; y += 2) {
-        const progress = y / height;
-        
-        // Use smooth width function
-        const width = getWidth(progress);
-        
-        // Calculate bend at this height
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
-        
-        // Left shadow
-        const leftGrad = ctx.createLinearGradient(centerX - width, y, centerX - width * 0.3, y);
-        leftGrad.addColorStop(0, '#000000');
-        leftGrad.addColorStop(1, 'transparent');
-        ctx.strokeStyle = leftGrad;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX - width, y);
-        ctx.lineTo(centerX - width * 0.3, y);
-        ctx.stroke();
-        
-        // Right shadow
-        const rightGrad = ctx.createLinearGradient(centerX + width * 0.3, y, centerX + width, y);
-        rightGrad.addColorStop(0, 'transparent');
-        rightGrad.addColorStop(1, '#000000');
-        ctx.strokeStyle = rightGrad;
-        ctx.beginPath();
-        ctx.moveTo(centerX + width * 0.3, y);
-        ctx.lineTo(centerX + width, y);
-        ctx.stroke();
-    }
-    
-    // Draw swirling debris particles (following the bend)
-    const particleOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress) : 0.6;
-    ctx.globalAlpha = particleOpacity;
-    tornadoParticles.forEach(p => {
-        const progress = p.y / height;
-        
-        // Use smooth width function for max radius
-        const maxRadius = getWidth(progress);
-        
-        // Calculate bend at particle height
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
-        
-        const spiralRadius = (p.radius / 50) * maxRadius * 0.8;
-        const x = centerX + Math.cos(p.angle + tornadoRotation * 3) * spiralRadius;
-        const y = p.y;
-        
-        ctx.fillStyle = p.radius > 30 ? '#5a5a58' : '#8a8a80';
-        ctx.beginPath();
-        ctx.arc(x, y, Math.max(1, 2), 0, Math.PI * 2);
-        ctx.fill();
-    });
-    
-    // Draw carried blob if lifting, carrying, or dropping
-    if (tornadoPickedBlob && tornadoState !== 'descending') {
-        const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
-        const maxX = Math.max(...tornadoPickedBlob.positions.map(p => p[0]));
-        const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
-        const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
-        const blobCenterX = (minX + maxX) / 2;
-        const blobCenterY = (minY + maxY) / 2;
-        
-        // Calculate blob position based on state
-        let blobDrawX, blobDrawY, blobAlpha;
-        
-        if (tornadoState === 'lifting') {
-            // Blob climbs up tornado while orbiting
-            const orbitX = Math.cos(tornadoOrbitAngle) * tornadoOrbitRadius;
-            const orbitZ = Math.sin(tornadoOrbitAngle) * tornadoOrbitRadius; // Z depth
-            
-            blobDrawX = tornadoX + orbitX;
-            blobDrawY = tornadoLiftHeight; // Climbs from pickup point to top
-            
-            // Fade blob when behind tornado (negative Z)
-            blobAlpha = orbitZ < 0 ? 0.3 : 1.0;
-        } else if (tornadoState === 'carrying') {
-            // Blob flung free, orbit fading out
-            const orbitX = Math.cos(tornadoOrbitAngle) * tornadoOrbitRadius;
-            const orbitZ = Math.sin(tornadoOrbitAngle) * tornadoOrbitRadius;
-            
-            blobDrawX = tornadoX + orbitX;
-            blobDrawY = tornadoLiftHeight; // Stay at top height
-            
-            blobAlpha = orbitZ < 0 ? 0.3 : 1.0;
-        } else {
-            // Dropping - falls straight down from lift height
-            blobDrawX = tornadoX;
-            blobDrawY = tornadoDropStartY;
-            blobAlpha = 1.0;
-        }
-        
-        ctx.save();
-        
-        // Apply 3D rotation effect around vertical axis using canvas scaling
-        // This simulates the blob spinning in 3D space
-        const scaleX = Math.cos(tornadoVerticalRotation); // Horizontal compression when rotating
-        const adjustedAlpha = blobAlpha * (0.6 + Math.abs(scaleX) * 0.4); // Fade slightly when edge-on
-        
-        ctx.globalAlpha = adjustedAlpha;
-        
-        // Translate to blob center
-        const centerPixelX = blobDrawX;
-        const centerPixelY = blobDrawY;
-        
-        ctx.translate(centerPixelX, centerPixelY);
-        
-        // Apply 3D rotation by scaling X axis (simulates rotation around Y axis)
-        ctx.scale(scaleX, 1);
-        
-        // Apply flat rotation
-        ctx.rotate(tornadoBlobRotation);
-        
-        // Translate back
-        ctx.translate(-centerPixelX, -centerPixelY);
-        
-        const positions = tornadoPickedBlob.positions.map(([bx, by]) => {
-            const relX = (bx - blobCenterX);
-            const relY = (by - blobCenterY);
-            
-            const screenX = Math.floor((blobDrawX / BLOCK_SIZE) + relX);
-            const screenY = Math.floor((blobDrawY / BLOCK_SIZE) + relY);
-            return [screenX, screenY];
-        });
-        
-        drawSolidShape(ctx, positions, tornadoPickedBlob.color, BLOCK_SIZE, false, 0.9);
-        
-        ctx.restore();
-    }
-    
-    ctx.restore();
-}
-
-function updateEarthquake() {
-    if (!earthquakeActive) return;
-    
-    if (earthquakePhase === 'shake') {
-        earthquakeShakeProgress++;
-        
-        // Shake horizontally for 120 frames (2 seconds at 60fps) before crack appears
-        if (earthquakeShakeProgress >= 120) {
-            earthquakePhase = 'crack';
-            earthquakeShakeProgress = 0;
-            
-            // Generate the crack path from bottom to top
-            generateEarthquakeCrack();
-            
-            // Play another rumble as crack begins to form
-            playSoundEffect('rumble', soundToggle);
-        }
-    } else if (earthquakePhase === 'crack') {
-        earthquakeCrackProgress += 0.05; // Very slow crack growth - 20 frames per segment
-        
-        // Crack animation completes when we've drawn the full crack
-        if (earthquakeCrackProgress >= earthquakeCrack.length) {
-            earthquakePhase = 'shift';
-            earthquakeShiftProgress = 0;
-            
-            // Determine which blocks are on left vs right of crack
-            splitBlocksByCrack();
-        }
-    } else if (earthquakePhase === 'shift') {
-        earthquakeShiftProgress++;
-        
-        // Shift for 60 frames (doubled from 30)
-        if (earthquakeShiftProgress >= 60) {
-            console.log('🌍 Earthquake shift complete, applying changes to board');
-            earthquakePhase = 'done';
-            
-            // Apply the shift to the board
-            applyEarthquakeShift();
-            
-            console.log('🌍 Earthquake complete, applying gravity');
-            // Check for line clears and apply gravity
-            applyGravity();
-            
-            earthquakeActive = false;
-            console.log('🌍 Earthquake finished, earthquakeActive = false');
-        }
-    }
-}
-
-function generateEarthquakeCrack() {
-    // Find the bottom and top of the stack
-    let bottomY = ROWS - 1;
-    let topY = 0;
-    
-    for (let y = ROWS - 1; y >= 0; y--) {
-        let hasBlock = board[y].some(cell => cell !== null);
-        if (hasBlock) {
-            bottomY = y;
-            break;
-        }
-    }
-    
-    for (let y = 0; y < ROWS; y++) {
-        let hasBlock = board[y].some(cell => cell !== null);
-        if (hasBlock) {
-            topY = y;
-            break;
-        }
-    }
-    
-    // Find the left and right boundaries for each row
-    const rowBounds = [];
-    for (let y = topY; y <= bottomY; y++) {
-        let leftmost = COLS;
-        let rightmost = -1;
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x] !== null) {
-                leftmost = Math.min(leftmost, x);
-                rightmost = Math.max(rightmost, x);
-            }
-        }
-        rowBounds[y] = { left: leftmost, right: rightmost, hasBlocks: rightmost >= 0 };
-    }
-    
-    // Start crack at middle column, at the bottom
-    let currentX = Math.floor(COLS / 2);
-    let currentY = bottomY;
-    
-    // Clamp starting position to be within the bottom row's blocks
-    if (rowBounds[currentY].hasBlocks) {
-        const { left, right } = rowBounds[currentY];
-        const mid = Math.floor((left + right) / 2);
-        // Position the crack to split the row roughly in half
-        currentX = Math.max(left + 1, Math.min(right, mid));
-    }
-    
-    earthquakeCrack = [];
-    
-    // Track the current direction tendency (-1 for left, 0 for straight, 1 for right)
-    let currentDirection = 0;
-    let rowsSinceLastChange = 0;
-    
-    // Move up from bottom to top, creating a jagged path
-    while (currentY >= topY) {
-        // Only add point if this row has blocks
-        if (rowBounds[currentY].hasBlocks) {
-            // Clamp currentX to be within this row's block boundaries
-            const { left, right } = rowBounds[currentY];
-            // Keep crack between blocks (at least 1 block on each side when possible)
-            const minX = Math.max(1, left + 1);
-            const maxX = Math.min(COLS - 1, right);
-            currentX = Math.max(minX, Math.min(maxX, currentX));
-            
-            earthquakeCrack.push({x: currentX, y: currentY, edge: 'vertical'});
-        }
-        
-        // Move up one row
-        currentY--;
-        if (currentY < topY) break;
-        
-        rowsSinceLastChange++;
-        
-        // Decision logic for crack movement
-        if (currentDirection === 0) {
-            // Currently going straight - 30% chance to start jogging
-            if (Math.random() < 0.3) {
-                currentDirection = Math.random() < 0.5 ? -1 : 1;
-                rowsSinceLastChange = 0;
-            }
-        } else {
-            // Currently jogging in a direction
-            if (rowsSinceLastChange < 2) {
-                // Keep going in same direction for at least 2 rows
-            } else if (rowsSinceLastChange >= 4) {
-                // After 4+ rows, likely to straighten out or change
-                const rand = Math.random();
-                if (rand < 0.4) {
-                    currentDirection = 0; // Go straight
-                    rowsSinceLastChange = 0;
-                } else if (rand < 0.5) {
-                    currentDirection *= -1; // Reverse direction
-                    rowsSinceLastChange = 0;
-                }
-            } else {
-                // 2-3 rows in: small chance to change
-                if (Math.random() < 0.15) {
-                    currentDirection = 0; // Go straight
-                    rowsSinceLastChange = 0;
-                }
-            }
-        }
-        
-        // Apply the direction (if not going straight)
-        if (currentDirection !== 0 && rowBounds[currentY] && rowBounds[currentY].hasBlocks) {
-            const newX = currentX + currentDirection;
-            const { left, right } = rowBounds[currentY];
-            const minX = Math.max(1, left + 1);
-            const maxX = Math.min(COLS - 1, right);
-            
-            // Check if new position is within bounds
-            if (newX >= minX && newX <= maxX) {
-                currentX = newX;
-            } else {
-                // Hit boundary - reverse direction
-                if (newX < minX) {
-                    currentDirection = 1; // Force right
-                } else {
-                    currentDirection = -1; // Force left
-                }
-                rowsSinceLastChange = 0;
-            }
-        }
-    }
-    
-    // Add final top point
-    earthquakeCrack.push({x: currentX, y: topY, edge: 'vertical'});
-    
-    // Build crack position map for fast lookup during blob detection
-    earthquakeCrackMap.clear();
-    earthquakeCrack.forEach(pt => {
-        earthquakeCrackMap.set(pt.y, pt.x);
-    });
-    
-    console.log('🌍 Earthquake crack generated:', earthquakeCrack.length, 'points from y', bottomY, 'to', topY);
-}
-
-function splitBlocksByCrack() {
-    earthquakeLeftBlocks = [];
-    earthquakeRightBlocks = [];
-    
-    // Build a map of which column the crack is at for each row
-    const crackPositions = new Map();
-    earthquakeCrack.forEach(pt => {
-        if (pt.edge === 'vertical') {
-            // For vertical edges, the crack separates columns at x-1 (left) and x (right)
-            if (!crackPositions.has(pt.y)) {
-                crackPositions.set(pt.y, pt.x);
-            }
-        }
-    });
-    
-    // For each row with blocks, split by crack position
-    for (let y = 0; y < ROWS; y++) {
-        // Find crack X position at this Y (default to middle if not found)
-        const crackX = crackPositions.get(y) || Math.floor(COLS / 2);
-        
-        // Left side: columns 0 to crackX-1
-        for (let x = 0; x < crackX; x++) {
-            if (board[y][x] !== null) {
-                earthquakeLeftBlocks.push({x, y, color: board[y][x]});
-            }
-        }
-        
-        // Right side: columns crackX to COLS-1
-        for (let x = crackX; x < COLS; x++) {
-            if (board[y][x] !== null) {
-                earthquakeRightBlocks.push({x, y, color: board[y][x]});
-            }
-        }
-    }
-    
-    console.log('🌍 Split blocks: Left:', earthquakeLeftBlocks.length, 'Right:', earthquakeRightBlocks.length);
-}
-
-function applyEarthquakeShift() {
-    console.log('🌍 Applying earthquake shift...');
-    
-    // Save the isRandomBlock state for blocks that will be moved
-    const blockStates = new Map();
-    earthquakeLeftBlocks.forEach(block => {
-        const key = `${block.x},${block.y}`;
-        blockStates.set(key, {
-            isRandom: (isRandomBlock[block.y] && isRandomBlock[block.y][block.x]) || false
-        });
-    });
-    earthquakeRightBlocks.forEach(block => {
-        const key = `${block.x},${block.y}`;
-        blockStates.set(key, {
-            isRandom: (isRandomBlock[block.y] && isRandomBlock[block.y][block.x]) || false
-        });
-    });
-    
-    // Clear the board and isRandomBlock
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            board[y][x] = null;
-            if (isRandomBlock[y]) {
-                isRandomBlock[y][x] = false;
-            }
-        }
-    }
-    
-    // Place left blocks shifted one column left
-    earthquakeLeftBlocks.forEach(block => {
-        const newX = block.x - 1;
-        if (newX >= 0) {
-            board[block.y][newX] = block.color;
-            const key = `${block.x},${block.y}`;
-            const state = blockStates.get(key);
-            if (state && state.isRandom) {
-                isRandomBlock[block.y][newX] = true;
-            }
-        }
-        // If newX < 0, block falls off the edge
-    });
-    
-    // Place right blocks shifted one column right
-    earthquakeRightBlocks.forEach(block => {
-        const newX = block.x + 1;
-        if (newX < COLS) {
-            board[block.y][newX] = block.color;
-            const key = `${block.x},${block.y}`;
-            const state = blockStates.get(key);
-            if (state && state.isRandom) {
-                isRandomBlock[block.y][newX] = true;
-            }
-        }
-        // If newX >= COLS, block falls off the edge
-    });
-    
-    console.log('🌍 Earthquake shift applied!');
-}
-
-
-function drawEarthquake() {
-    if (!earthquakeActive) return;
-    
-    ctx.save();
-    
-    if (earthquakePhase === 'shake') {
-        // During shake phase, just shake the screen - normal rendering happens in main loop
-        // No special drawing needed here
-    } else if (earthquakePhase === 'crack' || earthquakePhase === 'shift') {
-        // Clear canvas and draw background (same as drawBoard)
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw storm particles behind gameplay
-        drawStormParticles();
-        
-        if (earthquakePhase === 'crack') {
-        // During crack phase, render as SEGMENTED BLOBS
-        // The crack acts as a barrier, so blobs are split even if same color
-        const blobs = getAllBlobsFromBoard(board);
-        
-        // Draw all blobs with their proper shapes (normal opacity)
-        blobs.forEach(blob => {
-            drawSolidShape(ctx, blob.positions, blob.color, BLOCK_SIZE, false, getFaceOpacity(), false);
-        });
-        
-        // Draw dark edges along the crack boundaries
-        // Only show edges where blobs are actually being separated
-        const visibleSegments = Math.floor(earthquakeCrackProgress);
-        
-        if (visibleSegments > 0) {
-            ctx.save();
-            
-            // Draw base dark crack
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            
-            // Draw a single continuous crack line along the fault path
-            // Draw one line AT the boundary, not on both sides
-            
-            for (let i = 0; i < visibleSegments && i < earthquakeCrack.length; i++) {
-                const pt = earthquakeCrack[i];
-                const y = pt.y;
-                const crackX = pt.x;
-                
-                const leftX = crackX - 1;
-                const rightX = crackX;
-                
-                // Check if there are blocks on either side
-                const leftExists = leftX >= 0 && board[y] && board[y][leftX] !== null;
-                const rightExists = rightX < COLS && board[y] && board[y][rightX] !== null;
-                
-                // Draw single vertical line at the crack boundary (between the two columns)
-                if (leftExists || rightExists) {
-                    // Draw base dark line exactly at the boundary between columns
-                    const boundaryX = crackX * BLOCK_SIZE;
-                    ctx.fillRect(boundaryX - 2.5, y * BLOCK_SIZE, 5, BLOCK_SIZE);
-                }
-                
-                // Handle horizontal segments when the crack jogs
-                if (i > 0) {
-                    const prevPt = earthquakeCrack[i - 1];
-                    if (prevPt.x !== pt.x) {
-                        // The crack jogged horizontally
-                        const prevY = prevPt.y;
-                        const currY = pt.y;
-                        const startX = prevPt.x;
-                        const endX = pt.x;
-                        
-                        // Determine the span of the horizontal segment
-                        // It should connect the two vertical segments
-                        const minX = Math.min(startX, endX);
-                        const maxX = Math.max(startX, endX);
-                        
-                        // Draw horizontal line at the boundary between rows
-                        const boundaryY = currY * BLOCK_SIZE + BLOCK_SIZE; // Bottom edge of upper row
-                        
-                        // Only draw in the blocks BETWEEN the two vertical crack lines
-                        // Start from minX, end before maxX (don't include the endpoint columns)
-                        for (let jx = minX; jx < maxX; jx++) {
-                            const blockAbove = board[currY] && board[currY][jx] !== null;
-                            const blockBelow = board[prevY] && board[prevY][jx] !== null;
-                            
-                            if (blockAbove || blockBelow) {
-                                const blockX = jx * BLOCK_SIZE;
-                                ctx.fillRect(blockX, boundaryY - 2.5, BLOCK_SIZE, 5);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Now add random red lava/magma streaks inside the crack!
-            ctx.globalCompositeOperation = 'lighten'; // Makes reds glow over black
-            
-            for (let i = 0; i < visibleSegments && i < earthquakeCrack.length; i++) {
-                const pt = earthquakeCrack[i];
-                const y = pt.y;
-                const crackX = pt.x;
-                const boundaryX = crackX * BLOCK_SIZE;
-                
-                // Only draw red lava where blocks actually exist
-                const leftX = crackX - 1;
-                const rightX = crackX;
-                const leftExists = leftX >= 0 && board[y] && board[y][leftX] !== null;
-                const rightExists = rightX < COLS && board[y] && board[y][rightX] !== null;
-                
-                // Random chance of lava streak in this segment (70% chance - MORE RED!)
-                // But ONLY if there are blocks on at least one side
-                if ((leftExists || rightExists) && Math.random() < 0.7) {
-                    // Varying red colors for lava effect - brighter and more intense
-                    const redIntensity = 200 + Math.floor(Math.random() * 55); // 200-255 (brighter!)
-                    const orangeShift = Math.floor(Math.random() * 120); // 0-120 for orange tint
-                    const alpha = 0.6 + Math.random() * 0.4; // 0.6-1.0 transparency (more opaque)
-                    
-                    ctx.fillStyle = `rgba(${redIntensity}, ${orangeShift}, 0, ${alpha})`;
-                    
-                    // Random height for this streak (partial or full block height)
-                    const streakHeight = BLOCK_SIZE * (0.3 + Math.random() * 0.7);
-                    const streakY = y * BLOCK_SIZE + Math.random() * (BLOCK_SIZE - streakHeight);
-                    
-                    // Draw red streak - now THICKER (3px instead of 1.5px)
-                    ctx.fillRect(boundaryX - 1.5, streakY, 3, streakHeight);
-                    
-                    // Sometimes add a glow effect (30% of streaks - increased from 20%)
-                    if (Math.random() < 0.3) {
-                        ctx.shadowBlur = 6;
-                        ctx.shadowColor = '#FF4500';
-                        ctx.fillRect(boundaryX - 1.5, streakY, 3, streakHeight);
-                        ctx.shadowBlur = 0;
-                    }
-                }
-            }
-            
-            ctx.globalCompositeOperation = 'source-over'; // Reset to normal blending
-            ctx.restore();
-        }
-    } else if (earthquakePhase === 'shift') {
-        // During shift, physically separate the blobs with SMOOTH interpolation
-        const shiftProgress = earthquakeShiftProgress / 60; // 0 to 1 (doubled duration)
-        
-        // Draw left blobs - shift them smoothly to the left
-        ctx.save();
-        ctx.translate(-shiftProgress * BLOCK_SIZE, 0);
-        const leftBlobs = [];
-        const visited = new Set();
-        
-        // Build blobs only from left side blocks
-        earthquakeLeftBlocks.forEach(block => {
-            const key = `${block.x},${block.y}`;
-            if (!visited.has(key)) {
-                const blob = [];
-                const stack = [block];
-                const leftSet = new Set(earthquakeLeftBlocks.map(b => `${b.x},${b.y}`));
-                
-                while (stack.length > 0) {
-                    const curr = stack.pop();
-                    const currKey = `${curr.x},${curr.y}`;
-                    if (visited.has(currKey)) continue;
-                    if (!leftSet.has(currKey)) continue;
-                    if (board[curr.y][curr.x] !== block.color) continue;
-                    
-                    visited.add(currKey);
-                    blob.push([curr.x, curr.y]);
-                    
-                    // Add neighbors
-                    stack.push({x: curr.x + 1, y: curr.y, color: block.color});
-                    stack.push({x: curr.x - 1, y: curr.y, color: block.color});
-                    stack.push({x: curr.x, y: curr.y + 1, color: block.color});
-                    stack.push({x: curr.x, y: curr.y - 1, color: block.color});
-                }
-                
-                if (blob.length > 0) {
-                    leftBlobs.push({positions: blob, color: block.color});
-                }
-            }
-        });
-        
-        leftBlobs.forEach(blob => {
-            drawSolidShape(ctx, blob.positions, blob.color, BLOCK_SIZE, false, getFaceOpacity(), false);
-        });
-        ctx.restore();
-        
-        // Draw right blobs - shift them smoothly to the right
-        ctx.save();
-        ctx.translate(shiftProgress * BLOCK_SIZE, 0);
-        const rightBlobs = [];
-        visited.clear();
-        
-        // Build blobs only from right side blocks
-        earthquakeRightBlocks.forEach(block => {
-            const key = `${block.x},${block.y}`;
-            if (!visited.has(key)) {
-                const blob = [];
-                const stack = [block];
-                const rightSet = new Set(earthquakeRightBlocks.map(b => `${b.x},${b.y}`));
-                
-                while (stack.length > 0) {
-                    const curr = stack.pop();
-                    const currKey = `${curr.x},${curr.y}`;
-                    if (visited.has(currKey)) continue;
-                    if (!rightSet.has(currKey)) continue;
-                    if (board[curr.y][curr.x] !== block.color) continue;
-                    
-                    visited.add(currKey);
-                    blob.push([curr.x, curr.y]);
-                    
-                    // Add neighbors
-                    stack.push({x: curr.x + 1, y: curr.y, color: block.color});
-                    stack.push({x: curr.x - 1, y: curr.y, color: block.color});
-                    stack.push({x: curr.x, y: curr.y + 1, color: block.color});
-                    stack.push({x: curr.x, y: curr.y - 1, color: block.color});
-                }
-                
-                if (blob.length > 0) {
-                    rightBlobs.push({positions: blob, color: block.color});
-                }
-            }
-        });
-        
-        rightBlobs.forEach(blob => {
-            drawSolidShape(ctx, blob.positions, blob.color, BLOCK_SIZE, false, getFaceOpacity(), false);
-        });
-        ctx.restore();
-        }
-    }
-    
-    ctx.restore();
-}
-
-// Helper to check if crack separates two horizontally adjacent cells
-function isCrackBetween(x1, y1, x2, y2) {
-    // Only check horizontal adjacency (crack is vertical)
-    if (y1 !== y2) return false;
-    if (Math.abs(x2 - x1) !== 1) return false;
-    
-    // During earthquake CRACK phase, check if crack separates these cells
-    if (earthquakeActive && earthquakePhase === 'crack' && earthquakeCrack.length > 0) {
-        const y = y1;
-        
-        // Check if this row is within the visible crack progress
-        // The crack grows from bottom to top, so we need to find if this Y 
-        // is covered by the visible portion
-        const visibleCrackLength = Math.floor(earthquakeCrackProgress);
-        
-        // Check if any visible crack point is at this Y level
-        let crackX = null;
-        for (let i = 0; i < visibleCrackLength && i < earthquakeCrack.length; i++) {
-            const pt = earthquakeCrack[i];
-            if (pt.y === y) {
-                crackX = pt.x;
-                break;
-            }
-        }
-        
-        if (crackX !== null) {
-            // The crack at position X separates column X-1 (left) from column X (right)
-            // Check if x1 and x2 are on opposite sides of the crack
-            const leftX = Math.min(x1, x2);
-            const rightX = Math.max(x1, x2);
-            
-            // If leftX is < crackX and rightX is >= crackX, they're separated
-            if (leftX < crackX && rightX >= crackX) {
-                return true;
-            }
-        }
-    }
-    
-    return false;
-}
-
-// Helper to get blobs from a specific board state
-function getAllBlobsFromBoard(boardState, compoundMarkers = null) {
-    const visited = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
-    const blobs = [];
-    
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (boardState[y][x] !== null && !visited[y][x]) {
-                const color = boardState[y][x];
-                const blob = [];
-                
-                // Get compound marker for this starting position (if any)
-                const startMarker = compoundMarkers ? compoundMarkers.get(`${x},${y}`) : null;
-                
-                // Flood fill to find connected blocks of same color
-                // BUT respect the crack as a barrier AND compound blob boundaries
-                const stack = [[x, y]];
-                while (stack.length > 0) {
-                    const [cx, cy] = stack.pop();
-                    
-                    if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) continue;
-                    if (visited[cy][cx] || boardState[cy][cx] !== color) continue;
-                    
-                    // If compound markers exist, enforce marker boundaries
-                    if (compoundMarkers) {
-                        const cellMarker = compoundMarkers.get(`${cx},${cy}`);
-                        // Blocks can only merge if they have the SAME marker state:
-                        // - Both have the same non-null marker, OR
-                        // - Both have no marker (null/undefined)
-                        if (startMarker !== cellMarker) continue;
-                    }
-                    
-                    visited[cy][cx] = true;
-                    blob.push([cx, cy]);
-                    
-                    // Check 4 adjacent cells, but don't cross the crack
-                    const neighbors = [
-                        [cx + 1, cy],
-                        [cx - 1, cy],
-                        [cx, cy + 1],
-                        [cx, cy - 1]
-                    ];
-                    
-                    for (const [nx, ny] of neighbors) {
-                        // Don't add neighbor if crack separates it from current cell
-                        if (!isCrackBetween(cx, cy, nx, ny)) {
-                            stack.push([nx, ny]);
-                        }
-                    }
-                }
-                
-                if (blob.length > 0) {
-                    blobs.push({ color, positions: blob });
-                }
-            }
-        }
-    }
-    
-    return blobs;
-}
-
-function areInterlocked(blob1, blob2) {
-    // Check if blob1 wraps around blob2 (or vice versa) in any shared column
-    // True interlocking means one blob has blocks both above and below the other
-    // in the same column, creating a physical dependency
-    
-    console.log(`      🔍 Checking interlocking: ${blob1.color} (${blob1.positions.length} blocks) vs ${blob2.color} (${blob2.positions.length} blocks)`);
-    
-    // Get column spans for each blob
-    const cols1 = new Set(blob1.positions.map(p => p[0]));
-    const cols2 = new Set(blob2.positions.map(p => p[0]));
-    
-    // Find columns where both blobs exist
-    const sharedCols = [...cols1].filter(c => cols2.has(c));
-    
-    if (sharedCols.length === 0) {
-        console.log(`      ❌ No shared columns - cannot be interlocked`);
-        return false; // No overlap in columns
-    }
-    
-    console.log(`      ✓ Shared columns: [${sharedCols.join(', ')}]`);
-    
-    for (const col of sharedCols) {
-        // Get Y positions for each blob in this column
-        const ys1 = blob1.positions.filter(p => p[0] === col).map(p => p[1]).sort((a, b) => a - b);
-        const ys2 = blob2.positions.filter(p => p[0] === col).map(p => p[1]).sort((a, b) => a - b);
-        
-        if (ys1.length > 0 && ys2.length > 0) {
-            const min1 = ys1[0];
-            const max1 = ys1[ys1.length - 1];
-            const min2 = ys2[0];
-            const max2 = ys2[ys2.length - 1];
-            
-            console.log(`      📊 Column ${col}: blob1 Y-range [${min1}-${max1}], blob2 Y-range [${min2}-${max2}]`);
-            
-            // Check if blob1 wraps around blob2 in this column
-            // (blob1 has blocks both above and below blob2)
-            if (min1 < min2 && max1 > max2) {
-                console.log(`    🔗 Interlocked: ${blob1.color} wraps around ${blob2.color} in column ${col}`);
-                return true;
-            }
-            
-            // Check if blob2 wraps around blob1 in this column
-            if (min2 < min1 && max2 > max1) {
-                console.log(`    🔗 Interlocked: ${blob2.color} wraps around ${blob1.color} in column ${col}`);
-                return true;
-            }
-        }
-    }
-    
-    console.log(`      ❌ Shared columns but no wrapping pattern - not interlocked`);
-    return false;
-}
-
-function mergeInterlockedBlobs(blobs) {
-    // Merge blobs that are interlocked into combined units
-    const merged = [];
-    const used = new Set();
-    
-    for (let i = 0; i < blobs.length; i++) {
-        if (used.has(i)) continue;
-        
-        let combinedBlob = {
-            colors: [blobs[i].color],
-            positions: [...blobs[i].positions],
-            isCompound: false
-        };
-        
-        // Check if this blob is interlocked with any other blob
-        for (let j = i + 1; j < blobs.length; j++) {
-            if (used.has(j)) continue;
-            
-            if (areInterlocked(
-                { color: combinedBlob.colors[0], positions: combinedBlob.positions },
-                blobs[j]
-            )) {
-                // Merge blob j into our combined blob
-                combinedBlob.positions.push(...blobs[j].positions);
-                combinedBlob.colors.push(blobs[j].color);
-                combinedBlob.isCompound = true;
-                used.add(j);
-                console.log(`  🔀 Merging interlocked blobs: ${combinedBlob.colors.join(' + ')}`);
-            }
-        }
-        
-        // Use the first color as the primary color (for display purposes)
-        combinedBlob.color = combinedBlob.colors[0];
-        merged.push(combinedBlob);
-        used.add(i);
-    }
-    
-    return merged;
-}
-
-
 function createStormParticle() {
     const particle = {
         x: Math.random() * canvas.width,
@@ -5297,7 +2671,11 @@ function drawBoard() {
     }
     
     // Draw black hole vortex BEHIND the blocks
-    if (blackHoleActive && blackHoleInnerBlob) {
+    const blackHoleInnerBlob = SpecialEffects.getBlackHoleInnerBlob();
+    if (SpecialEffects.isBlackHoleActive() && blackHoleInnerBlob) {
+        const blackHoleCenterX = SpecialEffects.getBlackHoleCenterX();
+        const blackHoleCenterY = SpecialEffects.getBlackHoleCenterY();
+        const blackHoleStartTime = SpecialEffects.getBlackHoleStartTime();
         const centerPixelX = blackHoleCenterX * BLOCK_SIZE + BLOCK_SIZE / 2;
         const centerPixelY = blackHoleCenterY * BLOCK_SIZE + BLOCK_SIZE / 2;
         
@@ -5453,7 +2831,7 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingNormalPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedBlocks = [];
@@ -5489,7 +2867,7 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingRandomPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedRandomBlocks = [];
@@ -5525,7 +2903,7 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingLatticePositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedLatticeBlocks = [];
@@ -5604,7 +2982,7 @@ function drawBoard() {
                 });
                 
                 // Draw as merged shapes to avoid overlap artifacts
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 if (normalPositions.length > 0) {
                     drawSolidShape(ctx, normalPositions, displayColor, BLOCK_SIZE, false, getFaceOpacity(), false);
                 }
@@ -5621,7 +2999,7 @@ function drawBoard() {
             // No fading blocks
             // Draw normal blocks
             if (normalBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedBlocks = [];
@@ -5651,7 +3029,7 @@ function drawBoard() {
             }
             // Draw random hail blocks with silver
             if (randomBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedRandomBlocks = [];
@@ -5681,7 +3059,7 @@ function drawBoard() {
             }
             // Draw lattice blocks with silver
             if (latticeBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = blob.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : blob.color;
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedLatticeBlocks = [];
@@ -6641,7 +4019,7 @@ function wouldTriggerSpecialEvent(piece) {
     }
     
     // Check for tsunamis (blob spanning full width)
-    const blobs = getAllBlobsFromBoard(testBoard);
+    const blobs = SpecialEffects.getAllBlobsFromBoard(testBoard);
     for (const blob of blobs) {
         const xPositions = blob.positions.map(p => p[0]);
         const uniqueX = [...new Set(xPositions)];
@@ -6659,7 +4037,7 @@ function wouldTriggerSpecialEvent(piece) {
     }
     
     // Check for volcanoes (L-shaped lava blob) - DISABLED: isLShape function not defined
-    // const lavaBlobs = blobs.filter(b => b.color === volcanoLavaColor);
+    // const lavaBlobs = blobs.filter(b => b.color === SpecialEffects.getVolcanoLavaColor());
     // for (const lavaBlob of lavaBlobs) {
     //     if (isLShape(lavaBlob)) {
     //         console.log('🚫 Bounce prevented: Would trigger volcano');
@@ -7347,7 +4725,7 @@ function checkForSpecialFormations() {
     let blackHoleData = [];
     
     // Check for Volcanoes (blob at bottom completely enveloped by another)
-    const volcanoes = detectVolcanoes(allBlobs);
+    const volcanoes = SpecialEffects.detectVolcanoes(allBlobs);
     if (volcanoes.length > 0) {
         foundVolcano = true;
         volcanoData = volcanoes;
@@ -7383,7 +4761,7 @@ function checkForSpecialFormations() {
         
         // Start the volcano warming phase
         // (Column clearing will happen when warming transitions to eruption)
-        triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
+        SpecialEffects.triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
         volcanoCount++;
         
         // Score calculation - VOLCANO SCORING:
@@ -7396,7 +4774,7 @@ function checkForSpecialFormations() {
         score += finalVolcanoScore;
         
         // Update histogram only for lava blob
-        updateHistogramWithBlob(volcanoLavaColor, lavaSize);
+        updateHistogramWithBlob(SpecialEffects.getVolcanoLavaColor(), lavaSize);
         scoreHistogramTarget = finalVolcanoScore;
         if (finalVolcanoScore > scoreHistogramMaxScale) {
             scoreHistogramMaxScale = Math.ceil(finalVolcanoScore / 1000) * 1000;
@@ -7407,7 +4785,7 @@ function checkForSpecialFormations() {
     } else if (foundBlackHole) {
             // Trigger black hole animation for the first one
             const bh = blackHoleData[0];
-            triggerBlackHole(bh.innerBlob, bh.outerBlob);
+            SpecialEffects.triggerBlackHole(bh.innerBlob, bh.outerBlob);
             blackHoleCount++;
             
             // Score calculation - BLACK HOLE SCORING:
@@ -7442,7 +4820,7 @@ function checkForSpecialFormations() {
             triggerTsunami(avgY * BLOCK_SIZE);
             
             // Trigger the actual clearing animation
-            triggerTsunamiAnimation(blob);
+            SpecialEffects.triggerTsunamiAnimation(blob);
             tsunamiCount++;
             
             // Score calculation - TSUNAMI SCORING:
@@ -8156,7 +5534,7 @@ function drawFallingBlocks() {
         const hasRandomBlocks = group.blocks.some(b => b.isRandom);
         
         // Use pulsing color for lava blocks
-        const displayColor = group.color === volcanoLavaColor ? getLavaColor() : group.color;
+        const displayColor = group.color === SpecialEffects.getVolcanoLavaColor() ? SpecialEffects.getLavaColor() : group.color;
         
         // Draw main blob
         // In phantom mode, parent context already has opacity set
@@ -8190,7 +5568,7 @@ function clearLines() {
     }
     
     // Don't clear lines during earthquake - let the earthquake finish first
-    if (earthquakeActive) {
+    if (SpecialEffects.isEarthquakeActive()) {
         console.log('⏸️ Skipping clearLines - earthquake in progress');
         return;
     }
@@ -8316,7 +5694,7 @@ function clearLines() {
         // Each lava segment doubles the entire line clear score
         let lavaSegmentCount = 0;
         blobsBefore.forEach(beforeBlob => {
-            if (beforeBlob.color === volcanoLavaColor) {
+            if (beforeBlob.color === SpecialEffects.getVolcanoLavaColor()) {
                 const blocksInCompletedRows = beforeBlob.positions.filter(pos => completedRows.includes(pos[1])).length;
                 if (blocksInCompletedRows > 0) {
                     lavaSegmentCount++;
@@ -8582,9 +5960,9 @@ function clearLines() {
                 if (Math.random() < eventProbability) {
                     // 66% tornado, 34% earthquake
                     if (Math.random() < 0.66) {
-                        spawnTornado();
+                        SpecialEffects.spawnTornado();
                     } else {
-                        spawnEarthquake();
+                        SpecialEffects.spawnEarthquake();
                     }
                 }
             }, 1000);
@@ -8596,7 +5974,7 @@ function rotatePiece() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -8622,7 +6000,7 @@ function rotatePieceCounterClockwise() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -8651,7 +6029,7 @@ function rotatePieceCounterClockwise() {
 function movePiece(dir) {
     if (!currentPiece) return;
     // Prevent movement during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') return;
     
     currentPiece.x += dir;
     if (collides(currentPiece)) {
@@ -8664,7 +6042,7 @@ function movePiece(dir) {
 function dropPiece() {
     if (animatingLines || !currentPiece || !currentPiece.shape) return;
     // Prevent dropping during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') return;
     
     currentPiece.y++;
     if (collides(currentPiece)) {
@@ -8738,7 +6116,7 @@ let hardDropStartY = 0; // Grid Y position when hard drop started
 function hardDrop() {
     if (animatingLines || !currentPiece || hardDropping) return;
     // Prevent hard drop during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') return;
     
     // Start animated drop
     hardDropping = true;
@@ -8899,8 +6277,8 @@ function update(time = 0) {
     }
     
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift
-    const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift';
-    if (!paused && !animatingLines && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
+    const earthquakeShiftActive = SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift';
+    if (!paused && !animatingLines && !SpecialEffects.isBlackHoleAnimating() && !SpecialEffects.isTsunamiAnimating() && !hardDropping && !earthquakeShiftActive && currentPiece) {
         dropCounter += deltaTime;
         if (dropCounter > dropInterval) {
             dropPiece();
@@ -8953,39 +6331,39 @@ function update(time = 0) {
         updateGremlinFadingBlocks(); // Update gremlin fading blocks
         updateStormParticles();
         updateDrippingLiquids(); // Update dripping liquids for Carrie/No Kings
-        updateTornado(); // Update tornado
+        SpecialEffects.updateTornado(); // Update tornado
         StarfieldSystem.updateUFO(); // Update UFO animation (42 lines easter egg)
-        updateEarthquake(); // Update earthquake
-        updateDisintegrationParticles(); // Update explosion particles
-        updateBlackHoleAnimation(); // Update black hole animation
-        updateTsunamiAnimation(); // Update tsunami animation
-        updateVolcanoAnimation(); // Update volcano animation
+        SpecialEffects.updateEarthquake(); // Update earthquake
+        SpecialEffects.updateDisintegrationParticles(); // Update explosion particles
+        SpecialEffects.updateBlackHoleAnimation(); // Update black hole animation
+        SpecialEffects.updateTsunamiAnimation(); // Update tsunami animation
+        SpecialEffects.updateVolcanoAnimation(); // Update volcano animation
         updateFallingBlocks(); // Update falling blocks from gravity
         updateBouncingPieces(); // Update bouncing pieces (Rubber & Glue mode)
         GamepadController.update(); // Update gamepad controller input
     }
     
     // Apply horizontal earthquake shake during shake, crack and shift phases
-    if (earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift')) {
-        const shakeX = (Math.random() - 0.5) * earthquakeShakeIntensity * 2;
+    if (SpecialEffects.isEarthquakeActive() && (SpecialEffects.getEarthquakePhase() === 'shake' || SpecialEffects.getEarthquakePhase() === 'crack' || SpecialEffects.getEarthquakePhase() === 'shift')) {
+        const shakeX = (Math.random() - 0.5) * SpecialEffects.getEarthquakeShakeIntensity() * 2;
         ctx.save();
         ctx.translate(shakeX, 0);
     }
     
     // Apply screen shake during black hole
-    if (blackHoleAnimating && blackHoleShakeIntensity > 0) {
-        const shakeX = (Math.random() - 0.5) * blackHoleShakeIntensity;
-        const shakeY = (Math.random() - 0.5) * blackHoleShakeIntensity;
-        if (!earthquakeActive) {
+    if (SpecialEffects.isBlackHoleAnimating() && SpecialEffects.getBlackHoleShakeIntensity() > 0) {
+        const shakeX = (Math.random() - 0.5) * SpecialEffects.getBlackHoleShakeIntensity();
+        const shakeY = (Math.random() - 0.5) * SpecialEffects.getBlackHoleShakeIntensity();
+        if (!SpecialEffects.isEarthquakeActive()) {
             ctx.save();
         }
         ctx.translate(shakeX, shakeY);
     }
     
     // Apply vertical wobble during tsunami
-    if (tsunamiAnimating && tsunamiWobbleIntensity > 0) {
-        const wobbleY = Math.sin(Date.now() / 100) * tsunamiWobbleIntensity;
-        if (!blackHoleAnimating && !earthquakeActive) { // Don't double-save if black hole or earthquake is also active
+    if (SpecialEffects.isTsunamiAnimating() && SpecialEffects.getTsunamiWobbleIntensity() > 0) {
+        const wobbleY = Math.sin(Date.now() / 100) * SpecialEffects.getTsunamiWobbleIntensity();
+        if (!SpecialEffects.isBlackHoleAnimating() && !SpecialEffects.isEarthquakeActive()) { // Don't double-save if black hole or earthquake is also active
             ctx.save();
         }
         ctx.translate(0, wobbleY);
@@ -9004,22 +6382,22 @@ function update(time = 0) {
     // No longer need canvas translation for nervous mode
     
     // Draw board and blocks
-    if (earthquakeActive && earthquakePhase === 'shift') {
+    if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'shift') {
         // During shift, earthquake handles all rendering
-        drawEarthquake();
-    } else if (earthquakeActive && earthquakePhase === 'crack') {
+        SpecialEffects.drawEarthquake();
+    } else if (SpecialEffects.isEarthquakeActive() && SpecialEffects.getEarthquakePhase() === 'crack') {
         // During crack, earthquake draws board + dark seams
-        drawEarthquake();
+        SpecialEffects.drawEarthquake();
     } else {
         // Normal rendering (including shake phase)
         drawBoard();
         drawFallingBlocks();
     }
     
-    drawTsunami(); // Draw tsunami collapsing blocks
-    drawVolcano(); // Draw volcano lava and projectiles
-    drawTornado(); // Draw tornado on top of board
-    drawDisintegrationParticles(); // Draw explosion particles on top
+    SpecialEffects.drawTsunami(); // Draw tsunami collapsing blocks
+    SpecialEffects.drawVolcano(); // Draw volcano lava and projectiles
+    SpecialEffects.drawTornado(); // Draw tornado on top of board
+    SpecialEffects.drawDisintegrationParticles(); // Draw explosion particles on top
     drawBouncingPieces(); // Draw bouncing pieces (Rubber & Glue mode)
     if (currentPiece && currentPiece.shape) {
         drawShadowPiece(currentPiece);
@@ -9036,8 +6414,8 @@ function update(time = 0) {
     drawDrippingLiquids();
     
     // Remove tsunami wobble transform
-    if (tsunamiAnimating && tsunamiWobbleIntensity > 0) {
-        if (!blackHoleAnimating && !earthquakeActive) { // Only restore if we saved (not both active)
+    if (SpecialEffects.isTsunamiAnimating() && SpecialEffects.getTsunamiWobbleIntensity() > 0) {
+        if (!SpecialEffects.isBlackHoleAnimating() && !SpecialEffects.isEarthquakeActive()) { // Only restore if we saved (not both active)
             ctx.restore();
         }
     }
@@ -9045,14 +6423,14 @@ function update(time = 0) {
     // No longer need to restore for nervous mode - using CSS animation instead
     
     // Remove black hole shake transform
-    if (blackHoleAnimating && blackHoleShakeIntensity > 0) {
-        if (!earthquakeActive) {
+    if (SpecialEffects.isBlackHoleAnimating() && SpecialEffects.getBlackHoleShakeIntensity() > 0) {
+        if (!SpecialEffects.isEarthquakeActive()) {
             ctx.restore();
         }
     }
     
     // Remove earthquake shake transform
-    if (earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift')) {
+    if (SpecialEffects.isEarthquakeActive() && (SpecialEffects.getEarthquakePhase() === 'shake' || SpecialEffects.getEarthquakePhase() === 'crack' || SpecialEffects.getEarthquakePhase() === 'shift')) {
         ctx.restore();
     }
     
@@ -9080,6 +6458,30 @@ function update(time = 0) {
 
     gameLoop = requestAnimationFrame(update);
 }
+
+// Initialize Special Effects System
+SpecialEffects.init({
+    board: board,
+    isRandomBlock: isRandomBlock,
+    fadingBlocks: fadingBlocks,
+    isLattice: isLatticeBlock,
+    canvas: canvas,
+    ctx: ctx,
+    BLOCK_SIZE: BLOCK_SIZE,
+    ROWS: ROWS,
+    COLS: COLS,
+    getAllBlobs: getAllBlobs,
+    findBlob: findBlob,
+    drawSolidShape: drawSolidShape,
+    getFaceOpacity: getFaceOpacity,
+    runTwoPhaseGravity: runTwoPhaseGravity,
+    playSoundEffect: playSoundEffect,
+    playEnhancedThunder: playEnhancedThunder,
+    playThunder: playThunder,
+    soundToggle: soundToggle,
+    getGameRunning: () => gameRunning,
+    getPaused: () => paused
+});
 
 function startGame(mode) {
     // Hide leaderboard if it was shown
@@ -9229,69 +6631,12 @@ function startGame(mode) {
     hailstormCounter = 0;
     triggeredTsunamis.clear();
     
-    // Reset tornado state
-    tornadoActive = false;
-    tornadoState = 'descending';
-    tornadoY = 0;
-    tornadoX = 0;
-    tornadoSpeed = 8;
-    tornadoCol = 0;
+    // Reset all special effects state
+    SpecialEffects.reset();
     
-    // Reset UFO state (42 lines easter egg)
-    ufoActive = false;
-    ufoPhase = 'entering';
-    tornadoRow = 0;
-    tornadoRotation = 0;
-    tornadoPickedBlob = null;
-    tornadoLiftStartY = 0;
-    tornadoLiftHeight = 0;
-    tornadoOrbitAngle = 0;
-    tornadoOrbitRadius = 0;
-    tornadoOrbitStartTime = 0;
-    tornadoBlobRotation = 0;
-    tornadoVerticalRotation = 0;
-    tornadoDropTargetX = 0;
-    tornadoDropStartY = 0;
-    
-    // Reset earthquake state
-    earthquakeActive = false;
-    earthquakePhase = 'shake'; // Reset to shake phase
-    earthquakeShakeProgress = 0;
-    earthquakeCrack = [];
-    earthquakeCrackMap.clear();
-    earthquakeCrackProgress = 0;
-    earthquakeShiftProgress = 0;
-    earthquakeLeftBlocks = [];
-    earthquakeRightBlocks = [];
-    tornadoFadeProgress = 0;
-    tornadoParticles = [];
-    
-    // Reset black hole state
-    blackHoleActive = false;
-    blackHoleAnimating = false;
-    blackHoleBlocks = [];
-    blackHoleShakeIntensity = 0;
-    blackHoleInnerBlob = null;
-    blackHoleOuterBlob = null;
-    
-    // Reset falling blocks state
+    // Reset falling blocks state (kept in game.js for gravity system)
     fallingBlocks = [];
     gravityAnimating = false;
-    
-    // Reset tsunami state
-    tsunamiActive = false;
-    tsunamiAnimating = false;
-    tsunamiBlob = null;
-    tsunamiBlocks = [];
-    tsunamiPushedBlocks = [];
-    tsunamiWobbleIntensity = 0;
-    
-    // Reset volcano state
-    volcanoActive = false;
-    volcanoAnimating = false;
-    volcanoLavaBlob = null;
-    volcanoEruptionColumn = -1;
-    volcanoProjectiles = [];
     
     // Hide planet stats
     StarfieldSystem.hidePlanetStats();
@@ -9423,7 +6768,7 @@ document.addEventListener('keydown', e => {
         // SHIFT key - Spawn tornado (developer mode only)
         if (e.key === 'Shift' && developerMode) {
             e.preventDefault();
-            spawnTornado();
+            SpecialEffects.spawnTornado();
             return;
         }
         
@@ -9437,7 +6782,7 @@ document.addEventListener('keydown', e => {
         // TILDE/BACKTICK key - Spawn earthquake (developer mode only)
         if ((e.key === '`' || e.key === '~') && developerMode) {
             e.preventDefault();
-            spawnEarthquake();
+            SpecialEffects.spawnEarthquake();
             return;
         }
         
