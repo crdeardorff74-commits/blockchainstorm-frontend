@@ -679,9 +679,9 @@ const SpecialEffects = (function() {
         for (let checkY = minY - 1; checkY >= 0; checkY--) {
             for (let checkX = 0; checkX < deps.COLS; checkX++) {
                 if (deps.getBoard()[checkY][checkX] !== null) {
-                    const blobAbove = deps.findBlob(checkX, checkY, deps.getBoard()[checkY][checkX]);
-                    if (blobAbove) {
-                        blobAbove.positions.forEach(([bx, by]) => {
+                    const positions = deps.findBlob(checkX, checkY, deps.getBoard()[checkY][checkX]);
+                    if (positions && positions.length > 0) {
+                        positions.forEach(([bx, by]) => {
                             if (!tsunamiPushedBlocks.find(b => b.x === bx && b.y === by)) {
                                 tsunamiPushedBlocks.push({
                                     x: bx,
@@ -874,18 +874,16 @@ const SpecialEffects = (function() {
             tornadoSnakeDirection = -1;
         }
         
-        // Spawn particles
-        if (Math.random() < 0.3) {
+        // Spawn particles within tornado height
+        if (Math.random() < 0.3 && tornadoY > 10) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 20 + Math.random() * 30;
             tornadoParticles.push({
-                x: tornadoX + Math.cos(angle) * radius,
-                y: tornadoY + Math.random() * 100,
                 angle: angle,
                 radius: radius,
+                y: Math.random() * tornadoY, // Random Y within tornado height
                 speed: 0.1 + Math.random() * 0.1,
-                size: 2 + Math.random() * 3,
-                alpha: 0.5 + Math.random() * 0.3
+                opacity: 0.3 + Math.random() * 0.4
             });
         }
         
@@ -893,9 +891,8 @@ const SpecialEffects = (function() {
         for (let i = tornadoParticles.length - 1; i >= 0; i--) {
             const p = tornadoParticles[i];
             p.angle += p.speed;
-            p.y -= 1;
-            p.alpha -= 0.01;
-            if (p.alpha <= 0 || p.y < tornadoY - 150) {
+            p.y -= 0.5; // Slowly rise up
+            if (p.y < 0 || tornadoParticles.length > 100) {
                 tornadoParticles.splice(i, 1);
             }
         }
@@ -910,25 +907,29 @@ const SpecialEffects = (function() {
                 if (gridY < deps.ROWS && gridX >= 0 && gridX < COLS) {
                     for (let checkY = gridY; checkY < deps.ROWS; checkY++) {
                         if (deps.getBoard()[checkY][gridX] !== null) {
-                            const blob = deps.findBlob(gridX, checkY, deps.getBoard()[checkY][gridX]);
-                            if (blob && canLiftBlob(blob)) {
-                                tornadoPickedBlob = blob;
-                                tornadoState = 'lifting';
-                                tornadoLiftStartY = tornadoY;
-                                tornadoBlobRotation = 0;
-                                tornadoVerticalRotation = 0;
-                                tornadoOrbitStartTime = Date.now();
-                                tornadoOrbitAngle = 0;
-                                tornadoOrbitRadius = 10;
-                                tornadoLiftHeight = 0;
-                                
-                                blob.positions.forEach(([x, y]) => {
-                                    deps.getBoard()[y][x] = null;
-                                    deps.getIsRandomBlock()[y][x] = false;
-                                });
-                                
-                                console.log('🌪️ Picked up blob:', blob.color, 'size:', blob.positions.length);
-                                break;
+                            const color = deps.getBoard()[checkY][gridX];
+                            const positions = deps.findBlob(gridX, checkY, color);
+                            if (positions && positions.length > 0) {
+                                const blob = { positions: positions, color: color };
+                                if (canLiftBlob(blob)) {
+                                    tornadoPickedBlob = blob;
+                                    tornadoState = 'lifting';
+                                    tornadoLiftStartY = tornadoY;
+                                    tornadoBlobRotation = 0;
+                                    tornadoVerticalRotation = 0;
+                                    tornadoOrbitStartTime = Date.now();
+                                    tornadoOrbitAngle = 0;
+                                    tornadoOrbitRadius = 10;
+                                    tornadoLiftHeight = 0;
+                                    
+                                    blob.positions.forEach(([x, y]) => {
+                                        deps.getBoard()[y][x] = null;
+                                        deps.getIsRandomBlock()[y][x] = false;
+                                    });
+                                    
+                                    console.log('🌪️ Picked up blob:', blob.color, 'size:', blob.positions.length);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1064,87 +1065,183 @@ const SpecialEffects = (function() {
         
         ctx.save();
         
-        const fadeAlpha = tornadoState === 'dissipating' ? 1 - tornadoFadeProgress : 1;
-        ctx.globalAlpha = fadeAlpha;
+        const height = Math.max(5, tornadoY);
         
-        // Draw funnel
-        const funnelHeight = 150;
-        const topWidth = 60;
-        const bottomWidth = 15;
+        // Apply dissipation fade - reduce all widths
+        const fadeFactor = tornadoState === 'dissipating' ? (1 - tornadoFadeProgress) : 1.0;
+        const topWidth = 100 * fadeFactor;
+        const bottomWidth = 8 * fadeFactor;
         
-        ctx.save();
-        ctx.translate(tornadoX, tornadoY);
+        // Smooth easing function for width taper
+        const getWidth = (progress) => {
+            const eased = 1 - Math.pow(1 - progress, 3);
+            return topWidth - (topWidth - bottomWidth) * eased;
+        };
         
-        for (let i = 0; i < 20; i++) {
-            const y = -i * (funnelHeight / 20);
-            const progress = i / 20;
-            const width = bottomWidth + (topWidth - bottomWidth) * progress;
-            const wobble = Math.sin(tornadoRotation + i * 0.3) * (5 + progress * 10);
+        // Draw base tube shape with subtle bending
+        const baseOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress * 0.5) : 0.6;
+        ctx.globalAlpha = baseOpacity;
+        
+        const gradient = ctx.createLinearGradient(tornadoX, 0, tornadoX, height);
+        gradient.addColorStop(0, '#9a9890');
+        gradient.addColorStop(0.5, '#8a8880');
+        gradient.addColorStop(1, '#7a7870');
+        
+        ctx.beginPath();
+        
+        // Left edge
+        for (let y = 0; y <= height; y += 1) {
+            const progress = y / height;
+            let width = getWidth(progress);
+            
+            if (progress > 0.85) {
+                const tipProgress = (progress - 0.85) / 0.15;
+                const eased = tipProgress * tipProgress;
+                width = width * (1 - eased * 0.5);
+            }
+            
+            const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
+            const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
+            const totalBend = bend1 + bend2;
+            
+            const x = tornadoX - width + totalBend;
+            if (y === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        
+        // Round the bottom tip
+        const arcWidth = getWidth(1.0) * 0.5;
+        const bottomBend1 = Math.sin(tornadoRotation * 0.5 + Math.PI * 0.8) * 4;
+        const bottomBend2 = Math.sin(tornadoRotation * 0.3 + Math.PI * 1.2) * 2;
+        const bottomTotalBend = bottomBend1 + bottomBend2;
+        const bottomCenterX = tornadoX + bottomTotalBend;
+        
+        ctx.arc(bottomCenterX, height, arcWidth, Math.PI, 0, true);
+        
+        // Right edge (going back up)
+        for (let y = height; y >= 0; y -= 1) {
+            const progress = y / height;
+            let width = getWidth(progress);
+            
+            if (progress > 0.85) {
+                const tipProgress = (progress - 0.85) / 0.15;
+                const eased = tipProgress * tipProgress;
+                width = width * (1 - eased * 0.5);
+            }
+            
+            const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
+            const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
+            const totalBend = bend1 + bend2;
+            
+            const x = tornadoX + width + totalBend;
+            ctx.lineTo(x, y);
+        }
+        
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Draw horizontal spiral bands
+        const bandOpacity = tornadoState === 'dissipating' ? 0.35 * (1 - tornadoFadeProgress * 0.5) : 0.35;
+        ctx.globalAlpha = bandOpacity;
+        const numBands = 20;
+        
+        for (let band = 0; band < numBands; band++) {
+            const bandProgress = band / numBands;
+            const bandY = bandProgress * height;
+            const progress = bandY / height;
+            const width = getWidth(progress);
+            
+            const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
+            const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
+            const totalBend = bend1 + bend2;
+            const centerX = tornadoX + totalBend;
+            
+            const rotation = tornadoRotation + progress * Math.PI * 6;
+            const wave = Math.sin(rotation) * width * 0.3;
             
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(180, 180, 180, ${0.3 - progress * 0.15})`;
-            ctx.lineWidth = width;
-            ctx.lineCap = 'round';
-            ctx.moveTo(wobble, y);
-            ctx.lineTo(wobble, y - funnelHeight / 20);
-            ctx.stroke();
-        }
-        
-        // Spiral lines
-        ctx.strokeStyle = 'rgba(200, 200, 200, 0.4)';
-        ctx.lineWidth = 2;
-        for (let spiral = 0; spiral < 3; spiral++) {
-            ctx.beginPath();
-            for (let i = 0; i <= 30; i++) {
-                const progress = i / 30;
-                const y = -progress * funnelHeight;
-                const radius = (bottomWidth / 2) + ((topWidth - bottomWidth) / 2) * progress;
-                const angle = tornadoRotation + progress * Math.PI * 4 + (spiral * Math.PI * 2 / 3);
-                const x = Math.cos(angle) * radius;
+            for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
+                const x = centerX + Math.cos(angle) * width;
+                const y = bandY + Math.sin(angle) * (width * 0.15) + wave * Math.cos(angle);
                 
-                if (i === 0) ctx.moveTo(x, y);
+                if (angle === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
+            ctx.closePath();
+            
+            const brightness = (Math.sin(rotation) + 1) / 2;
+            ctx.strokeStyle = `rgba(60, 60, 58, ${brightness * 0.5})`;
+            ctx.lineWidth = 2;
             ctx.stroke();
         }
         
-        ctx.restore();
-        
-        // Draw particles
+        // Draw swirling debris particles
+        const particleOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress) : 0.6;
+        ctx.globalAlpha = particleOpacity;
         tornadoParticles.forEach(p => {
-            const x = tornadoX + Math.cos(p.angle) * p.radius;
-            ctx.fillStyle = `rgba(200, 200, 200, ${p.alpha * fadeAlpha})`;
+            const progress = Math.max(0, Math.min(1, p.y / height));
+            const maxRadius = getWidth(progress);
+            
+            const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
+            const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
+            const totalBend = bend1 + bend2;
+            const centerX = tornadoX + totalBend;
+            
+            const spiralRadius = (p.radius / 50) * maxRadius * 0.8;
+            const x = centerX + Math.cos(p.angle + tornadoRotation * 3) * spiralRadius;
+            
+            ctx.fillStyle = p.radius > 30 ? '#5a5a58' : '#8a8a80';
             ctx.beginPath();
-            ctx.arc(x, p.y, p.size, 0, Math.PI * 2);
+            ctx.arc(x, p.y, Math.max(1, 2), 0, Math.PI * 2);
             ctx.fill();
         });
         
-        // Draw carried blob
-        if (tornadoPickedBlob && (tornadoState === 'lifting' || tornadoState === 'carrying' || tornadoState === 'dropping')) {
+        // Draw carried blob if lifting, carrying, or dropping
+        if (tornadoPickedBlob && tornadoState !== 'descending') {
+            const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
+            const maxX = Math.max(...tornadoPickedBlob.positions.map(p => p[0]));
+            const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
+            const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
+            const blobCenterX = (minX + maxX) / 2;
+            const blobCenterY = (minY + maxY) / 2;
+            
+            let blobDrawX, blobDrawY, blobAlpha;
+            
+            if (tornadoState === 'lifting') {
+                const orbitX = Math.cos(tornadoOrbitAngle) * tornadoOrbitRadius;
+                const orbitZ = Math.sin(tornadoOrbitAngle) * tornadoOrbitRadius;
+                blobDrawX = tornadoX + orbitX;
+                blobDrawY = tornadoLiftHeight;
+                blobAlpha = orbitZ < 0 ? 0.3 : 1.0;
+            } else if (tornadoState === 'carrying') {
+                const orbitX = Math.cos(tornadoOrbitAngle) * tornadoOrbitRadius;
+                const orbitZ = Math.sin(tornadoOrbitAngle) * tornadoOrbitRadius;
+                blobDrawX = tornadoX + orbitX;
+                blobDrawY = tornadoLiftHeight;
+                blobAlpha = orbitZ < 0 ? 0.3 : 1.0;
+            } else {
+                blobDrawX = tornadoX;
+                blobDrawY = tornadoDropStartY;
+                blobAlpha = 1.0;
+            }
+            
             ctx.save();
             
-            const blobCenterY = tornadoY - tornadoLiftHeight;
-            const orbitX = tornadoX + Math.cos(tornadoOrbitAngle) * tornadoOrbitRadius;
-            const orbitY = blobCenterY + Math.sin(tornadoOrbitAngle) * (tornadoOrbitRadius * 0.3);
+            const scaleX = Math.cos(tornadoVerticalRotation);
+            const adjustedAlpha = blobAlpha * (0.6 + Math.abs(scaleX) * 0.4);
+            ctx.globalAlpha = adjustedAlpha;
             
-            ctx.translate(orbitX, orbitY);
+            ctx.translate(blobDrawX, blobDrawY);
+            ctx.scale(scaleX, 1);
             ctx.rotate(tornadoBlobRotation);
+            ctx.translate(-blobDrawX, -blobDrawY);
             
-            const scale = 0.8 + Math.sin(tornadoVerticalRotation) * 0.1;
-            ctx.scale(scale, 1);
-            
-            const xs = tornadoPickedBlob.positions.map(p => p[0]);
-            const ys = tornadoPickedBlob.positions.map(p => p[1]);
-            const minX = Math.min(...xs);
-            const minY = Math.min(...ys);
-            const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-            const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-            
-            const positions = tornadoPickedBlob.positions.map(([x, y]) => {
-                const relX = x - centerX;
-                const relY = y - centerY;
-                const screenX = relX;
-                const screenY = relY;
+            const positions = tornadoPickedBlob.positions.map(([bx, by]) => {
+                const relX = (bx - blobCenterX);
+                const relY = (by - blobCenterY);
+                const screenX = Math.floor((blobDrawX / BLOCK_SIZE) + relX);
+                const screenY = Math.floor((blobDrawY / BLOCK_SIZE) + relY);
                 return [screenX, screenY];
             });
             
