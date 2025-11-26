@@ -105,6 +105,8 @@ const TabletMode = {
         }
         
         if (this.enabled) {
+            // Add tablet-mode class to body for CSS styling
+            document.body.classList.add('tablet-mode');
             // Show touch controls in right panel
             if (touchControls) touchControls.style.display = 'grid';
             // Hide keyboard controls
@@ -120,6 +122,8 @@ const TabletMode = {
                 settingsBtn.style.display = 'none';
             }
         } else {
+            // Remove tablet-mode class from body
+            document.body.classList.remove('tablet-mode');
             // Hide touch controls
             if (touchControls) touchControls.style.display = 'none';
             // Show keyboard controls
@@ -131,6 +135,11 @@ const TabletMode = {
             if (pauseBtn) pauseBtn.style.display = 'none';
             // Show settings button in normal mode
             if (settingsBtn) settingsBtn.style.display = 'block';
+        }
+        
+        // Recalculate panel positions for new width
+        if (typeof updateCanvasSize === 'function') {
+            updateCanvasSize();
         }
     },
     
@@ -760,8 +769,9 @@ function updateCanvasSize() {
     
     const viewportWidth = window.innerWidth;
     
-    // Calculate panel width (22vw)
-    const panelWidth = viewportWidth * 0.22;
+    // Calculate panel width (22vw normal, 33vw tablet mode - 50% wider)
+    const panelWidthPercent = TabletMode.enabled ? 0.33 : 0.22;
+    const panelWidth = viewportWidth * panelWidthPercent;
     
     // Desired gap between canvas and panels (2.5vw for better spacing)
     const desiredGap = viewportWidth * 0.025;
