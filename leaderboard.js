@@ -91,7 +91,7 @@ function saveLocalLeaderboard(difficulty, scores) {
 
 // Display leaderboard in the left panel
 async function displayLeaderboard(difficulty, playerScore = null) {
-    const rulesPanel = document.querySelector('.rules-panel');
+    const rulesPanel = document.querySelector('.rules-panel:not(#leaderboardDisplay)');
     
     currentLeaderboardMode = difficulty;
     rulesPanel.style.display = 'none';
@@ -184,7 +184,8 @@ async function displayLeaderboard(difficulty, playerScore = null) {
 // Hide leaderboard and show rules again
 function hideLeaderboard() {
     const leaderboardContainer = document.getElementById('leaderboardDisplay');
-    const rulesPanel = document.querySelector('.rules-panel');
+    // Use more specific selector to get the original rules panel, not the leaderboard
+    const rulesPanel = document.querySelector('.rules-panel:not(#leaderboardDisplay)');
     
     if (leaderboardContainer) {
         leaderboardContainer.style.display = 'none';
