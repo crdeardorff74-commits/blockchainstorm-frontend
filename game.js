@@ -8812,14 +8812,21 @@ function updateStats() {
 function toggleUIElements(show) {
     const rulesInstructions = document.querySelector('.rules-instructions');
     const histogramCanvas = document.getElementById('histogramCanvas');
+    const leaderboardContent = document.getElementById('leaderboardContent');
     const controls = document.querySelector('.controls');
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
     const title = document.querySelector('.title');
     
+    // Check if leaderboard is currently visible
+    const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
+    
     if (show) {
         // Show instructions and controls, hide histogram, show title
-        rulesInstructions.style.display = 'block';
+        // But only show instructions if leaderboard is not visible
+        if (!leaderboardVisible) {
+            rulesInstructions.style.display = 'block';
+        }
         controls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
@@ -8827,6 +8834,8 @@ function toggleUIElements(show) {
     } else {
         // Hide instructions and controls, show histogram, hide title
         rulesInstructions.style.display = 'none';
+        // Also hide leaderboard when game starts
+        if (leaderboardContent) leaderboardContent.style.display = 'none';
         controls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
