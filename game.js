@@ -8879,19 +8879,19 @@ async function gameOver() {
     };
     
     
-    // Check if score makes top 10
-    console.log('Checking if score makes top 10...');
+    // Check if score makes top 20
+    console.log('Checking if score makes top 20...');
     const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score);
-    console.log('Is top ten:', isTopTen);
+    console.log('Is top twenty:', isTopTen);
     
     if (isTopTen) {
         // DON'T show game over div - go straight to name prompt
-        console.log('Score is top 10! Showing name entry prompt...');
+        console.log('Score is top 20! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
         window.leaderboard.promptForName(scoreData);
     } else {
-        // Score didn't make top 10, show game over div and leaderboard
-        console.log('Score did not make top 10, displaying game over and leaderboard');
+        // Score didn't make top 20, show game over div and leaderboard
+        console.log('Score did not make top 20, displaying game over and leaderboard');
         gameOverDiv.style.display = 'block';
         await window.leaderboard.displayLeaderboard(gameMode, score);
     }
