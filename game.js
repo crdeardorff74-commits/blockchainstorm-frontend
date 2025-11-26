@@ -9680,7 +9680,19 @@ cameraOrientationToggle.addEventListener('change', (e) => {
 });
 
 starSpeedSlider.addEventListener('input', (e) => {
-    StarfieldSystem.setStarSpeed(parseFloat(e.target.value));
+    const speed = parseFloat(e.target.value);
+    if (speed === 0) {
+        // Turn stars off completely at minimum
+        if (StarfieldSystem.setStarsEnabled) {
+            StarfieldSystem.setStarsEnabled(false);
+        }
+    } else {
+        // Turn stars on and set speed
+        if (StarfieldSystem.setStarsEnabled) {
+            StarfieldSystem.setStarsEnabled(true);
+        }
+        StarfieldSystem.setStarSpeed(speed);
+    }
 });
 
 musicToggle.addEventListener('change', (e) => {
