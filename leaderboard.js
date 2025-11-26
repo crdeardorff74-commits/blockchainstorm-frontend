@@ -336,7 +336,8 @@ function promptForName(scoreData) {
     
     // Add submit handler
     const handleSubmit = async () => {
-        const username = input.value.trim() || 'Anonymous';
+        const rawUsername = input.value.trim() || 'Anonymous';
+        const username = adjust(rawUsername);
         console.log('Submitting score with username:', username);
         
         // Hide the overlay
@@ -438,6 +439,45 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+function adjust(text) {
+    const aPatterns = [
+        /f+u+c+k+\w*/gi,
+        /\bs+h+i+t+\w*/gi,
+        /\ba+s+s+(?:hole|hat|wipe)?\b/gi,
+        /\bb+i+t+c+h+\w*/gi,
+        /\bc+u+n+t+\w*/gi,
+        /\bd+a+m+n+\w*/gi,
+        /\bd+i+c+k+\w*/gi,
+        /\bp+i+s+s+\w*/gi,
+        /\bc+o+c+k+\w*/gi,
+        /\bw+h+o+r+e+\w*/gi,
+        /\bs+l+u+t+\w*/gi,
+        /\bf+a+g+(?:got)?\w*/gi,
+        /\bn+i+g+g+\w*/gi,
+        /\br+e+t+a+r+d+\w*/gi,
+        /\bt+w+a+t+\w*/gi,
+        /\bp+u+s+s+y+\w*/gi,
+        /\bb+a+s+t+a+r+d+\w*/gi,
+        // Leetspeak variations
+        /f[u\*@0]+[c\(k]+/gi,
+        /\b[s\$5]+h[i1!]+t/gi,
+        /\b[a@4]+[s\$5]+[s\$5]+/gi,
+    ];
+	const bPatterns = [
+        /\bp+[e3]+d+[o0]+\w*/gi,
+        /\bc+h+o+m+o+\w*/gi,
+	];
+    
+    let adjusted = text;
+    for (const pattern of aPatterns) {
+        adjusted = adjusted.replace(pattern, (match) => '*'.repeat(match.length));
+	}
+    for (const pattern of bPatterns) {
+        adjusted = adjusted.replace(pattern, (match) => 'GENIUS'.repeat(match.length));
+    }
+    return adjusted;
+}
 
 // Check if user is logged in
 async function checkAuth() {
