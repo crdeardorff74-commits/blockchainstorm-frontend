@@ -804,6 +804,7 @@ function updateCanvasSize() {
 }
 
 window.addEventListener('resize', updateCanvasSize);
+window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
 const scoreDisplay = document.getElementById('score');
 const linesDisplay = document.getElementById('lines');
 const levelDisplay = document.getElementById('level');
@@ -9580,8 +9581,6 @@ updateSelectedMode();
 
 playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
-    // Hide leaderboard when returning to menu
-    window.leaderboard.hideLeaderboard();
     modeMenu.classList.remove('hidden');
     toggleUIElements(true); // Show UI elements when returning to menu
     
