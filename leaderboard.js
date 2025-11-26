@@ -379,8 +379,20 @@ function promptForName(scoreData) {
     const newSubmitBtn = submitBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
     
+    // Guard against double submission
+    let isSubmitting = false;
+    
     // Add submit handler
     const handleSubmit = async () => {
+        // Prevent double submission
+        if (isSubmitting) {
+            console.log('Already submitting, ignoring duplicate');
+            return;
+        }
+        isSubmitting = true;
+        newSubmitBtn.disabled = true;
+        newSubmitBtn.textContent = 'Saving...';
+        
         const rawUsername = input.value.trim() || 'Anonymous';
         const username = censorProfanity(rawUsername);
         console.log('Submitting score with username:', username);
