@@ -179,6 +179,11 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     `;
     
     leaderboardContainer.innerHTML = html;
+    
+    // Trigger resize to position leaderboard correctly
+    if (window.updateCanvasSize) {
+        window.updateCanvasSize();
+    }
 }
 
 // Hide leaderboard and show rules again
