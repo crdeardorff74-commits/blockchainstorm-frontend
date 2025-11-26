@@ -9580,6 +9580,8 @@ updateSelectedMode();
 
 playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
+    // Hide leaderboard when returning to menu
+    window.leaderboard.hideLeaderboard();
     modeMenu.classList.remove('hidden');
     toggleUIElements(true); // Show UI elements when returning to menu
     
