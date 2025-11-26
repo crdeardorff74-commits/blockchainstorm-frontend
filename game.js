@@ -117,10 +117,8 @@ const TabletMode = {
             if (planetStatsLeft) planetStatsLeft.style.display = 'block';
             // Show pause button (will be toggled by game state)
             if (pauseBtn) pauseBtn.style.display = 'block';
-            // Hide settings button in tablet mode during gameplay
-            if (settingsBtn && !settingsBtn.classList.contains('hidden-during-play')) {
-                settingsBtn.style.display = 'none';
-            }
+            // Show settings button in tablet mode (visible on menu, hidden during gameplay via class)
+            if (settingsBtn) settingsBtn.style.display = 'block';
         } else {
             // Remove tablet-mode class from body
             document.body.classList.remove('tablet-mode');
@@ -10132,6 +10130,9 @@ updateCanvasSize();
 drawBoard();
 // Ensure canvas has background even on menu
 drawCanvasBackground();
+
+// Initialize UI elements to show state (settings button visible, etc.)
+toggleUIElements(true);
 
 // Handle start overlay - required for audio autoplay
 const startOverlay = document.getElementById('startOverlay');
