@@ -6,6 +6,7 @@ const API_URL = 'https://blockchainstorm.onrender.com/api';
 
 // State
 let currentLeaderboardMode = null;
+let currentLeaderboardGameMode = 'normal'; // Track if viewing normal or challenge leaderboard
 let lastPlayerScore = null;
 let lastScoreData = null;
 let currentUser = null;
@@ -74,11 +75,11 @@ window.testHighScore = async function(testScore = 1000000) {
     }
 };
 
-// Fetch leaderboard for a specific difficulty
-async function fetchLeaderboard(difficulty) {
+// Fetch leaderboard for a specific difficulty and mode
+async function fetchLeaderboard(difficulty, mode = 'normal') {
     try {
-        console.log(`Fetching leaderboard for ${difficulty} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/normal`);
-        const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/normal`, {
+        console.log(`Fetching leaderboard for ${difficulty} (${mode}) from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`);
+        const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`, {
             method: 'GET',
             mode: 'cors',
             headers: {
@@ -93,13 +94,13 @@ async function fetchLeaderboard(difficulty) {
         return data.leaderboard || [];
     } catch (error) {
         console.error('Error fetching leaderboard, using local storage fallback:', error);
-        return getLocalLeaderboard(difficulty);
+        return getLocalLeaderboard(difficulty, mode);
     }
 }
 
 // Local storage fallback for leaderboard
-function getLocalLeaderboard(difficulty) {
-    const key = `blockchainstorm_leaderboard_${difficulty}`;
+function getLocalLeaderboard(difficulty, mode = 'normal') {
+    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}`;
     const stored = localStorage.getItem(key);
     if (stored) {
         try {
@@ -113,8 +114,8 @@ function getLocalLeaderboard(difficulty) {
 }
 
 // Save to local leaderboard
-function saveLocalLeaderboard(difficulty, scores) {
-    const key = `blockchainstorm_leaderboard_${difficulty}`;
+function saveLocalLeaderboard(difficulty, scores, mode = 'normal') {
+    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}`;
     try {
         const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
@@ -124,12 +125,13 @@ function saveLocalLeaderboard(difficulty, scores) {
 }
 
 // Display leaderboard in the left panel
-async function displayLeaderboard(difficulty, playerScore = null) {
+async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal') {
     const rulesPanel = document.querySelector('.rules-panel');
     const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
     const histogramCanvas = document.getElementById('histogramCanvas');
     
     currentLeaderboardMode = difficulty;
+    currentLeaderboardGameMode = mode; // Track current game mode (normal/challenge)
     
     // Hide instructions and histogram
     if (rulesInstructions) rulesInstructions.style.display = 'none';
@@ -145,13 +147,15 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     
     leaderboardContent.style.display = 'block';
     
+    const modeLabel = mode === 'challenge' ? ' (Challenge)' : '';
+    
     leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
-            Loading ${difficulty} leaderboard...
+            Loading ${difficulty}${modeLabel} leaderboard...
         </div>
     `;
     
-    const scores = await fetchLeaderboard(difficulty);
+    const scores = await fetchLeaderboard(difficulty, mode);
     
     if (!scores) {
         leaderboardContent.innerHTML = `
@@ -165,14 +169,14 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
+            <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard${modeLabel}</div>
             <div class="leaderboard-loading">No scores yet. Be the first!</div>
         `;
         return;
     }
     
     let html = `
-        <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
+        <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard${modeLabel}</div>
         <div class="leaderboard-mode-selector">
             Use <strong>↑↓</strong> arrows to browse difficulties
             <br>
@@ -249,9 +253,16 @@ function getModeDisplayName(mode) {
 }
 
 // Check if score makes top 20
-async function checkIfTopTen(difficulty, score) {
-    console.log(`Checking if score ${score} makes top 20 for ${difficulty}`);
-    const scores = await fetchLeaderboard(difficulty);
+async function checkIfTopTen(difficulty, score, mode = 'normal') {
+    console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode})`);
+    
+    // Don't allow 0 scores on the leaderboard
+    if (score <= 0) {
+        console.log('Score is 0 or negative, not eligible for leaderboard');
+        return false;
+    }
+    
+    const scores = await fetchLeaderboard(difficulty, mode);
     
     if (!Array.isArray(scores)) {
         console.log('Scores is not an array:', scores);
@@ -377,8 +388,18 @@ function promptForName(scoreData) {
         // Hide the overlay
         overlay.style.display = 'none';
         
+        // Don't save 0 scores
+        if (scoreData.score <= 0) {
+            console.log('Score is 0, not saving to leaderboard');
+            const gameOverDiv = document.getElementById('gameOver');
+            if (gameOverDiv) {
+                gameOverDiv.style.display = 'block';
+            }
+            return;
+        }
+        
         // Save to local leaderboard
-        const localScores = await fetchLeaderboard(scoreData.difficulty);
+        const localScores = await fetchLeaderboard(scoreData.difficulty, scoreData.mode);
         
         const newEntry = {
             username: username,
@@ -395,7 +416,7 @@ function promptForName(scoreData) {
             .sort((a, b) => b.score - a.score)
             .slice(0, 20);
         
-        saveLocalLeaderboard(scoreData.difficulty, updatedScores);
+        saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
         console.log('Score saved to local leaderboard');
         
         // Try to submit to server
@@ -424,7 +445,7 @@ function promptForName(scoreData) {
         }
         
         // Display leaderboard with player's score highlighted
-        await displayLeaderboard(scoreData.difficulty, scoreData.score);
+        await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode);
         
         // Show the game-over div so user can click Play Again
         const gameOverDiv = document.getElementById('gameOver');
@@ -463,11 +484,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') {
         e.preventDefault();
         const newIndex = (currentIndex - 1 + modes.length) % modes.length;
-        displayLeaderboard(modes[newIndex], lastPlayerScore);
+        displayLeaderboard(modes[newIndex], lastPlayerScore, currentLeaderboardGameMode);
     } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         const newIndex = (currentIndex + 1) % modes.length;
-        displayLeaderboard(modes[newIndex], lastPlayerScore);
+        displayLeaderboard(modes[newIndex], lastPlayerScore, currentLeaderboardGameMode);
     } else if (e.key === 'Enter') {
         e.preventDefault();
         // Go to menu instead of starting game directly
