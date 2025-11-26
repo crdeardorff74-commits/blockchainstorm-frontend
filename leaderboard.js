@@ -91,22 +91,27 @@ function saveLocalLeaderboard(difficulty, scores) {
 
 // Display leaderboard in the left panel
 async function displayLeaderboard(difficulty, playerScore = null) {
-    const rulesPanel = document.querySelector('.rules-panel:not(#leaderboardDisplay)');
+    const rulesPanel = document.querySelector('.rules-panel');
+    const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
+    const histogramCanvas = document.getElementById('histogramCanvas');
     
     currentLeaderboardMode = difficulty;
-    rulesPanel.style.display = 'none';
     
-    let leaderboardContainer = document.getElementById('leaderboardDisplay');
-    if (!leaderboardContainer) {
-        leaderboardContainer = document.createElement('div');
-        leaderboardContainer.id = 'leaderboardDisplay';
-        leaderboardContainer.className = 'rules-panel';
-        rulesPanel.parentNode.insertBefore(leaderboardContainer, rulesPanel);
+    // Hide instructions and histogram
+    if (rulesInstructions) rulesInstructions.style.display = 'none';
+    if (histogramCanvas) histogramCanvas.style.display = 'none';
+    
+    // Get or create leaderboard content div inside rules-panel
+    let leaderboardContent = document.getElementById('leaderboardContent');
+    if (!leaderboardContent) {
+        leaderboardContent = document.createElement('div');
+        leaderboardContent.id = 'leaderboardContent';
+        rulesPanel.appendChild(leaderboardContent);
     }
     
-    leaderboardContainer.style.display = 'block';
+    leaderboardContent.style.display = 'block';
     
-    leaderboardContainer.innerHTML = `
+    leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
             Loading ${difficulty} leaderboard...
         </div>
@@ -115,7 +120,7 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     const scores = await fetchLeaderboard(difficulty);
     
     if (!scores) {
-        leaderboardContainer.innerHTML = `
+        leaderboardContent.innerHTML = `
             <div class="leaderboard-error">
                 Failed to load leaderboard.<br>
                 Check your connection.
@@ -125,7 +130,7 @@ async function displayLeaderboard(difficulty, playerScore = null) {
     }
     
     if (scores.length === 0) {
-        leaderboardContainer.innerHTML = `
+        leaderboardContent.innerHTML = `
             <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard</div>
             <div class="leaderboard-loading">No scores yet. Be the first!</div>
         `;
@@ -178,26 +183,20 @@ async function displayLeaderboard(difficulty, playerScore = null) {
         </table>
     `;
     
-    leaderboardContainer.innerHTML = html;
-    
-    // Trigger resize to position leaderboard correctly
-    if (window.updateCanvasSize) {
-        window.updateCanvasSize();
-    }
+    leaderboardContent.innerHTML = html;
 }
 
 // Hide leaderboard and show rules again
 function hideLeaderboard() {
-    const leaderboardContainer = document.getElementById('leaderboardDisplay');
-    // Use more specific selector to get the original rules panel, not the leaderboard
-    const rulesPanel = document.querySelector('.rules-panel:not(#leaderboardDisplay)');
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    const rulesInstructions = document.querySelector('.rules-instructions');
     
-    if (leaderboardContainer) {
-        leaderboardContainer.style.display = 'none';
+    if (leaderboardContent) {
+        leaderboardContent.style.display = 'none';
     }
     
-    if (rulesPanel) {
-        rulesPanel.style.display = 'block';
+    if (rulesInstructions) {
+        rulesInstructions.style.display = 'block';
     }
     
     currentLeaderboardMode = null;
@@ -415,8 +414,8 @@ function promptForName(scoreData) {
 
 // Keyboard navigation for leaderboards
 document.addEventListener('keydown', (e) => {
-    const leaderboardContainer = document.getElementById('leaderboardDisplay');
-    const leaderboardVisible = leaderboardContainer && leaderboardContainer.style.display !== 'none';
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
     if (!leaderboardVisible || window.gameRunning) return;
     
     const modes = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
