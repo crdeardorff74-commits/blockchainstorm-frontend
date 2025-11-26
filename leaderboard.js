@@ -451,7 +451,11 @@ function promptForName(scoreData) {
 document.addEventListener('keydown', (e) => {
     const leaderboardContent = document.getElementById('leaderboardContent');
     const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
-    if (!leaderboardVisible || window.gameRunning) return;
+    const modeMenu = document.getElementById('modeMenu');
+    const menuVisible = modeMenu && !modeMenu.classList.contains('hidden');
+    
+    // Don't handle if leaderboard not visible, game running, or menu is showing
+    if (!leaderboardVisible || window.gameRunning || menuVisible) return;
     
     const modes = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
     const currentIndex = modes.indexOf(currentLeaderboardMode);
