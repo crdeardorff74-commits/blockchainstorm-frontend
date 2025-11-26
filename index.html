@@ -1108,6 +1108,7 @@
         body:has(canvas.thicker-mode) .game-container {
             gap: 2vw; /* Consistent gap with normal mode */
             justify-content: space-between; /* Maintain spacing */
+            align-items: center; /* Center main area vertically */
         }
         
         /* Removed thicker-mode panel width adjustments - panels now reposition via JavaScript */
@@ -1217,7 +1218,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.3);
+            background: transparent;
             padding: 20px;
             box-sizing: border-box;
         }
