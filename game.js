@@ -8863,11 +8863,14 @@ async function gameOver() {
     
     toggleUIElements(true);
     
+    // Determine if this is a challenge mode game
+    const isChallenge = challengeMode !== 'normal';
+    
     // Prepare score data for submission
     const scoreData = {
         game: 'blockchainstorm',
         difficulty: gameMode,
-        mode: 'normal',
+        mode: isChallenge ? 'challenge' : 'normal',
         score: score,
         lines: lines,
         level: level,
@@ -8875,13 +8878,14 @@ async function gameOver() {
         tsunamis: tsunamiCount,
         blackholes: blackHoleCount,
         volcanoes: volcanoCount || 0, // Add volcanoes count
-        duration: Math.floor((Date.now() - gameStartTime) / 1000)
+        duration: Math.floor((Date.now() - gameStartTime) / 1000),
+        challengeType: isChallenge ? challengeMode : null // Track which challenge was played
     };
     
     
     // Check if score makes top 20
     console.log('Checking if score makes top 20...');
-    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score);
+    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode);
     console.log('Is top twenty:', isTopTen);
     
     if (isTopTen) {
@@ -8893,7 +8897,7 @@ async function gameOver() {
         // Score didn't make top 20, show game over div and leaderboard
         console.log('Score did not make top 20, displaying game over and leaderboard');
         gameOverDiv.style.display = 'block';
-        await window.leaderboard.displayLeaderboard(gameMode, score);
+        await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
     }
 }
 
@@ -9588,7 +9592,9 @@ function updateSelectedMode() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none') {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null);
+        const challengeSelect = document.getElementById('challengeSelectMain');
+        const gameMode = challengeSelect ? (challengeSelect.value !== 'normal' ? 'challenge' : 'normal') : 'normal';
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 }
 
@@ -10108,7 +10114,7 @@ function resetToClickAnywhere() {
     const clickMessage = document.getElementById('clickMessage');
     
     // Remove anagram-active class to disable middle finger cursor
-    // clickMessage.classList.remove('anagram-active');
+    clickMessage.classList.remove('anagram-active');
     
     // Fade out current anagram (2 seconds)
     clickMessage.style.transition = 'opacity 2s ease-out';
@@ -10274,7 +10280,7 @@ function animateToAnagram() {
         clickMessage.style.opacity = '0.5';
         
         // Add class to enable middle finger cursor for clickable text
-        // clickMessage.classList.add('anagram-active');
+        clickMessage.classList.add('anagram-active');
     }, 50);
     
     // Enable SLOW transitions for letters AFTER fade in starts
@@ -10361,13 +10367,13 @@ const clickMessage = document.getElementById('clickMessage');
 clickMessage.style.opacity = '0.5';
 
 // Add click event to clickMessage to open YouTube link (only when anagram is active)
-// clickMessage.addEventListener('click', (e) => {
+clickMessage.addEventListener('click', (e) => {
     // Only open link if anagram is active
-//     if (clickMessage.classList.contains('anagram-active')) {
-//         e.stopPropagation(); // Prevent the overlay click from firing
-//         window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
-//     }
-// });
+    if (clickMessage.classList.contains('anagram-active')) {
+        e.stopPropagation(); // Prevent the overlay click from firing
+        window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
+    }
+});
 
 // Start timers when page loads
 startAnagramTimers();
