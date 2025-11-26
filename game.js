@@ -9583,6 +9583,13 @@ function updateSelectedMode() {
             btn.classList.remove('selected');
         }
     });
+    
+    // Update leaderboard to match selected mode if visible
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+        window.leaderboard.displayLeaderboard(selectedMode, null);
+    }
 }
 
 // Initialize first button as selected
