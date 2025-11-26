@@ -8752,9 +8752,9 @@ function hardDrop() {
 function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
     
-    // Constant hard drop speed (slightly faster than original Earth gravity)
-    const hardDropAcceleration = 0.55;
-    const hardDropMaxVelocity = 5.5;
+    // Fast hard drop speed
+    const hardDropAcceleration = 3.0;
+    const hardDropMaxVelocity = 25;
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
