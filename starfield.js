@@ -12,6 +12,7 @@ const StarfieldSystem = (function() {
     const stars = [];
     const numStars = 400;
     let starSpeed = 1;
+    let starsEnabled = true;
     const maxDepth = 1000;
     let centerX, centerY;
     
@@ -1015,68 +1016,70 @@ const StarfieldSystem = (function() {
             }
         }
         
-        // Draw stars
-        stars.forEach(star => {
-            if (cameraReversed) {
-                star.z -= starSpeed;
-                if (star.z <= 0) {
-                    star.x = (Math.random() - 0.5) * 2000;
-                    star.y = (Math.random() - 0.5) * 2000;
-                    star.z = maxDepth;
-                }
-            } else {
-                star.z += starSpeed;
-                if (star.z >= maxDepth) {
-                    star.x = (Math.random() - 0.5) * 2000;
-                    star.y = (Math.random() - 0.5) * 2000;
-                    star.z = 1;
-                }
-            }
-            
-            const k = 128 / star.z;
-            const px = star.x * k + centerX;
-            const py = star.y * k + centerY;
-            
-            if (px >= 0 && px <= starfieldCanvas.width && 
-                py >= 0 && py <= starfieldCanvas.height) {
-                
-                const size = (1 - star.z / maxDepth) * 2;
-                const opacity = 1 - star.z / maxDepth;
-                
-                starfieldCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(px, py, size, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                
+        // Draw stars (only if enabled)
+        if (starsEnabled) {
+            stars.forEach(star => {
                 if (cameraReversed) {
-                    if (star.z < 300) {
-                        const k2 = 128 / (star.z + starSpeed * 2);
-                        const px2 = star.x * k2 + centerX;
-                        const py2 = star.y * k2 + centerY;
-                        
-                        starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
-                        starfieldCtx.lineWidth = size / 2;
-                        starfieldCtx.beginPath();
-                        starfieldCtx.moveTo(px, py);
-                        starfieldCtx.lineTo(px2, py2);
-                        starfieldCtx.stroke();
+                    star.z -= starSpeed;
+                    if (star.z <= 0) {
+                        star.x = (Math.random() - 0.5) * 2000;
+                        star.y = (Math.random() - 0.5) * 2000;
+                        star.z = maxDepth;
                     }
                 } else {
-                    if (star.z < 300) {
-                        const k2 = 128 / (star.z - starSpeed * 2);
-                        const px2 = star.x * k2 + centerX;
-                        const py2 = star.y * k2 + centerY;
-                        
-                        starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
-                        starfieldCtx.lineWidth = size / 2;
-                        starfieldCtx.beginPath();
-                        starfieldCtx.moveTo(px, py);
-                        starfieldCtx.lineTo(px2, py2);
-                        starfieldCtx.stroke();
+                    star.z += starSpeed;
+                    if (star.z >= maxDepth) {
+                        star.x = (Math.random() - 0.5) * 2000;
+                        star.y = (Math.random() - 0.5) * 2000;
+                        star.z = 1;
                     }
                 }
-            }
-        });
+                
+                const k = 128 / star.z;
+                const px = star.x * k + centerX;
+                const py = star.y * k + centerY;
+                
+                if (px >= 0 && px <= starfieldCanvas.width && 
+                    py >= 0 && py <= starfieldCanvas.height) {
+                    
+                    const size = (1 - star.z / maxDepth) * 2;
+                    const opacity = 1 - star.z / maxDepth;
+                    
+                    starfieldCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(px, py, size, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    if (cameraReversed) {
+                        if (star.z < 300) {
+                            const k2 = 128 / (star.z + starSpeed * 2);
+                            const px2 = star.x * k2 + centerX;
+                            const py2 = star.y * k2 + centerY;
+                            
+                            starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                            starfieldCtx.lineWidth = size / 2;
+                            starfieldCtx.beginPath();
+                            starfieldCtx.moveTo(px, py);
+                            starfieldCtx.lineTo(px2, py2);
+                            starfieldCtx.stroke();
+                        }
+                    } else {
+                        if (star.z < 300) {
+                            const k2 = 128 / (star.z - starSpeed * 2);
+                            const px2 = star.x * k2 + centerX;
+                            const py2 = star.y * k2 + centerY;
+                            
+                            starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                            starfieldCtx.lineWidth = size / 2;
+                            starfieldCtx.beginPath();
+                            starfieldCtx.moveTo(px, py);
+                            starfieldCtx.lineTo(px2, py2);
+                            starfieldCtx.stroke();
+                        }
+                    }
+                }
+            });
+        }
         
         // Draw UFO
         drawUFO();
@@ -1110,6 +1113,7 @@ const StarfieldSystem = (function() {
         setCurrentGameLevel: (val) => { currentGameLevel = val; },
         setTabletModeEnabled: (val) => { tabletModeEnabled = val; },
         setStarSpeed: (val) => { starSpeed = val; },
+        setStarsEnabled: (val) => { starsEnabled = val; },
         
         // Sound callback
         setSoundCallback: (callback, toggle) => {
