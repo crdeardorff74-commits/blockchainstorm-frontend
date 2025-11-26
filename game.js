@@ -546,6 +546,13 @@ GamepadController.init();
 // TOUCH CONTROLS EVENT HANDLERS
 // ============================================
 
+// Touch repeat settings (same as keyboard) - global for clearing on game start
+const touchRepeat = {
+    initialDelay: 200,  // 200ms before repeat starts
+    repeatRate: 40,     // 40ms between repeats
+    timers: new Map()   // Track active repeat timers
+};
+
 function initTouchControls() {
     const touchLeft = document.getElementById('touchLeft');
     const touchRight = document.getElementById('touchRight');
@@ -557,32 +564,88 @@ function initTouchControls() {
     
     if (!touchLeft) return; // Controls not in DOM yet
     
-    // Helper to add both touch and click events
+    // Helper to add repeating touch behavior (for directional buttons)
+    const addRepeatingTouch = (element, action) => {
+        if (!element) return;
+        
+        const startRepeat = (e) => {
+            e.preventDefault();
+            
+            // Execute action immediately
+            action();
+            
+            // Clear any existing timers for this element
+            if (touchRepeat.timers.has(element)) {
+                clearTimeout(touchRepeat.timers.get(element).initial);
+                clearInterval(touchRepeat.timers.get(element).repeat);
+            }
+            
+            // Start initial delay timer
+            const initialTimer = setTimeout(() => {
+                // Start repeat interval
+                const repeatTimer = setInterval(() => {
+                    if (!paused && currentPiece) {
+                        action();
+                    }
+                }, touchRepeat.repeatRate);
+                
+                touchRepeat.timers.set(element, { 
+                    initial: null, 
+                    repeat: repeatTimer 
+                });
+            }, touchRepeat.initialDelay);
+            
+            touchRepeat.timers.set(element, { 
+                initial: initialTimer, 
+                repeat: null 
+            });
+        };
+        
+        const stopRepeat = (e) => {
+            e.preventDefault();
+            
+            // Clear timers
+            if (touchRepeat.timers.has(element)) {
+                const timers = touchRepeat.timers.get(element);
+                if (timers.initial) clearTimeout(timers.initial);
+                if (timers.repeat) clearInterval(timers.repeat);
+                touchRepeat.timers.delete(element);
+            }
+        };
+        
+        element.addEventListener('touchstart', startRepeat, { passive: false });
+        element.addEventListener('touchend', stopRepeat, { passive: false });
+        element.addEventListener('touchcancel', stopRepeat, { passive: false });
+        
+        // Also handle mouse for testing on desktop
+        element.addEventListener('mousedown', startRepeat);
+        element.addEventListener('mouseup', stopRepeat);
+        element.addEventListener('mouseleave', stopRepeat);
+    };
+    
+    // Helper for non-repeating buttons (rotation, hard drop, pause)
     const addTouchAndClick = (element, handler) => {
         if (!element) return;
-        element.addEventListener('touchstart', handler);
+        element.addEventListener('touchstart', handler, { passive: false });
         element.addEventListener('click', handler);
     };
     
-    // Movement buttons
-    addTouchAndClick(touchLeft, (e) => {
-        e.preventDefault();
+    // Movement buttons with repeat
+    addRepeatingTouch(touchLeft, () => {
         if (currentPiece && !collides(currentPiece, -1, 0)) {
             currentPiece.x--;
             playSoundEffect('move', soundToggle);
         }
     });
     
-    addTouchAndClick(touchRight, (e) => {
-        e.preventDefault();
+    addRepeatingTouch(touchRight, () => {
         if (currentPiece && !collides(currentPiece, 1, 0)) {
             currentPiece.x++;
             playSoundEffect('move', soundToggle);
         }
     });
     
-    addTouchAndClick(touchDown, (e) => {
-        e.preventDefault();
+    addRepeatingTouch(touchDown, () => {
         if (currentPiece && !collides(currentPiece, 0, 1)) {
             currentPiece.y++;
             score += 1;
@@ -590,32 +653,30 @@ function initTouchControls() {
         }
     });
     
-    // Rotation buttons
-    // Top button (CCW) - rotates counterclockwise (like UP arrow key)
+    // Rotation buttons (no repeat - one press = one rotation)
     addTouchAndClick(touchRotateCCW, (e) => {
         e.preventDefault();
         rotatePieceCounterClockwise();
     });
     
-    // Middle button (CW) - rotates clockwise (like default rotation)
     addTouchAndClick(touchRotate, (e) => {
         e.preventDefault();
         rotatePiece();
     });
     
-    // Hard drop (⬇⬇ button)
+    // Hard drop (no repeat)
     addTouchAndClick(touchDrop, (e) => {
         e.preventDefault();
         hardDrop();
     });
     
-    // Pause button
+    // Pause button (no repeat)
     addTouchAndClick(pauseBtn, (e) => {
         e.preventDefault();
         togglePause();
     });
     
-    console.log('📱 Touch controls initialized');
+    console.log('📱 Touch controls initialized with key repeat');
 }
 
 // Initialize tablet mode
@@ -8873,6 +8934,14 @@ async function gameOver() {
     stopMusic();
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
+    
+    // Clear all touch repeat timers
+    touchRepeat.timers.forEach((timerObj, element) => {
+        if (timerObj.initial) clearTimeout(timerObj.initial);
+        if (timerObj.repeat) clearInterval(timerObj.repeat);
+    });
+    touchRepeat.timers.clear();
+    
     finalScoreDisplay.textContent = `Final Score: ${formatAsBitcoin(score)}`;
     
     // Display special event statistics
@@ -9217,12 +9286,19 @@ function startGame(mode) {
     // Clear all pressed keys
     customKeyRepeat.keys.clear();
     
-    // Clear and cancel all timers
+    // Clear and cancel all keyboard timers
     customKeyRepeat.timers.forEach((timer, key) => {
         clearInterval(timer);
         clearTimeout(timer);
     });
     customKeyRepeat.timers.clear();
+    
+    // Clear all touch repeat timers
+    touchRepeat.timers.forEach((timerObj, element) => {
+        if (timerObj.initial) clearTimeout(timerObj.initial);
+        if (timerObj.repeat) clearInterval(timerObj.repeat);
+    });
+    touchRepeat.timers.clear();
     
     console.log('  Keys pressed after clear:', Array.from(customKeyRepeat.keys.keys()));
     
