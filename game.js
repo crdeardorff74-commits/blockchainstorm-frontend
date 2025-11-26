@@ -113,10 +113,10 @@ const TabletMode = {
             if (controls) controls.style.display = 'none';
             // Hide planet stats from right panel
             if (planetStats) planetStats.style.display = 'none';
-            // Show planet stats in left panel
-            if (planetStatsLeft) planetStatsLeft.style.display = 'block';
-            // Show pause button (will be toggled by game state)
-            if (pauseBtn) pauseBtn.style.display = 'block';
+            // Hide planet stats from left panel on menu (shown during gameplay via toggleUIElements)
+            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+            // Hide pause button on menu (shown during gameplay via toggleUIElements)
+            if (pauseBtn) pauseBtn.style.display = 'none';
             // Show settings button in tablet mode (visible on menu, hidden during gameplay via class)
             if (settingsBtn) settingsBtn.style.display = 'block';
         } else {
@@ -8900,6 +8900,8 @@ function toggleUIElements(show) {
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
     const title = document.querySelector('.title');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const planetStatsLeft = document.getElementById('planetStatsLeft');
     
     // Check if leaderboard is currently visible
     const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
@@ -8914,6 +8916,10 @@ function toggleUIElements(show) {
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         if (title) title.style.display = 'block';
+        
+        // Hide tablet mode gameplay elements on menu
+        if (pauseBtn) pauseBtn.style.display = 'none';
+        if (planetStatsLeft) planetStatsLeft.style.display = 'none';
     } else {
         // Hide instructions and controls, show histogram, hide title
         rulesInstructions.style.display = 'none';
@@ -8923,6 +8929,12 @@ function toggleUIElements(show) {
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         if (title) title.style.display = 'none';
+        
+        // Show tablet mode gameplay elements during game
+        if (TabletMode.enabled) {
+            if (pauseBtn) pauseBtn.style.display = 'block';
+            if (planetStatsLeft) planetStatsLeft.style.display = 'block';
+        }
     }
 }
 
