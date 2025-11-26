@@ -11,6 +11,40 @@ let lastScoreData = null;
 let currentUser = null;
 let isAnonymous = true;
 
+// Profanity filter using regex
+function censorProfanity(text) {
+    // Common profanity patterns (case-insensitive)
+    const profanityPatterns = [
+        /\bf+u+c+k+\w*/gi,
+        /\bs+h+i+t+\w*/gi,
+        /\ba+s+s+(?:hole|hat|wipe)?\b/gi,
+        /\bb+i+t+c+h+\w*/gi,
+        /\bc+u+n+t+\w*/gi,
+        /\bd+a+m+n+\w*/gi,
+        /\bd+i+c+k+\w*/gi,
+        /\bp+i+s+s+\w*/gi,
+        /\bc+o+c+k+\w*/gi,
+        /\bw+h+o+r+e+\w*/gi,
+        /\bs+l+u+t+\w*/gi,
+        /\bf+a+g+(?:got)?\w*/gi,
+        /\bn+i+g+g+\w*/gi,
+        /\br+e+t+a+r+d+\w*/gi,
+        /\bt+w+a+t+\w*/gi,
+        /\bp+u+s+s+y+\w*/gi,
+        /\bb+a+s+t+a+r+d+\w*/gi,
+        // Leetspeak variations
+        /\bf[u\*@0]+[c\(k]+/gi,
+        /\b[s\$5]+h[i1!]+t/gi,
+        /\b[a@4]+[s\$5]+[s\$5]+/gi,
+    ];
+    
+    let censored = text;
+    for (const pattern of profanityPatterns) {
+        censored = censored.replace(pattern, (match) => '*'.repeat(match.length));
+    }
+    return censored;
+}
+
 // Debug function to test high score system
 window.testHighScore = async function(testScore = 1000000) {
     console.log('Testing high score system with score:', testScore);
@@ -29,13 +63,13 @@ window.testHighScore = async function(testScore = 1000000) {
     };
     
     const isTopTen = await checkIfTopTen('drizzle', testScore);
-    console.log('Is this score in the top 10?', isTopTen);
+    console.log('Is this score in the top 20?', isTopTen);
     
     if (isTopTen) {
-        console.log('Score makes top 10! Showing name entry prompt...');
+        console.log('Score makes top 20! Showing name entry prompt...');
         promptForName(scoreData);
     } else {
-        console.log('Score does not make top 10. Showing leaderboard only...');
+        console.log('Score does not make top 20. Showing leaderboard only...');
         await displayLeaderboard('drizzle', testScore);
     }
 };
@@ -82,7 +116,7 @@ function getLocalLeaderboard(difficulty) {
 function saveLocalLeaderboard(difficulty, scores) {
     const key = `blockchainstorm_leaderboard_${difficulty}`;
     try {
-        const topScores = scores.slice(0, 10);
+        const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
     } catch (e) {
         console.error('Error saving local leaderboard:', e);
@@ -214,9 +248,9 @@ function getModeDisplayName(mode) {
     return names[mode] || mode;
 }
 
-// Check if score makes top 10
+// Check if score makes top 20
 async function checkIfTopTen(difficulty, score) {
-    console.log(`Checking if score ${score} makes top 10 for ${difficulty}`);
+    console.log(`Checking if score ${score} makes top 20 for ${difficulty}`);
     const scores = await fetchLeaderboard(difficulty);
     
     if (!Array.isArray(scores)) {
@@ -224,14 +258,14 @@ async function checkIfTopTen(difficulty, score) {
         return true;
     }
     
-    if (scores.length < 10) {
-        console.log(`Only ${scores.length} scores, automatically top 10`);
+    if (scores.length < 20) {
+        console.log(`Only ${scores.length} scores, automatically top 20`);
         return true;
     }
     
-    const lowestTopTen = scores[9].score;
+    const lowestTopTen = scores[19].score;
     const result = score > lowestTopTen;
-    console.log(`Lowest top 10 score: ${lowestTopTen}, player score: ${score}, makes top 10: ${result}`);
+    console.log(`Lowest top 20 score: ${lowestTopTen}, player score: ${score}, makes top 20: ${result}`);
     return result;
 }
 
@@ -337,7 +371,7 @@ function promptForName(scoreData) {
     // Add submit handler
     const handleSubmit = async () => {
         const rawUsername = input.value.trim() || 'Anonymous';
-        const username = adjust(rawUsername);
+        const username = censorProfanity(rawUsername);
         console.log('Submitting score with username:', username);
         
         // Hide the overlay
@@ -359,7 +393,7 @@ function promptForName(scoreData) {
         
         const updatedScores = [...localScores, newEntry]
             .sort((a, b) => b.score - a.score)
-            .slice(0, 10);
+            .slice(0, 20);
         
         saveLocalLeaderboard(scoreData.difficulty, updatedScores);
         console.log('Score saved to local leaderboard');
@@ -439,45 +473,6 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
-
-function adjust(text) {
-    const aPatterns = [
-        /f+u+c+k+\w*/gi,
-        /\bs+h+i+t+\w*/gi,
-        /\ba+s+s+(?:hole|hat|wipe)?\b/gi,
-        /\bb+i+t+c+h+\w*/gi,
-        /\bc+u+n+t+\w*/gi,
-        /\bd+a+m+n+\w*/gi,
-        /\bd+i+c+k+\w*/gi,
-        /\bp+i+s+s+\w*/gi,
-        /\bc+o+c+k+\w*/gi,
-        /\bw+h+o+r+e+\w*/gi,
-        /\bs+l+u+t+\w*/gi,
-        /\bf+a+g+(?:got)?\w*/gi,
-        /\bn+i+g+g+\w*/gi,
-        /\br+e+t+a+r+d+\w*/gi,
-        /\bt+w+a+t+\w*/gi,
-        /\bp+u+s+s+y+\w*/gi,
-        /\bb+a+s+t+a+r+d+\w*/gi,
-        // Leetspeak variations
-        /f[u\*@0]+[c\(k]+/gi,
-        /\b[s\$5]+h[i1!]+t/gi,
-        /\b[a@4]+[s\$5]+[s\$5]+/gi,
-    ];
-	const bPatterns = [
-        /\bp+[e3]+d+[o0]+\w*/gi,
-        /\bc+h+o+m+o+\w*/gi,
-	];
-    
-    let adjusted = text;
-    for (const pattern of aPatterns) {
-        adjusted = adjusted.replace(pattern, (match) => '*'.repeat(match.length));
-	}
-    for (const pattern of bPatterns) {
-        adjusted = adjusted.replace(pattern, (match) => 'GENIUS'.repeat(match.length));
-    }
-    return adjusted;
-}
 
 // Check if user is logged in
 async function checkAuth() {
