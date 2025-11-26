@@ -619,14 +619,28 @@ function initTouchControls() {
 }
 
 // Initialize tablet mode
-TabletMode.init();
+try {
+    TabletMode.init();
+} catch (e) {
+    console.error('TabletMode.init() error:', e);
+}
 
 // Initialize starfield system
-StarfieldSystem.init();
+try {
+    if (typeof StarfieldSystem !== 'undefined') {
+        StarfieldSystem.init();
+    }
+} catch (e) {
+    console.error('StarfieldSystem.init() error:', e);
+}
 // Note: setSoundCallback is called after soundToggle is defined (line ~820)
 
 // Initialize touch controls (will be shown/hidden by tablet mode)
-initTouchControls();
+try {
+    initTouchControls();
+} catch (e) {
+    console.error('initTouchControls() error:', e);
+}
 
 // Update tablet mode when gamepad connects/disconnects
 window.addEventListener("gamepadconnected", () => {
@@ -10048,25 +10062,27 @@ const startOverlay = document.getElementById('startOverlay');
 
 // Apply pulse animation only to "Don't Panic!"
 const dontPanicText = document.getElementById('dontPanicText');
-dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
+if (dontPanicText) {
+    dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
 
-// Center-click (mouse wheel button) or right-click on "Don't Panic!" to activate developer mode
-dontPanicText.addEventListener('mousedown', (e) => {
-    if (e.button === 1 || e.button === 2) { // Middle mouse button or right-click
+    // Center-click (mouse wheel button) or right-click on "Don't Panic!" to activate developer mode
+    dontPanicText.addEventListener('mousedown', (e) => {
+        if (e.button === 1 || e.button === 2) { // Middle mouse button or right-click
+            e.preventDefault();
+            developerMode = !developerMode;
+            // Visual feedback
+            dontPanicText.style.color = developerMode ? '#FFD700' : '';
+            console.log(developerMode ? 
+                '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
+                '👤 Developer Mode DEACTIVATED');
+        }
+    });
+
+    // Prevent context menu on "Don't Panic!" text
+    dontPanicText.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        developerMode = !developerMode;
-        // Visual feedback
-        dontPanicText.style.color = developerMode ? '#FFD700' : '';
-        console.log(developerMode ? 
-            '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
-            '👤 Developer Mode DEACTIVATED');
-    }
-});
-
-// Prevent context menu on "Don't Panic!" text
-dontPanicText.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-});
+    });
+}
 
 // Anagram Easter Egg System
 const anagrams = [
@@ -10388,32 +10404,53 @@ clickMessage.addEventListener('click', (e) => {
 // Start timers when page loads
 startAnagramTimers();
 
-startOverlay.addEventListener('click', () => {
-    cancelAnagramTimers();
-    // Resume audio context (required by browsers)
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-    // Request full-screen mode
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-        elem.requestFullscreen().catch(err => {
-            // Silently handle fullscreen errors (permissions, etc.)
-        });
-    } else if (elem.webkitRequestFullscreen) { // Safari
-        elem.webkitRequestFullscreen();
-    } else if (elem.msRequestFullscreen) { // IE11
-        elem.msRequestFullscreen();
-    }
-    // Remove overlay
-    startOverlay.style.display = 'none';
-    // Start menu music
-    startMenuMusic(musicToggle);
-});
+if (startOverlay) {
+    startOverlay.addEventListener('click', () => {
+        cancelAnagramTimers();
+        // Resume audio context (required by browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Request full-screen mode
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => {
+                // Silently handle fullscreen errors (permissions, etc.)
+            });
+        } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { // IE11
+            elem.msRequestFullscreen();
+        }
+        // Remove overlay
+        startOverlay.style.display = 'none';
+        // Start menu music
+        startMenuMusic(musicToggle);
+    });
+
+    // Add touchstart for iOS Safari which may not fire click reliably
+    startOverlay.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent double-firing with click
+        cancelAnagramTimers();
+        // Resume audio context (required by browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Request full-screen mode (may not work on iOS but try anyway)
+        const elem = document.documentElement;
+        if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        }
+        // Remove overlay
+        startOverlay.style.display = 'none';
+        // Start menu music
+        startMenuMusic(musicToggle);
+    }, { passive: false });
+}
 
 // Also allow keyboard to start the game
 document.addEventListener('keydown', (e) => {
-    if (startOverlay.style.display !== 'none') {
+    if (startOverlay && startOverlay.style.display !== 'none') {
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
