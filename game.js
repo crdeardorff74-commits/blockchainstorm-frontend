@@ -8754,8 +8754,8 @@ function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
     
     // Fast hard drop speed
-    const hardDropAcceleration = 20;
-    const hardDropMaxVelocity = 180;
+    const hardDropAcceleration = 50;
+    const hardDropMaxVelocity = 500;
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
