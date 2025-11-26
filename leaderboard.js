@@ -137,7 +137,7 @@ async function displayLeaderboard(difficulty, playerScore = null) {
         <div class="leaderboard-mode-selector">
             Use <strong>↑↓</strong> arrows to browse difficulties
             <br>
-            Press <strong>Enter</strong> to play <span class="current-mode">${getModeDisplayName(difficulty)}</span>
+            Press <strong>Enter</strong> to play again
         </div>
         <table class="leaderboard-table">
             <thead>
@@ -385,6 +385,12 @@ function promptForName(scoreData) {
         
         // Display leaderboard with player's score highlighted
         await displayLeaderboard(scoreData.difficulty, scoreData.score);
+        
+        // Show the game-over div so user can click Play Again
+        const gameOverDiv = document.getElementById('gameOver');
+        if (gameOverDiv) {
+            gameOverDiv.style.display = 'block';
+        }
     };
     
     newSubmitBtn.addEventListener('click', handleSubmit);
@@ -420,7 +426,11 @@ document.addEventListener('keydown', (e) => {
         displayLeaderboard(modes[newIndex], lastPlayerScore);
     } else if (e.key === 'Enter') {
         e.preventDefault();
-        window.startGame(currentLeaderboardMode);
+        // Go to menu instead of starting game directly
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        if (playAgainBtn) {
+            playAgainBtn.click();
+        }
     }
 });
 
