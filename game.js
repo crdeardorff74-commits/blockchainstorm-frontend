@@ -10108,7 +10108,7 @@ function resetToClickAnywhere() {
     const clickMessage = document.getElementById('clickMessage');
     
     // Remove anagram-active class to disable middle finger cursor
-    clickMessage.classList.remove('anagram-active');
+    // clickMessage.classList.remove('anagram-active');
     
     // Fade out current anagram (2 seconds)
     clickMessage.style.transition = 'opacity 2s ease-out';
@@ -10274,7 +10274,7 @@ function animateToAnagram() {
         clickMessage.style.opacity = '0.5';
         
         // Add class to enable middle finger cursor for clickable text
-        clickMessage.classList.add('anagram-active');
+        // clickMessage.classList.add('anagram-active');
     }, 50);
     
     // Enable SLOW transitions for letters AFTER fade in starts
@@ -10361,13 +10361,13 @@ const clickMessage = document.getElementById('clickMessage');
 clickMessage.style.opacity = '0.5';
 
 // Add click event to clickMessage to open YouTube link (only when anagram is active)
-clickMessage.addEventListener('click', (e) => {
+// clickMessage.addEventListener('click', (e) => {
     // Only open link if anagram is active
-    if (clickMessage.classList.contains('anagram-active')) {
-        e.stopPropagation(); // Prevent the overlay click from firing
-        window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
-    }
-});
+//     if (clickMessage.classList.contains('anagram-active')) {
+//         e.stopPropagation(); // Prevent the overlay click from firing
+//         window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
+//     }
+// });
 
 // Start timers when page loads
 startAnagramTimers();
