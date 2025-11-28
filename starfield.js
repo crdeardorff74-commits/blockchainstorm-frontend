@@ -298,18 +298,6 @@ const StarfieldSystem = (function() {
         
         vineTargetElement = targetElement;
         
-        // Create a wrapper div to position the overlay correctly
-        const wrapper = document.createElement('div');
-        wrapper.id = 'vineWrapper';
-        wrapper.style.cssText = `
-            position: relative;
-            display: inline-block;
-        `;
-        
-        // Insert wrapper before target, then move target into wrapper
-        targetElement.parentNode.insertBefore(wrapper, targetElement);
-        wrapper.appendChild(targetElement);
-        
         // Create overlay canvas
         vineOverlayCanvas = document.createElement('canvas');
         vineOverlayCanvas.id = 'vineOverlay';
@@ -322,56 +310,64 @@ const StarfieldSystem = (function() {
             background: transparent !important;
         `;
         
-        // Add overlay to wrapper
-        wrapper.appendChild(vineOverlayCanvas);
+        // Insert overlay as sibling of target element
+        targetElement.parentNode.appendChild(vineOverlayCanvas);
         vineOverlayCtx = vineOverlayCanvas.getContext('2d');
         
-        // Wait for next frame to ensure layout is computed
-        requestAnimationFrame(() => {
-            updateVineOverlayPosition(targetElement);
-            drawWrappingVineOverlay(targetElement);
-        });
+        // Position and draw
+        positionAndDrawVines();
         
         return vineOverlayCanvas;
     }
     
+    function positionAndDrawVines() {
+        if (!vineOverlayCanvas || !vineTargetElement) return;
+        
+        const extend = 15;
+        const target = vineTargetElement;
+        const parent = target.parentNode;
+        
+        // Get target's position within parent
+        const targetRect = target.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        
+        const relLeft = targetRect.left - parentRect.left;
+        const relTop = targetRect.top - parentRect.top;
+        const width = targetRect.width;
+        const height = targetRect.height;
+        
+        // Set overlay size (canvas dimensions + extend on each side)
+        const overlayWidth = width + extend * 2;
+        const overlayHeight = height + extend * 2;
+        
+        vineOverlayCanvas.width = overlayWidth;
+        vineOverlayCanvas.height = overlayHeight;
+        
+        // Also set CSS size to prevent any scaling
+        vineOverlayCanvas.style.width = overlayWidth + 'px';
+        vineOverlayCanvas.style.height = overlayHeight + 'px';
+        
+        // Position overlay so it surrounds the target
+        vineOverlayCanvas.style.left = (relLeft - extend) + 'px';
+        vineOverlayCanvas.style.top = (relTop - extend) + 'px';
+        
+        // Clear and draw
+        vineOverlayCtx.clearRect(0, 0, overlayWidth, overlayHeight);
+        
+        // Draw vines - the canvas edge is at 'extend' pixels from overlay edge
+        drawWrappingRope(vineOverlayCtx, extend, extend, width, height);
+    }
+    
+    // Alias for compatibility
     function updateVineOverlayPosition(targetElement) {
-        if (!vineOverlayCanvas) return;
-        
-        const extend = 15; // How far vines extend beyond canvas edge
-        
-        // Use the actual rendered size of the canvas
-        const width = targetElement.offsetWidth;
-        const height = targetElement.offsetHeight;
-        
-        vineOverlayCanvas.width = width + extend * 2;
-        vineOverlayCanvas.height = height + extend * 2;
-        
-        // Position relative to wrapper (canvas is at 0,0 in wrapper)
-        vineOverlayCanvas.style.left = -extend + 'px';
-        vineOverlayCanvas.style.top = -extend + 'px';
+        positionAndDrawVines();
     }
     
     function drawWrappingVineOverlay(targetElement) {
-        if (!vineOverlayCanvas || !vineOverlayCtx) return;
-        
-        const extend = 15;
-        const width = vineOverlayCanvas.width;
-        const height = vineOverlayCanvas.height;
-        
-        // The inner dimensions (the game canvas area)
-        const innerWidth = width - extend * 2;
-        const innerHeight = height - extend * 2;
-        
-        // Clear
-        vineOverlayCtx.clearRect(0, 0, width, height);
-        
-        // The game canvas edge is at 'extend' pixels from our overlay edge
-        // Draw vines that wrap around this edge
-        drawWrappingRope(vineOverlayCtx, extend, extend, innerWidth, innerHeight, extend);
+        positionAndDrawVines();
     }
     
-    function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight, extend) {
+    function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight) {
         // Vine colors
         const baseColor = 'rgba(45, 28, 15, 0.95)';
         const darkColor = 'rgba(15, 8, 3, 0.9)';
@@ -495,13 +491,6 @@ const StarfieldSystem = (function() {
         // Remove overlay canvas
         if (vineOverlayCanvas && vineOverlayCanvas.parentNode) {
             vineOverlayCanvas.parentNode.removeChild(vineOverlayCanvas);
-        }
-        
-        // Unwrap the game canvas from the wrapper
-        const wrapper = document.getElementById('vineWrapper');
-        if (wrapper && vineTargetElement) {
-            wrapper.parentNode.insertBefore(vineTargetElement, wrapper);
-            wrapper.parentNode.removeChild(wrapper);
         }
         
         vineOverlayCanvas = null;
