@@ -9784,6 +9784,13 @@ playAgainBtn.addEventListener('click', () => {
     modeMenu.classList.remove('hidden');
     toggleUIElements(true); // Show UI elements when returning to menu
     
+    // Hide planet stats
+    StarfieldSystem.hidePlanetStats();
+    const planetStats = document.getElementById('planetStats');
+    const planetStatsLeft = document.getElementById('planetStatsLeft');
+    if (planetStats) planetStats.style.display = 'none';
+    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+    
     // Clear pieces from previous game
     currentPiece = null;
     nextPiece = null;
