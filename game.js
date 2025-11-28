@@ -5401,12 +5401,7 @@ function drawBoard() {
     // Fully clear the canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Then draw the background (matching CSS background transparency)
-    // Use brownish color for Stranger mode
-    if (StarfieldSystem.isStrangerMode()) {
-        ctx.fillStyle = 'rgba(30, 15, 10, 0.35)';
-    } else {
-        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
-    }
+    ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw storm particles BEFORE blocks (behind gameplay)
@@ -6029,12 +6024,7 @@ function drawNextPiece() {
     // Fully clear the canvas first
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     // Then draw the transparent background
-    // Use brownish color for Stranger mode
-    if (StarfieldSystem.isStrangerMode()) {
-        nextCtx.fillStyle = 'rgba(30, 15, 10, 0.3)';
-    } else {
-        nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    }
+    nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
     if (nextPiece && nextPiece.shape && nextPiece.shape.length > 0 && nextPiece.shape[0]) {
