@@ -4805,6 +4805,7 @@ function switchSoRandomMode() {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
+        StarfieldSystem.createVineOverlay(nextCanvas);
     } else {
         StarfieldSystem.removeVineOverlay();
     }
@@ -10167,6 +10168,7 @@ function applyChallengeMode(mode) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
+        StarfieldSystem.createVineOverlay(nextCanvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
