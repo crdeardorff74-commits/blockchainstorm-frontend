@@ -962,6 +962,20 @@ const COLORS = [
     '#FFB3D9'  // Pink (pastel)
 ];
 
+// Optimized color subsets for maximum contrast
+const COLOR_SETS = {
+    // 4 colors: Red, Yellow, Green, Blue - maximally spread across color wheel
+    4: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1'],
+    // 5 colors: Red, Yellow, Green, Blue, Violet - skip adjacent colors
+    5: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
+    // 6 colors: Red, Orange, Yellow, Green, Blue, Violet - skip Light Blue (too close to Blue)
+    6: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
+    // 7 colors: Add Pink to 6-color set
+    7: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE', '#FFB3D9'],
+    // 8 colors: All colors
+    8: COLORS
+};
+
 let currentColorSet = COLORS; // Initialize after COLORS is defined
 
 // Histogram variables
@@ -9271,39 +9285,39 @@ function startGame(mode) {
     // Configure game based on mode
     switch(mode) {
         case 'drizzle':
-            // Easier mode - 4 colors
+            // Easier mode - 4 colors (max contrast)
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLORS.slice(0, 4);
+            currentColorSet = COLOR_SETS[4];
             break;
         case 'downpour':
-            // Standard mode - 6 colors
+            // Standard mode - 6 colors (max contrast)
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLORS.slice(0, 6);
+            currentColorSet = COLOR_SETS[6];
             break;
         case 'hailstorm':
-            // 8 colors - most colors
+            // 8 colors - all colors
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLORS.slice(0, 8);
+            currentColorSet = COLOR_SETS[8];
             break;
         case 'blizzard':
-            // 12 wide + 5-block pieces - 5 colors
+            // 12 wide + 5-block pieces - 5 colors (max contrast)
             COLS = 12;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLORS.slice(0, 5);
+            currentColorSet = COLOR_SETS[5];
             break;
         case 'hurricane':
-            // 12 wide + 5-block pieces - 7 colors
+            // 12 wide + 5-block pieces - 7 colors (max contrast)
             COLS = 12;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLORS.slice(0, 7);
+            currentColorSet = COLOR_SETS[7];
             break;
     }
     
