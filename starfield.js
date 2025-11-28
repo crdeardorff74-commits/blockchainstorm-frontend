@@ -31,6 +31,180 @@ const StarfieldSystem = (function() {
     let ufoCircleTime = 0;
     let ufoBeamOpacity = 0;
     
+    // Stranger Mode - Upside Down particles
+    let strangerMode = false;
+    const upsideDownParticles = [];
+    const numParticles = 80;
+    
+    // Initialize Upside Down particles
+    function initUpsideDownParticles() {
+        upsideDownParticles.length = 0;
+        for (let i = 0; i < numParticles; i++) {
+            upsideDownParticles.push({
+                x: Math.random() * 2000 - 1000,
+                y: Math.random() * 2000 - 1000,
+                z: Math.random() * maxDepth,
+                width: 8 + Math.random() * 20,  // Oblong width
+                height: 2 + Math.random() * 6,   // Thin height
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.02,
+                driftX: (Math.random() - 0.5) * 0.3,
+                driftY: 0.2 + Math.random() * 0.5,  // Slow downward drift
+                opacity: 0.3 + Math.random() * 0.4,
+                // Brown/orange/gray color palette
+                color: [
+                    'rgba(139, 90, 43,',   // Brown
+                    'rgba(160, 82, 45,',   // Sienna
+                    'rgba(85, 65, 50,',    // Dark brown
+                    'rgba(120, 100, 80,',  // Grayish brown
+                    'rgba(100, 70, 50,',   // Muddy brown
+                ][Math.floor(Math.random() * 5)]
+            });
+        }
+    }
+    
+    // Draw floating particles for Upside Down
+    function drawUpsideDownParticles() {
+        upsideDownParticles.forEach(particle => {
+            // Slow drift
+            particle.x += particle.driftX;
+            particle.y += particle.driftY;
+            particle.z += 0.5;  // Very slow forward movement
+            particle.rotation += particle.rotationSpeed;
+            
+            // Reset if out of bounds
+            if (particle.z >= maxDepth || particle.y > 1200) {
+                particle.x = Math.random() * 2000 - 1000;
+                particle.y = -200 - Math.random() * 400;
+                particle.z = Math.random() * maxDepth * 0.5;
+            }
+            
+            // Project to screen
+            const k = 128 / particle.z;
+            const px = particle.x * k + centerX;
+            const py = particle.y * k + centerY;
+            
+            if (px >= -50 && px <= starfieldCanvas.width + 50 && 
+                py >= -50 && py <= starfieldCanvas.height + 50) {
+                
+                const scale = (1 - particle.z / maxDepth) * 2;
+                const w = particle.width * scale;
+                const h = particle.height * scale;
+                const opacity = particle.opacity * (1 - particle.z / maxDepth);
+                
+                starfieldCtx.save();
+                starfieldCtx.translate(px, py);
+                starfieldCtx.rotate(particle.rotation);
+                starfieldCtx.fillStyle = particle.color + opacity + ')';
+                
+                // Draw oblong flake shape
+                starfieldCtx.beginPath();
+                starfieldCtx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
+                starfieldCtx.fill();
+                
+                starfieldCtx.restore();
+            }
+        });
+    }
+    
+    // Draw creepy vines around edges
+    function drawUpsideDownVines(targetCanvas, targetCtx) {
+        const width = targetCanvas.width;
+        const height = targetCanvas.height;
+        const time = Date.now() * 0.001;
+        
+        targetCtx.save();
+        
+        // Vine colors
+        const vineColors = [
+            'rgba(60, 35, 20, 0.9)',
+            'rgba(80, 45, 25, 0.85)',
+            'rgba(50, 30, 15, 0.9)',
+            'rgba(70, 40, 20, 0.8)'
+        ];
+        
+        // Draw multiple vine tendrils on each edge
+        // Left edge
+        for (let i = 0; i < 6; i++) {
+            drawVineTendril(targetCtx, 0, height * (i / 6), 'right', vineColors[i % 4], time + i);
+        }
+        
+        // Right edge
+        for (let i = 0; i < 6; i++) {
+            drawVineTendril(targetCtx, width, height * (i / 6), 'left', vineColors[i % 4], time + i + 0.5);
+        }
+        
+        // Top edge
+        for (let i = 0; i < 4; i++) {
+            drawVineTendril(targetCtx, width * (i / 4) + width * 0.1, 0, 'down', vineColors[i % 4], time + i + 0.3);
+        }
+        
+        // Bottom edge
+        for (let i = 0; i < 4; i++) {
+            drawVineTendril(targetCtx, width * (i / 4) + width * 0.1, height, 'up', vineColors[i % 4], time + i + 0.7);
+        }
+        
+        targetCtx.restore();
+    }
+    
+    function drawVineTendril(ctx, startX, startY, direction, color, timeOffset) {
+        const length = 30 + Math.sin(timeOffset * 0.5) * 10;
+        const segments = 8;
+        const wobble = Math.sin(timeOffset * 0.8) * 3;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3 + Math.sin(timeOffset) * 1;
+        ctx.lineCap = 'round';
+        
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        
+        let x = startX;
+        let y = startY;
+        
+        for (let i = 0; i < segments; i++) {
+            const progress = i / segments;
+            const segLength = length / segments * (1 - progress * 0.5);
+            const curl = Math.sin(timeOffset + i * 0.5) * (10 + progress * 15);
+            
+            switch(direction) {
+                case 'right':
+                    x += segLength;
+                    y += curl + wobble * progress;
+                    break;
+                case 'left':
+                    x -= segLength;
+                    y += curl + wobble * progress;
+                    break;
+                case 'down':
+                    y += segLength;
+                    x += curl + wobble * progress;
+                    break;
+                case 'up':
+                    y -= segLength;
+                    x += curl + wobble * progress;
+                    break;
+            }
+            
+            ctx.lineTo(x, y);
+        }
+        
+        ctx.stroke();
+        
+        // Draw smaller offshoots
+        if (Math.random() > 0.7) {
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            const offshootAngle = Math.random() * Math.PI - Math.PI / 2;
+            ctx.lineTo(
+                x + Math.cos(offshootAngle) * 8,
+                y + Math.sin(offshootAngle) * 8
+            );
+            ctx.stroke();
+        }
+    }
+    
     // Solar system data
     const planets = [
         {
@@ -879,6 +1053,29 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function animateStarfield() {
+        // Different background for Stranger mode
+        if (strangerMode) {
+            // Dark brownish-red gradient for Upside Down
+            const gradient = starfieldCtx.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, Math.max(starfieldCanvas.width, starfieldCanvas.height)
+            );
+            gradient.addColorStop(0, '#1a0a0a');
+            gradient.addColorStop(0.5, '#0d0505');
+            gradient.addColorStop(1, '#050202');
+            starfieldCtx.fillStyle = gradient;
+            starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+            
+            // Draw floating particles instead of stars
+            drawUpsideDownParticles();
+            
+            // Draw vines on starfield edges
+            drawUpsideDownVines(starfieldCanvas, starfieldCtx);
+            
+            requestAnimationFrame(animateStarfield);
+            return;
+        }
+        
         starfieldCtx.fillStyle = '#000';
         starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
         
@@ -1114,6 +1311,16 @@ const StarfieldSystem = (function() {
         setTabletModeEnabled: (val) => { tabletModeEnabled = val; },
         setStarSpeed: (val) => { starSpeed = val; },
         setStarsEnabled: (val) => { starsEnabled = val; },
+        setStrangerMode: (val) => { 
+            strangerMode = val; 
+            if (val && upsideDownParticles.length === 0) {
+                initUpsideDownParticles();
+            }
+        },
+        
+        // Stranger mode vine drawing (for game canvas overlay)
+        drawVinesOverlay: drawUpsideDownVines,
+        isStrangerMode: () => strangerMode,
         
         // Sound callback
         setSoundCallback: (callback, toggle) => {
