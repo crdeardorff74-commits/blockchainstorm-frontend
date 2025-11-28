@@ -137,6 +137,16 @@
             max-height: 85vh;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
+        #vineOverlay {
+            border: none !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            transition: none !important;
+        }
+        #vineWrapper {
+            display: inline-block;
+            position: relative;
+        }
         canvas.tsunami-active {
             border-color: gold;
             box-shadow: 0 0 3vh rgba(255, 215, 0, 0.8), 0 0 1vh rgba(255, 215, 0, 0.6);
@@ -1715,7 +1725,7 @@
                     <label>Challenge Mode</label>
                     <select id="challengeSelectMain">
                         <option value="normal">Normal</option>
-                        <option value="stranger">Stranger (Upside-Down) +8%</option>
+                        <option value="stranger">Stranger (Upside Down) +8%</option>
                         <option value="phantom">Phantom (Invisible Stack) +7%</option>
                         <option value="rubber">Rubber & Glue (Bouncing) +5%</option>
                         <option value="oz">Oz (Grayscale Until Landing) +5%</option>
@@ -1922,7 +1932,7 @@
                         <input type="checkbox" id="comboStranger" value="stranger">
                         <span class="toggle-slider"></span>
                     </div>
-                    <span>Stranger (Upside-Down) +8%</span>
+                    <span>Stranger (Upside Down) +8%</span>
                 </label>
                 <div class="challenge-description">Entire screen rotates 180°, pieces fall upward</div>
             </div>
