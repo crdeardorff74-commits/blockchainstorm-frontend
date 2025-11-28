@@ -287,31 +287,27 @@ const StarfieldSystem = (function() {
         targetCtx.drawImage(vineCanvasCache.get(cacheKey), 0, 0);
     }
     
-    // Create a vine overlay that wraps AROUND a target element
-    let vineOverlayCanvas = null;
-    let vineOverlayCtx = null;
-    let vineTargetElement = null;
-    let vineWrapper = null;
+    // Create vine overlays that wrap AROUND target elements
+    // Use a Map to track multiple overlays (e.g., game canvas and next piece canvas)
+    const vineOverlays = new Map(); // Map<targetElement, {canvas, ctx, wrapper}>
     
     function createVineOverlay(targetElement) {
-        // Remove existing overlay if any
-        removeVineOverlay();
-        
-        vineTargetElement = targetElement;
+        // Remove existing overlay for this element if any
+        removeVineOverlayFor(targetElement);
         
         // Create wrapper with position:relative to contain the overlay
-        vineWrapper = document.createElement('div');
-        vineWrapper.id = 'vineWrapper';
-        vineWrapper.style.cssText = 'position: relative; display: inline-block;';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'vineWrapper';
+        wrapper.style.cssText = 'position: relative; display: inline-block;';
         
         // Insert wrapper before canvas, move canvas into wrapper
-        targetElement.parentNode.insertBefore(vineWrapper, targetElement);
-        vineWrapper.appendChild(targetElement);
+        targetElement.parentNode.insertBefore(wrapper, targetElement);
+        wrapper.appendChild(targetElement);
         
         // Create overlay canvas
-        vineOverlayCanvas = document.createElement('canvas');
-        vineOverlayCanvas.id = 'vineOverlay';
-        vineOverlayCanvas.style.cssText = `
+        const overlayCanvas = document.createElement('canvas');
+        overlayCanvas.className = 'vineOverlay';
+        overlayCanvas.style.cssText = `
             position: absolute;
             pointer-events: none;
             z-index: 100;
@@ -321,53 +317,89 @@ const StarfieldSystem = (function() {
         `;
         
         // Add overlay to wrapper (after canvas)
-        vineWrapper.appendChild(vineOverlayCanvas);
-        vineOverlayCtx = vineOverlayCanvas.getContext('2d');
+        wrapper.appendChild(overlayCanvas);
+        const overlayCtx = overlayCanvas.getContext('2d');
+        
+        // Store in map
+        vineOverlays.set(targetElement, {
+            canvas: overlayCanvas,
+            ctx: overlayCtx,
+            wrapper: wrapper
+        });
         
         // Position and draw after layout settles
         requestAnimationFrame(() => {
-            positionAndDrawVines();
+            positionAndDrawVinesFor(targetElement);
         });
         
-        return vineOverlayCanvas;
+        return overlayCanvas;
     }
     
-    function positionAndDrawVines() {
-        if (!vineOverlayCanvas || !vineTargetElement) return;
+    function positionAndDrawVinesFor(targetElement) {
+        const overlay = vineOverlays.get(targetElement);
+        if (!overlay) return;
         
+        const { canvas: overlayCanvas, ctx: overlayCtx } = overlay;
         const extend = 15;
         
         // Get canvas size
-        const width = vineTargetElement.offsetWidth;
-        const height = vineTargetElement.offsetHeight;
+        const width = targetElement.offsetWidth;
+        const height = targetElement.offsetHeight;
         
         // Set overlay size
         const overlayWidth = width + extend * 2;
         const overlayHeight = height + extend * 2;
         
-        vineOverlayCanvas.width = overlayWidth;
-        vineOverlayCanvas.height = overlayHeight;
-        vineOverlayCanvas.style.width = overlayWidth + 'px';
-        vineOverlayCanvas.style.height = overlayHeight + 'px';
+        overlayCanvas.width = overlayWidth;
+        overlayCanvas.height = overlayHeight;
+        overlayCanvas.style.width = overlayWidth + 'px';
+        overlayCanvas.style.height = overlayHeight + 'px';
         
         // Position overlay: canvas is at (0,0) in wrapper, so offset by -extend
-        vineOverlayCanvas.style.left = -extend + 'px';
-        vineOverlayCanvas.style.top = -extend + 'px';
+        overlayCanvas.style.left = -extend + 'px';
+        overlayCanvas.style.top = -extend + 'px';
         
         // Clear and draw
-        vineOverlayCtx.clearRect(0, 0, overlayWidth, overlayHeight);
+        overlayCtx.clearRect(0, 0, overlayWidth, overlayHeight);
         
         // Draw vines - the canvas edge is at 'extend' pixels from overlay edge
-        drawWrappingRope(vineOverlayCtx, extend, extend, width, height);
+        drawWrappingRope(overlayCtx, extend, extend, width, height);
+    }
+    
+    function removeVineOverlayFor(targetElement) {
+        const overlay = vineOverlays.get(targetElement);
+        if (!overlay) return;
+        
+        const { canvas: overlayCanvas, wrapper } = overlay;
+        
+        // Remove overlay canvas
+        if (overlayCanvas && overlayCanvas.parentNode) {
+            overlayCanvas.parentNode.removeChild(overlayCanvas);
+        }
+        
+        // Unwrap the target element
+        if (wrapper && wrapper.parentNode) {
+            wrapper.parentNode.insertBefore(targetElement, wrapper);
+            wrapper.parentNode.removeChild(wrapper);
+        }
+        
+        vineOverlays.delete(targetElement);
+    }
+    
+    function removeVineOverlay() {
+        // Remove all vine overlays
+        for (const targetElement of vineOverlays.keys()) {
+            removeVineOverlayFor(targetElement);
+        }
     }
     
     // Alias for compatibility
     function updateVineOverlayPosition(targetElement) {
-        positionAndDrawVines();
+        positionAndDrawVinesFor(targetElement);
     }
     
     function drawWrappingVineOverlay(targetElement) {
-        positionAndDrawVines();
+        positionAndDrawVinesFor(targetElement);
     }
     
     function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight) {
@@ -488,24 +520,6 @@ const StarfieldSystem = (function() {
                 ctx.stroke();
             }
         }
-    }
-    
-    function removeVineOverlay() {
-        // Remove overlay canvas
-        if (vineOverlayCanvas && vineOverlayCanvas.parentNode) {
-            vineOverlayCanvas.parentNode.removeChild(vineOverlayCanvas);
-        }
-        
-        // Unwrap the game canvas from the wrapper
-        if (vineWrapper && vineTargetElement && vineWrapper.parentNode) {
-            vineWrapper.parentNode.insertBefore(vineTargetElement, vineWrapper);
-            vineWrapper.parentNode.removeChild(vineWrapper);
-        }
-        
-        vineOverlayCanvas = null;
-        vineOverlayCtx = null;
-        vineTargetElement = null;
-        vineWrapper = null;
     }
     
     // Solar system data
@@ -686,9 +700,6 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function drawSun() {
-        // Skip sun entirely in stranger mode
-        if (strangerMode) return;
-        
         const maxJourney = 3920 * 2;
         const journeyRatio = Math.min(1, journeyProgress / maxJourney);
         const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
@@ -710,20 +721,17 @@ const StarfieldSystem = (function() {
         }
         
         // Normal sun colors (yellow/orange)
-        let r = 255;
-        let g = Math.floor(200 + (55 * transitionProgress));
-        let b = Math.floor(100 * transitionProgress);
+        const r = 255;
+        const g = Math.floor(200 + (55 * transitionProgress));
+        const b = Math.floor(100 * transitionProgress);
         
-        // In stranger mode, use inverted/blue colors
+        // Apply darkening filter in stranger mode
         if (strangerMode) {
-            r = 0;
-            g = Math.floor(55 - (55 * transitionProgress));
-            b = Math.floor(255 - (100 * transitionProgress));
+            starfieldCtx.save();
+            starfieldCtx.globalAlpha = 0.4; // Dim to 40%
         }
         
-        // In stranger mode, skip the sun image (its corona becomes a white halo when inverted)
-        // Use procedural drawing instead
-        if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0 && !strangerMode) {
+        if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
             starfieldCtx.save();
             starfieldCtx.beginPath();
             starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
@@ -741,7 +749,7 @@ const StarfieldSystem = (function() {
             
             if (morphToWhite > 0) {
                 starfieldCtx.save();
-                starfieldCtx.globalAlpha = morphToWhite;
+                starfieldCtx.globalAlpha = strangerMode ? morphToWhite * 0.4 : morphToWhite;
                 starfieldCtx.fillStyle = '#FFFFFF';
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
@@ -763,7 +771,7 @@ const StarfieldSystem = (function() {
             starfieldCtx.fill();
         } else {
             if (sunSize <= 4) {
-                starfieldCtx.fillStyle = strangerMode ? '#000000' : '#FFFFFF';
+                starfieldCtx.fillStyle = '#FFFFFF';
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
                 starfieldCtx.fill();
@@ -772,64 +780,50 @@ const StarfieldSystem = (function() {
                     centerX, centerY, 0,
                     centerX, centerY, sunSize * 3
                 );
-                if (strangerMode) {
-                    starGlow.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
-                    starGlow.addColorStop(0.3, 'rgba(0, 0, 0, 0.3)');
-                    starGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                } else {
-                    starGlow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                    starGlow.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
-                    starGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                }
+                starGlow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                starGlow.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
+                starGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 
                 starfieldCtx.fillStyle = starGlow;
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize * 3, 0, Math.PI * 2);
                 starfieldCtx.fill();
             } else {
-                // Don't draw glow in stranger mode
-                if (!strangerMode) {
-                    const glowGradient = starfieldCtx.createRadialGradient(
-                        centerX, centerY, sunSize,
-                        centerX, centerY, sunSize * 1.8
-                    );
-                    const glowAlpha = 0.6 * (1 - transitionProgress * 0.5);
-                    glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
-                    glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-                    
-                    starfieldCtx.fillStyle = glowGradient;
-                    starfieldCtx.beginPath();
-                    starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-                    starfieldCtx.fill();
-                }
+                const glowGradient = starfieldCtx.createRadialGradient(
+                    centerX, centerY, sunSize,
+                    centerX, centerY, sunSize * 1.8
+                );
+                const glowAlpha = 0.6 * (1 - transitionProgress * 0.5);
+                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                
+                starfieldCtx.fillStyle = glowGradient;
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+                starfieldCtx.fill();
                 
                 const bodyGradient = starfieldCtx.createRadialGradient(
                     centerX - sunSize * 0.3, centerY - sunSize * 0.3, sunSize * 0.1,
                     centerX, centerY, sunSize
                 );
                 
-                let centerR, centerG, centerB;
-                if (strangerMode) {
-                    centerR = 0;
-                    centerG = Math.floor(5 + (transitionProgress * 5));
-                    centerB = Math.floor(50 - (transitionProgress * 50));
-                    bodyGradient.addColorStop(0, `rgb(${centerR}, ${centerG}, ${centerB})`);
-                    bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor((255-b) * 0.5)})`);
-                    bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 1.05)}, ${Math.floor(g * 1.1)}, ${Math.floor((255-b) * 0.7)})`);
-                } else {
-                    centerR = 255;
-                    centerG = Math.floor(250 - (transitionProgress * 5));
-                    centerB = Math.floor(205 + (transitionProgress * 50));
-                    bodyGradient.addColorStop(0, `rgb(${centerR}, ${centerG}, ${centerB})`);
-                    bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor(b * 0.5)})`);
-                    bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 0.95)}, ${Math.floor(g * 0.9)}, ${Math.floor(b * 0.3)})`);
-                }
+                const centerR = 255;
+                const centerG = Math.floor(250 - (transitionProgress * 5));
+                const centerB = Math.floor(205 + (transitionProgress * 50));
+                bodyGradient.addColorStop(0, `rgb(${centerR}, ${centerG}, ${centerB})`);
+                bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor(b * 0.5)})`);
+                bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 0.95)}, ${Math.floor(g * 0.9)}, ${Math.floor(b * 0.3)})`);
                 
                 starfieldCtx.fillStyle = bodyGradient;
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
                 starfieldCtx.fill();
             }
+        }
+        
+        // Restore from stranger mode darkening
+        if (strangerMode) {
+            starfieldCtx.restore();
         }
     }
     
@@ -841,6 +835,12 @@ const StarfieldSystem = (function() {
         const x = centerX + position.x;
         const y = centerY + position.y;
         
+        // Apply darkening filter in stranger mode
+        if (strangerMode) {
+            starfieldCtx.save();
+            starfieldCtx.globalAlpha = 0.4; // Dim to 40%
+        }
+        
         if (planetImages[planet.name]) {
             const img = planetImages[planet.name];
             
@@ -848,11 +848,6 @@ const StarfieldSystem = (function() {
             starfieldCtx.beginPath();
             starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
             starfieldCtx.clip();
-            
-            // Apply invert filter only to the planet image
-            if (strangerMode) {
-                starfieldCtx.filter = 'invert(1)';
-            }
             
             starfieldCtx.drawImage(
                 img,
@@ -877,33 +872,23 @@ const StarfieldSystem = (function() {
             starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
             starfieldCtx.fill();
         } else {
-            // For non-image planets, invert the colors directly
-            let planetColor = planet.color;
-            if (strangerMode) {
-                planetColor = invertColor(planet.color);
-            }
+            const planetColor = planet.color;
             
             if (planet.name === 'Earth') {
                 const earthGradient = starfieldCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
                     x, y, planet.size
                 );
-                if (strangerMode) {
-                    earthGradient.addColorStop(0, '#783114'); // inverted sky blue
-                    earthGradient.addColorStop(0.7, '#BE961E'); // inverted blue
-                    earthGradient.addColorStop(1, '#E6E68F'); // inverted dark blue
-                } else {
-                    earthGradient.addColorStop(0, '#87CEEB');
-                    earthGradient.addColorStop(0.7, '#4169E1');
-                    earthGradient.addColorStop(1, '#191970');
-                }
+                earthGradient.addColorStop(0, '#87CEEB');
+                earthGradient.addColorStop(0.7, '#4169E1');
+                earthGradient.addColorStop(1, '#191970');
                 starfieldCtx.fillStyle = earthGradient;
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 
-                starfieldCtx.fillStyle = strangerMode ? '#DD74DD' : '#228B22'; // inverted green
-                starfieldCtx.globalAlpha = 1.0;
+                starfieldCtx.fillStyle = '#228B22';
+                starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
                 
                 starfieldCtx.beginPath();
                 starfieldCtx.ellipse(x + planet.size * 0.2, y - planet.size * 0.1, planet.size * 0.35, planet.size * 0.25, 0.5, 0, Math.PI * 2);
@@ -913,7 +898,7 @@ const StarfieldSystem = (function() {
                 starfieldCtx.ellipse(x - planet.size * 0.3, y + planet.size * 0.2, planet.size * 0.2, planet.size * 0.15, -0.3, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 
-                starfieldCtx.fillStyle = strangerMode ? '#000000' : '#FFFFFF';
+                starfieldCtx.fillStyle = '#FFFFFF';
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(x, y - planet.size * 0.75, planet.size * 0.25, 0, Math.PI * 2);
                 starfieldCtx.fill();
@@ -921,7 +906,7 @@ const StarfieldSystem = (function() {
                 starfieldCtx.arc(x + planet.size * 0.4, y - planet.size * 0.25, planet.size * 0.15, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 
-                starfieldCtx.globalAlpha = 1.0;
+                starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
             } else {
                 const bodyGradient = starfieldCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
@@ -940,35 +925,25 @@ const StarfieldSystem = (function() {
         }
         
         if (planet.hasRings) {
-            starfieldCtx.globalAlpha = 1.0;
-            starfieldCtx.strokeStyle = strangerMode ? '#2B5895' : '#D4A76A';
+            starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
+            starfieldCtx.strokeStyle = '#D4A76A';
             starfieldCtx.lineWidth = planet.size * 0.15;
             starfieldCtx.beginPath();
             starfieldCtx.ellipse(x, y, planet.size * 1.8, planet.size * 0.4, 0, 0, Math.PI * 2);
             starfieldCtx.stroke();
             
-            starfieldCtx.strokeStyle = strangerMode ? '#748CAA' : '#8B7355';
+            starfieldCtx.strokeStyle = '#8B7355';
             starfieldCtx.lineWidth = planet.size * 0.08;
             starfieldCtx.beginPath();
             starfieldCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
             starfieldCtx.stroke();
             starfieldCtx.globalAlpha = 1.0;
         }
-    }
-    
-    // Helper to invert a hex color
-    function invertColor(hex) {
-        // Remove # if present
-        hex = hex.replace('#', '');
-        // Parse RGB
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        // Invert
-        const invR = (255 - r).toString(16).padStart(2, '0');
-        const invG = (255 - g).toString(16).padStart(2, '0');
-        const invB = (255 - b).toString(16).padStart(2, '0');
-        return `#${invR}${invG}${invB}`;
+        
+        // Restore from stranger mode darkening
+        if (strangerMode) {
+            starfieldCtx.restore();
+        }
     }
     
     // ============================================
@@ -1330,11 +1305,6 @@ const StarfieldSystem = (function() {
     
     function showPlanetStats(planet) {
         setTimeout(() => {
-            // Skip sun info in stranger mode
-            if (strangerMode && planet.isSun) {
-                return;
-            }
-            
             console.log('Showing planet stats for:', planet.name);
             
             if (!planetStatsDiv || !planetStatsContent) {
