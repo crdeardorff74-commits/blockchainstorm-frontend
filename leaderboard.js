@@ -723,42 +723,44 @@ function formatAsBitcoin(points) {
 // Initialize auth check on load
 checkAuth();
 
-// Challenge tooltip handler
-const challengeTooltip = document.createElement('div');
-challengeTooltip.id = 'challengeTooltip';
-challengeTooltip.style.cssText = `
-    position: fixed;
-    background: rgba(0, 0, 0, 0.95);
-    color: #FFD700;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    white-space: nowrap;
-    z-index: 100000;
-    border: 2px solid #FFD700;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    display: none;
-`;
-document.body.appendChild(challengeTooltip);
+// Challenge tooltip handler - ensure DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const challengeTooltip = document.createElement('div');
+    challengeTooltip.id = 'challengeTooltip';
+    challengeTooltip.style.cssText = `
+        position: fixed;
+        background: rgba(0, 0, 0, 0.95);
+        color: #FFD700;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        white-space: nowrap;
+        z-index: 100000;
+        border: 2px solid #FFD700;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        display: none;
+    `;
+    document.body.appendChild(challengeTooltip);
 
-document.addEventListener('mousemove', (e) => {
-    const cell = e.target.closest('[data-challenges]');
-    const row = e.target.closest('tr.has-challenges');
-    
-    if (cell || row) {
-        const challengeData = cell ? cell.getAttribute('data-challenges') : 
-                             row.querySelector('[data-challenges]')?.getAttribute('data-challenges');
-        if (challengeData) {
-            challengeTooltip.textContent = challengeData;
-            challengeTooltip.style.display = 'block';
-            challengeTooltip.style.left = (e.clientX + 15) + 'px';
-            challengeTooltip.style.top = (e.clientY + 15) + 'px';
-            return;
+    document.addEventListener('mousemove', (e) => {
+        const cell = e.target.closest('[data-challenges]');
+        const row = e.target.closest('tr.has-challenges');
+        
+        if (cell || row) {
+            const challengeData = cell ? cell.getAttribute('data-challenges') : 
+                                 row.querySelector('[data-challenges]')?.getAttribute('data-challenges');
+            if (challengeData) {
+                challengeTooltip.textContent = challengeData;
+                challengeTooltip.style.display = 'block';
+                challengeTooltip.style.left = (e.clientX + 15) + 'px';
+                challengeTooltip.style.top = (e.clientY + 15) + 'px';
+                return;
+            }
         }
-    }
-    challengeTooltip.style.display = 'none';
+        challengeTooltip.style.display = 'none';
+    });
 });
 
 // Export functions for use in game.js
