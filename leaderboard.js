@@ -227,13 +227,15 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         // Build challenges display for challenge mode
         let challengesCell = '';
         let hasChallenge = false;
+        let challengeNames = '';
         if (mode === 'challenge') {
             const challenges = entry.challenges || [];
             console.log('🎯 Challenges array:', challenges, 'length:', challenges.length);
             if (challenges.length > 0) {
-                const challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
+                challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
                 console.log('🎯 Challenge names:', challengeNames);
-                challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
+                // Use both data-challenges AND title attribute for backup
+                challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}" title="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
                 hasChallenge = true;
             } else {
                 challengesCell = '<td class="challenges-col">-</td>';
@@ -241,9 +243,10 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         }
         
         const rowClasses = [rowClass, hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
+        const rowTitle = hasChallenge ? `title="${escapeHtml(challengeNames)}"` : '';
         
         html += `
-            <tr class="${rowClasses}">
+            <tr class="${rowClasses}" ${rowTitle}>
                 <td class="rank">${index + 1}</td>
                 <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
@@ -723,83 +726,46 @@ function formatAsBitcoin(points) {
 // Initialize auth check on load
 checkAuth();
 
-// Challenge tooltip handler
-(function() {
-    console.log('🎯 Initializing challenge tooltip handler');
+// Challenge tooltip handler - runs immediately
+console.log('🎯 Setting up challenge tooltip handler');
+
+const challengeTooltip = document.createElement('div');
+challengeTooltip.id = 'challengeTooltip';
+challengeTooltip.style.cssText = `
+    position: fixed;
+    background: rgba(0, 0, 0, 0.95);
+    color: #FFD700;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    z-index: 100000;
+    border: 2px solid #FFD700;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    display: none;
+`;
+document.body.appendChild(challengeTooltip);
+console.log('🎯 Tooltip element added to body');
+
+document.addEventListener('mousemove', (e) => {
+    const cell = e.target.closest('[data-challenges]');
+    const row = e.target.closest('tr.has-challenges');
     
-    // Create tooltip element
-    const tooltip = document.createElement('div');
-    tooltip.id = 'challengeTooltip';
-    tooltip.style.cssText = `
-        position: fixed;
-        background: rgba(0, 0, 0, 0.95);
-        color: #FFD700;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        white-space: nowrap;
-        z-index: 100000;
-        border: 1px solid rgba(255, 215, 0, 0.5);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-        pointer-events: none;
-        display: none;
-    `;
-    document.body.appendChild(tooltip);
-    console.log('🎯 Tooltip element created and appended to body');
-    
-    // Track mouse position
-    let mouseX = 0, mouseY = 0;
-    document.addEventListener('mousemove', (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        if (tooltip.style.display === 'block') {
-            tooltip.style.left = (mouseX + 15) + 'px';
-            tooltip.style.top = (mouseY - 10) + 'px';
-        }
-    });
-    
-    // Event delegation for any element with data-challenges
-    document.addEventListener('mouseover', (e) => {
-        // Check if we're over an element with data-challenges or inside a row that has one
-        let target = e.target;
-        let challengeData = null;
-        
-        // Walk up to find data-challenges
-        while (target && target !== document) {
-            if (target.hasAttribute && target.hasAttribute('data-challenges')) {
-                challengeData = target.getAttribute('data-challenges');
-                break;
-            }
-            // Also check if we're in a row with has-challenges class
-            if (target.tagName === 'TR' && target.classList.contains('has-challenges')) {
-                const cell = target.querySelector('[data-challenges]');
-                if (cell) {
-                    challengeData = cell.getAttribute('data-challenges');
-                }
-                break;
-            }
-            target = target.parentElement;
-        }
-        
+    if (cell || row) {
+        const challengeData = cell ? cell.getAttribute('data-challenges') : 
+                             row.querySelector('[data-challenges]')?.getAttribute('data-challenges');
         if (challengeData) {
-            console.log('🎯 Showing tooltip:', challengeData);
-            tooltip.textContent = challengeData;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (mouseX + 15) + 'px';
-            tooltip.style.top = (mouseY - 10) + 'px';
+            challengeTooltip.textContent = challengeData;
+            challengeTooltip.style.display = 'block';
+            challengeTooltip.style.left = (e.clientX + 15) + 'px';
+            challengeTooltip.style.top = (e.clientY + 15) + 'px';
         }
-    });
-    
-    document.addEventListener('mouseout', (e) => {
-        // Hide when leaving a row with challenges
-        const row = e.target.closest('tr.has-challenges');
-        const cell = e.target.closest('[data-challenges]');
-        
-        if ((row || cell) && !e.relatedTarget?.closest?.('tr.has-challenges') && !e.relatedTarget?.closest?.('[data-challenges]')) {
-            tooltip.style.display = 'none';
-        }
-    });
-})();
+    } else {
+        challengeTooltip.style.display = 'none';
+    }
+});
 
 // Export functions for use in game.js
 window.leaderboard = {
