@@ -10032,6 +10032,14 @@ challengeSelect.addEventListener('change', (e) => {
         // Apply single challenge
         applyChallengeMode(value);
     }
+    
+    // Update leaderboard to match selected challenge mode
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+        const gameMode = value !== 'normal' ? 'challenge' : 'normal';
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+    }
 });
 
 // Function to update the selected option display text (remove parentheses)
@@ -10086,6 +10094,13 @@ comboApplyBtn.addEventListener('click', () => {
     applyChallengeMode('combo');
     comboModalOverlay.style.display = 'none';
     
+    // Refresh leaderboard to show challenge mode
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+        window.leaderboard.displayLeaderboard(selectedMode, null, 'challenge');
+    }
+    
     console.log('🎯 Combo challenges applied:', Array.from(activeChallenges));
 });
 
@@ -10093,6 +10108,14 @@ comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
     // Reset dropdown to current mode
     challengeSelect.value = challengeMode;
+    
+    // Refresh leaderboard to match current mode
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+    }
 });
 
 // Close combo modal when clicking outside
