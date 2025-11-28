@@ -290,10 +290,25 @@ const StarfieldSystem = (function() {
     // Create a vine overlay that wraps AROUND a target element
     let vineOverlayCanvas = null;
     let vineOverlayCtx = null;
+    let vineTargetElement = null;
     
     function createVineOverlay(targetElement) {
         // Remove existing overlay if any
         removeVineOverlay();
+        
+        vineTargetElement = targetElement;
+        
+        // Create a wrapper div to position the overlay correctly
+        const wrapper = document.createElement('div');
+        wrapper.id = 'vineWrapper';
+        wrapper.style.cssText = `
+            position: relative;
+            display: inline-block;
+        `;
+        
+        // Insert wrapper before target, then move target into wrapper
+        targetElement.parentNode.insertBefore(wrapper, targetElement);
+        wrapper.appendChild(targetElement);
         
         // Create overlay canvas
         vineOverlayCanvas = document.createElement('canvas');
@@ -302,17 +317,20 @@ const StarfieldSystem = (function() {
             position: absolute;
             pointer-events: none;
             z-index: 100;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
         `;
         
-        // Position overlay around target element
-        updateVineOverlayPosition(targetElement);
-        
-        // Insert overlay after target element
-        targetElement.parentNode.insertBefore(vineOverlayCanvas, targetElement.nextSibling);
+        // Add overlay to wrapper
+        wrapper.appendChild(vineOverlayCanvas);
         vineOverlayCtx = vineOverlayCanvas.getContext('2d');
         
-        // Draw the wrapping vines
-        drawWrappingVineOverlay(targetElement);
+        // Wait for next frame to ensure layout is computed
+        requestAnimationFrame(() => {
+            updateVineOverlayPosition(targetElement);
+            drawWrappingVineOverlay(targetElement);
+        });
         
         return vineOverlayCanvas;
     }
@@ -320,35 +338,37 @@ const StarfieldSystem = (function() {
     function updateVineOverlayPosition(targetElement) {
         if (!vineOverlayCanvas) return;
         
-        const rect = targetElement.getBoundingClientRect();
-        const parentRect = targetElement.parentNode.getBoundingClientRect();
         const extend = 15; // How far vines extend beyond canvas edge
         
-        vineOverlayCanvas.width = rect.width + extend * 2;
-        vineOverlayCanvas.height = rect.height + extend * 2;
+        // Use the actual rendered size of the canvas
+        const width = targetElement.offsetWidth;
+        const height = targetElement.offsetHeight;
         
-        // Position relative to parent
-        const left = rect.left - parentRect.left - extend;
-        const top = rect.top - parentRect.top - extend;
+        vineOverlayCanvas.width = width + extend * 2;
+        vineOverlayCanvas.height = height + extend * 2;
         
-        vineOverlayCanvas.style.left = left + 'px';
-        vineOverlayCanvas.style.top = top + 'px';
+        // Position relative to wrapper (canvas is at 0,0 in wrapper)
+        vineOverlayCanvas.style.left = -extend + 'px';
+        vineOverlayCanvas.style.top = -extend + 'px';
     }
     
     function drawWrappingVineOverlay(targetElement) {
         if (!vineOverlayCanvas || !vineOverlayCtx) return;
         
-        const rect = targetElement.getBoundingClientRect();
         const extend = 15;
         const width = vineOverlayCanvas.width;
         const height = vineOverlayCanvas.height;
+        
+        // The inner dimensions (the game canvas area)
+        const innerWidth = width - extend * 2;
+        const innerHeight = height - extend * 2;
         
         // Clear
         vineOverlayCtx.clearRect(0, 0, width, height);
         
         // The game canvas edge is at 'extend' pixels from our overlay edge
         // Draw vines that wrap around this edge
-        drawWrappingRope(vineOverlayCtx, extend, extend, rect.width, rect.height, extend);
+        drawWrappingRope(vineOverlayCtx, extend, extend, innerWidth, innerHeight, extend);
     }
     
     function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight, extend) {
@@ -472,11 +492,21 @@ const StarfieldSystem = (function() {
     }
     
     function removeVineOverlay() {
+        // Remove overlay canvas
         if (vineOverlayCanvas && vineOverlayCanvas.parentNode) {
             vineOverlayCanvas.parentNode.removeChild(vineOverlayCanvas);
         }
+        
+        // Unwrap the game canvas from the wrapper
+        const wrapper = document.getElementById('vineWrapper');
+        if (wrapper && vineTargetElement) {
+            wrapper.parentNode.insertBefore(vineTargetElement, wrapper);
+            wrapper.parentNode.removeChild(wrapper);
+        }
+        
         vineOverlayCanvas = null;
         vineOverlayCtx = null;
+        vineTargetElement = null;
     }
     
     // Solar system data
@@ -689,16 +719,13 @@ const StarfieldSystem = (function() {
             b = Math.floor(255 - (100 * transitionProgress));
         }
         
-        if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
+        // In stranger mode, skip the sun image (its corona becomes a white halo when inverted)
+        // Use procedural drawing instead
+        if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0 && !strangerMode) {
             starfieldCtx.save();
             starfieldCtx.beginPath();
             starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
             starfieldCtx.clip();
-            
-            // Apply invert filter only to the sun image itself
-            if (strangerMode) {
-                starfieldCtx.filter = 'invert(1)';
-            }
             
             starfieldCtx.drawImage(
                 sunImage,
@@ -713,28 +740,25 @@ const StarfieldSystem = (function() {
             if (morphToWhite > 0) {
                 starfieldCtx.save();
                 starfieldCtx.globalAlpha = morphToWhite;
-                starfieldCtx.fillStyle = strangerMode ? '#000000' : '#FFFFFF';
+                starfieldCtx.fillStyle = '#FFFFFF';
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 starfieldCtx.restore();
             }
             
-            // Don't draw glow in stranger mode - it creates a visible halo on black background
-            if (!strangerMode) {
-                const glowGradient = starfieldCtx.createRadialGradient(
-                    centerX, centerY, sunSize,
-                    centerX, centerY, sunSize * 1.8
-                );
-                const glowAlpha = 0.4 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5);
-                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
-                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-                
-                starfieldCtx.fillStyle = glowGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-                starfieldCtx.fill();
-            }
+            const glowGradient = starfieldCtx.createRadialGradient(
+                centerX, centerY, sunSize,
+                centerX, centerY, sunSize * 1.8
+            );
+            const glowAlpha = 0.4 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5);
+            glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+            glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+            
+            starfieldCtx.fillStyle = glowGradient;
+            starfieldCtx.beginPath();
+            starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+            starfieldCtx.fill();
         } else {
             if (sunSize <= 4) {
                 starfieldCtx.fillStyle = strangerMode ? '#000000' : '#FFFFFF';
