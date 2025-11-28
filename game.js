@@ -4773,6 +4773,7 @@ function switchSoRandomMode() {
     // So Random mode: Switch to a different random challenge
     // First, remove all CSS-based challenge effects
     document.documentElement.classList.remove('stranger-mode');
+    StarfieldSystem.setStrangerMode(false);
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     // Reset canvas size in case we're coming from Thicker mode
@@ -4787,6 +4788,7 @@ function switchSoRandomMode() {
     // Apply visual effects for CSS-based modes
     if (newMode === 'stranger') {
         document.documentElement.classList.add('stranger-mode');
+        StarfieldSystem.setStrangerMode(true);
     }
     if (newMode === 'thinner') {
         canvas.classList.add('thinner-mode');
@@ -5396,29 +5398,15 @@ function drawCanvasBackground() {
 }
 
 function drawBoard() {
-    // Debug: Count blocks on board (only if board exists)
-    if (board && board.length > 0) {
-        let blockCount = 0;
-        for (let y = 0; y < ROWS; y++) {
-            if (board[y]) {
-                for (let x = 0; x < COLS; x++) {
-                    if (board[y][x] !== null) {
-                        blockCount++;
-                    }
-                }
-            }
-        }
-        if (blockCount > 0) {
-            console.log('🎨 drawBoard() called with', blockCount, 'blocks on board');
-            console.log('   gameRunning:', gameRunning);
-            console.trace('Stack trace:');
-        }
-    }
-    
     // Fully clear the canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Then draw the background (matching CSS background transparency)
-    ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+    // Use brownish color for Stranger mode
+    if (StarfieldSystem.isStrangerMode()) {
+        ctx.fillStyle = 'rgba(30, 15, 10, 0.35)';
+    } else {
+        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+    }
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw storm particles BEFORE blocks (behind gameplay)
@@ -5903,6 +5891,11 @@ function drawBoard() {
             }
         });
     });
+    
+    // Draw Stranger mode vines overlay on game canvas
+    if (StarfieldSystem.isStrangerMode()) {
+        StarfieldSystem.drawVinesOverlay(canvas, ctx);
+    }
 }
 
 function triggerTsunami(targetY) {
@@ -6036,7 +6029,12 @@ function drawNextPiece() {
     // Fully clear the canvas first
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     // Then draw the transparent background
-    nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    // Use brownish color for Stranger mode
+    if (StarfieldSystem.isStrangerMode()) {
+        nextCtx.fillStyle = 'rgba(30, 15, 10, 0.3)';
+    } else {
+        nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    }
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
     if (nextPiece && nextPiece.shape && nextPiece.shape.length > 0 && nextPiece.shape[0]) {
@@ -6061,10 +6059,6 @@ function drawNextPiece() {
         const pixelOffsetX = Math.floor((nextCanvas.width - pieceTotalWidth) / 2);
         const pixelOffsetY = Math.floor((nextCanvas.height - pieceTotalHeight) / 2);
         
-        console.log(`Canvas: ${nextCanvas.width}x${nextCanvas.height}, BlockSize: ${nextBlockSize}`);
-        console.log(`Piece: ${pieceWidth}x${pieceHeight} blocks, ${pieceTotalWidth}x${pieceTotalHeight} pixels`);
-        console.log(`Pixel offset: (${pixelOffsetX}, ${pixelOffsetY})`);
-        
         // Save context state and translate to center the piece
         nextCtx.save();
         nextCtx.translate(pixelOffsetX, pixelOffsetY);
@@ -6086,6 +6080,11 @@ function drawNextPiece() {
         
         // Restore context state
         nextCtx.restore();
+    }
+    
+    // Draw Stranger mode vines overlay on next piece canvas
+    if (StarfieldSystem.isStrangerMode()) {
+        StarfieldSystem.drawVinesOverlay(nextCanvas, nextCtx);
     }
     
     // Restore smoothing state
@@ -10121,6 +10120,7 @@ comboModalOverlay.addEventListener('click', (e) => {
 function applyChallengeMode(mode) {
     // Remove all challenge effects first
     document.documentElement.classList.remove('stranger-mode');
+    StarfieldSystem.setStrangerMode(false);
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     bouncingPieces = [];
@@ -10142,6 +10142,7 @@ function applyChallengeMode(mode) {
     // Apply effects based on mode
     if (mode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
+        StarfieldSystem.setStrangerMode(true);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
