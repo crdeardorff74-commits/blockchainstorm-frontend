@@ -144,10 +144,10 @@ const StarfieldSystem = (function() {
     }
     
     function drawWrappingVineRope(ctx, width, height) {
-        // Vine colors - dark brown base with black and orange streaks
-        const baseColor = 'rgba(45, 28, 15, 0.95)';
-        const darkColor = 'rgba(15, 8, 3, 0.9)';
-        const orangeColor = 'rgba(120, 60, 20, 0.7)';
+        // Vine colors - dark and sinister with red streaks
+        const baseColor = 'rgba(20, 12, 8, 0.95)';      // Very dark brown, almost black
+        const darkColor = 'rgba(8, 3, 2, 0.95)';        // Near black
+        const accentColor = 'rgba(80, 15, 15, 0.8)';    // Dark blood red
         
         const ropeWidth = Math.min(width, height) * 0.025; // Thinner rope
         
@@ -213,8 +213,8 @@ const StarfieldSystem = (function() {
         // Draw twisted strand lines along the rope (creates rope texture)
         const numStrands = 4;
         for (let strand = 0; strand < numStrands; strand++) {
-            // Alternate between dark and orange streaks
-            ctx.strokeStyle = strand % 2 === 0 ? darkColor : orangeColor;
+            // Alternate between dark and red streaks
+            ctx.strokeStyle = strand % 2 === 0 ? darkColor : accentColor;
             ctx.lineWidth = ropeWidth * 0.15;
             
             ctx.beginPath();
@@ -410,16 +410,19 @@ const StarfieldSystem = (function() {
     }
     
     function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight) {
-        // Vine colors
-        const baseColor = 'rgba(45, 28, 15, 0.95)';
-        const darkColor = 'rgba(15, 8, 3, 0.9)';
-        const orangeColor = 'rgba(120, 60, 20, 0.7)';
+        // Vine colors - dark and sinister with red streaks
+        const baseColorFront = 'rgba(35, 20, 15, 0.95)';   // Slightly lighter for "front" facing
+        const baseColorBack = 'rgba(12, 6, 4, 0.95)';      // Darker for "back" facing
+        const highlightColor = 'rgba(60, 30, 25, 0.9)';    // Highlight on top of front coils
+        const shadowColor = 'rgba(0, 0, 0, 0.6)';          // Shadow under back coils
+        const accentColor = 'rgba(90, 20, 20, 0.8)';       // Dark blood red streaks
         
-        const ropeWidth = Math.min(innerWidth, innerHeight) * 0.02;
+        const ropeWidth = Math.min(innerWidth, innerHeight) * 0.025;
+        const coilFrequency = 0.35; // How often the vine coils around (radians per segment)
         
-        // Draw rope that wraps around the edge (visible on both sides)
+        // Generate path points around the perimeter
         const points = [];
-        const segments = 100;
+        const segments = 120;
         const perimeter = 2 * innerWidth + 2 * innerHeight;
         
         for (let i = 0; i <= segments; i++) {
@@ -432,98 +435,186 @@ const StarfieldSystem = (function() {
                 x = offsetX + dist;
                 y = offsetY;
                 normalX = 0;
-                normalY = 1;
+                normalY = 1;  // Points inward (down into the well)
             } else if (dist < innerWidth + innerHeight) {
                 x = offsetX + innerWidth;
                 y = offsetY + (dist - innerWidth);
-                normalX = -1;
+                normalX = -1; // Points inward (left into the well)
                 normalY = 0;
             } else if (dist < 2 * innerWidth + innerHeight) {
                 x = offsetX + innerWidth - (dist - innerWidth - innerHeight);
                 y = offsetY + innerHeight;
                 normalX = 0;
-                normalY = -1;
+                normalY = -1; // Points inward (up into the well)
             } else {
                 x = offsetX;
                 y = offsetY + innerHeight - (dist - 2 * innerWidth - innerHeight);
-                normalX = 1;
+                normalX = 1;  // Points inward (right into the well)
                 normalY = 0;
             }
             
-            // Subtle waviness
-            const wave = Math.sin(i * 1.2) * (ropeWidth * 0.15);
-            x += normalX * wave;
-            y += normalY * wave;
+            // Calculate coil phase - determines if this segment is "front" or "back"
+            const coilPhase = i * coilFrequency;
+            const coilSin = Math.sin(coilPhase);
+            const isFront = coilSin > 0; // Front half of coil faces us
             
-            points.push({ x, y, normalX, normalY });
+            // Offset perpendicular to edge based on coil phase
+            // Front portions offset inward, back portions offset outward
+            const coilOffset = coilSin * ropeWidth * 0.6;
+            x += normalX * coilOffset;
+            y += normalY * coilOffset;
+            
+            points.push({ 
+                x, y, 
+                normalX, normalY, 
+                coilPhase,
+                coilSin,
+                isFront,
+                // Brightness based on coil position (front = bright, back = dark)
+                brightness: (coilSin + 1) / 2 // 0 to 1
+            });
         }
         
-        // Draw main rope body
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        ctx.strokeStyle = baseColor;
-        ctx.lineWidth = ropeWidth;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
+        // First pass: Draw shadows under the "back" portions (creates depth)
+        ctx.strokeStyle = shadowColor;
+        ctx.lineWidth = ropeWidth * 1.3;
         for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.stroke();
-        
-        // Draw twisted strands
-        const numStrands = 4;
-        for (let strand = 0; strand < numStrands; strand++) {
-            ctx.strokeStyle = strand % 2 === 0 ? darkColor : orangeColor;
-            ctx.lineWidth = ropeWidth * 0.15;
+            const p = points[i];
+            const prevP = points[i-1];
             
-            ctx.beginPath();
-            for (let i = 0; i < points.length; i++) {
-                const p = points[i];
-                const spiralPhase = (i * 0.6) + (strand * Math.PI * 2 / numStrands);
-                const spiralOffset = Math.sin(spiralPhase) * (ropeWidth * 0.35);
+            // Draw shadow when transitioning from front to back
+            if (!p.isFront && prevP.isFront) {
+                // Shadow extends inward from where vine goes "behind"
+                ctx.beginPath();
+                ctx.moveTo(p.x + p.normalX * ropeWidth * 0.3, p.y + p.normalY * ropeWidth * 0.3);
                 
-                const px = p.x + p.normalX * spiralOffset;
-                const py = p.y + p.normalY * spiralOffset;
-                
-                if (i === 0) {
-                    ctx.moveTo(px, py);
+                // Continue shadow for a few segments
+                for (let j = i; j < Math.min(i + 8, points.length); j++) {
+                    const sp = points[j];
+                    if (sp.isFront) break;
+                    ctx.lineTo(sp.x + sp.normalX * ropeWidth * 0.3, sp.y + sp.normalY * ropeWidth * 0.3);
+                }
+                ctx.stroke();
+            }
+        }
+        
+        // Second pass: Draw the "back" portions of the coil (behind the edge)
+        ctx.strokeStyle = baseColorBack;
+        ctx.lineWidth = ropeWidth;
+        let inBackSegment = false;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            
+            if (!p.isFront) {
+                if (!inBackSegment) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    inBackSegment = true;
                 } else {
-                    ctx.lineTo(px, py);
+                    ctx.lineTo(p.x, p.y);
+                }
+            } else if (inBackSegment) {
+                ctx.stroke();
+                inBackSegment = false;
+            }
+        }
+        if (inBackSegment) ctx.stroke();
+        
+        // Third pass: Draw the "front" portions of the coil (in front of edge)
+        ctx.strokeStyle = baseColorFront;
+        ctx.lineWidth = ropeWidth;
+        let inFrontSegment = false;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            
+            if (p.isFront) {
+                if (!inFrontSegment) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    inFrontSegment = true;
+                } else {
+                    ctx.lineTo(p.x, p.y);
+                }
+            } else if (inFrontSegment) {
+                ctx.stroke();
+                inFrontSegment = false;
+            }
+        }
+        if (inFrontSegment) ctx.stroke();
+        
+        // Fourth pass: Add highlights on top of front coils
+        ctx.strokeStyle = highlightColor;
+        ctx.lineWidth = ropeWidth * 0.3;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            
+            // Only highlight the peaks of front coils (where coilSin is high)
+            if (p.coilSin > 0.7) {
+                const prevP = points[Math.max(0, i-1)];
+                if (prevP.coilSin <= 0.7) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + p.normalX * ropeWidth * 0.2, p.y + p.normalY * ropeWidth * 0.2);
+                }
+                ctx.lineTo(p.x + p.normalX * ropeWidth * 0.2, p.y + p.normalY * ropeWidth * 0.2);
+                
+                const nextP = points[Math.min(points.length-1, i+1)];
+                if (nextP.coilSin <= 0.7) {
+                    ctx.stroke();
                 }
             }
-            ctx.stroke();
         }
         
-        // Dark patches
-        ctx.strokeStyle = darkColor;
-        ctx.lineWidth = ropeWidth * 0.3;
-        for (let i = 10; i < points.length - 10; i += 15) {
-            const startIdx = i;
-            const endIdx = Math.min(i + 5, points.length - 1);
+        // Fifth pass: Add red vein streaks along the vine
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = ropeWidth * 0.15;
+        for (let strand = 0; strand < 2; strand++) {
             ctx.beginPath();
-            ctx.moveTo(points[startIdx].x, points[startIdx].y);
-            for (let j = startIdx + 1; j <= endIdx; j++) {
-                ctx.lineTo(points[j].x, points[j].y);
+            let started = false;
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                // Only draw veins on front portions for visibility
+                if (p.isFront) {
+                    const veinPhase = (i * 0.8) + (strand * Math.PI);
+                    const veinOffset = Math.sin(veinPhase) * ropeWidth * 0.25;
+                    const vx = p.x + p.normalX * veinOffset;
+                    const vy = p.y + p.normalY * veinOffset;
+                    
+                    if (!started) {
+                        ctx.moveTo(vx, vy);
+                        started = true;
+                    } else {
+                        ctx.lineTo(vx, vy);
+                    }
+                } else if (started) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    started = false;
+                }
             }
-            ctx.stroke();
+            if (started) ctx.stroke();
         }
         
-        // Small tendrils pointing inward
-        ctx.strokeStyle = baseColor;
-        ctx.lineWidth = ropeWidth * 0.2;
-        for (let i = 8; i < points.length - 8; i += 12) {
-            if (Math.random() > 0.5) {
-                const p = points[i];
-                const tendrilLen = ropeWidth * (0.8 + Math.random() * 1.2);
-                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.5;
+        // Sixth pass: Small tendrils pointing inward from front coils
+        ctx.strokeStyle = baseColorFront;
+        ctx.lineWidth = ropeWidth * 0.15;
+        for (let i = 8; i < points.length - 8; i += 10) {
+            const p = points[i];
+            // Only add tendrils from front-facing portions
+            if (p.isFront && p.coilSin > 0.3) {
+                const tendrilLen = ropeWidth * (1.0 + Math.random() * 1.5);
+                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.4;
                 
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y);
-                ctx.lineTo(
-                    p.x + Math.cos(tendrilAngle) * tendrilLen,
-                    p.y + Math.sin(tendrilAngle) * tendrilLen
-                );
+                // Curved tendril
+                const midX = p.x + Math.cos(tendrilAngle) * tendrilLen * 0.6;
+                const midY = p.y + Math.sin(tendrilAngle) * tendrilLen * 0.6;
+                const endX = p.x + Math.cos(tendrilAngle + 0.3) * tendrilLen;
+                const endY = p.y + Math.sin(tendrilAngle + 0.3) * tendrilLen;
+                ctx.quadraticCurveTo(midX, midY, endX, endY);
                 ctx.stroke();
             }
         }
