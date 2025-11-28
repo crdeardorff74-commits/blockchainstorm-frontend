@@ -31,178 +31,232 @@ const StarfieldSystem = (function() {
     let ufoCircleTime = 0;
     let ufoBeamOpacity = 0;
     
-    // Stranger Mode - Upside Down particles
+    // Stranger Mode - Upside Down particles (ash/spore flakes)
     let strangerMode = false;
-    const upsideDownParticles = [];
-    const numParticles = 80;
+    const ashParticles = [];
+    const numAshParticles = 150;
     
-    // Initialize Upside Down particles
-    function initUpsideDownParticles() {
-        upsideDownParticles.length = 0;
-        for (let i = 0; i < numParticles; i++) {
-            upsideDownParticles.push({
-                x: Math.random() * 2000 - 1000,
-                y: Math.random() * 2000 - 1000,
-                z: Math.random() * maxDepth,
-                width: 8 + Math.random() * 20,  // Oblong width
-                height: 2 + Math.random() * 6,   // Thin height
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 0.02,
-                driftX: (Math.random() - 0.5) * 0.3,
-                driftY: 0.2 + Math.random() * 0.5,  // Slow downward drift
-                opacity: 0.3 + Math.random() * 0.4,
-                // Brown/orange/gray color palette
-                color: [
-                    'rgba(139, 90, 43,',   // Brown
-                    'rgba(160, 82, 45,',   // Sienna
-                    'rgba(85, 65, 50,',    // Dark brown
-                    'rgba(120, 100, 80,',  // Grayish brown
-                    'rgba(100, 70, 50,',   // Muddy brown
-                ][Math.floor(Math.random() * 5)]
-            });
+    // Initialize ash particles
+    function initAshParticles() {
+        ashParticles.length = 0;
+        for (let i = 0; i < numAshParticles; i++) {
+            ashParticles.push(createAshParticle());
         }
     }
     
-    // Draw floating particles for Upside Down
-    function drawUpsideDownParticles() {
-        upsideDownParticles.forEach(particle => {
-            // Slow drift
-            particle.x += particle.driftX;
+    function createAshParticle() {
+        return {
+            x: Math.random() * 2000,
+            y: Math.random() * 2000,
+            size: 1 + Math.random() * 3,  // Small, 1-4 pixels
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.005, // Very slow rotation
+            driftX: (Math.random() - 0.5) * 0.15,  // Very subtle horizontal drift
+            driftY: 0.05 + Math.random() * 0.1,    // Very slow downward drift
+            wobblePhase: Math.random() * Math.PI * 2,
+            wobbleSpeed: 0.01 + Math.random() * 0.02,
+            opacity: 0.2 + Math.random() * 0.4,  // Semi-transparent
+            // Irregular shape - random number of points
+            points: Math.floor(3 + Math.random() * 4), // 3-6 points
+            irregularity: []
+        };
+    }
+    
+    // Generate irregular shape points
+    function generateIrregularShape(particle) {
+        particle.irregularity = [];
+        for (let i = 0; i < particle.points; i++) {
+            particle.irregularity.push(0.5 + Math.random() * 0.5); // 50-100% of radius
+        }
+    }
+    
+    // Draw floating ash particles
+    function drawAshParticles() {
+        ashParticles.forEach(particle => {
+            // Subtle wobble
+            particle.wobblePhase += particle.wobbleSpeed;
+            const wobbleX = Math.sin(particle.wobblePhase) * 0.3;
+            
+            // Very slow drift
+            particle.x += particle.driftX + wobbleX;
             particle.y += particle.driftY;
-            particle.z += 0.5;  // Very slow forward movement
             particle.rotation += particle.rotationSpeed;
             
-            // Reset if out of bounds
-            if (particle.z >= maxDepth || particle.y > 1200) {
-                particle.x = Math.random() * 2000 - 1000;
-                particle.y = -200 - Math.random() * 400;
-                particle.z = Math.random() * maxDepth * 0.5;
+            // Wrap around screen
+            if (particle.y > starfieldCanvas.height + 20) {
+                particle.y = -20;
+                particle.x = Math.random() * starfieldCanvas.width;
+            }
+            if (particle.x < -20) particle.x = starfieldCanvas.width + 20;
+            if (particle.x > starfieldCanvas.width + 20) particle.x = -20;
+            
+            // Generate shape if not done
+            if (particle.irregularity.length === 0) {
+                generateIrregularShape(particle);
             }
             
-            // Project to screen
-            const k = 128 / particle.z;
-            const px = particle.x * k + centerX;
-            const py = particle.y * k + centerY;
+            // Draw irregular flake shape
+            starfieldCtx.save();
+            starfieldCtx.translate(particle.x, particle.y);
+            starfieldCtx.rotate(particle.rotation);
+            starfieldCtx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
             
-            if (px >= -50 && px <= starfieldCanvas.width + 50 && 
-                py >= -50 && py <= starfieldCanvas.height + 50) {
-                
-                const scale = (1 - particle.z / maxDepth) * 2;
-                const w = particle.width * scale;
-                const h = particle.height * scale;
-                const opacity = particle.opacity * (1 - particle.z / maxDepth);
-                
-                starfieldCtx.save();
-                starfieldCtx.translate(px, py);
-                starfieldCtx.rotate(particle.rotation);
-                starfieldCtx.fillStyle = particle.color + opacity + ')';
-                
-                // Draw oblong flake shape
-                starfieldCtx.beginPath();
-                starfieldCtx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                
-                starfieldCtx.restore();
+            starfieldCtx.beginPath();
+            for (let i = 0; i < particle.points; i++) {
+                const angle = (i / particle.points) * Math.PI * 2;
+                const radius = particle.size * particle.irregularity[i];
+                const px = Math.cos(angle) * radius;
+                const py = Math.sin(angle) * radius;
+                if (i === 0) {
+                    starfieldCtx.moveTo(px, py);
+                } else {
+                    starfieldCtx.lineTo(px, py);
+                }
             }
+            starfieldCtx.closePath();
+            starfieldCtx.fill();
+            
+            starfieldCtx.restore();
         });
     }
     
-    // Draw creepy vines around edges
-    function drawUpsideDownVines(targetCanvas, targetCtx) {
-        const width = targetCanvas.width;
-        const height = targetCanvas.height;
-        const time = Date.now() * 0.001;
+    // Static vine tendrils for game canvas edges - per-canvas cache
+    const vineCanvasCache = new Map();
+    
+    function generateVineCache(width, height) {
+        // Create offscreen canvas for static vines
+        const cacheCanvas = document.createElement('canvas');
+        cacheCanvas.width = width;
+        cacheCanvas.height = height;
+        const cacheCtx = cacheCanvas.getContext('2d');
         
-        targetCtx.save();
-        
-        // Vine colors
+        // Dark brownish-black vine color
         const vineColors = [
-            'rgba(60, 35, 20, 0.9)',
-            'rgba(80, 45, 25, 0.85)',
-            'rgba(50, 30, 15, 0.9)',
-            'rgba(70, 40, 20, 0.8)'
+            'rgba(40, 25, 15, 0.95)',
+            'rgba(50, 30, 20, 0.9)',
+            'rgba(35, 20, 10, 0.95)',
+            'rgba(60, 35, 20, 0.85)'
         ];
         
-        // Draw multiple vine tendrils on each edge
+        // Draw thick, ugly vines on all edges
         // Left edge
-        for (let i = 0; i < 6; i++) {
-            drawVineTendril(targetCtx, 0, height * (i / 6), 'right', vineColors[i % 4], time + i);
+        for (let i = 0; i < 8; i++) {
+            drawStaticVine(cacheCtx, 0, height * (i / 8) + Math.random() * 20, 'right', vineColors[i % 4], width, height);
         }
         
         // Right edge
-        for (let i = 0; i < 6; i++) {
-            drawVineTendril(targetCtx, width, height * (i / 6), 'left', vineColors[i % 4], time + i + 0.5);
+        for (let i = 0; i < 8; i++) {
+            drawStaticVine(cacheCtx, width, height * (i / 8) + Math.random() * 20, 'left', vineColors[i % 4], width, height);
         }
         
         // Top edge
-        for (let i = 0; i < 4; i++) {
-            drawVineTendril(targetCtx, width * (i / 4) + width * 0.1, 0, 'down', vineColors[i % 4], time + i + 0.3);
+        for (let i = 0; i < 6; i++) {
+            drawStaticVine(cacheCtx, width * (i / 6) + Math.random() * 20, 0, 'down', vineColors[i % 4], width, height);
         }
         
         // Bottom edge
-        for (let i = 0; i < 4; i++) {
-            drawVineTendril(targetCtx, width * (i / 4) + width * 0.1, height, 'up', vineColors[i % 4], time + i + 0.7);
+        for (let i = 0; i < 6; i++) {
+            drawStaticVine(cacheCtx, width * (i / 6) + Math.random() * 20, height, 'up', vineColors[i % 4], width, height);
         }
         
-        targetCtx.restore();
+        return cacheCanvas;
     }
     
-    function drawVineTendril(ctx, startX, startY, direction, color, timeOffset) {
-        const length = 30 + Math.sin(timeOffset * 0.5) * 10;
-        const segments = 8;
-        const wobble = Math.sin(timeOffset * 0.8) * 3;
+    function drawStaticVine(ctx, startX, startY, direction, color, maxWidth, maxHeight) {
+        const length = 25 + Math.random() * 40;
+        const segments = 6 + Math.floor(Math.random() * 4);
+        const thickness = 3 + Math.random() * 4;
         
+        // Draw main vine
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3 + Math.sin(timeOffset) * 1;
+        ctx.lineWidth = thickness;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        
+        const points = [{ x: startX, y: startY }];
         let x = startX;
         let y = startY;
         
         for (let i = 0; i < segments; i++) {
-            const progress = i / segments;
-            const segLength = length / segments * (1 - progress * 0.5);
-            const curl = Math.sin(timeOffset + i * 0.5) * (10 + progress * 15);
+            const progress = (i + 1) / segments;
+            const segLength = (length / segments) * (1 - progress * 0.3);
+            const curve = (Math.random() - 0.5) * 25;
             
             switch(direction) {
                 case 'right':
                     x += segLength;
-                    y += curl + wobble * progress;
+                    y += curve;
                     break;
                 case 'left':
                     x -= segLength;
-                    y += curl + wobble * progress;
+                    y += curve;
                     break;
                 case 'down':
                     y += segLength;
-                    x += curl + wobble * progress;
+                    x += curve;
                     break;
                 case 'up':
                     y -= segLength;
-                    x += curl + wobble * progress;
+                    x += curve;
                     break;
             }
             
-            ctx.lineTo(x, y);
+            // Keep within bounds somewhat
+            x = Math.max(-10, Math.min(maxWidth + 10, x));
+            y = Math.max(-10, Math.min(maxHeight + 10, y));
+            
+            points.push({ x, y });
         }
         
+        // Draw the main vine path
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
         ctx.stroke();
         
-        // Draw smaller offshoots
-        if (Math.random() > 0.7) {
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            const offshootAngle = Math.random() * Math.PI - Math.PI / 2;
-            ctx.lineTo(
-                x + Math.cos(offshootAngle) * 8,
-                y + Math.sin(offshootAngle) * 8
-            );
-            ctx.stroke();
+        // Add veiny texture - smaller branching lines
+        ctx.lineWidth = thickness * 0.4;
+        for (let i = 1; i < points.length - 1; i++) {
+            if (Math.random() > 0.4) {
+                const branchLen = 8 + Math.random() * 15;
+                const branchAngle = Math.random() * Math.PI - Math.PI / 2;
+                ctx.beginPath();
+                ctx.moveTo(points[i].x, points[i].y);
+                ctx.lineTo(
+                    points[i].x + Math.cos(branchAngle) * branchLen,
+                    points[i].y + Math.sin(branchAngle) * branchLen
+                );
+                ctx.stroke();
+            }
         }
+        
+        // Add bumps/nodes along the vine
+        ctx.fillStyle = color;
+        for (let i = 1; i < points.length; i++) {
+            if (Math.random() > 0.6) {
+                const nodeSize = thickness * (0.4 + Math.random() * 0.4);
+                ctx.beginPath();
+                ctx.arc(points[i].x, points[i].y, nodeSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+    
+    // Draw vines overlay from cache
+    function drawVinesOverlay(targetCanvas, targetCtx) {
+        const width = targetCanvas.width;
+        const height = targetCanvas.height;
+        const cacheKey = `${width}x${height}`;
+        
+        // Generate cache if not exists for this size
+        if (!vineCanvasCache.has(cacheKey)) {
+            vineCanvasCache.set(cacheKey, generateVineCache(width, height));
+        }
+        
+        // Draw cached vines
+        targetCtx.drawImage(vineCanvasCache.get(cacheKey), 0, 0);
     }
     
     // Solar system data
@@ -1053,31 +1107,18 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function animateStarfield() {
-        // Different background for Stranger mode
+        // Normal black background for all modes
+        starfieldCtx.fillStyle = '#000';
+        starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+        
+        // In Stranger mode, draw ash particles instead of stars/planets
         if (strangerMode) {
-            // Dark brownish-red gradient for Upside Down
-            const gradient = starfieldCtx.createRadialGradient(
-                centerX, centerY, 0,
-                centerX, centerY, Math.max(starfieldCanvas.width, starfieldCanvas.height)
-            );
-            gradient.addColorStop(0, '#1a0a0a');
-            gradient.addColorStop(0.5, '#0d0505');
-            gradient.addColorStop(1, '#050202');
-            starfieldCtx.fillStyle = gradient;
-            starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
-            
-            // Draw floating particles instead of stars
-            drawUpsideDownParticles();
-            
-            // Draw vines on starfield edges
-            drawUpsideDownVines(starfieldCanvas, starfieldCtx);
-            
+            drawAshParticles();
             requestAnimationFrame(animateStarfield);
             return;
         }
         
-        starfieldCtx.fillStyle = '#000';
-        starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+        // Normal mode continues below...
         
         // Draw sun in background
         if (gameRunning && !cameraReversed) {
@@ -1313,13 +1354,15 @@ const StarfieldSystem = (function() {
         setStarsEnabled: (val) => { starsEnabled = val; },
         setStrangerMode: (val) => { 
             strangerMode = val; 
-            if (val && upsideDownParticles.length === 0) {
-                initUpsideDownParticles();
+            if (val && ashParticles.length === 0) {
+                initAshParticles();
             }
+            // Clear vine cache so it regenerates for each canvas
+            vineCanvasCache.clear();
         },
         
         // Stranger mode vine drawing (for game canvas overlay)
-        drawVinesOverlay: drawUpsideDownVines,
+        drawVinesOverlay: drawVinesOverlay,
         isStrangerMode: () => strangerMode,
         
         // Sound callback
