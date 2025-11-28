@@ -127,6 +127,7 @@
             flex-shrink: 0; /* Prevent shrinking */
             flex-grow: 1; /* Allow growing to take available space */
             min-width: 0; /* Allow shrinking below content width */
+            overflow: hidden; /* Prevent content from extending beyond bounds */
         }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
@@ -141,10 +142,15 @@
             box-shadow: none !important;
             max-height: none !important;
             transition: none !important;
+            pointer-events: none !important;
         }
         .vineWrapper {
             display: inline-block;
             position: relative;
+            pointer-events: none;
+        }
+        .vineWrapper > canvas:first-child {
+            pointer-events: auto;
         }
         canvas.tsunami-active {
             border-color: gold;
@@ -400,6 +406,7 @@
             flex-direction: column;
             gap: 1vh;
             position: relative;
+            z-index: 5; /* Ensure panel is above other elements */
             flex-shrink: 1; /* Allow some shrinking if needed */
             flex-grow: 0; /* Don't grow */
             transition: left 0.3s ease, width 0.3s ease;
@@ -1398,6 +1405,9 @@
             overflow-y: auto;
             overflow-x: visible;
             height: 100%;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
         }
         
         .leaderboard-title {
@@ -1425,6 +1435,7 @@
             border-collapse: collapse;
             font-size: 13px;
             overflow: visible;
+            position: relative;
         }
         
         .leaderboard-table th {
@@ -1433,6 +1444,9 @@
             text-align: left;
             border-bottom: 2px solid #FFD700;
             font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
         
         .leaderboard-table td {
@@ -1472,6 +1486,7 @@
         .leaderboard-table .challenges-col {
             width: 8%;
             text-align: center;
+            cursor: help;
         }
         
         .challenge-count {
@@ -1482,9 +1497,14 @@
             border-radius: 4px;
             font-weight: bold;
             font-size: 12px;
+            pointer-events: auto;
         }
         
         .leaderboard-table tr.has-challenges {
+            cursor: help;
+        }
+        
+        .leaderboard-table tr.has-challenges td {
             cursor: help;
         }
         
