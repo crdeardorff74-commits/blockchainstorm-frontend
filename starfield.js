@@ -48,14 +48,14 @@ const StarfieldSystem = (function() {
         return {
             x: Math.random() * 2000,
             y: Math.random() * 2000,
-            size: 1 + Math.random() * 3,  // Small, 1-4 pixels
+            size: 2 + Math.random() * 4,  // Slightly larger, 2-6 pixels
             rotation: Math.random() * Math.PI * 2,
-            rotationSpeed: (Math.random() - 0.5) * 0.005, // Very slow rotation
-            driftX: (Math.random() - 0.5) * 0.15,  // Very subtle horizontal drift
-            driftY: 0.05 + Math.random() * 0.1,    // Very slow downward drift
+            rotationSpeed: (Math.random() - 0.5) * 0.002, // Even slower rotation
+            driftX: (Math.random() - 0.5) * 0.08,  // Even more subtle horizontal drift
+            driftY: 0.02 + Math.random() * 0.05,   // Much slower downward drift
             wobblePhase: Math.random() * Math.PI * 2,
-            wobbleSpeed: 0.01 + Math.random() * 0.02,
-            opacity: 0.2 + Math.random() * 0.4,  // Semi-transparent
+            wobbleSpeed: 0.005 + Math.random() * 0.01,
+            opacity: 0.15 + Math.random() * 0.35,  // Semi-transparent
             // Irregular shape - random number of points
             points: Math.floor(3 + Math.random() * 4), // 3-6 points
             irregularity: []
@@ -75,7 +75,7 @@ const StarfieldSystem = (function() {
         ashParticles.forEach(particle => {
             // Subtle wobble
             particle.wobblePhase += particle.wobbleSpeed;
-            const wobbleX = Math.sin(particle.wobblePhase) * 0.3;
+            const wobbleX = Math.sin(particle.wobblePhase) * 0.15;
             
             // Very slow drift
             particle.x += particle.driftX + wobbleX;
@@ -120,7 +120,7 @@ const StarfieldSystem = (function() {
         });
     }
     
-    // Static vine tendrils for game canvas edges - per-canvas cache
+    // Static vine rope wrapping around canvas edges - per-canvas cache
     const vineCanvasCache = new Map();
     
     function generateVineCache(width, height) {
@@ -130,85 +130,75 @@ const StarfieldSystem = (function() {
         cacheCanvas.height = height;
         const cacheCtx = cacheCanvas.getContext('2d');
         
-        // Dark brownish-black vine color
-        const vineColors = [
-            'rgba(40, 25, 15, 0.95)',
-            'rgba(50, 30, 20, 0.9)',
-            'rgba(35, 20, 10, 0.95)',
-            'rgba(60, 35, 20, 0.85)'
-        ];
-        
-        // Draw thick, ugly vines on all edges
-        // Left edge
-        for (let i = 0; i < 8; i++) {
-            drawStaticVine(cacheCtx, 0, height * (i / 8) + Math.random() * 20, 'right', vineColors[i % 4], width, height);
-        }
-        
-        // Right edge
-        for (let i = 0; i < 8; i++) {
-            drawStaticVine(cacheCtx, width, height * (i / 8) + Math.random() * 20, 'left', vineColors[i % 4], width, height);
-        }
-        
-        // Top edge
-        for (let i = 0; i < 6; i++) {
-            drawStaticVine(cacheCtx, width * (i / 6) + Math.random() * 20, 0, 'down', vineColors[i % 4], width, height);
-        }
-        
-        // Bottom edge
-        for (let i = 0; i < 6; i++) {
-            drawStaticVine(cacheCtx, width * (i / 6) + Math.random() * 20, height, 'up', vineColors[i % 4], width, height);
-        }
+        // Draw a rope that wraps around the entire perimeter
+        drawWrappingVineRope(cacheCtx, width, height);
         
         return cacheCanvas;
     }
     
-    function drawStaticVine(ctx, startX, startY, direction, color, maxWidth, maxHeight) {
-        const length = 25 + Math.random() * 40;
-        const segments = 6 + Math.floor(Math.random() * 4);
-        const thickness = 3 + Math.random() * 4;
+    function drawWrappingVineRope(ctx, width, height) {
+        // Dark brownish-black vine colors
+        const baseColor = 'rgba(35, 20, 10, 0.9)';
+        const highlightColor = 'rgba(55, 35, 20, 0.7)';
+        const shadowColor = 'rgba(20, 10, 5, 0.95)';
         
-        // Draw main vine
-        ctx.strokeStyle = color;
-        ctx.lineWidth = thickness;
+        const ropeWidth = Math.min(width, height) * 0.06; // Rope thickness relative to canvas
+        const edgeOffset = ropeWidth * 0.4; // How far from edge the rope center sits
+        
+        // Generate wavy path points around the perimeter
+        const points = [];
+        const segments = 60; // Points around the rectangle
+        
+        // Calculate perimeter
+        const perimeter = 2 * width + 2 * height;
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const dist = t * perimeter;
+            
+            let x, y, normalX, normalY;
+            
+            if (dist < width) {
+                // Top edge
+                x = dist;
+                y = edgeOffset;
+                normalX = 0;
+                normalY = 1;
+            } else if (dist < width + height) {
+                // Right edge
+                x = width - edgeOffset;
+                y = dist - width;
+                normalX = -1;
+                normalY = 0;
+            } else if (dist < 2 * width + height) {
+                // Bottom edge
+                x = width - (dist - width - height);
+                y = height - edgeOffset;
+                normalX = 0;
+                normalY = -1;
+            } else {
+                // Left edge
+                x = edgeOffset;
+                y = height - (dist - 2 * width - height);
+                normalX = 1;
+                normalY = 0;
+            }
+            
+            // Add subtle waviness to make it look organic
+            const wave = Math.sin(i * 0.8) * (ropeWidth * 0.15);
+            x += normalX * wave;
+            y += normalY * wave;
+            
+            points.push({ x, y, normalX, normalY });
+        }
+        
+        // Draw the main rope body (multiple passes for twisted look)
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        const points = [{ x: startX, y: startY }];
-        let x = startX;
-        let y = startY;
-        
-        for (let i = 0; i < segments; i++) {
-            const progress = (i + 1) / segments;
-            const segLength = (length / segments) * (1 - progress * 0.3);
-            const curve = (Math.random() - 0.5) * 25;
-            
-            switch(direction) {
-                case 'right':
-                    x += segLength;
-                    y += curve;
-                    break;
-                case 'left':
-                    x -= segLength;
-                    y += curve;
-                    break;
-                case 'down':
-                    y += segLength;
-                    x += curve;
-                    break;
-                case 'up':
-                    y -= segLength;
-                    x += curve;
-                    break;
-            }
-            
-            // Keep within bounds somewhat
-            x = Math.max(-10, Math.min(maxWidth + 10, x));
-            y = Math.max(-10, Math.min(maxHeight + 10, y));
-            
-            points.push({ x, y });
-        }
-        
-        // Draw the main vine path
+        // Shadow/depth layer
+        ctx.strokeStyle = shadowColor;
+        ctx.lineWidth = ropeWidth;
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
@@ -216,30 +206,71 @@ const StarfieldSystem = (function() {
         }
         ctx.stroke();
         
-        // Add veiny texture - smaller branching lines
-        ctx.lineWidth = thickness * 0.4;
-        for (let i = 1; i < points.length - 1; i++) {
-            if (Math.random() > 0.4) {
-                const branchLen = 8 + Math.random() * 15;
-                const branchAngle = Math.random() * Math.PI - Math.PI / 2;
-                ctx.beginPath();
-                ctx.moveTo(points[i].x, points[i].y);
-                ctx.lineTo(
-                    points[i].x + Math.cos(branchAngle) * branchLen,
-                    points[i].y + Math.sin(branchAngle) * branchLen
-                );
-                ctx.stroke();
+        // Main rope color
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = ropeWidth * 0.85;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        
+        // Draw twisted strand lines along the rope
+        const numStrands = 3;
+        for (let strand = 0; strand < numStrands; strand++) {
+            ctx.strokeStyle = strand === 1 ? highlightColor : shadowColor;
+            ctx.lineWidth = ropeWidth * 0.12;
+            
+            ctx.beginPath();
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                // Spiral offset around the rope
+                const spiralPhase = (i * 0.5) + (strand * Math.PI * 2 / numStrands);
+                const spiralOffset = Math.sin(spiralPhase) * (ropeWidth * 0.3);
+                
+                const px = p.x + p.normalX * spiralOffset;
+                const py = p.y + p.normalY * spiralOffset;
+                
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
             }
+            ctx.stroke();
         }
         
-        // Add bumps/nodes along the vine
-        ctx.fillStyle = color;
-        for (let i = 1; i < points.length; i++) {
-            if (Math.random() > 0.6) {
-                const nodeSize = thickness * (0.4 + Math.random() * 0.4);
+        // Add some knots/bumps along the rope
+        ctx.fillStyle = baseColor;
+        for (let i = 0; i < points.length; i += 8) {
+            const p = points[i];
+            const knotSize = ropeWidth * (0.4 + Math.random() * 0.3);
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, knotSize, knotSize * 0.7, Math.random() * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Add small tendrils/offshoots occasionally
+        ctx.strokeStyle = shadowColor;
+        ctx.lineWidth = ropeWidth * 0.15;
+        for (let i = 5; i < points.length - 5; i += 12) {
+            if (Math.random() > 0.4) {
+                const p = points[i];
+                const tendrilLen = ropeWidth * (1 + Math.random() * 1.5);
+                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.8;
+                
                 ctx.beginPath();
-                ctx.arc(points[i].x, points[i].y, nodeSize, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.moveTo(p.x, p.y);
+                
+                // Curvy tendril
+                const midX = p.x + Math.cos(tendrilAngle) * tendrilLen * 0.5;
+                const midY = p.y + Math.sin(tendrilAngle) * tendrilLen * 0.5;
+                const endX = p.x + Math.cos(tendrilAngle + 0.3) * tendrilLen;
+                const endY = p.y + Math.sin(tendrilAngle + 0.3) * tendrilLen;
+                
+                ctx.quadraticCurveTo(midX, midY, endX, endY);
+                ctx.stroke();
             }
         }
     }
@@ -437,6 +468,12 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function drawSun() {
+        // Apply invert filter for Stranger mode
+        if (strangerMode) {
+            starfieldCtx.save();
+            starfieldCtx.filter = 'invert(1)';
+        }
+        
         const maxJourney = 3920 * 2;
         const journeyRatio = Math.min(1, journeyProgress / maxJourney);
         const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
@@ -551,6 +588,11 @@ const StarfieldSystem = (function() {
                 starfieldCtx.fill();
             }
         }
+        
+        // Restore from invert filter
+        if (strangerMode) {
+            starfieldCtx.restore();
+        }
     }
     
     // ============================================
@@ -560,6 +602,12 @@ const StarfieldSystem = (function() {
     function drawPlanet(planet, position) {
         const x = centerX + position.x;
         const y = centerY + position.y;
+        
+        // Apply invert filter for Stranger mode
+        if (strangerMode) {
+            starfieldCtx.save();
+            starfieldCtx.filter = 'invert(1)';
+        }
         
         if (planetImages[planet.name]) {
             const img = planetImages[planet.name];
@@ -656,6 +704,11 @@ const StarfieldSystem = (function() {
             starfieldCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
             starfieldCtx.stroke();
             starfieldCtx.globalAlpha = 1.0;
+        }
+        
+        // Restore from invert filter
+        if (strangerMode) {
+            starfieldCtx.restore();
         }
     }
     
@@ -1111,16 +1164,13 @@ const StarfieldSystem = (function() {
         starfieldCtx.fillStyle = '#000';
         starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
         
-        // In Stranger mode, draw ash particles instead of stars/planets
+        // In Stranger mode, draw ash particles instead of stars
         if (strangerMode) {
             drawAshParticles();
-            requestAnimationFrame(animateStarfield);
-            return;
+            // Continue to draw sun/planets (they have invert filter applied)
         }
         
-        // Normal mode continues below...
-        
-        // Draw sun in background
+        // Draw sun in background (invert filter applied inside if strangerMode)
         if (gameRunning && !cameraReversed) {
             drawSun();
             if (!paused) {
