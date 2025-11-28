@@ -221,18 +221,22 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         
         // Build challenges display for challenge mode
         let challengesCell = '';
+        let hasChallenge = false;
         if (mode === 'challenge') {
             const challenges = entry.challenges || [];
             if (challenges.length > 0) {
                 const challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
-                challengesCell = `<td class="challenges-col"><span class="challenge-count" data-tooltip="${escapeHtml(challengeNames)}">${challenges.length}</span></td>`;
+                challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
+                hasChallenge = true;
             } else {
                 challengesCell = '<td class="challenges-col">-</td>';
             }
         }
         
+        const rowClasses = [rowClass, hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
+        
         html += `
-            <tr class="${rowClass}">
+            <tr class="${rowClasses}">
                 <td class="rank">${index + 1}</td>
                 <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
@@ -699,6 +703,58 @@ function formatAsBitcoin(points) {
 
 // Initialize auth check on load
 checkAuth();
+
+// Challenge tooltip handler
+(function() {
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.id = 'challengeTooltip';
+    tooltip.style.cssText = `
+        position: fixed;
+        background: rgba(0, 0, 0, 0.95);
+        color: #FFD700;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+        z-index: 100000;
+        border: 1px solid rgba(255, 215, 0, 0.5);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        display: none;
+    `;
+    document.body.appendChild(tooltip);
+    
+    let currentRow = null;
+    
+    // Event delegation for leaderboard rows
+    document.addEventListener('mouseover', (e) => {
+        const row = e.target.closest('tr.has-challenges');
+        if (row && row !== currentRow) {
+            currentRow = row;
+            const cell = row.querySelector('.challenges-col[data-challenges]');
+            if (cell) {
+                tooltip.textContent = cell.getAttribute('data-challenges');
+                tooltip.style.display = 'block';
+            }
+        }
+    });
+    
+    document.addEventListener('mouseout', (e) => {
+        const row = e.target.closest('tr.has-challenges');
+        if (row && !row.contains(e.relatedTarget)) {
+            tooltip.style.display = 'none';
+            currentRow = null;
+        }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (tooltip.style.display === 'block') {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY - 10) + 'px';
+        }
+    });
+})();
 
 // Export functions for use in game.js
 window.leaderboard = {
