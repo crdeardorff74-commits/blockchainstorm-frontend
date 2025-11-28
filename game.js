@@ -4774,6 +4774,7 @@ function switchSoRandomMode() {
     // First, remove all CSS-based challenge effects
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
+    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     // Reset canvas size in case we're coming from Thicker mode
@@ -4789,6 +4790,9 @@ function switchSoRandomMode() {
     if (newMode === 'stranger') {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
+        StarfieldSystem.createVineOverlay(canvas);
+    } else {
+        StarfieldSystem.removeVineOverlay();
     }
     if (newMode === 'thinner') {
         canvas.classList.add('thinner-mode');
@@ -5886,11 +5890,6 @@ function drawBoard() {
             }
         });
     });
-    
-    // Draw Stranger mode vines overlay on game canvas
-    if (StarfieldSystem.isStrangerMode()) {
-        StarfieldSystem.drawVinesOverlay(canvas, ctx);
-    }
 }
 
 function triggerTsunami(targetY) {
@@ -6073,10 +6072,6 @@ function drawNextPiece() {
     }
     
     // Draw Stranger mode vines overlay on next piece canvas
-    if (StarfieldSystem.isStrangerMode()) {
-        StarfieldSystem.drawVinesOverlay(nextCanvas, nextCtx);
-    }
-    
     // Restore smoothing state
     nextCtx.imageSmoothingEnabled = wasSmoothing;
 }
@@ -10111,6 +10106,7 @@ function applyChallengeMode(mode) {
     // Remove all challenge effects first
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
+    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     bouncingPieces = [];
@@ -10133,6 +10129,7 @@ function applyChallengeMode(mode) {
     if (mode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
+        StarfieldSystem.createVineOverlay(canvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
