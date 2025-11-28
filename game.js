@@ -9018,6 +9018,21 @@ async function gameOver() {
     // Determine if this is a challenge mode game
     const isChallenge = challengeMode !== 'normal';
     
+    // Build list of active challenges
+    let challengesList = [];
+    if (isChallenge) {
+        if (challengeMode === 'combo') {
+            // Combo mode - list all active challenges
+            challengesList = Array.from(activeChallenges);
+        } else if (challengeMode === 'sorandom') {
+            // So Random mode - just mark as "sorandom"
+            challengesList = ['sorandom'];
+        } else {
+            // Single challenge mode
+            challengesList = [challengeMode];
+        }
+    }
+    
     // Prepare score data for submission
     const scoreData = {
         game: 'blockchainstorm',
@@ -9029,9 +9044,10 @@ async function gameOver() {
         strikes: strikeCount,
         tsunamis: tsunamiCount,
         blackholes: blackHoleCount,
-        volcanoes: volcanoCount || 0, // Add volcanoes count
+        volcanoes: volcanoCount || 0,
         duration: Math.floor((Date.now() - gameStartTime) / 1000),
-        challengeType: isChallenge ? challengeMode : null // Track which challenge was played
+        challengeType: isChallenge ? challengeMode : null, // Track main challenge mode
+        challenges: challengesList // Track all active challenges
     };
     
     
@@ -9684,7 +9700,9 @@ document.addEventListener('keydown', e => {
     }
     
     // MENU NAVIGATION - When mode menu is visible
-    if (!modeMenu.classList.contains('hidden')) {
+    // Capture menu state at start of handler (before other handlers might change it)
+    const menuWasVisible = !modeMenu.classList.contains('hidden');
+    if (menuWasVisible) {
         if (e.key === 'ArrowUp') {
             e.preventDefault();
             selectedModeIndex = (selectedModeIndex - 1 + modeButtonsArray.length) % modeButtonsArray.length;
@@ -9705,6 +9723,7 @@ document.addEventListener('keydown', e => {
     if (gameOverDiv.style.display === 'block') {
         if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopImmediatePropagation(); // Prevent other handlers from also processing this
             playAgainBtn.click();
         }
     }
