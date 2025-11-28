@@ -289,6 +289,7 @@ function getModeDisplayName(mode) {
 function getChallengeDisplayName(challenge) {
     const names = {
         'stranger': 'Stranger',
+        'dyslexic': 'Dyslexic',
         'phantom': 'Phantom Zone',
         'gremlins': 'Gremlins',
         'rubber': 'Rubber Blocks',
