@@ -298,7 +298,14 @@ const StarfieldSystem = (function() {
         // Create wrapper with position:relative to contain the overlay
         const wrapper = document.createElement('div');
         wrapper.className = 'vineWrapper';
-        wrapper.style.cssText = 'position: relative; display: inline-block;';
+        
+        // For nextCanvas, preserve centering by using block display with auto margins
+        const isNextCanvas = targetElement.id === 'nextCanvas';
+        if (isNextCanvas) {
+            wrapper.style.cssText = 'position: relative; display: block; margin-left: auto; margin-right: auto; width: fit-content;';
+        } else {
+            wrapper.style.cssText = 'position: relative; display: inline-block;';
+        }
         
         // Insert wrapper before canvas, move canvas into wrapper
         targetElement.parentNode.insertBefore(wrapper, targetElement);
