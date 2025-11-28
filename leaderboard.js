@@ -210,6 +210,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     scores.forEach((entry, index) => {
+        // Debug: log the entry to see if challenges are present
+        if (mode === 'challenge') {
+            console.log('🎯 Entry:', entry.username, 'challenges:', entry.challenges);
+        }
+        
         const isPlayerScore = playerScore && Math.abs(entry.score - playerScore) < 100;
         const rowClass = isPlayerScore ? 'player-score' : '';
         
@@ -224,8 +229,10 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         let hasChallenge = false;
         if (mode === 'challenge') {
             const challenges = entry.challenges || [];
+            console.log('🎯 Challenges array:', challenges, 'length:', challenges.length);
             if (challenges.length > 0) {
                 const challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
+                console.log('🎯 Challenge names:', challengeNames);
                 challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
                 hasChallenge = true;
             } else {
@@ -252,7 +259,19 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         </table>
     `;
     
+    console.log('🎯 Generated HTML contains data-challenges:', html.includes('data-challenges'));
+    console.log('🎯 Generated HTML contains has-challenges:', html.includes('has-challenges'));
+    
     leaderboardContent.innerHTML = html;
+    
+    // Debug: check if elements were created
+    const challengeRows = leaderboardContent.querySelectorAll('tr.has-challenges');
+    const challengeCells = leaderboardContent.querySelectorAll('[data-challenges]');
+    console.log('🎯 Rows with has-challenges class:', challengeRows.length);
+    console.log('🎯 Cells with data-challenges:', challengeCells.length);
+    if (challengeCells.length > 0) {
+        console.log('🎯 First cell data-challenges value:', challengeCells[0].getAttribute('data-challenges'));
+    }
 }
 
 // Hide leaderboard and show rules again
@@ -706,6 +725,8 @@ checkAuth();
 
 // Challenge tooltip handler
 (function() {
+    console.log('🎯 Initializing challenge tooltip handler');
+    
     // Create tooltip element
     const tooltip = document.createElement('div');
     tooltip.id = 'challengeTooltip';
@@ -724,34 +745,58 @@ checkAuth();
         display: none;
     `;
     document.body.appendChild(tooltip);
+    console.log('🎯 Tooltip element created and appended to body');
     
-    let currentRow = null;
+    // Track mouse position
+    let mouseX = 0, mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (tooltip.style.display === 'block') {
+            tooltip.style.left = (mouseX + 15) + 'px';
+            tooltip.style.top = (mouseY - 10) + 'px';
+        }
+    });
     
-    // Event delegation for leaderboard rows
+    // Event delegation for any element with data-challenges
     document.addEventListener('mouseover', (e) => {
-        const row = e.target.closest('tr.has-challenges');
-        if (row && row !== currentRow) {
-            currentRow = row;
-            const cell = row.querySelector('.challenges-col[data-challenges]');
-            if (cell) {
-                tooltip.textContent = cell.getAttribute('data-challenges');
-                tooltip.style.display = 'block';
+        // Check if we're over an element with data-challenges or inside a row that has one
+        let target = e.target;
+        let challengeData = null;
+        
+        // Walk up to find data-challenges
+        while (target && target !== document) {
+            if (target.hasAttribute && target.hasAttribute('data-challenges')) {
+                challengeData = target.getAttribute('data-challenges');
+                break;
             }
+            // Also check if we're in a row with has-challenges class
+            if (target.tagName === 'TR' && target.classList.contains('has-challenges')) {
+                const cell = target.querySelector('[data-challenges]');
+                if (cell) {
+                    challengeData = cell.getAttribute('data-challenges');
+                }
+                break;
+            }
+            target = target.parentElement;
+        }
+        
+        if (challengeData) {
+            console.log('🎯 Showing tooltip:', challengeData);
+            tooltip.textContent = challengeData;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (mouseX + 15) + 'px';
+            tooltip.style.top = (mouseY - 10) + 'px';
         }
     });
     
     document.addEventListener('mouseout', (e) => {
+        // Hide when leaving a row with challenges
         const row = e.target.closest('tr.has-challenges');
-        if (row && !row.contains(e.relatedTarget)) {
+        const cell = e.target.closest('[data-challenges]');
+        
+        if ((row || cell) && !e.relatedTarget?.closest?.('tr.has-challenges') && !e.relatedTarget?.closest?.('[data-challenges]')) {
             tooltip.style.display = 'none';
-            currentRow = null;
-        }
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (tooltip.style.display === 'block') {
-            tooltip.style.left = (e.clientX + 15) + 'px';
-            tooltip.style.top = (e.clientY - 10) + 'px';
         }
     });
 })();
