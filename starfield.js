@@ -130,26 +130,23 @@ const StarfieldSystem = (function() {
         cacheCanvas.height = height;
         const cacheCtx = cacheCanvas.getContext('2d');
         
-        // Draw a rope that wraps around the entire perimeter
+        // Draw a rope that wraps around the entire perimeter ON the edge
         drawWrappingVineRope(cacheCtx, width, height);
         
         return cacheCanvas;
     }
     
     function drawWrappingVineRope(ctx, width, height) {
-        // Dark brownish-black vine colors
-        const baseColor = 'rgba(35, 20, 10, 0.9)';
-        const highlightColor = 'rgba(55, 35, 20, 0.7)';
-        const shadowColor = 'rgba(20, 10, 5, 0.95)';
+        // Vine colors - dark brown base with black and orange streaks
+        const baseColor = 'rgba(45, 28, 15, 0.95)';
+        const darkColor = 'rgba(15, 8, 3, 0.9)';
+        const orangeColor = 'rgba(120, 60, 20, 0.7)';
         
-        const ropeWidth = Math.min(width, height) * 0.06; // Rope thickness relative to canvas
-        const edgeOffset = ropeWidth * 0.4; // How far from edge the rope center sits
+        const ropeWidth = Math.min(width, height) * 0.025; // Thinner rope
         
-        // Generate wavy path points around the perimeter
+        // Generate wavy path points around the perimeter - ON the edge (0 offset)
         const points = [];
-        const segments = 60; // Points around the rectangle
-        
-        // Calculate perimeter
+        const segments = 80;
         const perimeter = 2 * width + 2 * height;
         
         for (let i = 0; i <= segments; i++) {
@@ -161,43 +158,43 @@ const StarfieldSystem = (function() {
             if (dist < width) {
                 // Top edge
                 x = dist;
-                y = edgeOffset;
+                y = 0;
                 normalX = 0;
                 normalY = 1;
             } else if (dist < width + height) {
                 // Right edge
-                x = width - edgeOffset;
+                x = width;
                 y = dist - width;
                 normalX = -1;
                 normalY = 0;
             } else if (dist < 2 * width + height) {
                 // Bottom edge
                 x = width - (dist - width - height);
-                y = height - edgeOffset;
+                y = height;
                 normalX = 0;
                 normalY = -1;
             } else {
                 // Left edge
-                x = edgeOffset;
+                x = 0;
                 y = height - (dist - 2 * width - height);
                 normalX = 1;
                 normalY = 0;
             }
             
-            // Add subtle waviness to make it look organic
-            const wave = Math.sin(i * 0.8) * (ropeWidth * 0.15);
+            // Subtle waviness along the edge
+            const wave = Math.sin(i * 1.2) * (ropeWidth * 0.2);
             x += normalX * wave;
             y += normalY * wave;
             
             points.push({ x, y, normalX, normalY });
         }
         
-        // Draw the main rope body (multiple passes for twisted look)
+        // Draw the main rope body
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        // Shadow/depth layer
-        ctx.strokeStyle = shadowColor;
+        // Base rope layer
+        ctx.strokeStyle = baseColor;
         ctx.lineWidth = ropeWidth;
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
@@ -206,28 +203,19 @@ const StarfieldSystem = (function() {
         }
         ctx.stroke();
         
-        // Main rope color
-        ctx.strokeStyle = baseColor;
-        ctx.lineWidth = ropeWidth * 0.85;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.stroke();
-        
-        // Draw twisted strand lines along the rope
-        const numStrands = 3;
+        // Draw twisted strand lines along the rope (creates rope texture)
+        const numStrands = 4;
         for (let strand = 0; strand < numStrands; strand++) {
-            ctx.strokeStyle = strand === 1 ? highlightColor : shadowColor;
-            ctx.lineWidth = ropeWidth * 0.12;
+            // Alternate between dark and orange streaks
+            ctx.strokeStyle = strand % 2 === 0 ? darkColor : orangeColor;
+            ctx.lineWidth = ropeWidth * 0.15;
             
             ctx.beginPath();
             for (let i = 0; i < points.length; i++) {
                 const p = points[i];
                 // Spiral offset around the rope
-                const spiralPhase = (i * 0.5) + (strand * Math.PI * 2 / numStrands);
-                const spiralOffset = Math.sin(spiralPhase) * (ropeWidth * 0.3);
+                const spiralPhase = (i * 0.6) + (strand * Math.PI * 2 / numStrands);
+                const spiralOffset = Math.sin(spiralPhase) * (ropeWidth * 0.35);
                 
                 const px = p.x + p.normalX * spiralOffset;
                 const py = p.y + p.normalY * spiralOffset;
@@ -241,35 +229,37 @@ const StarfieldSystem = (function() {
             ctx.stroke();
         }
         
-        // Add some knots/bumps along the rope
-        ctx.fillStyle = baseColor;
-        for (let i = 0; i < points.length; i += 8) {
-            const p = points[i];
-            const knotSize = ropeWidth * (0.4 + Math.random() * 0.3);
+        // Add some darker patches/shadows for depth
+        ctx.strokeStyle = darkColor;
+        ctx.lineWidth = ropeWidth * 0.3;
+        for (let i = 10; i < points.length - 10; i += 15) {
+            const startIdx = i;
+            const endIdx = Math.min(i + 5, points.length - 1);
             ctx.beginPath();
-            ctx.ellipse(p.x, p.y, knotSize, knotSize * 0.7, Math.random() * Math.PI, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.moveTo(points[startIdx].x, points[startIdx].y);
+            for (let j = startIdx + 1; j <= endIdx; j++) {
+                ctx.lineTo(points[j].x, points[j].y);
+            }
+            ctx.stroke();
         }
         
-        // Add small tendrils/offshoots occasionally
-        ctx.strokeStyle = shadowColor;
-        ctx.lineWidth = ropeWidth * 0.15;
-        for (let i = 5; i < points.length - 5; i += 12) {
-            if (Math.random() > 0.4) {
+        // Add small tendrils/offshoots occasionally pointing inward
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = ropeWidth * 0.2;
+        for (let i = 8; i < points.length - 8; i += 10) {
+            if (Math.random() > 0.5) {
                 const p = points[i];
-                const tendrilLen = ropeWidth * (1 + Math.random() * 1.5);
-                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.8;
+                const tendrilLen = ropeWidth * (0.8 + Math.random() * 1.2);
+                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.5;
                 
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y);
                 
-                // Curvy tendril
-                const midX = p.x + Math.cos(tendrilAngle) * tendrilLen * 0.5;
-                const midY = p.y + Math.sin(tendrilAngle) * tendrilLen * 0.5;
-                const endX = p.x + Math.cos(tendrilAngle + 0.3) * tendrilLen;
-                const endY = p.y + Math.sin(tendrilAngle + 0.3) * tendrilLen;
+                // Curvy tendril pointing inward
+                const endX = p.x + Math.cos(tendrilAngle) * tendrilLen;
+                const endY = p.y + Math.sin(tendrilAngle) * tendrilLen;
                 
-                ctx.quadraticCurveTo(midX, midY, endX, endY);
+                ctx.lineTo(endX, endY);
                 ctx.stroke();
             }
         }
@@ -468,12 +458,6 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function drawSun() {
-        // Apply invert filter for Stranger mode
-        if (strangerMode) {
-            starfieldCtx.save();
-            starfieldCtx.filter = 'invert(1)';
-        }
-        
         const maxJourney = 3920 * 2;
         const journeyRatio = Math.min(1, journeyProgress / maxJourney);
         const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
@@ -498,13 +482,26 @@ const StarfieldSystem = (function() {
         const g = Math.floor(200 + (55 * transitionProgress));
         const b = Math.floor(100 * transitionProgress);
         
+        // For Stranger mode, draw to offscreen canvas then apply selective invert
+        let targetCtx = starfieldCtx;
+        let offscreenCanvas = null;
+        
+        if (strangerMode) {
+            offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = starfieldCanvas.width;
+            offscreenCanvas.height = starfieldCanvas.height;
+            targetCtx = offscreenCanvas.getContext('2d');
+            targetCtx.fillStyle = '#000';
+            targetCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        }
+        
         if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
-            starfieldCtx.save();
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
-            starfieldCtx.clip();
+            targetCtx.save();
+            targetCtx.beginPath();
+            targetCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+            targetCtx.clip();
             
-            starfieldCtx.drawImage(
+            targetCtx.drawImage(
                 sunImage,
                 centerX - sunSize,
                 centerY - sunSize,
@@ -512,19 +509,19 @@ const StarfieldSystem = (function() {
                 sunSize * 2
             );
             
-            starfieldCtx.restore();
+            targetCtx.restore();
             
             if (morphToWhite > 0) {
-                starfieldCtx.save();
-                starfieldCtx.globalAlpha = morphToWhite;
-                starfieldCtx.fillStyle = '#FFFFFF';
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                starfieldCtx.restore();
+                targetCtx.save();
+                targetCtx.globalAlpha = morphToWhite;
+                targetCtx.fillStyle = '#FFFFFF';
+                targetCtx.beginPath();
+                targetCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                targetCtx.fill();
+                targetCtx.restore();
             }
             
-            const glowGradient = starfieldCtx.createRadialGradient(
+            const glowGradient = targetCtx.createRadialGradient(
                 centerX, centerY, sunSize,
                 centerX, centerY, sunSize * 1.8
             );
@@ -532,18 +529,18 @@ const StarfieldSystem = (function() {
             glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
             glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
             
-            starfieldCtx.fillStyle = glowGradient;
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-            starfieldCtx.fill();
+            targetCtx.fillStyle = glowGradient;
+            targetCtx.beginPath();
+            targetCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+            targetCtx.fill();
         } else {
             if (sunSize <= 4) {
-                starfieldCtx.fillStyle = '#FFFFFF';
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = '#FFFFFF';
+                targetCtx.beginPath();
+                targetCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                const starGlow = starfieldCtx.createRadialGradient(
+                const starGlow = targetCtx.createRadialGradient(
                     centerX, centerY, 0,
                     centerX, centerY, sunSize * 3
                 );
@@ -551,12 +548,12 @@ const StarfieldSystem = (function() {
                 starGlow.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
                 starGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 
-                starfieldCtx.fillStyle = starGlow;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize * 3, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = starGlow;
+                targetCtx.beginPath();
+                targetCtx.arc(centerX, centerY, sunSize * 3, 0, Math.PI * 2);
+                targetCtx.fill();
             } else {
-                const glowGradient = starfieldCtx.createRadialGradient(
+                const glowGradient = targetCtx.createRadialGradient(
                     centerX, centerY, sunSize,
                     centerX, centerY, sunSize * 1.8
                 );
@@ -564,12 +561,12 @@ const StarfieldSystem = (function() {
                 glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
                 glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
                 
-                starfieldCtx.fillStyle = glowGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = glowGradient;
+                targetCtx.beginPath();
+                targetCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                const bodyGradient = starfieldCtx.createRadialGradient(
+                const bodyGradient = targetCtx.createRadialGradient(
                     centerX - sunSize * 0.3, centerY - sunSize * 0.3, sunSize * 0.1,
                     centerX, centerY, sunSize
                 );
@@ -582,17 +579,43 @@ const StarfieldSystem = (function() {
                 bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor(b * 0.5)})`);
                 bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 0.95)}, ${Math.floor(g * 0.9)}, ${Math.floor(b * 0.3)})`);
                 
-                starfieldCtx.fillStyle = bodyGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = bodyGradient;
+                targetCtx.beginPath();
+                targetCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
+                targetCtx.fill();
             }
         }
         
-        // Restore from invert filter
-        if (strangerMode) {
-            starfieldCtx.restore();
+        // Apply selective inversion for Stranger mode
+        if (strangerMode && offscreenCanvas) {
+            applySelectiveInvert(offscreenCanvas, targetCtx, starfieldCtx);
         }
+    }
+    
+    // Invert colors but preserve very dark pixels (threshold-based)
+    function applySelectiveInvert(srcCanvas, srcCtx, destCtx) {
+        const imageData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+        const data = imageData.data;
+        const threshold = 20; // Don't invert pixels darker than this
+        
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Calculate brightness
+            const brightness = (r + g + b) / 3;
+            
+            // Only invert if above threshold
+            if (brightness > threshold) {
+                data[i] = 255 - r;
+                data[i + 1] = 255 - g;
+                data[i + 2] = 255 - b;
+            }
+        }
+        
+        srcCtx.putImageData(imageData, 0, 0);
+        destCtx.drawImage(srcCanvas, 0, 0);
     }
     
     // ============================================
@@ -603,21 +626,30 @@ const StarfieldSystem = (function() {
         const x = centerX + position.x;
         const y = centerY + position.y;
         
-        // Apply invert filter for Stranger mode
+        // For Stranger mode, draw to offscreen canvas then apply selective invert
+        let targetCtx = starfieldCtx;
+        let offscreenCanvas = null;
+        const padding = Math.max(planet.size * 2, 50) + 20;
+        
         if (strangerMode) {
-            starfieldCtx.save();
-            starfieldCtx.filter = 'invert(1)';
+            offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = padding * 2;
+            offscreenCanvas.height = padding * 2;
+            targetCtx = offscreenCanvas.getContext('2d');
+            targetCtx.fillStyle = '#000';
+            targetCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            targetCtx.translate(padding - x, padding - y);
         }
         
         if (planetImages[planet.name]) {
             const img = planetImages[planet.name];
             
-            starfieldCtx.save();
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
-            starfieldCtx.clip();
+            targetCtx.save();
+            targetCtx.beginPath();
+            targetCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+            targetCtx.clip();
             
-            starfieldCtx.drawImage(
+            targetCtx.drawImage(
                 img,
                 x - planet.size,
                 y - planet.size,
@@ -625,9 +657,9 @@ const StarfieldSystem = (function() {
                 planet.size * 2
             );
             
-            starfieldCtx.restore();
+            targetCtx.restore();
             
-            const shadingGradient = starfieldCtx.createRadialGradient(
+            const shadingGradient = targetCtx.createRadialGradient(
                 x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
                 x, y, planet.size
             );
@@ -635,46 +667,46 @@ const StarfieldSystem = (function() {
             shadingGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0)');
             shadingGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
             
-            starfieldCtx.fillStyle = shadingGradient;
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
-            starfieldCtx.fill();
+            targetCtx.fillStyle = shadingGradient;
+            targetCtx.beginPath();
+            targetCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+            targetCtx.fill();
         } else {
             if (planet.name === 'Earth') {
-                const earthGradient = starfieldCtx.createRadialGradient(
+                const earthGradient = targetCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
                     x, y, planet.size
                 );
                 earthGradient.addColorStop(0, '#87CEEB');
                 earthGradient.addColorStop(0.7, '#4169E1');
                 earthGradient.addColorStop(1, '#191970');
-                starfieldCtx.fillStyle = earthGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = earthGradient;
+                targetCtx.beginPath();
+                targetCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                starfieldCtx.fillStyle = '#228B22';
-                starfieldCtx.globalAlpha = 1.0;
+                targetCtx.fillStyle = '#228B22';
+                targetCtx.globalAlpha = 1.0;
                 
-                starfieldCtx.beginPath();
-                starfieldCtx.ellipse(x + planet.size * 0.2, y - planet.size * 0.1, planet.size * 0.35, planet.size * 0.25, 0.5, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.beginPath();
+                targetCtx.ellipse(x + planet.size * 0.2, y - planet.size * 0.1, planet.size * 0.35, planet.size * 0.25, 0.5, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                starfieldCtx.beginPath();
-                starfieldCtx.ellipse(x - planet.size * 0.3, y + planet.size * 0.2, planet.size * 0.2, planet.size * 0.15, -0.3, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.beginPath();
+                targetCtx.ellipse(x - planet.size * 0.3, y + planet.size * 0.2, planet.size * 0.2, planet.size * 0.15, -0.3, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                starfieldCtx.fillStyle = '#FFFFFF';
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(x, y - planet.size * 0.75, planet.size * 0.25, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(x + planet.size * 0.4, y - planet.size * 0.25, planet.size * 0.15, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = '#FFFFFF';
+                targetCtx.beginPath();
+                targetCtx.arc(x, y - planet.size * 0.75, planet.size * 0.25, 0, Math.PI * 2);
+                targetCtx.fill();
+                targetCtx.beginPath();
+                targetCtx.arc(x + planet.size * 0.4, y - planet.size * 0.25, planet.size * 0.15, 0, Math.PI * 2);
+                targetCtx.fill();
                 
-                starfieldCtx.globalAlpha = 1.0;
+                targetCtx.globalAlpha = 1.0;
             } else {
-                const bodyGradient = starfieldCtx.createRadialGradient(
+                const bodyGradient = targetCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
                     x, y, planet.size
                 );
@@ -683,33 +715,59 @@ const StarfieldSystem = (function() {
                 bodyGradient.addColorStop(0.5, planet.color);
                 bodyGradient.addColorStop(1, darkenColor(planet.color, 40));
                 
-                starfieldCtx.fillStyle = bodyGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
-                starfieldCtx.fill();
+                targetCtx.fillStyle = bodyGradient;
+                targetCtx.beginPath();
+                targetCtx.arc(x, y, planet.size, 0, Math.PI * 2);
+                targetCtx.fill();
             }
         }
         
         if (planet.hasRings) {
-            starfieldCtx.globalAlpha = 1.0;
-            starfieldCtx.strokeStyle = '#D4A76A';
-            starfieldCtx.lineWidth = planet.size * 0.15;
-            starfieldCtx.beginPath();
-            starfieldCtx.ellipse(x, y, planet.size * 1.8, planet.size * 0.4, 0, 0, Math.PI * 2);
-            starfieldCtx.stroke();
+            targetCtx.globalAlpha = 1.0;
+            targetCtx.strokeStyle = '#D4A76A';
+            targetCtx.lineWidth = planet.size * 0.15;
+            targetCtx.beginPath();
+            targetCtx.ellipse(x, y, planet.size * 1.8, planet.size * 0.4, 0, 0, Math.PI * 2);
+            targetCtx.stroke();
             
-            starfieldCtx.strokeStyle = '#8B7355';
-            starfieldCtx.lineWidth = planet.size * 0.08;
-            starfieldCtx.beginPath();
-            starfieldCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
-            starfieldCtx.stroke();
-            starfieldCtx.globalAlpha = 1.0;
+            targetCtx.strokeStyle = '#8B7355';
+            targetCtx.lineWidth = planet.size * 0.08;
+            targetCtx.beginPath();
+            targetCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
+            targetCtx.stroke();
+            targetCtx.globalAlpha = 1.0;
         }
         
-        // Restore from invert filter
-        if (strangerMode) {
-            starfieldCtx.restore();
+        // Apply selective inversion for Stranger mode
+        if (strangerMode && offscreenCanvas) {
+            targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+            applySelectiveInvertRegion(offscreenCanvas, targetCtx, starfieldCtx, x - padding, y - padding);
         }
+    }
+    
+    // Invert colors for a region and draw to destination (preserves dark pixels)
+    function applySelectiveInvertRegion(srcCanvas, srcCtx, destCtx, destX, destY) {
+        const imageData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+        const data = imageData.data;
+        const threshold = 20;
+        
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const brightness = (r + g + b) / 3;
+            
+            if (brightness > threshold) {
+                data[i] = 255 - r;
+                data[i + 1] = 255 - g;
+                data[i + 2] = 255 - b;
+            } else {
+                data[i + 3] = 0; // Make dark pixels transparent
+            }
+        }
+        
+        srcCtx.putImageData(imageData, 0, 0);
+        destCtx.drawImage(srcCanvas, destX, destY);
     }
     
     // ============================================
@@ -1304,8 +1362,8 @@ const StarfieldSystem = (function() {
             }
         }
         
-        // Draw stars (only if enabled)
-        if (starsEnabled) {
+        // Draw stars (only if enabled and not in stranger mode)
+        if (starsEnabled && !strangerMode) {
             stars.forEach(star => {
                 if (cameraReversed) {
                     star.z -= starSpeed;
