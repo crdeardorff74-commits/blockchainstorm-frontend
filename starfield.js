@@ -349,9 +349,10 @@ const StarfieldSystem = (function() {
         const { canvas: overlayCanvas, ctx: overlayCtx } = overlay;
         const extend = 15;
         
-        // Get canvas size
-        const width = targetElement.offsetWidth;
-        const height = targetElement.offsetHeight;
+        // Get the VISUAL size of the canvas (what's actually displayed on screen)
+        const rect = targetElement.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
         
         // Set overlay size
         const overlayWidth = width + extend * 2;
@@ -410,8 +411,8 @@ const StarfieldSystem = (function() {
     }
     
     function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight) {
-        const baseRopeWidth = Math.min(innerWidth, innerHeight) * 0.022;
-        const coilFrequency = 0.32;
+        const baseRopeWidth = Math.min(innerWidth, innerHeight) * 0.015;
+        const coilFrequency = 0.18; // Less frequent coiling
         
         // Generate path points around the perimeter
         const points = [];
@@ -449,12 +450,11 @@ const StarfieldSystem = (function() {
             const coilPhase = i * coilFrequency;
             const coilSin = Math.sin(coilPhase);
             
-            // Position oscillates: positive = toward inside (front), negative = toward outside (back)
-            const coilOffset = coilSin * baseRopeWidth * 0.6;
+            // Much smaller offset - stays close to the edge
+            const coilOffset = coilSin * baseRopeWidth * 0.25;
             x += normalX * coilOffset;
             y += normalY * coilOffset;
             
-            // Depth: 1 = fully front, 0 = fully back
             const depth = (coilSin + 1) / 2;
             
             points.push({ x, y, normalX, normalY, coilSin, depth, idx: i });
@@ -463,19 +463,17 @@ const StarfieldSystem = (function() {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        // Draw the continuous rope with smoothly varying width and color
-        // Thicker and lighter when "in front", thinner and darker when "behind"
+        // Draw continuous rope with subtle shading
         for (let i = 1; i < points.length; i++) {
             const p = points[i];
             const prevP = points[i - 1];
             
-            // Smooth color gradient based on depth
-            const r = Math.floor(12 + p.depth * 35);
-            const g = Math.floor(6 + p.depth * 18);
-            const b = Math.floor(4 + p.depth * 14);
+            const r = Math.floor(15 + p.depth * 30);
+            const g = Math.floor(8 + p.depth * 15);
+            const b = Math.floor(5 + p.depth * 12);
             
-            // Width varies: thinner in back (perspective)
-            const width = baseRopeWidth * (0.5 + p.depth * 0.6);
+            // Subtle width variation
+            const width = baseRopeWidth * (0.85 + p.depth * 0.2);
             
             ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
             ctx.lineWidth = width;
@@ -485,96 +483,44 @@ const StarfieldSystem = (function() {
             ctx.stroke();
         }
         
-        // Add "wrap-around" visual cues at transition points
-        // Small arcs that suggest the rope curving around the edge
-        for (let i = 2; i < points.length - 2; i++) {
+        // Subtle red veins
+        ctx.lineWidth = baseRopeWidth * 0.1;
+        ctx.strokeStyle = 'rgba(60, 15, 10, 0.5)';
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i < points.length; i++) {
             const p = points[i];
-            const prevP = points[i - 1];
-            
-            // Detect transitions (crossing from back to front or front to back)
-            const crossingToFront = prevP.coilSin < 0 && p.coilSin >= 0;
-            const crossingToBack = prevP.coilSin >= 0 && p.coilSin < 0;
-            
-            if (crossingToFront || crossingToBack) {
-                // Draw a small curved "wrap" line perpendicular to the rope
-                const perpX = -p.normalY;  // Perpendicular to normal (along the edge)
-                const perpY = p.normalX;
-                
-                const arcRadius = baseRopeWidth * 0.4;
-                
-                if (crossingToFront) {
-                    // Coming from behind - draw arc curving inward
-                    ctx.strokeStyle = 'rgba(45, 25, 18, 0.8)';
-                    ctx.lineWidth = baseRopeWidth * 0.25;
-                    ctx.beginPath();
-                    ctx.arc(
-                        p.x - p.normalX * arcRadius * 0.5,
-                        p.y - p.normalY * arcRadius * 0.5,
-                        arcRadius,
-                        Math.atan2(perpY, perpX) - Math.PI * 0.4,
-                        Math.atan2(perpY, perpX) + Math.PI * 0.4
-                    );
-                    ctx.stroke();
+            if (p.depth > 0.5) {
+                const offset = Math.sin(i * 0.5) * baseRopeWidth * 0.15;
+                const vx = p.x + p.normalX * offset;
+                const vy = p.y + p.normalY * offset;
+                if (!started) {
+                    ctx.moveTo(vx, vy);
+                    started = true;
                 } else {
-                    // Going behind - draw arc curving outward with shadow
-                    ctx.strokeStyle = 'rgba(5, 2, 1, 0.7)';
-                    ctx.lineWidth = baseRopeWidth * 0.3;
-                    ctx.beginPath();
-                    ctx.arc(
-                        p.x + p.normalX * arcRadius * 0.3,
-                        p.y + p.normalY * arcRadius * 0.3,
-                        arcRadius,
-                        Math.atan2(-perpY, -perpX) - Math.PI * 0.4,
-                        Math.atan2(-perpY, -perpX) + Math.PI * 0.4
-                    );
-                    ctx.stroke();
+                    ctx.lineTo(vx, vy);
                 }
+            } else if (started) {
+                ctx.stroke();
+                ctx.beginPath();
+                started = false;
             }
         }
+        if (started) ctx.stroke();
         
-        // Add subtle red veins on visible (front) portions
+        // Small tendrils
+        ctx.strokeStyle = 'rgba(25, 12, 8, 0.6)';
         ctx.lineWidth = baseRopeWidth * 0.08;
-        for (let strand = 0; strand < 2; strand++) {
-            ctx.strokeStyle = `rgba(65, 15, 10, 0.5)`;
-            ctx.beginPath();
-            let started = false;
-            for (let i = 0; i < points.length; i++) {
-                const p = points[i];
-                if (p.depth > 0.4) {
-                    const spiralPhase = (i * 0.9) + (strand * Math.PI);
-                    const offset = Math.sin(spiralPhase) * baseRopeWidth * 0.2 * p.depth;
-                    const vx = p.x + p.normalX * offset;
-                    const vy = p.y + p.normalY * offset;
-                    if (!started) {
-                        ctx.moveTo(vx, vy);
-                        started = true;
-                    } else {
-                        ctx.lineTo(vx, vy);
-                    }
-                } else if (started) {
-                    ctx.stroke();
-                    ctx.beginPath();
-                    started = false;
-                }
-            }
-            if (started) ctx.stroke();
-        }
-        
-        // Small tendrils from front portions
-        ctx.strokeStyle = 'rgba(28, 14, 10, 0.7)';
-        ctx.lineWidth = baseRopeWidth * 0.08;
-        for (let i = 15; i < points.length - 15; i += 18) {
+        for (let i = 20; i < points.length - 20; i += 25) {
             const p = points[i];
             if (p.depth > 0.6) {
-                const len = baseRopeWidth * (0.6 + Math.random() * 0.6);
-                const angle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.4;
+                const len = baseRopeWidth * (0.5 + Math.random() * 0.4);
+                const angle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.3;
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y);
-                ctx.quadraticCurveTo(
-                    p.x + Math.cos(angle) * len * 0.6,
-                    p.y + Math.sin(angle) * len * 0.6,
-                    p.x + Math.cos(angle + 0.15) * len,
-                    p.y + Math.sin(angle + 0.15) * len
+                ctx.lineTo(
+                    p.x + Math.cos(angle) * len,
+                    p.y + Math.sin(angle) * len
                 );
                 ctx.stroke();
             }
