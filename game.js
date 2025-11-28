@@ -884,10 +884,25 @@ function updateCanvasSize() {
             drawNextPiece();
         }
     }
+    
+    // Update vine overlays if in stranger mode
+    if (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.isStrangerMode && StarfieldSystem.isStrangerMode()) {
+        StarfieldSystem.updateVineOverlayPosition(canvas);
+        StarfieldSystem.updateVineOverlayPosition(nextCanvas);
+    }
 }
 
 window.addEventListener('resize', updateCanvasSize);
 window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
+
+// Also update on fullscreen change (resize may not fire on all browsers)
+document.addEventListener('fullscreenchange', () => {
+    setTimeout(updateCanvasSize, 100); // Small delay to let layout settle
+});
+document.addEventListener('webkitfullscreenchange', () => {
+    setTimeout(updateCanvasSize, 100);
+});
+
 const scoreDisplay = document.getElementById('score');
 const linesDisplay = document.getElementById('lines');
 const levelDisplay = document.getElementById('level');
