@@ -630,15 +630,27 @@ function initTouchControls() {
     
     // Movement buttons with repeat
     addRepeatingTouch(touchLeft, () => {
-        if (currentPiece && !collides(currentPiece, -1, 0)) {
-            currentPiece.x--;
+        // Check if controls should be swapped (Stranger XOR Dyslexic)
+        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
+        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
+        const shouldSwap = strangerActive !== dyslexicActive;
+        const dir = shouldSwap ? 1 : -1;
+        
+        if (currentPiece && !collides(currentPiece, dir, 0)) {
+            currentPiece.x += dir;
             playSoundEffect('move', soundToggle);
         }
     });
     
     addRepeatingTouch(touchRight, () => {
-        if (currentPiece && !collides(currentPiece, 1, 0)) {
-            currentPiece.x++;
+        // Check if controls should be swapped (Stranger XOR Dyslexic)
+        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
+        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
+        const shouldSwap = strangerActive !== dyslexicActive;
+        const dir = shouldSwap ? -1 : 1;
+        
+        if (currentPiece && !collides(currentPiece, dir, 0)) {
+            currentPiece.x += dir;
             playSoundEffect('move', soundToggle);
         }
     });
@@ -4485,7 +4497,8 @@ function getChallengeModeMultiplier() {
     } else if (challengeMode === 'combo') {
         // Variable bonus per challenge based on difficulty
         const challengeBonuses = {
-            'stranger': 0.08,     // 8%
+            'stranger': 0.07,     // 7%
+            'dyslexic': 0.06,     // 6%
             'phantom': 0.07,      // 7%
             'gremlins': 0.06,     // 6%
             'rubber': 0.05,       // 5%
@@ -4512,7 +4525,8 @@ function getChallengeModeMultiplier() {
     } else {
         // Single challenge mode - use specific bonus
         const singleChallengeBonuses = {
-            'stranger': 0.08,
+            'stranger': 0.07,
+            'dyslexic': 0.06,
             'phantom': 0.07,
             'gremlins': 0.06,
             'rubber': 0.05,
@@ -4574,7 +4588,7 @@ let gremlinsPendingRemoval = false; // Flag to prevent removal right after line 
 
 // So Random mode variables
 let soRandomCurrentMode = 'normal'; // Current active challenge in So Random mode
-let soRandomAvailableModes = ['stranger', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'carrie', 'nokings', 'longago', 'comingsoon', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial']; // Modes that can be randomly chosen
+let soRandomAvailableModes = ['stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'carrie', 'nokings', 'longago', 'comingsoon', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial']; // Modes that can be randomly chosen
 
 // Mercurial mode variables
 let mercurialTimer = 0; // Time since last color change
@@ -8800,9 +8814,16 @@ function movePiece(dir) {
     // Prevent movement during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
-    currentPiece.x += dir;
+    // Check if controls should be swapped (Stranger XOR Dyslexic)
+    const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
+    const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
+    const shouldSwap = strangerActive !== dyslexicActive; // XOR: swap if exactly one is active
+    
+    const actualDir = shouldSwap ? -dir : dir;
+    
+    currentPiece.x += actualDir;
     if (collides(currentPiece)) {
-        currentPiece.x -= dir;
+        currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
     }
@@ -9926,6 +9947,7 @@ const comboModalOverlay = document.getElementById('comboModalOverlay');
 const comboApplyBtn = document.getElementById('comboApplyBtn');
 const comboCancelBtn = document.getElementById('comboCancelBtn');
 const comboStranger = document.getElementById('comboStranger');
+const comboDyslexic = document.getElementById('comboDyslexic');
 const comboPhantom = document.getElementById('comboPhantom');
 const comboRubber = document.getElementById('comboRubber');
 const comboOz = document.getElementById('comboOz');
@@ -9946,7 +9968,8 @@ const comboBonusPercent = document.getElementById('comboBonusPercent');
 function updateComboBonusDisplay() {
     // Define bonus percentages for each challenge based on difficulty
     const challengeBonuses = {
-        'stranger': 8,     // Upside down - highest difficulty
+        'stranger': 7,     // Upside down
+        'dyslexic': 6,     // Reversed controls
         'phantom': 7,      // Invisible stack
         'gremlins': 6,     // Random disappearing blocks
         'rubber': 5,       // Bouncing pieces
@@ -9966,6 +9989,7 @@ function updateComboBonusDisplay() {
     // Map checkboxes to their challenge types
     const checkboxMap = [
         { checkbox: comboStranger, type: 'stranger' },
+        { checkbox: comboDyslexic, type: 'dyslexic' },
         { checkbox: comboPhantom, type: 'phantom' },
         { checkbox: comboRubber, type: 'rubber' },
         { checkbox: comboOz, type: 'oz' },
@@ -9994,7 +10018,7 @@ function updateComboBonusDisplay() {
 }
 
 // Add change listeners to all combo checkboxes to update bonus display
-[comboStranger, comboPhantom, comboRubber, comboOz,
+[comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
  comboLattice, comboYesAnd].forEach(checkbox => {
@@ -10042,6 +10066,7 @@ challengeSelect.addEventListener('change', (e) => {
         comboModalOverlay.style.display = 'flex';
         // Populate checkboxes with current active challenges
         comboStranger.checked = activeChallenges.has('stranger');
+        comboDyslexic.checked = activeChallenges.has('dyslexic');
         comboPhantom.checked = activeChallenges.has('phantom');
         comboRubber.checked = activeChallenges.has('rubber');
         comboOz.checked = activeChallenges.has('oz');
@@ -10105,6 +10130,7 @@ comboApplyBtn.addEventListener('click', () => {
     // Collect selected challenges
     activeChallenges.clear();
     if (comboStranger.checked) activeChallenges.add('stranger');
+    if (comboDyslexic.checked) activeChallenges.add('dyslexic');
     if (comboPhantom.checked) activeChallenges.add('phantom');
     if (comboRubber.checked) activeChallenges.add('rubber');
     if (comboOz.checked) activeChallenges.add('oz');
