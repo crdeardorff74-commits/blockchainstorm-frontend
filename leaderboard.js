@@ -210,11 +210,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     scores.forEach((entry, index) => {
-        // Debug: log the entry to see if challenges are present
-        if (mode === 'challenge') {
-            console.log('🎯 Entry:', entry.username, 'challenges:', entry.challenges);
-        }
-        
         const isPlayerScore = playerScore && Math.abs(entry.score - playerScore) < 100;
         const rowClass = isPlayerScore ? 'player-score' : '';
         
@@ -230,12 +225,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         let challengeNames = '';
         if (mode === 'challenge') {
             const challenges = entry.challenges || [];
-            console.log('🎯 Challenges array:', challenges, 'length:', challenges.length);
             if (challenges.length > 0) {
                 challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
-                console.log('🎯 Challenge names:', challengeNames);
-                // Use both data-challenges AND title attribute for backup
-                challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}" title="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
+                challengesCell = `<td class="challenges-col" data-challenges="${escapeHtml(challengeNames)}"><span class="challenge-count">${challenges.length}</span></td>`;
                 hasChallenge = true;
             } else {
                 challengesCell = '<td class="challenges-col">-</td>';
@@ -243,10 +235,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         }
         
         const rowClasses = [rowClass, hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
-        const rowTitle = hasChallenge ? `title="${escapeHtml(challengeNames)}"` : '';
         
         html += `
-            <tr class="${rowClasses}" ${rowTitle}>
+            <tr class="${rowClasses}">
                 <td class="rank">${index + 1}</td>
                 <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
@@ -262,19 +253,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         </table>
     `;
     
-    console.log('🎯 Generated HTML contains data-challenges:', html.includes('data-challenges'));
-    console.log('🎯 Generated HTML contains has-challenges:', html.includes('has-challenges'));
-    
     leaderboardContent.innerHTML = html;
-    
-    // Debug: check if elements were created
-    const challengeRows = leaderboardContent.querySelectorAll('tr.has-challenges');
-    const challengeCells = leaderboardContent.querySelectorAll('[data-challenges]');
-    console.log('🎯 Rows with has-challenges class:', challengeRows.length);
-    console.log('🎯 Cells with data-challenges:', challengeCells.length);
-    if (challengeCells.length > 0) {
-        console.log('🎯 First cell data-challenges value:', challengeCells[0].getAttribute('data-challenges'));
-    }
 }
 
 // Hide leaderboard and show rules again
@@ -726,9 +705,7 @@ function formatAsBitcoin(points) {
 // Initialize auth check on load
 checkAuth();
 
-// Challenge tooltip handler - runs immediately
-console.log('🎯 Setting up challenge tooltip handler');
-
+// Challenge tooltip handler
 const challengeTooltip = document.createElement('div');
 challengeTooltip.id = 'challengeTooltip';
 challengeTooltip.style.cssText = `
@@ -747,7 +724,6 @@ challengeTooltip.style.cssText = `
     display: none;
 `;
 document.body.appendChild(challengeTooltip);
-console.log('🎯 Tooltip element added to body');
 
 document.addEventListener('mousemove', (e) => {
     const cell = e.target.closest('[data-challenges]');
