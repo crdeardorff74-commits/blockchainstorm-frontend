@@ -87,6 +87,7 @@ async function fetchLeaderboard(difficulty, mode = 'normal') {
         const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`, {
             method: 'GET',
             mode: 'cors',
+            cache: 'no-store', // Don't use cached responses
             headers: {
                 'Accept': 'application/json'
             },
@@ -287,7 +288,7 @@ function getModeDisplayName(mode) {
 // Get display name for a challenge
 function getChallengeDisplayName(challenge) {
     const names = {
-        'stranger': 'Stranger Shapes',
+        'stranger': 'Stranger',
         'phantom': 'Phantom Zone',
         'gremlins': 'Gremlins',
         'rubber': 'Rubber Blocks',
@@ -425,19 +426,28 @@ function promptForName(scoreData) {
     const newSubmitBtn = submitBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
     
+    // Reset button state (may have been "Saving..." from previous submission)
+    newSubmitBtn.textContent = 'Submit Score';
+    newSubmitBtn.disabled = false;
+    
     const newInput = input.cloneNode(true);
     input.parentNode.replaceChild(newInput, input);
     
-    // Clear any previous input and focus
-    newInput.value = '';
+    // Pre-fill with saved username if available
+    const savedUsername = localStorage.getItem('blockchainstorm_username');
+    newInput.value = savedUsername || '';
     
     // Focus after a slight delay to ensure visibility
     setTimeout(() => {
         newInput.focus();
+        // If there's a saved name, select it so user can easily change it
+        if (savedUsername) {
+            newInput.select();
+        }
         console.log('Input focused');
     }, 150);
     
-    console.log('Input cleared and will be focused');
+    console.log('Input setup complete, saved username:', savedUsername);
     
     // Guard against double submission
     let isSubmitting = false;
@@ -459,6 +469,11 @@ function promptForName(scoreData) {
         const rawUsername = newInput.value.trim() || 'Anonymous';
         const username = censorProfanity(rawUsername);
         console.log('Submitting score with username:', username);
+        
+        // Save username for next time (save the raw input, not censored version)
+        if (rawUsername !== 'Anonymous') {
+            localStorage.setItem('blockchainstorm_username', rawUsername);
+        }
         
         // Hide overlay immediately - don't leave user waiting
         overlay.style.display = 'none';
@@ -549,8 +564,11 @@ function promptForName(scoreData) {
                 }
             };
             
-            // Fire off server submission without waiting
-            submitToServer();
+            // Fire off server submission and wait for it before showing leaderboard
+            await submitToServer();
+            
+            // Small delay to ensure server has processed the score before fetching
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // Display leaderboard with player's score highlighted
             await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode);
