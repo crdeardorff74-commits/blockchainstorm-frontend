@@ -1391,21 +1391,17 @@ function updateVolcanoAnimation() {
         
         // When warming completes, transition to eruption phase
         if (warmingProgress >= 1) {
-            console.log('🌋 Warming complete! Starting eruption...');
+            console.log('🌋 Warming complete! Starting eruption...', 'Blob size:', volcanoLavaBlob.positions.length);
             volcanoPhase = 'erupting';
             volcanoStartTime = Date.now(); // Reset timer for eruption phase
             volcanoVibrateOffset = { x: 0, y: 0 }; // Stop vibrating
             
-            // NOW remove blocks and clear the eruption column
+            // Clear the eruption column above lava (but keep lava blob visible)
             const colX = volcanoEruptionColumn;
             const lavaMaxY = Math.max(...volcanoLavaBlob.positions.map(p => p[1]));
             
-            // Remove lava blob from board
-            volcanoLavaBlob.positions.forEach(([x, y]) => {
-                board[y][x] = null;
-                isRandomBlock[y][x] = false;
-                fadingBlocks[y][x] = null;
-            });
+            // Sort lava blob positions by Y (bottom to top) for sequential removal
+            volcanoLavaBlob.positions.sort((a, b) => b[1] - a[1]); // Highest Y (bottom) first
             
             // Disintegrate blocks in eruption column above lava
             for (let y = 0; y < lavaMaxY; y++) {
@@ -1438,13 +1434,12 @@ function updateVolcanoAnimation() {
         
     } else if (volcanoPhase === 'erupting') {
         // ERUPTING PHASE: Spawn projectiles and update physics
-        const eruptionProgress = Math.min(elapsed / volcanoEruptionDuration, 1);
         
-        // Spawn lava projectiles evenly throughout eruption
-        // Calculate how many should have been spawned by now
-        const targetSpawnedByNow = Math.floor(volcanoTargetProjectiles * eruptionProgress);
+        // Spawn projectiles at a fixed rate (one every 150ms) regardless of blob size
+        const spawnInterval = 150; // ms between spawns
+        const targetSpawnedByNow = Math.floor(elapsed / spawnInterval);
         
-        // Spawn any missing projectiles
+        // Spawn any missing projectiles (up to the total blob size)
         while (volcanoProjectilesSpawned < targetSpawnedByNow && volcanoProjectilesSpawned < volcanoTargetProjectiles) {
             spawnLavaProjectile();
             volcanoProjectilesSpawned++;
@@ -1499,8 +1494,11 @@ function updateVolcanoAnimation() {
             return true; // Keep projectile
         });
         
-        // When eruption completes, apply gravity
-        if (eruptionProgress >= 1) {
+        // Eruption completes when all blocks have been ejected AND all projectiles have landed
+        const allBlocksEjected = volcanoProjectilesSpawned >= volcanoTargetProjectiles;
+        const allProjectilesLanded = volcanoProjectiles.length === 0;
+        
+        if (allBlocksEjected && allProjectilesLanded) {
             console.log('🌋 Volcano eruption complete, applying gravity');
             volcanoAnimating = false;
             volcanoActive = false;
@@ -1512,16 +1510,34 @@ function updateVolcanoAnimation() {
 
 function spawnLavaProjectile() {
     if (!volcanoLavaBlob || volcanoEruptionColumn < 0) return;
+    if (volcanoLavaBlob.positions.length === 0) return;
     
-    // Find the top of the lava blob in the eruption column
+    // Get the bottom-most block from the lava blob (already sorted bottom-first)
+    const [blockX, blockY] = volcanoLavaBlob.positions[0];
+    
+    // Remove this block from the board
+    if (board[blockY] && board[blockY][blockX]) {
+        board[blockY][blockX] = null;
+        isRandomBlock[blockY][blockX] = false;
+        if (fadingBlocks[blockY]) fadingBlocks[blockY][blockX] = null;
+    }
+    
+    // Remove from positions array
+    volcanoLavaBlob.positions.shift();
+    
+    // Find the top of the remaining lava in the eruption column for spawn point
     const lavaInColumn = volcanoLavaBlob.positions.filter(([x, y]) => x === volcanoEruptionColumn);
-    if (lavaInColumn.length === 0) return;
+    let spawnY;
+    if (lavaInColumn.length > 0) {
+        const topY = Math.min(...lavaInColumn.map(p => p[1]));
+        spawnY = topY * BLOCK_SIZE;
+    } else {
+        // Use the removed block's position
+        spawnY = blockY * BLOCK_SIZE;
+    }
     
-    const topY = Math.min(...lavaInColumn.map(p => p[1]));
-    
-    // Spawn from top of lava blob
+    // Spawn from top of lava blob (or the eruption column)
     const spawnX = volcanoEruptionColumn * BLOCK_SIZE + BLOCK_SIZE / 2;
-    const spawnY = topY * BLOCK_SIZE;
     
     // Determine horizontal direction based on which edge the volcano is against
     let direction;
@@ -1549,6 +1565,8 @@ function spawnLavaProjectile() {
         color: volcanoLavaColor,
         landed: false
     });
+    
+    console.log('🌋 Projectile spawned, remaining lava blocks:', volcanoLavaBlob.positions.length);
 }
 
 function drawVolcano() {
@@ -1635,10 +1653,41 @@ function drawVolcano() {
         ctx.translate(-volcanoVibrateOffset.x, -volcanoVibrateOffset.y);
         
     } else if (volcanoPhase === 'erupting') {
-        // ERUPTING PHASE: Draw flying lava projectiles
+        // ERUPTING PHASE: Draw remaining lava blob and flying projectiles
         
         // Get current pulsing lava color
         const lavaColor = getLavaColor();
+        
+        // Draw remaining lava blob (deteriorating from bottom up)
+        if (volcanoLavaBlob && volcanoLavaBlob.positions.length > 0) {
+            const positions = volcanoLavaBlob.positions.map(([x, y]) => [x, y]);
+            drawSolidShape(ctx, positions, lavaColor, BLOCK_SIZE, false, getFaceOpacity(), false);
+            
+            // Add glow effect
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = 0.5;
+            positions.forEach(([x, y]) => {
+                const gradient = ctx.createRadialGradient(
+                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
+                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
+                    BLOCK_SIZE * 0.3,
+                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
+                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
+                    BLOCK_SIZE * 1.2
+                );
+                gradient.addColorStop(0, lavaColor);
+                gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(
+                    x * BLOCK_SIZE - BLOCK_SIZE * 0.2,
+                    y * BLOCK_SIZE - BLOCK_SIZE * 0.2,
+                    BLOCK_SIZE * 1.4,
+                    BLOCK_SIZE * 1.4
+                );
+            });
+            ctx.restore();
+        }
         
         // Draw flying lava projectiles
         volcanoProjectiles.forEach(p => {
