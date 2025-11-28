@@ -54,10 +54,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2vh 1vw 1vh 1vw;
+            padding: 4vh 1vw 1vh 1vw;
             position: relative;
             z-index: 1;
-            height: 5vh;
+            height: 7vh;
             box-sizing: border-box;
         }
         .title {
@@ -90,11 +90,11 @@
             flex: 1;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 1vh 2vw; /* More horizontal padding */
+            align-items: flex-start;
+            padding: 0 2vw 1vh 2vw;
             position: relative;
             z-index: 1;
-            height: calc(95vh - 5vh);
+            height: calc(93vh - 7vh);
             box-sizing: border-box;
             width: 100%;
             overflow: hidden; /* Prevent overflow */
@@ -107,7 +107,7 @@
             position: relative;
             z-index: 1;
             height: 100%;
-            max-height: 90vh;
+            max-height: 88vh;
             width: 100%; /* Use full width */
             max-width: 100%; /* Prevent overflow */
             margin: 0 auto;
@@ -118,7 +118,7 @@
             padding: 0;
             border-radius: 1vh;
             position: relative;
-            height: 90vh;
+            height: 88vh;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -133,16 +133,16 @@
             display: block;
             background: transparent;
             box-shadow: 0 0 2vh rgba(0, 0, 0, 0.5);
-            max-height: 90vh;
+            max-height: 88vh;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
-        #vineOverlay {
+        .vineOverlay {
             border: none !important;
             box-shadow: none !important;
             max-height: none !important;
             transition: none !important;
         }
-        #vineWrapper {
+        .vineWrapper {
             display: inline-block;
             position: relative;
         }
@@ -316,7 +316,7 @@
             max-width: 27vw;
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            height: 88vh;
             box-sizing: border-box;
             font-size: 1.8vh;
             position: relative;
@@ -392,7 +392,7 @@
             width: 22vw;
             min-width: 220px;
             max-width: 27vw;
-            height: 90vh;
+            height: 88vh;
             box-sizing: border-box;
             overflow: visible; /* Allow tick labels to extend past edge */
             font-size: 1.4vh;
