@@ -203,6 +203,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                     <th class="score">Score</th>
                     <th>Lines</th>
                     <th>Level</th>
+                    ${mode === 'challenge' ? '<th class="challenges-col">🎯</th>' : ''}
                 </tr>
             </thead>
             <tbody>
@@ -218,6 +219,18 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
         const eventsStr = events.length > 0 ? `<br><span class="special-events">${events.join(' ')}</span>` : '';
         
+        // Build challenges display for challenge mode
+        let challengesCell = '';
+        if (mode === 'challenge') {
+            const challenges = entry.challenges || [];
+            if (challenges.length > 0) {
+                const challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
+                challengesCell = `<td class="challenges-col"><span class="challenge-count" title="${escapeHtml(challengeNames)}">${challenges.length}</span></td>`;
+            } else {
+                challengesCell = '<td class="challenges-col">-</td>';
+            }
+        }
+        
         html += `
             <tr class="${rowClass}">
                 <td class="rank">${index + 1}</td>
@@ -225,6 +238,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
                 <td>${entry.lines}</td>
                 <td>${entry.level}</td>
+                ${challengesCell}
             </tr>
         `;
     });
@@ -263,6 +277,31 @@ function getModeDisplayName(mode) {
         'hurricane': '🌀 Hurricane'
     };
     return names[mode] || mode;
+}
+
+// Get display name for a challenge
+function getChallengeDisplayName(challenge) {
+    const names = {
+        'stranger': 'Stranger Shapes',
+        'phantom': 'Phantom Zone',
+        'gremlins': 'Gremlins',
+        'rubber': 'Rubber Blocks',
+        'oz': 'Land of Oz',
+        'lattice': 'Lattice',
+        'yesand': 'Yes, And...',
+        'sixseven': '6s and 7s',
+        'longago': 'Long Ago',
+        'comingsoon': 'Coming Soon',
+        'thinner': 'Thinner',
+        'thicker': 'Thicker',
+        'nervous': 'Nervous',
+        'carrie': 'Carrie',
+        'nokings': 'No Kings',
+        'mercurial': 'Mercurial',
+        'sorandom': 'So Random',
+        'combo': 'Combo'
+    };
+    return names[challenge] || challenge;
 }
 
 // Check if score makes top 20
@@ -443,6 +482,7 @@ function promptForName(scoreData) {
                 strikes: scoreData.strikes || 0,
                 tsunamis: scoreData.tsunamis || 0,
                 blackholes: scoreData.blackholes || 0,
+                challenges: scoreData.challenges || [],
                 played_at: new Date().toISOString()
             };
             
@@ -559,6 +599,7 @@ document.addEventListener('keydown', (e) => {
         displayLeaderboard(modes[newIndex], lastPlayerScore, currentLeaderboardGameMode);
     } else if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopImmediatePropagation(); // Prevent game.js handler from also processing this
         // Go to menu instead of starting game directly
         const playAgainBtn = document.getElementById('playAgainBtn');
         if (playAgainBtn) {
