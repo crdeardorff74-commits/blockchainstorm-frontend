@@ -737,10 +737,10 @@ document.addEventListener('mousemove', (e) => {
             challengeTooltip.style.display = 'block';
             challengeTooltip.style.left = (e.clientX + 15) + 'px';
             challengeTooltip.style.top = (e.clientY + 15) + 'px';
+            return;
         }
-    } else {
-        challengeTooltip.style.display = 'none';
     }
+    challengeTooltip.style.display = 'none';
 });
 
 // Export functions for use in game.js
