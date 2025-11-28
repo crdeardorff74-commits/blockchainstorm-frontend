@@ -761,19 +761,6 @@ const StarfieldSystem = (function() {
                 starfieldCtx.fill();
                 starfieldCtx.restore();
             }
-            
-            const glowGradient = starfieldCtx.createRadialGradient(
-                centerX, centerY, sunSize,
-                centerX, centerY, sunSize * 1.8
-            );
-            const glowAlpha = 0.4 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5);
-            glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
-            glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-            
-            starfieldCtx.fillStyle = glowGradient;
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-            starfieldCtx.fill();
         } else {
             if (sunSize <= 4) {
                 starfieldCtx.fillStyle = '#FFFFFF';
@@ -794,19 +781,7 @@ const StarfieldSystem = (function() {
                 starfieldCtx.arc(centerX, centerY, sunSize * 3, 0, Math.PI * 2);
                 starfieldCtx.fill();
             } else {
-                const glowGradient = starfieldCtx.createRadialGradient(
-                    centerX, centerY, sunSize,
-                    centerX, centerY, sunSize * 1.8
-                );
-                const glowAlpha = 0.6 * (1 - transitionProgress * 0.5);
-                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
-                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-                
-                starfieldCtx.fillStyle = glowGradient;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                
+                // Procedural sun body (no glow)
                 const bodyGradient = starfieldCtx.createRadialGradient(
                     centerX - sunSize * 0.3, centerY - sunSize * 0.3, sunSize * 0.1,
                     centerX, centerY, sunSize
