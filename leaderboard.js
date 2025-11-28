@@ -225,7 +225,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
             const challenges = entry.challenges || [];
             if (challenges.length > 0) {
                 const challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
-                challengesCell = `<td class="challenges-col"><span class="challenge-count" title="${escapeHtml(challengeNames)}">${challenges.length}</span></td>`;
+                challengesCell = `<td class="challenges-col"><span class="challenge-count" data-tooltip="${escapeHtml(challengeNames)}">${challenges.length}</span></td>`;
             } else {
                 challengesCell = '<td class="challenges-col">-</td>';
             }
