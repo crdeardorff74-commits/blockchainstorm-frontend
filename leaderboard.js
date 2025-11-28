@@ -79,13 +79,22 @@ window.testHighScore = async function(testScore = 1000000) {
 async function fetchLeaderboard(difficulty, mode = 'normal') {
     try {
         console.log(`Fetching leaderboard for ${difficulty} (${mode}) from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`);
+        
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
         const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`, {
             method: 'GET',
             mode: 'cors',
             headers: {
                 'Accept': 'application/json'
-            }
+            },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -93,7 +102,11 @@ async function fetchLeaderboard(difficulty, mode = 'normal') {
         console.log('Leaderboard data received:', data);
         return data.leaderboard || [];
     } catch (error) {
-        console.error('Error fetching leaderboard, using local storage fallback:', error);
+        if (error.name === 'AbortError') {
+            console.error('Leaderboard fetch timed out, using local storage fallback');
+        } else {
+            console.error('Error fetching leaderboard, using local storage fallback:', error);
+        }
         return getLocalLeaderboard(difficulty, mode);
     }
 }
@@ -364,26 +377,31 @@ function promptForName(scoreData) {
     
     console.log('✅ Name entry overlay should now be visible');
     
-    // Clear any previous input
-    input.value = '';
+    // Remove any existing event listeners by cloning the elements
+    const newSubmitBtn = submitBtn.cloneNode(true);
+    submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+    
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    // Clear any previous input and focus
+    newInput.value = '';
     
     // Focus after a slight delay to ensure visibility
     setTimeout(() => {
-        input.focus();
+        newInput.focus();
         console.log('Input focused');
     }, 150);
     
     console.log('Input cleared and will be focused');
-    
-    // Remove any existing event listeners by cloning the button
-    const newSubmitBtn = submitBtn.cloneNode(true);
-    submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
     
     // Guard against double submission
     let isSubmitting = false;
     
     // Add submit handler
     const handleSubmit = async () => {
+        console.log('=== handleSubmit START ===');
+        
         // Prevent double submission
         if (isSubmitting) {
             console.log('Already submitting, ignoring duplicate');
@@ -392,13 +410,15 @@ function promptForName(scoreData) {
         isSubmitting = true;
         newSubmitBtn.disabled = true;
         newSubmitBtn.textContent = 'Saving...';
+        console.log('Button set to Saving...');
         
-        const rawUsername = input.value.trim() || 'Anonymous';
+        const rawUsername = newInput.value.trim() || 'Anonymous';
         const username = censorProfanity(rawUsername);
         console.log('Submitting score with username:', username);
         
-        // Hide the overlay
+        // Hide overlay immediately - don't leave user waiting
         overlay.style.display = 'none';
+        console.log('Overlay hidden');
         
         // Don't save 0 scores
         if (scoreData.score <= 0) {
@@ -410,66 +430,102 @@ function promptForName(scoreData) {
             return;
         }
         
-        // Save to local leaderboard
-        const localScores = await fetchLeaderboard(scoreData.difficulty, scoreData.mode);
-        
-        const newEntry = {
-            username: username,
-            score: scoreData.score,
-            lines: scoreData.lines,
-            level: scoreData.level,
-            strikes: scoreData.strikes || 0,
-            tsunamis: scoreData.tsunamis || 0,
-            blackholes: scoreData.blackholes || 0,
-            played_at: new Date().toISOString()
-        };
-        
-        const updatedScores = [...localScores, newEntry]
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 20);
-        
-        saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
-        console.log('Score saved to local leaderboard');
-        
-        // Try to submit to server
         try {
-            const dataToSubmit = {
-                ...scoreData,
-                username: username
+            // Save to local leaderboard first using local data only (no network)
+            const localScores = getLocalLeaderboard(scoreData.difficulty, scoreData.mode);
+            console.log('Got local scores:', localScores.length);
+            
+            const newEntry = {
+                username: username,
+                score: scoreData.score,
+                lines: scoreData.lines,
+                level: scoreData.level,
+                strikes: scoreData.strikes || 0,
+                tsunamis: scoreData.tsunamis || 0,
+                blackholes: scoreData.blackholes || 0,
+                played_at: new Date().toISOString()
             };
             
-            const response = await fetch(`${API_URL}/scores/submit`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(dataToSubmit)
-            });
+            const updatedScores = [...localScores, newEntry]
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 20);
+            
+            saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
+            console.log('Score saved to local leaderboard');
+            
+            // Try to submit to server with retries
+            const submitToServer = async (retryCount = 0, maxRetries = 5) => {
+                const dataToSubmit = {
+                    ...scoreData,
+                    username: username
+                };
+                
+                try {
+                    // Create abort controller for timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
+                    const response = await fetch(`${API_URL}/scores/submit`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(dataToSubmit),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Score submitted successfully to server:', result);
-            } else {
-                console.error('Server submission failed (but saved locally):', response.status);
-            }
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Score submitted successfully to server:', result);
+                        return true;
+                    } else {
+                        console.error('Server submission failed:', response.status);
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (serverError) {
+                    if (serverError.name === 'AbortError') {
+                        console.error(`Server submission timed out (attempt ${retryCount + 1}/${maxRetries + 1})`);
+                    } else {
+                        console.error(`Error submitting score (attempt ${retryCount + 1}/${maxRetries + 1}):`, serverError.message);
+                    }
+                    
+                    // Retry with exponential backoff
+                    if (retryCount < maxRetries) {
+                        const delay = Math.min(2000 * Math.pow(2, retryCount), 30000); // 2s, 4s, 8s, 16s, 30s
+                        console.log(`Retrying in ${delay/1000}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return submitToServer(retryCount + 1, maxRetries);
+                    } else {
+                        console.error('All retry attempts failed. Score saved locally only.');
+                        return false;
+                    }
+                }
+            };
+            
+            // Fire off server submission without waiting
+            submitToServer();
+            
+            // Display leaderboard with player's score highlighted
+            await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode);
+            
         } catch (error) {
-            console.error('Error submitting score to server (but saved locally):', error);
+            console.error('Error during score submission:', error);
         }
         
-        // Display leaderboard with player's score highlighted
-        await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode);
-        
-        // Show the game-over div so user can click Play Again
+        // Always show the game-over div so user can click Play Again
         const gameOverDiv = document.getElementById('gameOver');
         if (gameOverDiv) {
             gameOverDiv.style.display = 'block';
         }
+        console.log('=== handleSubmit END ===');
     };
     
     newSubmitBtn.addEventListener('click', handleSubmit);
     console.log('Submit button click handler attached');
     
-    input.addEventListener('keydown', (e) => {
+    newInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             handleSubmit();
