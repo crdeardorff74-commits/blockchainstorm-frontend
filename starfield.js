@@ -291,12 +291,22 @@ const StarfieldSystem = (function() {
     let vineOverlayCanvas = null;
     let vineOverlayCtx = null;
     let vineTargetElement = null;
+    let vineWrapper = null;
     
     function createVineOverlay(targetElement) {
         // Remove existing overlay if any
         removeVineOverlay();
         
         vineTargetElement = targetElement;
+        
+        // Create wrapper with position:relative to contain the overlay
+        vineWrapper = document.createElement('div');
+        vineWrapper.id = 'vineWrapper';
+        vineWrapper.style.cssText = 'position: relative; display: inline-block;';
+        
+        // Insert wrapper before canvas, move canvas into wrapper
+        targetElement.parentNode.insertBefore(vineWrapper, targetElement);
+        vineWrapper.appendChild(targetElement);
         
         // Create overlay canvas
         vineOverlayCanvas = document.createElement('canvas');
@@ -310,12 +320,14 @@ const StarfieldSystem = (function() {
             background: transparent !important;
         `;
         
-        // Insert overlay as sibling of target element
-        targetElement.parentNode.appendChild(vineOverlayCanvas);
+        // Add overlay to wrapper (after canvas)
+        vineWrapper.appendChild(vineOverlayCanvas);
         vineOverlayCtx = vineOverlayCanvas.getContext('2d');
         
-        // Position and draw
-        positionAndDrawVines();
+        // Position and draw after layout settles
+        requestAnimationFrame(() => {
+            positionAndDrawVines();
+        });
         
         return vineOverlayCanvas;
     }
@@ -324,32 +336,23 @@ const StarfieldSystem = (function() {
         if (!vineOverlayCanvas || !vineTargetElement) return;
         
         const extend = 15;
-        const target = vineTargetElement;
-        const parent = target.parentNode;
         
-        // Get target's position within parent
-        const targetRect = target.getBoundingClientRect();
-        const parentRect = parent.getBoundingClientRect();
+        // Get canvas size
+        const width = vineTargetElement.offsetWidth;
+        const height = vineTargetElement.offsetHeight;
         
-        const relLeft = targetRect.left - parentRect.left;
-        const relTop = targetRect.top - parentRect.top;
-        const width = targetRect.width;
-        const height = targetRect.height;
-        
-        // Set overlay size (canvas dimensions + extend on each side)
+        // Set overlay size
         const overlayWidth = width + extend * 2;
         const overlayHeight = height + extend * 2;
         
         vineOverlayCanvas.width = overlayWidth;
         vineOverlayCanvas.height = overlayHeight;
-        
-        // Also set CSS size to prevent any scaling
         vineOverlayCanvas.style.width = overlayWidth + 'px';
         vineOverlayCanvas.style.height = overlayHeight + 'px';
         
-        // Position overlay so it surrounds the target
-        vineOverlayCanvas.style.left = (relLeft - extend) + 'px';
-        vineOverlayCanvas.style.top = (relTop - extend) + 'px';
+        // Position overlay: canvas is at (0,0) in wrapper, so offset by -extend
+        vineOverlayCanvas.style.left = -extend + 'px';
+        vineOverlayCanvas.style.top = -extend + 'px';
         
         // Clear and draw
         vineOverlayCtx.clearRect(0, 0, overlayWidth, overlayHeight);
@@ -493,9 +496,16 @@ const StarfieldSystem = (function() {
             vineOverlayCanvas.parentNode.removeChild(vineOverlayCanvas);
         }
         
+        // Unwrap the game canvas from the wrapper
+        if (vineWrapper && vineTargetElement && vineWrapper.parentNode) {
+            vineWrapper.parentNode.insertBefore(vineTargetElement, vineWrapper);
+            vineWrapper.parentNode.removeChild(vineWrapper);
+        }
+        
         vineOverlayCanvas = null;
         vineOverlayCtx = null;
         vineTargetElement = null;
+        vineWrapper = null;
     }
     
     // Solar system data
@@ -676,6 +686,9 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function drawSun() {
+        // Skip sun entirely in stranger mode
+        if (strangerMode) return;
+        
         const maxJourney = 3920 * 2;
         const journeyRatio = Math.min(1, journeyProgress / maxJourney);
         const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
@@ -1317,6 +1330,11 @@ const StarfieldSystem = (function() {
     
     function showPlanetStats(planet) {
         setTimeout(() => {
+            // Skip sun info in stranger mode
+            if (strangerMode && planet.isSun) {
+                return;
+            }
+            
             console.log('Showing planet stats for:', planet.name);
             
             if (!planetStatsDiv || !planetStatsContent) {
