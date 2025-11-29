@@ -639,9 +639,10 @@ async function checkAuth() {
             credentials: 'include'
         });
         if (response.ok) {
-            currentUser = await response.json();
+            const data = await response.json();
+            currentUser = data.user || data;
             isAnonymous = false;
-            console.log('User logged in:', currentUser.username);
+            console.log('User logged in:', currentUser?.username || 'unknown');
         } else {
             isAnonymous = true;
         }
