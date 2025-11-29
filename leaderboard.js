@@ -290,15 +290,15 @@ function getChallengeDisplayName(challenge) {
     const names = {
         'stranger': 'Stranger',
         'dyslexic': 'Dyslexic',
-        'phantom': 'Phantom',
+        'phantom': 'Phantom Zone',
         'gremlins': 'Gremlins',
-        'rubber': 'Rubber & Glue',
-        'oz': 'Oz',
+        'rubber': 'Rubber Blocks',
+        'oz': 'Land of Oz',
         'lattice': 'Lattice',
         'yesand': 'Yes, And...',
-        'sixseven': 'Six Seven',
-        'longago': 'Long Ago...',
-        'comingsoon': 'Coming Soon...',
+        'sixseven': '6s and 7s',
+        'longago': 'Long Ago',
+        'comingsoon': 'Coming Soon',
         'thinner': 'Thinner',
         'thicker': 'Thicker',
         'nervous': 'Nervous',
@@ -639,10 +639,9 @@ async function checkAuth() {
             credentials: 'include'
         });
         if (response.ok) {
-            const data = await response.json();
-            currentUser = data.user || data;
+            currentUser = await response.json();
             isAnonymous = false;
-            console.log('User logged in:', currentUser?.username || 'unknown');
+            console.log('User logged in:', currentUser.username);
         } else {
             isAnonymous = true;
         }
