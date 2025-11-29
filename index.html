@@ -1156,6 +1156,22 @@
             align-items: center; /* Center main area vertically */
         }
         
+        /* Allow perspective transforms to render without clipping */
+        body:has(canvas.longago-mode) .main-area,
+        body:has(canvas.comingsoon-mode) .main-area {
+            overflow: visible;
+        }
+        
+        body:has(canvas.longago-mode) .game-container,
+        body:has(canvas.comingsoon-mode) .game-container {
+            overflow: visible;
+        }
+        
+        body:has(canvas.longago-mode) .content-area,
+        body:has(canvas.comingsoon-mode) .content-area {
+            overflow: visible;
+        }
+        
         /* Removed thicker-mode panel width adjustments - panels now reposition via JavaScript */
         
         /* Make the instructions text smaller in thicker mode */
