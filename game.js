@@ -105,23 +105,21 @@ const TabletMode = {
         }
         
         if (this.enabled) {
-            // Add tablet-mode class to body for CSS styling
-            document.body.classList.add('tablet-mode');
             // Show touch controls in right panel
             if (touchControls) touchControls.style.display = 'grid';
             // Hide keyboard controls
             if (controls) controls.style.display = 'none';
             // Hide planet stats from right panel
             if (planetStats) planetStats.style.display = 'none';
-            // Hide planet stats from left panel on menu (shown during gameplay via toggleUIElements)
-            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-            // Hide pause button on menu (shown during gameplay via toggleUIElements)
-            if (pauseBtn) pauseBtn.style.display = 'none';
-            // Show settings button in tablet mode (visible on menu, hidden during gameplay via class)
-            if (settingsBtn) settingsBtn.style.display = 'block';
+            // Show planet stats in left panel
+            if (planetStatsLeft) planetStatsLeft.style.display = 'block';
+            // Show pause button (will be toggled by game state)
+            if (pauseBtn) pauseBtn.style.display = 'block';
+            // Hide settings button in tablet mode during gameplay
+            if (settingsBtn && !settingsBtn.classList.contains('hidden-during-play')) {
+                settingsBtn.style.display = 'none';
+            }
         } else {
-            // Remove tablet-mode class from body
-            document.body.classList.remove('tablet-mode');
             // Hide touch controls
             if (touchControls) touchControls.style.display = 'none';
             // Show keyboard controls
@@ -133,11 +131,6 @@ const TabletMode = {
             if (pauseBtn) pauseBtn.style.display = 'none';
             // Show settings button in normal mode
             if (settingsBtn) settingsBtn.style.display = 'block';
-        }
-        
-        // Recalculate panel positions for new width
-        if (typeof updateCanvasSize === 'function') {
-            updateCanvasSize();
         }
     },
     
@@ -544,13 +537,6 @@ GamepadController.init();
 // TOUCH CONTROLS EVENT HANDLERS
 // ============================================
 
-// Touch repeat settings (same as keyboard) - global for clearing on game start
-const touchRepeat = {
-    initialDelay: 200,  // 200ms before repeat starts
-    repeatRate: 40,     // 40ms between repeats
-    timers: new Map()   // Track active repeat timers
-};
-
 function initTouchControls() {
     const touchLeft = document.getElementById('touchLeft');
     const touchRight = document.getElementById('touchRight');
@@ -562,100 +548,32 @@ function initTouchControls() {
     
     if (!touchLeft) return; // Controls not in DOM yet
     
-    // Helper to add repeating touch behavior (for directional buttons)
-    const addRepeatingTouch = (element, action) => {
-        if (!element) return;
-        
-        const startRepeat = (e) => {
-            e.preventDefault();
-            
-            // Execute action immediately
-            action();
-            
-            // Clear any existing timers for this element
-            if (touchRepeat.timers.has(element)) {
-                clearTimeout(touchRepeat.timers.get(element).initial);
-                clearInterval(touchRepeat.timers.get(element).repeat);
-            }
-            
-            // Start initial delay timer
-            const initialTimer = setTimeout(() => {
-                // Start repeat interval
-                const repeatTimer = setInterval(() => {
-                    if (!paused && currentPiece) {
-                        action();
-                    }
-                }, touchRepeat.repeatRate);
-                
-                touchRepeat.timers.set(element, { 
-                    initial: null, 
-                    repeat: repeatTimer 
-                });
-            }, touchRepeat.initialDelay);
-            
-            touchRepeat.timers.set(element, { 
-                initial: initialTimer, 
-                repeat: null 
-            });
-        };
-        
-        const stopRepeat = (e) => {
-            e.preventDefault();
-            
-            // Clear timers
-            if (touchRepeat.timers.has(element)) {
-                const timers = touchRepeat.timers.get(element);
-                if (timers.initial) clearTimeout(timers.initial);
-                if (timers.repeat) clearInterval(timers.repeat);
-                touchRepeat.timers.delete(element);
-            }
-        };
-        
-        element.addEventListener('touchstart', startRepeat, { passive: false });
-        element.addEventListener('touchend', stopRepeat, { passive: false });
-        element.addEventListener('touchcancel', stopRepeat, { passive: false });
-        
-        // Also handle mouse for testing on desktop
-        element.addEventListener('mousedown', startRepeat);
-        element.addEventListener('mouseup', stopRepeat);
-        element.addEventListener('mouseleave', stopRepeat);
-    };
-    
-    // Helper for non-repeating buttons (rotation, hard drop, pause)
+    // Helper to add both touch and click events
     const addTouchAndClick = (element, handler) => {
         if (!element) return;
-        element.addEventListener('touchstart', handler, { passive: false });
+        element.addEventListener('touchstart', handler);
         element.addEventListener('click', handler);
     };
     
-    // Movement buttons with repeat
-    addRepeatingTouch(touchLeft, () => {
-        // Check if controls should be swapped (Stranger XOR Dyslexic)
-        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
-        const shouldSwap = strangerActive !== dyslexicActive;
-        const dir = shouldSwap ? 1 : -1;
-        
-        if (currentPiece && !collides(currentPiece, dir, 0)) {
-            currentPiece.x += dir;
+    // Movement buttons
+    addTouchAndClick(touchLeft, (e) => {
+        e.preventDefault();
+        if (currentPiece && !collides(currentPiece, -1, 0)) {
+            currentPiece.x--;
             playSoundEffect('move', soundToggle);
         }
     });
     
-    addRepeatingTouch(touchRight, () => {
-        // Check if controls should be swapped (Stranger XOR Dyslexic)
-        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
-        const shouldSwap = strangerActive !== dyslexicActive;
-        const dir = shouldSwap ? -1 : 1;
-        
-        if (currentPiece && !collides(currentPiece, dir, 0)) {
-            currentPiece.x += dir;
+    addTouchAndClick(touchRight, (e) => {
+        e.preventDefault();
+        if (currentPiece && !collides(currentPiece, 1, 0)) {
+            currentPiece.x++;
             playSoundEffect('move', soundToggle);
         }
     });
     
-    addRepeatingTouch(touchDown, () => {
+    addTouchAndClick(touchDown, (e) => {
+        e.preventDefault();
         if (currentPiece && !collides(currentPiece, 0, 1)) {
             currentPiece.y++;
             score += 1;
@@ -663,55 +581,43 @@ function initTouchControls() {
         }
     });
     
-    // Rotation buttons (no repeat - one press = one rotation)
+    // Rotation buttons
+    // Top button (CCW) - rotates counterclockwise (like UP arrow key)
     addTouchAndClick(touchRotateCCW, (e) => {
         e.preventDefault();
         rotatePieceCounterClockwise();
     });
     
+    // Middle button (CW) - rotates clockwise (like default rotation)
     addTouchAndClick(touchRotate, (e) => {
         e.preventDefault();
         rotatePiece();
     });
     
-    // Hard drop (no repeat)
+    // Hard drop (⬇⬇ button)
     addTouchAndClick(touchDrop, (e) => {
         e.preventDefault();
         hardDrop();
     });
     
-    // Pause button (no repeat)
+    // Pause button
     addTouchAndClick(pauseBtn, (e) => {
         e.preventDefault();
         togglePause();
     });
     
-    console.log('📱 Touch controls initialized with key repeat');
+    console.log('📱 Touch controls initialized');
 }
 
 // Initialize tablet mode
-try {
-    TabletMode.init();
-} catch (e) {
-    console.error('TabletMode.init() error:', e);
-}
+TabletMode.init();
 
 // Initialize starfield system
-try {
-    if (typeof StarfieldSystem !== 'undefined') {
-        StarfieldSystem.init();
-    }
-} catch (e) {
-    console.error('StarfieldSystem.init() error:', e);
-}
+StarfieldSystem.init();
 // Note: setSoundCallback is called after soundToggle is defined (line ~820)
 
 // Initialize touch controls (will be shown/hidden by tablet mode)
-try {
-    initTouchControls();
-} catch (e) {
-    console.error('initTouchControls() error:', e);
-}
+initTouchControls();
 
 // Update tablet mode when gamepad connects/disconnects
 window.addEventListener("gamepadconnected", () => {
@@ -854,9 +760,8 @@ function updateCanvasSize() {
     
     const viewportWidth = window.innerWidth;
     
-    // Calculate panel width (22vw normal, 33vw tablet mode - 50% wider)
-    const panelWidthPercent = TabletMode.enabled ? 0.33 : 0.22;
-    const panelWidth = viewportWidth * panelWidthPercent;
+    // Calculate panel width (22vw)
+    const panelWidth = viewportWidth * 0.22;
     
     // Desired gap between canvas and panels (2.5vw for better spacing)
     const desiredGap = viewportWidth * 0.025;
@@ -896,25 +801,9 @@ function updateCanvasSize() {
             drawNextPiece();
         }
     }
-    
-    // Update vine overlays if in stranger mode
-    if (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.isStrangerMode && StarfieldSystem.isStrangerMode()) {
-        StarfieldSystem.updateVineOverlayPosition(canvas);
-        StarfieldSystem.updateVineOverlayPosition(nextCanvas);
-    }
 }
 
 window.addEventListener('resize', updateCanvasSize);
-window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
-
-// Also update on fullscreen change (resize may not fire on all browsers)
-document.addEventListener('fullscreenchange', () => {
-    setTimeout(updateCanvasSize, 100); // Small delay to let layout settle
-});
-document.addEventListener('webkitfullscreenchange', () => {
-    setTimeout(updateCanvasSize, 100);
-});
-
 const scoreDisplay = document.getElementById('score');
 const linesDisplay = document.getElementById('lines');
 const levelDisplay = document.getElementById('level');
@@ -988,20 +877,6 @@ const COLORS = [
     '#BB8FCE', // Violet (pastel)
     '#FFB3D9'  // Pink (pastel)
 ];
-
-// Optimized color subsets for maximum contrast
-const COLOR_SETS = {
-    // 4 colors: Red, Yellow, Green, Blue - maximally spread across color wheel
-    4: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1'],
-    // 5 colors: Red, Yellow, Green, Blue, Violet - skip adjacent colors
-    5: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-    // 6 colors: Red, Orange, Yellow, Green, Blue, Violet - skip Light Blue (too close to Blue)
-    6: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-    // 7 colors: Add Pink to 6-color set
-    7: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE', '#FFB3D9'],
-    // 8 colors: All colors
-    8: COLORS
-};
 
 let currentColorSet = COLORS; // Initialize after COLORS is defined
 
@@ -1432,17 +1307,21 @@ function updateVolcanoAnimation() {
         
         // When warming completes, transition to eruption phase
         if (warmingProgress >= 1) {
-            console.log('🌋 Warming complete! Starting eruption...', 'Blob size:', volcanoLavaBlob.positions.length);
+            console.log('🌋 Warming complete! Starting eruption...');
             volcanoPhase = 'erupting';
             volcanoStartTime = Date.now(); // Reset timer for eruption phase
             volcanoVibrateOffset = { x: 0, y: 0 }; // Stop vibrating
             
-            // Clear the eruption column above lava (but keep lava blob visible)
+            // NOW remove blocks and clear the eruption column
             const colX = volcanoEruptionColumn;
             const lavaMaxY = Math.max(...volcanoLavaBlob.positions.map(p => p[1]));
             
-            // Sort lava blob positions by Y (bottom to top) for sequential removal
-            volcanoLavaBlob.positions.sort((a, b) => b[1] - a[1]); // Highest Y (bottom) first
+            // Remove lava blob from board
+            volcanoLavaBlob.positions.forEach(([x, y]) => {
+                board[y][x] = null;
+                isRandomBlock[y][x] = false;
+                fadingBlocks[y][x] = null;
+            });
             
             // Disintegrate blocks in eruption column above lava
             for (let y = 0; y < lavaMaxY; y++) {
@@ -1475,12 +1354,13 @@ function updateVolcanoAnimation() {
         
     } else if (volcanoPhase === 'erupting') {
         // ERUPTING PHASE: Spawn projectiles and update physics
+        const eruptionProgress = Math.min(elapsed / volcanoEruptionDuration, 1);
         
-        // Spawn projectiles at a fixed rate (one every 150ms) regardless of blob size
-        const spawnInterval = 150; // ms between spawns
-        const targetSpawnedByNow = Math.floor(elapsed / spawnInterval);
+        // Spawn lava projectiles evenly throughout eruption
+        // Calculate how many should have been spawned by now
+        const targetSpawnedByNow = Math.floor(volcanoTargetProjectiles * eruptionProgress);
         
-        // Spawn any missing projectiles (up to the total blob size)
+        // Spawn any missing projectiles
         while (volcanoProjectilesSpawned < targetSpawnedByNow && volcanoProjectilesSpawned < volcanoTargetProjectiles) {
             spawnLavaProjectile();
             volcanoProjectilesSpawned++;
@@ -1535,11 +1415,8 @@ function updateVolcanoAnimation() {
             return true; // Keep projectile
         });
         
-        // Eruption completes when all blocks have been ejected AND all projectiles have landed
-        const allBlocksEjected = volcanoProjectilesSpawned >= volcanoTargetProjectiles;
-        const allProjectilesLanded = volcanoProjectiles.length === 0;
-        
-        if (allBlocksEjected && allProjectilesLanded) {
+        // When eruption completes, apply gravity
+        if (eruptionProgress >= 1) {
             console.log('🌋 Volcano eruption complete, applying gravity');
             volcanoAnimating = false;
             volcanoActive = false;
@@ -1551,34 +1428,16 @@ function updateVolcanoAnimation() {
 
 function spawnLavaProjectile() {
     if (!volcanoLavaBlob || volcanoEruptionColumn < 0) return;
-    if (volcanoLavaBlob.positions.length === 0) return;
     
-    // Get the bottom-most block from the lava blob (already sorted bottom-first)
-    const [blockX, blockY] = volcanoLavaBlob.positions[0];
-    
-    // Remove this block from the board
-    if (board[blockY] && board[blockY][blockX]) {
-        board[blockY][blockX] = null;
-        isRandomBlock[blockY][blockX] = false;
-        if (fadingBlocks[blockY]) fadingBlocks[blockY][blockX] = null;
-    }
-    
-    // Remove from positions array
-    volcanoLavaBlob.positions.shift();
-    
-    // Find the top of the remaining lava in the eruption column for spawn point
+    // Find the top of the lava blob in the eruption column
     const lavaInColumn = volcanoLavaBlob.positions.filter(([x, y]) => x === volcanoEruptionColumn);
-    let spawnY;
-    if (lavaInColumn.length > 0) {
-        const topY = Math.min(...lavaInColumn.map(p => p[1]));
-        spawnY = topY * BLOCK_SIZE;
-    } else {
-        // Use the removed block's position
-        spawnY = blockY * BLOCK_SIZE;
-    }
+    if (lavaInColumn.length === 0) return;
     
-    // Spawn from top of lava blob (or the eruption column)
+    const topY = Math.min(...lavaInColumn.map(p => p[1]));
+    
+    // Spawn from top of lava blob
     const spawnX = volcanoEruptionColumn * BLOCK_SIZE + BLOCK_SIZE / 2;
+    const spawnY = topY * BLOCK_SIZE;
     
     // Determine horizontal direction based on which edge the volcano is against
     let direction;
@@ -1606,8 +1465,6 @@ function spawnLavaProjectile() {
         color: volcanoLavaColor,
         landed: false
     });
-    
-    console.log('🌋 Projectile spawned, remaining lava blocks:', volcanoLavaBlob.positions.length);
 }
 
 function drawVolcano() {
@@ -1694,41 +1551,10 @@ function drawVolcano() {
         ctx.translate(-volcanoVibrateOffset.x, -volcanoVibrateOffset.y);
         
     } else if (volcanoPhase === 'erupting') {
-        // ERUPTING PHASE: Draw remaining lava blob and flying projectiles
+        // ERUPTING PHASE: Draw flying lava projectiles
         
         // Get current pulsing lava color
         const lavaColor = getLavaColor();
-        
-        // Draw remaining lava blob (deteriorating from bottom up)
-        if (volcanoLavaBlob && volcanoLavaBlob.positions.length > 0) {
-            const positions = volcanoLavaBlob.positions.map(([x, y]) => [x, y]);
-            drawSolidShape(ctx, positions, lavaColor, BLOCK_SIZE, false, getFaceOpacity(), false);
-            
-            // Add glow effect
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha = 0.5;
-            positions.forEach(([x, y]) => {
-                const gradient = ctx.createRadialGradient(
-                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    BLOCK_SIZE * 0.3,
-                    x * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    y * BLOCK_SIZE + BLOCK_SIZE / 2,
-                    BLOCK_SIZE * 1.2
-                );
-                gradient.addColorStop(0, lavaColor);
-                gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(
-                    x * BLOCK_SIZE - BLOCK_SIZE * 0.2,
-                    y * BLOCK_SIZE - BLOCK_SIZE * 0.2,
-                    BLOCK_SIZE * 1.4,
-                    BLOCK_SIZE * 1.4
-                );
-            });
-            ctx.restore();
-        }
         
         // Draw flying lava projectiles
         volcanoProjectiles.forEach(p => {
@@ -4497,8 +4323,7 @@ function getChallengeModeMultiplier() {
     } else if (challengeMode === 'combo') {
         // Variable bonus per challenge based on difficulty
         const challengeBonuses = {
-            'stranger': 0.07,     // 7%
-            'dyslexic': 0.06,     // 6%
+            'stranger': 0.08,     // 8%
             'phantom': 0.07,      // 7%
             'gremlins': 0.06,     // 6%
             'rubber': 0.05,       // 5%
@@ -4525,8 +4350,7 @@ function getChallengeModeMultiplier() {
     } else {
         // Single challenge mode - use specific bonus
         const singleChallengeBonuses = {
-            'stranger': 0.07,
-            'dyslexic': 0.06,
+            'stranger': 0.08,
             'phantom': 0.07,
             'gremlins': 0.06,
             'rubber': 0.05,
@@ -4588,7 +4412,7 @@ let gremlinsPendingRemoval = false; // Flag to prevent removal right after line 
 
 // So Random mode variables
 let soRandomCurrentMode = 'normal'; // Current active challenge in So Random mode
-let soRandomAvailableModes = ['stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'carrie', 'nokings', 'longago', 'comingsoon', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial']; // Modes that can be randomly chosen
+let soRandomAvailableModes = ['stranger', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'carrie', 'nokings', 'longago', 'comingsoon', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial']; // Modes that can be randomly chosen
 
 // Mercurial mode variables
 let mercurialTimer = 0; // Time since last color change
@@ -4816,8 +4640,6 @@ function switchSoRandomMode() {
     // So Random mode: Switch to a different random challenge
     // First, remove all CSS-based challenge effects
     document.documentElement.classList.remove('stranger-mode');
-    StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     // Reset canvas size in case we're coming from Thicker mode
@@ -4832,11 +4654,6 @@ function switchSoRandomMode() {
     // Apply visual effects for CSS-based modes
     if (newMode === 'stranger') {
         document.documentElement.classList.add('stranger-mode');
-        StarfieldSystem.setStrangerMode(true);
-        StarfieldSystem.createVineOverlay(canvas);
-        StarfieldSystem.createVineOverlay(nextCanvas);
-    } else {
-        StarfieldSystem.removeVineOverlay();
     }
     if (newMode === 'thinner') {
         canvas.classList.add('thinner-mode');
@@ -5446,6 +5263,25 @@ function drawCanvasBackground() {
 }
 
 function drawBoard() {
+    // Debug: Count blocks on board (only if board exists)
+    if (board && board.length > 0) {
+        let blockCount = 0;
+        for (let y = 0; y < ROWS; y++) {
+            if (board[y]) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x] !== null) {
+                        blockCount++;
+                    }
+                }
+            }
+        }
+        if (blockCount > 0) {
+            console.log('🎨 drawBoard() called with', blockCount, 'blocks on board');
+            console.log('   gameRunning:', gameRunning);
+            console.trace('Stack trace:');
+        }
+    }
+    
     // Fully clear the canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Then draw the background (matching CSS background transparency)
@@ -6092,6 +5928,10 @@ function drawNextPiece() {
         const pixelOffsetX = Math.floor((nextCanvas.width - pieceTotalWidth) / 2);
         const pixelOffsetY = Math.floor((nextCanvas.height - pieceTotalHeight) / 2);
         
+        console.log(`Canvas: ${nextCanvas.width}x${nextCanvas.height}, BlockSize: ${nextBlockSize}`);
+        console.log(`Piece: ${pieceWidth}x${pieceHeight} blocks, ${pieceTotalWidth}x${pieceTotalHeight} pixels`);
+        console.log(`Pixel offset: (${pixelOffsetX}, ${pixelOffsetY})`);
+        
         // Save context state and translate to center the piece
         nextCtx.save();
         nextCtx.translate(pixelOffsetX, pixelOffsetY);
@@ -6115,7 +5955,6 @@ function drawNextPiece() {
         nextCtx.restore();
     }
     
-    // Draw Stranger mode vines overlay on next piece canvas
     // Restore smoothing state
     nextCtx.imageSmoothingEnabled = wasSmoothing;
 }
@@ -8814,16 +8653,9 @@ function movePiece(dir) {
     // Prevent movement during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
-    // Check if controls should be swapped (Stranger XOR Dyslexic)
-    const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-    const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
-    const shouldSwap = strangerActive !== dyslexicActive; // XOR: swap if exactly one is active
-    
-    const actualDir = shouldSwap ? -dir : dir;
-    
-    currentPiece.x += actualDir;
+    currentPiece.x += dir;
     if (collides(currentPiece)) {
-        currentPiece.x -= actualDir;
+        currentPiece.x -= dir;
     } else {
         playSoundEffect('move', soundToggle);
     }
@@ -8920,9 +8752,9 @@ function hardDrop() {
 function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
     
-    // Fast hard drop speed
-    const hardDropAcceleration = 50;
-    const hardDropMaxVelocity = 500;
+    // Constant hard drop speed (slightly faster than original Earth gravity)
+    const hardDropAcceleration = 0.55;
+    const hardDropMaxVelocity = 5.5;
     
     // Apply acceleration
     hardDropVelocity = Math.min(hardDropVelocity + hardDropAcceleration, hardDropMaxVelocity);
@@ -8979,46 +8811,25 @@ function updateStats() {
 function toggleUIElements(show) {
     const rulesInstructions = document.querySelector('.rules-instructions');
     const histogramCanvas = document.getElementById('histogramCanvas');
-    const leaderboardContent = document.getElementById('leaderboardContent');
     const controls = document.querySelector('.controls');
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
     const title = document.querySelector('.title');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const planetStatsLeft = document.getElementById('planetStatsLeft');
-    
-    // Check if leaderboard is currently visible
-    const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
     
     if (show) {
         // Show instructions and controls, hide histogram, show title
-        // But only show instructions if leaderboard is not visible
-        if (!leaderboardVisible) {
-            rulesInstructions.style.display = 'block';
-        }
+        rulesInstructions.style.display = 'block';
         controls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         if (title) title.style.display = 'block';
-        
-        // Hide tablet mode gameplay elements on menu
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        if (planetStatsLeft) planetStatsLeft.style.display = 'none';
     } else {
         // Hide instructions and controls, show histogram, hide title
         rulesInstructions.style.display = 'none';
-        // Also hide leaderboard when game starts
-        if (leaderboardContent) leaderboardContent.style.display = 'none';
         controls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         if (title) title.style.display = 'none';
-        
-        // Show tablet mode gameplay elements during game
-        if (TabletMode.enabled) {
-            if (pauseBtn) pauseBtn.style.display = 'block';
-            if (planetStatsLeft) planetStatsLeft.style.display = 'block';
-        }
     }
 }
 
@@ -9028,14 +8839,6 @@ async function gameOver() {
     stopMusic();
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
-    
-    // Clear all touch repeat timers
-    touchRepeat.timers.forEach((timerObj, element) => {
-        if (timerObj.initial) clearTimeout(timerObj.initial);
-        if (timerObj.repeat) clearInterval(timerObj.repeat);
-    });
-    touchRepeat.timers.clear();
-    
     finalScoreDisplay.textContent = `Final Score: ${formatAsBitcoin(score)}`;
     
     // Display special event statistics
@@ -9050,57 +8853,37 @@ async function gameOver() {
     
     toggleUIElements(true);
     
-    // Determine if this is a challenge mode game
-    const isChallenge = challengeMode !== 'normal';
-    
-    // Build list of active challenges
-    let challengesList = [];
-    if (isChallenge) {
-        if (challengeMode === 'combo') {
-            // Combo mode - list all active challenges
-            challengesList = Array.from(activeChallenges);
-        } else if (challengeMode === 'sorandom') {
-            // So Random mode - just mark as "sorandom"
-            challengesList = ['sorandom'];
-        } else {
-            // Single challenge mode
-            challengesList = [challengeMode];
-        }
-    }
-    
     // Prepare score data for submission
     const scoreData = {
         game: 'blockchainstorm',
         difficulty: gameMode,
-        mode: isChallenge ? 'challenge' : 'normal',
+        mode: 'normal',
         score: score,
         lines: lines,
         level: level,
         strikes: strikeCount,
         tsunamis: tsunamiCount,
         blackholes: blackHoleCount,
-        volcanoes: volcanoCount || 0,
-        duration: Math.floor((Date.now() - gameStartTime) / 1000),
-        challengeType: isChallenge ? challengeMode : null, // Track main challenge mode
-        challenges: challengesList // Track all active challenges
+        volcanoes: volcanoCount || 0, // Add volcanoes count
+        duration: Math.floor((Date.now() - gameStartTime) / 1000)
     };
     
     
-    // Check if score makes top 20
-    console.log('Checking if score makes top 20...');
-    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode);
-    console.log('Is top twenty:', isTopTen);
+    // Check if score makes top 10
+    console.log('Checking if score makes top 10...');
+    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score);
+    console.log('Is top ten:', isTopTen);
     
     if (isTopTen) {
         // DON'T show game over div - go straight to name prompt
-        console.log('Score is top 20! Showing name entry prompt...');
+        console.log('Score is top 10! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
         window.leaderboard.promptForName(scoreData);
     } else {
-        // Score didn't make top 20, show game over div and leaderboard
-        console.log('Score did not make top 20, displaying game over and leaderboard');
+        // Score didn't make top 10, show game over div and leaderboard
+        console.log('Score did not make top 10, displaying game over and leaderboard');
         gameOverDiv.style.display = 'block';
-        await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
+        await window.leaderboard.displayLeaderboard(gameMode, score);
     }
 }
 
@@ -9322,39 +9105,39 @@ function startGame(mode) {
     // Configure game based on mode
     switch(mode) {
         case 'drizzle':
-            // Easier mode - 4 colors (max contrast)
+            // Easier mode - 4 colors
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLOR_SETS[4];
+            currentColorSet = COLORS.slice(0, 4);
             break;
         case 'downpour':
-            // Standard mode - 6 colors (max contrast)
+            // Standard mode - 6 colors
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLOR_SETS[6];
+            currentColorSet = COLORS.slice(0, 6);
             break;
         case 'hailstorm':
-            // 8 colors - all colors
+            // 8 colors - most colors
             COLS = 10;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLOR_SETS[8];
+            currentColorSet = COLORS.slice(0, 8);
             break;
         case 'blizzard':
-            // 12 wide + 5-block pieces - 5 colors (max contrast)
+            // 12 wide + 5-block pieces - 5 colors
             COLS = 12;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLOR_SETS[5];
+            currentColorSet = COLORS.slice(0, 5);
             break;
         case 'hurricane':
-            // 12 wide + 5-block pieces - 7 colors (max contrast)
+            // 12 wide + 5-block pieces - 7 colors
             COLS = 12;
             hailstormEnabled = false;
             dropInterval = 1000;
-            currentColorSet = COLOR_SETS[7];
+            currentColorSet = COLORS.slice(0, 7);
             break;
     }
     
@@ -9396,19 +9179,12 @@ function startGame(mode) {
     // Clear all pressed keys
     customKeyRepeat.keys.clear();
     
-    // Clear and cancel all keyboard timers
+    // Clear and cancel all timers
     customKeyRepeat.timers.forEach((timer, key) => {
         clearInterval(timer);
         clearTimeout(timer);
     });
     customKeyRepeat.timers.clear();
-    
-    // Clear all touch repeat timers
-    touchRepeat.timers.forEach((timerObj, element) => {
-        if (timerObj.initial) clearTimeout(timerObj.initial);
-        if (timerObj.repeat) clearInterval(timerObj.repeat);
-    });
-    touchRepeat.timers.clear();
     
     console.log('  Keys pressed after clear:', Array.from(customKeyRepeat.keys.keys()));
     
@@ -9735,9 +9511,7 @@ document.addEventListener('keydown', e => {
     }
     
     // MENU NAVIGATION - When mode menu is visible
-    // Capture menu state at start of handler (before other handlers might change it)
-    const menuWasVisible = !modeMenu.classList.contains('hidden');
-    if (menuWasVisible) {
+    if (!modeMenu.classList.contains('hidden')) {
         if (e.key === 'ArrowUp') {
             e.preventDefault();
             selectedModeIndex = (selectedModeIndex - 1 + modeButtonsArray.length) % modeButtonsArray.length;
@@ -9758,7 +9532,6 @@ document.addEventListener('keydown', e => {
     if (gameOverDiv.style.display === 'block') {
         if (e.key === 'Enter') {
             e.preventDefault();
-            e.stopImmediatePropagation(); // Prevent other handlers from also processing this
             playAgainBtn.click();
         }
     }
@@ -9800,15 +9573,6 @@ function updateSelectedMode() {
             btn.classList.remove('selected');
         }
     });
-    
-    // Update leaderboard to match selected mode if visible
-    const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
-        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const challengeSelect = document.getElementById('challengeSelectMain');
-        const gameMode = challengeSelect ? (challengeSelect.value !== 'normal' ? 'challenge' : 'normal') : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
-    }
 }
 
 // Initialize first button as selected
@@ -9818,13 +9582,6 @@ playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
     toggleUIElements(true); // Show UI elements when returning to menu
-    
-    // Hide planet stats
-    StarfieldSystem.hidePlanetStats();
-    const planetStats = document.getElementById('planetStats');
-    const planetStatsLeft = document.getElementById('planetStatsLeft');
-    if (planetStats) planetStats.style.display = 'none';
-    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
     
     // Clear pieces from previous game
     currentPiece = null;
@@ -9913,19 +9670,7 @@ cameraOrientationToggle.addEventListener('change', (e) => {
 });
 
 starSpeedSlider.addEventListener('input', (e) => {
-    const speed = parseFloat(e.target.value);
-    if (speed === 0) {
-        // Turn stars off completely at minimum
-        if (StarfieldSystem.setStarsEnabled) {
-            StarfieldSystem.setStarsEnabled(false);
-        }
-    } else {
-        // Turn stars on and set speed
-        if (StarfieldSystem.setStarsEnabled) {
-            StarfieldSystem.setStarsEnabled(true);
-        }
-        StarfieldSystem.setStarSpeed(speed);
-    }
+    StarfieldSystem.setStarSpeed(parseFloat(e.target.value));
 });
 
 musicToggle.addEventListener('change', (e) => {
@@ -9947,7 +9692,6 @@ const comboModalOverlay = document.getElementById('comboModalOverlay');
 const comboApplyBtn = document.getElementById('comboApplyBtn');
 const comboCancelBtn = document.getElementById('comboCancelBtn');
 const comboStranger = document.getElementById('comboStranger');
-const comboDyslexic = document.getElementById('comboDyslexic');
 const comboPhantom = document.getElementById('comboPhantom');
 const comboRubber = document.getElementById('comboRubber');
 const comboOz = document.getElementById('comboOz');
@@ -9968,8 +9712,7 @@ const comboBonusPercent = document.getElementById('comboBonusPercent');
 function updateComboBonusDisplay() {
     // Define bonus percentages for each challenge based on difficulty
     const challengeBonuses = {
-        'stranger': 7,     // Upside down
-        'dyslexic': 6,     // Reversed controls
+        'stranger': 8,     // Upside down - highest difficulty
         'phantom': 7,      // Invisible stack
         'gremlins': 6,     // Random disappearing blocks
         'rubber': 5,       // Bouncing pieces
@@ -9989,7 +9732,6 @@ function updateComboBonusDisplay() {
     // Map checkboxes to their challenge types
     const checkboxMap = [
         { checkbox: comboStranger, type: 'stranger' },
-        { checkbox: comboDyslexic, type: 'dyslexic' },
         { checkbox: comboPhantom, type: 'phantom' },
         { checkbox: comboRubber, type: 'rubber' },
         { checkbox: comboOz, type: 'oz' },
@@ -10018,7 +9760,7 @@ function updateComboBonusDisplay() {
 }
 
 // Add change listeners to all combo checkboxes to update bonus display
-[comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
+[comboStranger, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
  comboLattice, comboYesAnd].forEach(checkbox => {
@@ -10066,7 +9808,6 @@ challengeSelect.addEventListener('change', (e) => {
         comboModalOverlay.style.display = 'flex';
         // Populate checkboxes with current active challenges
         comboStranger.checked = activeChallenges.has('stranger');
-        comboDyslexic.checked = activeChallenges.has('dyslexic');
         comboPhantom.checked = activeChallenges.has('phantom');
         comboRubber.checked = activeChallenges.has('rubber');
         comboOz.checked = activeChallenges.has('oz');
@@ -10086,14 +9827,6 @@ challengeSelect.addEventListener('change', (e) => {
     } else {
         // Apply single challenge
         applyChallengeMode(value);
-    }
-    
-    // Update leaderboard to match selected challenge mode
-    const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
-        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = value !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 });
 
@@ -10130,7 +9863,6 @@ comboApplyBtn.addEventListener('click', () => {
     // Collect selected challenges
     activeChallenges.clear();
     if (comboStranger.checked) activeChallenges.add('stranger');
-    if (comboDyslexic.checked) activeChallenges.add('dyslexic');
     if (comboPhantom.checked) activeChallenges.add('phantom');
     if (comboRubber.checked) activeChallenges.add('rubber');
     if (comboOz.checked) activeChallenges.add('oz');
@@ -10150,13 +9882,6 @@ comboApplyBtn.addEventListener('click', () => {
     applyChallengeMode('combo');
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to show challenge mode
-    const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
-        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, 'challenge');
-    }
-    
     console.log('🎯 Combo challenges applied:', Array.from(activeChallenges));
 });
 
@@ -10164,14 +9889,6 @@ comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
     // Reset dropdown to current mode
     challengeSelect.value = challengeMode;
-    
-    // Refresh leaderboard to match current mode
-    const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
-        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
-    }
 });
 
 // Close combo modal when clicking outside
@@ -10184,8 +9901,6 @@ comboModalOverlay.addEventListener('click', (e) => {
 function applyChallengeMode(mode) {
     // Remove all challenge effects first
     document.documentElement.classList.remove('stranger-mode');
-    StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     bouncingPieces = [];
@@ -10207,9 +9922,6 @@ function applyChallengeMode(mode) {
     // Apply effects based on mode
     if (mode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
-        StarfieldSystem.setStrangerMode(true);
-        StarfieldSystem.createVineOverlay(canvas);
-        StarfieldSystem.createVineOverlay(nextCanvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
@@ -10285,9 +9997,6 @@ updateCanvasSize();
 drawBoard();
 // Ensure canvas has background even on menu
 drawCanvasBackground();
-
-// Initialize UI elements to show state (settings button visible, etc.)
-toggleUIElements(true);
 
 // Handle start overlay - required for audio autoplay
 const startOverlay = document.getElementById('startOverlay');
@@ -10636,53 +10345,32 @@ clickMessage.addEventListener('click', (e) => {
 // Start timers when page loads
 startAnagramTimers();
 
-if (startOverlay) {
-    startOverlay.addEventListener('click', () => {
-        cancelAnagramTimers();
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Request full-screen mode
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => {
-                // Silently handle fullscreen errors (permissions, etc.)
-            });
-        } else if (elem.webkitRequestFullscreen) { // Safari
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { // IE11
-            elem.msRequestFullscreen();
-        }
-        // Remove overlay
-        startOverlay.style.display = 'none';
-        // Start menu music
-        startMenuMusic(musicToggle);
-    });
-
-    // Add touchstart for iOS Safari which may not fire click reliably
-    startOverlay.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent double-firing with click
-        cancelAnagramTimers();
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Request full-screen mode (may not work on iOS but try anyway)
-        const elem = document.documentElement;
-        if (elem.webkitRequestFullscreen) {
-            elem.webkitRequestFullscreen();
-        }
-        // Remove overlay
-        startOverlay.style.display = 'none';
-        // Start menu music
-        startMenuMusic(musicToggle);
-    }, { passive: false });
-}
+startOverlay.addEventListener('click', () => {
+    cancelAnagramTimers();
+    // Resume audio context (required by browsers)
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    // Request full-screen mode
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(err => {
+            // Silently handle fullscreen errors (permissions, etc.)
+        });
+    } else if (elem.webkitRequestFullscreen) { // Safari
+        elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { // IE11
+        elem.msRequestFullscreen();
+    }
+    // Remove overlay
+    startOverlay.style.display = 'none';
+    // Start menu music
+    startMenuMusic(musicToggle);
+});
 
 // Also allow keyboard to start the game
 document.addEventListener('keydown', (e) => {
-    if (startOverlay && startOverlay.style.display !== 'none') {
+    if (startOverlay.style.display !== 'none') {
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
