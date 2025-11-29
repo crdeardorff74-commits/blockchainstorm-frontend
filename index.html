@@ -2,8 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BLOCKCHaiNSTORM</title>
+    
+    <!-- iOS Standalone Mode (Add to Home Screen) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BLOCKSTORM">
+    
+    <!-- Android/Chrome PWA -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <style>
         * {
@@ -80,8 +90,8 @@
             flex: 1;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 1vh 2vw; /* More horizontal padding */
+            align-items: flex-start;
+            padding: 0 2vw 1vh 2vw;
             position: relative;
             z-index: 1;
             height: calc(93vh - 7vh);
@@ -97,19 +107,18 @@
             position: relative;
             z-index: 1;
             height: 100%;
-            max-height: 85vh;
+            max-height: 88vh;
             width: 100%; /* Use full width */
             max-width: 100%; /* Prevent overflow */
             margin: 0 auto;
             box-sizing: border-box;
-        }
         }
         .main-area {
             background: transparent;
             padding: 0;
             border-radius: 1vh;
             position: relative;
-            height: 85vh;
+            height: 88vh;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -118,14 +127,30 @@
             flex-shrink: 0; /* Prevent shrinking */
             flex-grow: 1; /* Allow growing to take available space */
             min-width: 0; /* Allow shrinking below content width */
+            overflow: hidden; /* Prevent content from extending beyond bounds */
         }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
             display: block;
             background: transparent;
             box-shadow: 0 0 2vh rgba(0, 0, 0, 0.5);
-            max-height: 85vh;
+            max-height: 88vh;
             transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .vineOverlay {
+            border: none !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            transition: none !important;
+            pointer-events: none !important;
+        }
+        .vineWrapper {
+            display: inline-block;
+            position: relative;
+            pointer-events: none;
+        }
+        .vineWrapper > canvas:first-child {
+            pointer-events: auto;
         }
         canvas.tsunami-active {
             border-color: gold;
@@ -292,12 +317,12 @@
             padding: 2vh 1.5vw;
             border-radius: 1vh;
             color: white;
-            width: 20vw; /* Slightly smaller */
-            min-width: 200px; /* Minimum width in pixels */
-            max-width: 25vw; /* Maximum width */
+            width: 22vw;
+            min-width: 220px;
+            max-width: 27vw;
             display: flex;
             flex-direction: column;
-            height: 85vh;
+            height: 88vh;
             box-sizing: border-box;
             font-size: 1.8vh;
             position: relative;
@@ -305,13 +330,12 @@
             flex-grow: 0; /* Don't grow */
             transition: right 0.3s ease, width 0.3s ease;
         }
-        }
         
         /* Responsive adjustments for smaller screens */
         @media (max-width: 1400px) {
             .rules-panel, .side-panel {
-                width: 18vw;
-                min-width: 150px;
+                width: 20vw;
+                min-width: 180px;
             }
             .game-container {
                 gap: 1vw;
@@ -320,13 +344,33 @@
         
         @media (max-width: 1200px) {
             .rules-panel, .side-panel {
-                width: 16vw;
-                min-width: 120px;
-                font-size: 1.4vh;
+                width: 18vw;
+                min-width: 150px;
+                font-size: 1.3vh;
             }
             .game-container {
                 gap: 0.5vw;
             }
+        }
+        
+        /* Tablet mode - 50% wider panels */
+        body.tablet-mode .rules-panel,
+        body.tablet-mode .side-panel {
+            width: 33vw;
+            min-width: 280px;
+            max-width: 40vw;
+            overflow: visible;
+        }
+        
+        /* Ensure touch controls fit within panel in tablet mode */
+        body.tablet-mode #touchControls {
+            margin-top: 0.5vh;
+            max-height: 20vh;
+        }
+        
+        body.tablet-mode .touch-btn {
+            min-height: 4.5vh;
+            max-height: 6vh;
         }
         
         /* Global custom scrollbar styling */
@@ -348,25 +392,26 @@
         
         .rules-panel {
             background: rgba(30, 60, 120, 0.35);
-            padding: 2vh 1.5vw;
+            padding: 2vh 1vw;
             border-radius: 1vh;
             color: white;
-            width: 20vw; /* Slightly smaller */
-            min-width: 200px; /* Minimum width in pixels */
-            max-width: 25vw; /* Maximum width */
-            height: 85vh;
+            width: 22vw;
+            min-width: 220px;
+            max-width: 27vw;
+            height: 88vh;
             box-sizing: border-box;
             overflow: visible; /* Allow tick labels to extend past edge */
-            font-size: 1.6vh;
+            font-size: 1.4vh;
             display: flex;
             flex-direction: column;
             gap: 1vh;
             position: relative;
+            z-index: 5; /* Ensure panel is above other elements */
             flex-shrink: 1; /* Allow some shrinking if needed */
             flex-grow: 0; /* Don't grow */
             transition: left 0.3s ease, width 0.3s ease;
         }
-        }
+        
         .rules-instructions {
             display: block;
             overflow-y: auto; /* Only instructions can scroll if needed */
@@ -399,9 +444,9 @@
             column-gap: 0.5vh; /* Horizontal gap between buttons */
             row-gap: 0.5vh; /* Match vertical gap to horizontal */
             padding: 0.5vh;
-            margin-top: 2.1vh; /* Decreased slightly from 2.35vh */
+            margin-top: 1vh;
             height: auto;
-            max-height: 24vh;
+            max-height: 22vh;
         }
         
         .touch-btn {
@@ -420,8 +465,8 @@
             -webkit-user-select: none;
             transition: all 0.1s;
             padding: 0;
-            min-height: 5.5vh;
-            max-height: 7vh;
+            min-height: 5vh;
+            max-height: 6.5vh;
         }
         
         .touch-btn:active {
@@ -517,21 +562,21 @@
             text-align: center;
         }
         .rules-section {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-size: clamp(10.56px, 1.37vh, 14.78px);
             line-height: 1.4;
         }
         .rules-section h3 {
             font-size: clamp(12.67px, 1.58vh, 16.9px);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #FFA07A;
         }
         .rules-section ul {
-            margin: 5px 0;
-            padding-left: 20px;
+            margin: 4px 0;
+            padding-left: 15px;
         }
         .rules-section li {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
         .tsunami-scoring {
             display: inline-block;
@@ -628,7 +673,7 @@
             background: #45a049;
         }
         .game-over {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -640,6 +685,7 @@
             font-size: 24px;
             display: none;
             min-width: 250px;
+            z-index: 1000;
         }
         .start-overlay {
             position: fixed;
@@ -1107,22 +1153,7 @@
         body:has(canvas.thicker-mode) .game-container {
             gap: 2vw; /* Consistent gap with normal mode */
             justify-content: space-between; /* Maintain spacing */
-        }
-        
-        /* Allow main area to properly display perspective transforms */
-        body:has(canvas.longago-mode) .main-area,
-        body:has(canvas.comingsoon-mode) .main-area {
-            overflow: visible; /* Allow transformed canvas to extend beyond */
-        }
-        
-        body:has(canvas.longago-mode) .game-container,
-        body:has(canvas.comingsoon-mode) .game-container {
-            overflow: visible; /* Allow transformed canvas to extend beyond */
-        }
-        
-        body:has(canvas.longago-mode) .content-area,
-        body:has(canvas.comingsoon-mode) .content-area {
-            overflow: visible; /* Allow transformed canvas to extend beyond */
+            align-items: center; /* Center main area vertically */
         }
         
         /* Removed thicker-mode panel width adjustments - panels now reposition via JavaScript */
@@ -1232,9 +1263,10 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.3);
+            background: transparent;
             padding: 20px;
             box-sizing: border-box;
+            pointer-events: none;
         }
         .mode-menu.hidden {
             display: none;
@@ -1242,6 +1274,7 @@
         .mode-button {
             width: 90%;
             max-width: 250px;
+            pointer-events: auto;
             margin: 8px 0;
             padding: 12px 20px;
             font-size: 18px;
@@ -1327,6 +1360,9 @@
         .challenge-selector {
             margin-top: 25px;
             text-align: center;
+            pointer-events: auto;
+            width: 90%;
+            max-width: 250px;
         }
         .challenge-selector label {
             display: block;
@@ -1337,8 +1373,7 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         .challenge-selector select {
-            width: 80%;
-            max-width: 300px;
+            width: 100%;
             padding: 8px;
             font-size: 13px;
             background: rgba(0, 0, 0, 0.6);
@@ -1347,6 +1382,7 @@
             border-radius: 5px;
             cursor: pointer;
             text-align: center;
+            box-sizing: border-box;
         }
         .challenge-selector select:hover {
             border-color: rgba(255, 255, 255, 0.5);
@@ -1364,20 +1400,14 @@
             max-height: 100%;
         }
         
-        /* When leaderboard is shown, position it properly */
-        #leaderboardDisplay {
-            background: rgba(30, 60, 120, 0.35);
-            padding: 2vh 1.5vw;
-            border-radius: 1vh;
+        #leaderboardContent {
             color: white;
-            width: 22vw;
-            min-width: 22vw;
-            max-width: 22vw;
-            height: 85vh;
-            box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: visible;
+            height: 100%;
+            pointer-events: auto;
             position: relative;
-            margin-right: 1.5vw;
-            flex-shrink: 0;
+            z-index: 10;
         }
         
         .leaderboard-title {
@@ -1404,6 +1434,8 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
+            overflow: visible;
+            position: relative;
         }
         
         .leaderboard-table th {
@@ -1412,6 +1444,9 @@
             text-align: left;
             border-bottom: 2px solid #FFD700;
             font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
         
         .leaderboard-table td {
@@ -1446,6 +1481,35 @@
         .special-events {
             font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .leaderboard-table .challenges-col {
+            width: 8%;
+            text-align: center;
+            cursor: help;
+        }
+        
+        .challenge-count {
+            display: inline-block;
+            background: rgba(255, 165, 0, 0.3);
+            color: #FFD700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            pointer-events: auto;
+        }
+        
+        .leaderboard-table tr.has-challenges {
+            cursor: help;
+        }
+        
+        .leaderboard-table tr.has-challenges td {
+            cursor: help;
+        }
+        
+        .leaderboard-table tr.has-challenges:hover {
+            background: rgba(255, 165, 0, 0.15) !important;
         }
         
         .leaderboard-loading {
@@ -1618,7 +1682,7 @@
                 
                 <div class="rules-section">
                     <h3>🎮 Goal</h3>
-                    Stack colored blocks to form connected groups (blobs). Clear rows to break up blobs and score points!
+                    Stack colored blocks to form "blobs" (connected groups of blocks of a single color). Clear rows to break up blobs and score points!
                 </div>
                 
                 <div class="rules-section">
@@ -1627,13 +1691,15 @@
                     <br><br>
                     <strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the ENTIRE blob clears for massive points!
                     <br><br>
-                    <strong>🌋 Volcano:</strong> When a blob touching any edge is completely surrounded by another blob, it turns to lava, erupting upward and raining down as single blocks. Lava blocks combine like normal colors. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
+                    <strong>🌋 Volcano:</strong> When a blob touching any edge is surrounded by another blob and the edge, it turns to lava, erupting upward and raining down as single blocks. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
                     <br><br>
                     <strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in ALL blocks from both blobs! Purple border, huge points!
                 </div>
                 
                 <div class="rules-section">
                     <h3>📊 Scoring</h3>
+                    <strong>Level:</strong> Increases as you clear lines (every 11 lines = +1 level). Higher levels mean faster piece drops and higher score multipliers!
+                    <br><br>
                     <strong>Normal:</strong> (Blob Size)² × Blocks Cleared × 100 × Level
                     <ul>
                         <li>Strike bonus: 2× all points</li>
@@ -1679,7 +1745,8 @@
                     <label>Challenge Mode</label>
                     <select id="challengeSelectMain">
                         <option value="normal">Normal</option>
-                        <option value="stranger">Stranger (Upside-Down) +8%</option>
+                        <option value="stranger">Stranger (Upside Down) +7%</option>
+                        <option value="dyslexic">Dyslexic (Reversed Controls) +6%</option>
                         <option value="phantom">Phantom (Invisible Stack) +7%</option>
                         <option value="rubber">Rubber & Glue (Bouncing) +5%</option>
                         <option value="oz">Oz (Grayscale Until Landing) +5%</option>
@@ -1694,8 +1761,8 @@
                         <option value="gremlins">Gremlins (Chaos Blocks) +6%</option>
                         <option value="lattice">Lattice (Pre-filled Blocks) +5%</option>
                         <option value="yesand">Yes, And... (Base Reality+) +5%</option>
-                        <option value="sorandom">So Random (Mode Switching) +5%</option>
                         <option value="mercurial">Mercurial (Color-Shifting Pieces) +4%</option>
+                        <option value="sorandom">So Random (Mode Switching) +5%</option>
                         <option value="combo">Combo (Multiple Challenges)</option>
                     </select>
                 </div>
@@ -1862,7 +1929,7 @@
                 <input type="range" id="starSpeedSlider" min="0" max="4" step="0.5" value="1" 
                        style="width: 100%; cursor: pointer;">
                 <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
-                    <span>Slow</span>
+                    <span>Off/Slow</span>
                     <span>Fast</span>
                 </div>
             </div>
@@ -1886,9 +1953,20 @@
                         <input type="checkbox" id="comboStranger" value="stranger">
                         <span class="toggle-slider"></span>
                     </div>
-                    <span>Stranger (Upside-Down) +8%</span>
+                    <span>Stranger (Upside Down) +7%</span>
                 </label>
                 <div class="challenge-description">Entire screen rotates 180°, pieces fall upward</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboDyslexic" value="dyslexic">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Dyslexic (Reversed Controls) +6%</span>
+                </label>
+                <div class="challenge-description">Left and right controls are swapped</div>
             </div>
             
             <div class="combo-checkbox-option">
@@ -2072,7 +2150,7 @@
             <div class="name-entry-title">🏆 High Score! 🏆</div>
             <div class="name-entry-message">
                 Congratulations! Your score of <span class="name-entry-score" id="nameEntryScore"></span> 
-                made it to the top 10!
+                made it to the top 20!
                 <br><br>
                 Enter your name for the leaderboard:
             </div>
