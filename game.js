@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -2382,7 +2382,6 @@ function spawnTornado() {
         });
     }
     
-    playSoundEffect('alert', soundToggle);
     startTornadoWind(soundToggle); // Start continuous wind sound
     console.log('🌪️ Tornado spawned!');
 }
@@ -3085,8 +3084,8 @@ function updateEarthquake() {
             // Generate the crack path from bottom to top
             generateEarthquakeCrack();
             
-            // Play another rumble as crack begins to form
-            playSoundEffect('rumble', soundToggle);
+            // Play prolonged cracking sound as crack begins to form
+            playEarthquakeCrack(soundToggle);
         }
     } else if (earthquakePhase === 'crack') {
         earthquakeCrackProgress += 0.05; // Very slow crack growth - 20 frames per segment
