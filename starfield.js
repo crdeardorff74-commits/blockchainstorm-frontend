@@ -764,15 +764,16 @@ const StarfieldSystem = (function() {
             
             const glowGradient = starfieldCtx.createRadialGradient(
                 centerX, centerY, sunSize,
-                centerX, centerY, sunSize * 1.8
+                centerX, centerY, sunSize * 1.25
             );
-            const glowAlpha = 0.4 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5);
+            const glowAlpha = 0.2 * (1 - transitionProgress * 0.5) * (1 - morphToWhite * 0.5);
             glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+            glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${glowAlpha * 0.3})`);
             glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
             
             starfieldCtx.fillStyle = glowGradient;
             starfieldCtx.beginPath();
-            starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+            starfieldCtx.arc(centerX, centerY, sunSize * 1.25, 0, Math.PI * 2);
             starfieldCtx.fill();
         } else {
             if (sunSize <= 4) {
@@ -796,15 +797,16 @@ const StarfieldSystem = (function() {
             } else {
                 const glowGradient = starfieldCtx.createRadialGradient(
                     centerX, centerY, sunSize,
-                    centerX, centerY, sunSize * 1.8
+                    centerX, centerY, sunSize * 1.25
                 );
-                const glowAlpha = 0.6 * (1 - transitionProgress * 0.5);
+                const glowAlpha = 0.3 * (1 - transitionProgress * 0.5);
                 glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+                glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${glowAlpha * 0.3})`);
                 glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
                 
                 starfieldCtx.fillStyle = glowGradient;
                 starfieldCtx.beginPath();
-                starfieldCtx.arc(centerX, centerY, sunSize * 1.8, 0, Math.PI * 2);
+                starfieldCtx.arc(centerX, centerY, sunSize * 1.25, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 
                 const bodyGradient = starfieldCtx.createRadialGradient(
