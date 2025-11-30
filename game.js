@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playTsunamiWhoosh } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -5989,8 +5989,8 @@ function triggerTsunami(targetY) {
         }, i * 150); // Stagger the strikes
     }
     
-    // Enhanced, longer thunder sound
-    playEnhancedThunder(soundToggle);
+    // Wet, whooshy wave sound for tsunami
+    playTsunamiWhoosh(soundToggle);
     
     // Remove golden border after all strikes complete and a brief delay
     setTimeout(() => {
@@ -5999,24 +5999,40 @@ function triggerTsunami(targetY) {
 }
 
 function triggerLightning(targetY) {
-    console.log(`⚡🌩️ triggerLightning called! targetY=${targetY}, canvas dimensions: ${canvas.width}x${canvas.height}`);
+    // Find the actual top of the stack (highest row with any blocks)
+    let stackTopY = ROWS * BLOCK_SIZE; // Default to bottom if no blocks
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (board[y] && board[y][x]) {
+                stackTopY = y * BLOCK_SIZE;
+                break;
+            }
+        }
+        if (stackTopY < ROWS * BLOCK_SIZE) break;
+    }
+    
+    // Lightning should reach at least to the stack top, or the provided targetY, whichever is lower on screen
+    const effectiveTargetY = Math.max(stackTopY, Math.min(targetY, ROWS * BLOCK_SIZE));
+    
+    console.log(`⚡🌩️ triggerLightning called! targetY=${targetY}, stackTopY=${stackTopY}, effectiveTargetY=${effectiveTargetY}`);
+    
     // Single lightning strike (used for Strike bonus and as part of Tsunami)
-    const centerX = canvas.width / 2 + (Math.random() - 0.5) * 100; // Randomize position
+    const centerX = canvas.width / 2 + (Math.random() - 0.5) * 150; // More horizontal spread
     const segments = [];
     let currentX = centerX;
     let currentY = 0;
     
-    // Create jagged main lightning path
-    while (currentY < targetY) {
-        currentY += 20 + Math.random() * 30;
-        currentX += (Math.random() - 0.5) * 40;
-        currentX = Math.max(30, Math.min(canvas.width - 30, currentX));
-        segments.push({ x: currentX, y: Math.min(currentY, targetY) });
+    // Create jagged main lightning path - more dramatic with more segments
+    while (currentY < effectiveTargetY) {
+        currentY += 15 + Math.random() * 25; // Smaller steps = more jagged
+        currentX += (Math.random() - 0.5) * 60; // More horizontal variation
+        currentX = Math.max(20, Math.min(canvas.width - 20, currentX));
+        segments.push({ x: currentX, y: Math.min(currentY, effectiveTargetY) });
     }
     
-    // Create branch bolts
+    // Create branch bolts - more of them for drama
     const branches = [];
-    const numBranches = 3 + Math.floor(Math.random() * 3); // 3-5 branches
+    const numBranches = 4 + Math.floor(Math.random() * 4); // 4-7 branches
     
     for (let b = 0; b < numBranches; b++) {
         // Pick a random point on the main bolt to branch from
@@ -6027,12 +6043,12 @@ function triggerLightning(targetY) {
         const branchSegments = [];
         let branchX = startX;
         let branchY = startY;
-        const branchLength = 50 + Math.random() * 100;
+        const branchLength = 60 + Math.random() * 120; // Longer branches
         const branchDirection = (Math.random() > 0.5) ? 1 : -1; // Left or right
         
         while (branchY < startY + branchLength && branchY < canvas.height) {
-            branchY += 15 + Math.random() * 25;
-            branchX += branchDirection * (10 + Math.random() * 30);
+            branchY += 12 + Math.random() * 20;
+            branchX += branchDirection * (8 + Math.random() * 25);
             branchX = Math.max(10, Math.min(canvas.width - 10, branchX));
             branchSegments.push({ x: branchX, y: branchY });
         }
@@ -6046,18 +6062,18 @@ function triggerLightning(targetY) {
     
     const lightningObj = {
         x: centerX,
-        targetY: targetY,
+        targetY: effectiveTargetY,
         segments: segments,
         branches: branches,
         startTime: Date.now(),
-        duration: 500
+        duration: 600 // Slightly longer duration
     };
     
     lightningEffects.push(lightningObj);
     console.log(`⚡ Lightning object created and added to array. Array length: ${lightningEffects.length}, segments: ${segments.length}, branches: ${branches.length}`);
     
-    // Play single thunder crack
-    playThunder(soundToggle);
+    // Play dramatic thunder crack
+    playEnhancedThunder(soundToggle);
 }
 
 function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0, pixelOffsetY = 0) {
@@ -9975,9 +9991,11 @@ musicToggle.addEventListener('change', (e) => {
         stopMusic();
         stopMenuMusic();
     } else if (e.target.checked) {
-        if (gameRunning && !musicPlaying) {
+        // When turning music on, start appropriate music
+        // The start functions already check if music is already playing
+        if (gameRunning) {
             startMusic(gameMode, musicToggle);
-        } else if (!gameRunning && !menuMusicPlaying) {
+        } else {
             startMenuMusic(musicToggle);
         }
     }
@@ -10349,6 +10367,13 @@ if (dontPanicText) {
             console.log(developerMode ? 
                 '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
                 '👤 Developer Mode DEACTIVATED');
+            
+            // Immediately turn off music if developer mode is activated
+            if (developerMode && musicToggle.checked) {
+                musicToggle.checked = false;
+                musicToggle.dispatchEvent(new Event('change'));
+                console.log('🔇 Developer Mode: Music disabled');
+            }
         }
     });
 
@@ -10698,8 +10723,10 @@ if (startOverlay) {
         }
         // Remove overlay
         startOverlay.style.display = 'none';
-        // Start menu music
-        startMenuMusic(musicToggle);
+        // Start menu music (only if music is enabled)
+        if (musicToggle.checked) {
+            startMenuMusic(musicToggle);
+        }
     });
 
     // Add touchstart for iOS Safari which may not fire click reliably
@@ -10717,8 +10744,10 @@ if (startOverlay) {
         }
         // Remove overlay
         startOverlay.style.display = 'none';
-        // Start menu music
-        startMenuMusic(musicToggle);
+        // Start menu music (only if music is enabled)
+        if (musicToggle.checked) {
+            startMenuMusic(musicToggle);
+        }
     }, { passive: false });
 }
 
@@ -10743,8 +10772,10 @@ document.addEventListener('keydown', (e) => {
         }
         // Remove overlay
         startOverlay.style.display = 'none';
-        // Start menu music
-        startMenuMusic(musicToggle);
+        // Start menu music (only if music is enabled)
+        if (musicToggle.checked) {
+            startMenuMusic(musicToggle);
+        }
     }
 }, { once: true });
 
