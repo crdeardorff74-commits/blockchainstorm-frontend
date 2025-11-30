@@ -1003,11 +1003,11 @@ function playSound(frequency, duration, type = 'sine') {
 }
 
 // Enhanced thunder for tsunami events
-// Dramatic thunder for lightning strikes
+// Dramatic thunder for lightning strikes (the original sustained rumble)
 function playEnhancedThunder(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create powerful rumbling thunder with sharp crack
+    // Create longer, more powerful rumbling thunder
     const thunder = audioContext.createBufferSource();
     const thunderGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
@@ -1019,17 +1019,14 @@ function playEnhancedThunder(soundToggle) {
     
     for (let i = 0; i < bufferSize; i++) {
         const progress = i / bufferSize;
-        const time = progress * 4.0;
         let envelope;
         
-        // Sharp initial crack then sustained rumble
-        if (time < 0.05) {
-            envelope = 1.0; // Sharp attack
-        } else if (time < 0.3) {
-            envelope = 0.95; // High sustain
+        // Start at full volume immediately, sustained rumble
+        if (progress < 0.3) {
+            envelope = 1.0; // Long sustain
         } else {
             // Gradual decay
-            envelope = 0.95 * Math.exp(-(time - 0.3) * 0.8);
+            envelope = 1.0 - ((progress - 0.3) / 0.7);
         }
         
         // Apply envelope to noise
@@ -1039,11 +1036,10 @@ function playEnhancedThunder(soundToggle) {
     
     // Low-pass filter for deep rumble
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(400, audioContext.currentTime); // Start brighter for crack
-    filter.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.1); // Quick drop to rumble
+    filter.frequency.value = 200;
     filter.Q.value = 0.7;
     
-    thunderGain.gain.value = 2.8;
+    thunderGain.gain.value = 2.5;
     
     thunder.connect(filter);
     filter.connect(thunderGain);
@@ -1051,13 +1047,22 @@ function playEnhancedThunder(soundToggle) {
     
     thunder.start(audioContext.currentTime);
     
-    // Sharp crack at the start
+    // Multiple cracks throughout
     setTimeout(() => {
         if (!soundToggle.checked) return;
-        playSound(3000, 0.03, 'square');
         playSound(2500, 0.04, 'square');
-        playSound(2000, 0.05, 'square');
-    }, 5);
+        playSound(2000, 0.06, 'square');
+    }, 20);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(2200, 0.05, 'square');
+    }, 600);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(1800, 0.06, 'square');
+    }, 1200);
 }
 
 // Wet, whooshy tsunami/wave sound
@@ -1480,6 +1485,142 @@ function playSoundEffect(effect, soundToggle) {
     }
 }
 
+// Continuous tornado wind sound - returns stop function
+let tornadoWindSource = null;
+let tornadoWindGain = null;
+
+function startTornadoWind(soundToggle) {
+    if (!soundToggle.checked) return;
+    if (tornadoWindSource) return; // Already playing
+    
+    // Create continuous wind noise
+    tornadoWindSource = audioContext.createBufferSource();
+    tornadoWindGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    const highFilter = audioContext.createBiquadFilter();
+    
+    // Create a looping noise buffer (2 seconds, will loop)
+    const duration = 2.0;
+    const bufferSize = audioContext.sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const progress = i / bufferSize;
+        const time = progress * duration;
+        
+        // Modulating wind effect
+        const windMod = 1 + 0.3 * Math.sin(time * 2 * Math.PI); // Slow wind gusts
+        const fastMod = 1 + 0.15 * Math.sin(time * 7 * Math.PI); // Faster variation
+        
+        // Base noise
+        const noise = Math.random() * 2 - 1;
+        
+        // Add some whooshing tonal element
+        const whoosh = Math.sin(time * 40 * Math.PI) * 0.1;
+        
+        data[i] = (noise * 0.7 + whoosh) * windMod * fastMod;
+    }
+    
+    tornadoWindSource.buffer = buffer;
+    tornadoWindSource.loop = true;
+    
+    // Band-pass for wind character
+    filter.type = 'bandpass';
+    filter.frequency.value = 400;
+    filter.Q.value = 0.5;
+    
+    // High-pass to remove rumble
+    highFilter.type = 'highpass';
+    highFilter.frequency.value = 150;
+    
+    // Fade in
+    tornadoWindGain.gain.setValueAtTime(0, audioContext.currentTime);
+    tornadoWindGain.gain.linearRampToValueAtTime(1.8, audioContext.currentTime + 0.3);
+    
+    tornadoWindSource.connect(filter);
+    filter.connect(highFilter);
+    highFilter.connect(tornadoWindGain);
+    tornadoWindGain.connect(audioContext.destination);
+    
+    tornadoWindSource.start(audioContext.currentTime);
+}
+
+function stopTornadoWind() {
+    if (tornadoWindSource && tornadoWindGain) {
+        // Fade out
+        tornadoWindGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+        const sourceToStop = tornadoWindSource;
+        setTimeout(() => {
+            try {
+                sourceToStop.stop();
+            } catch (e) {
+                // Already stopped
+            }
+        }, 600);
+        tornadoWindSource = null;
+        tornadoWindGain = null;
+    }
+}
+
+// Small explosion for tornado destroying blobs
+function playSmallExplosion(soundToggle) {
+    if (!soundToggle.checked) return;
+    
+    // Create a short punchy explosion
+    const explosion = audioContext.createBufferSource();
+    const explosionGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    
+    const duration = 0.4;
+    const bufferSize = audioContext.sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const progress = i / bufferSize;
+        const time = progress * duration;
+        
+        // Sharp attack, quick decay
+        let envelope;
+        if (time < 0.02) {
+            envelope = time / 0.02; // Quick attack
+        } else {
+            envelope = Math.exp(-(time - 0.02) * 8); // Fast decay
+        }
+        
+        // Noise with some low frequency thump
+        const noise = Math.random() * 2 - 1;
+        const thump = Math.sin(time * 60 * Math.PI) * Math.exp(-time * 15);
+        
+        data[i] = (noise * 0.6 + thump * 0.4) * envelope;
+    }
+    
+    explosion.buffer = buffer;
+    
+    // Low-pass for bassy explosion
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, audioContext.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+    filter.Q.value = 1.0;
+    
+    explosionGain.gain.value = 2.0;
+    
+    explosion.connect(filter);
+    filter.connect(explosionGain);
+    explosionGain.connect(audioContext.destination);
+    
+    explosion.start(audioContext.currentTime);
+    explosion.stop(audioContext.currentTime + duration);
+    
+    // Add a crack
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(300, 0.05, 'square');
+        playSound(200, 0.08, 'square');
+    }, 10);
+}
+
     // Export all public functions for use in main game
     window.AudioSystem = {
         audioContext,
@@ -1491,6 +1632,9 @@ function playSoundEffect(effect, soundToggle) {
         playEnhancedThunder,
         playThunder,
         playVolcanoRumble,
-        playTsunamiWhoosh
+        playTsunamiWhoosh,
+        startTornadoWind,
+        stopTornadoWind,
+        playSmallExplosion
     };
 })(); // End IIFE
