@@ -718,7 +718,7 @@ const StarfieldSystem = (function() {
         const maxJourney = 3920 * 2;
         const journeyRatio = Math.min(1, journeyProgress / maxJourney);
         const easedRatio = 1 - Math.pow(1 - journeyRatio, 2);
-        const rawSize = 800 - (easedRatio * 796);
+        const rawSize = 640 - (easedRatio * 636);
         const sunSize = Math.max(4, rawSize);
         
         const morphStart = 8;
