@@ -834,6 +834,65 @@ function playThunder(soundToggle) {
     }, 5);
 }
 
+// Continuous volcano rumble for warming phase (3 seconds)
+function playVolcanoRumble(soundToggle) {
+    if (!soundToggle.checked) return;
+    
+    // Create a 3.5 second continuous rumble that builds in intensity
+    const rumble = audioContext.createBufferSource();
+    const rumbleGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    
+    const duration = 3.5;
+    const bufferSize = audioContext.sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const progress = i / bufferSize;
+        const time = progress * duration;
+        
+        // Envelope: starts low, builds up over time
+        // Simulates magma pressure building
+        const buildUp = 0.3 + progress * 0.7; // 0.3 to 1.0
+        
+        // Add some pulsing/throbbing (like magma churning)
+        const pulse = 1 + 0.3 * Math.sin(time * 4 * Math.PI); // Slow throb
+        const fastPulse = 1 + 0.15 * Math.sin(time * 12 * Math.PI); // Faster tremor
+        
+        // Base rumble noise
+        const noise = Math.random() * 2 - 1;
+        
+        // Add low frequency sine wave for deep bass presence
+        const bassFreq = 30 + progress * 20; // 30Hz to 50Hz, rising
+        const bass = Math.sin(time * bassFreq * 2 * Math.PI) * 0.4;
+        
+        // Combine
+        const envelope = buildUp * pulse * fastPulse;
+        data[i] = (noise * 0.6 + bass) * envelope;
+    }
+    
+    rumble.buffer = buffer;
+    
+    // Low-pass filter for deep, earth-shaking rumble
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(80, audioContext.currentTime);
+    filter.frequency.linearRampToValueAtTime(150, audioContext.currentTime + duration); // Opens up as it builds
+    filter.Q.value = 1.0;
+    
+    // Volume builds over time
+    rumbleGain.gain.setValueAtTime(1.5, audioContext.currentTime);
+    rumbleGain.gain.linearRampToValueAtTime(2.5, audioContext.currentTime + duration * 0.8);
+    rumbleGain.gain.linearRampToValueAtTime(1.0, audioContext.currentTime + duration); // Slight dip before eruption
+    
+    rumble.connect(filter);
+    filter.connect(rumbleGain);
+    rumbleGain.connect(audioContext.destination);
+    
+    rumble.start(audioContext.currentTime);
+    rumble.stop(audioContext.currentTime + duration);
+}
+
 // Main sound effects dispatcher
 function playSoundEffect(effect, soundToggle) {
     if (!soundToggle.checked) return;
@@ -1028,6 +1087,7 @@ function playSoundEffect(effect, soundToggle) {
         stopMenuMusic,
         playSoundEffect,
         playEnhancedThunder,
-        playThunder
+        playThunder,
+        playVolcanoRumble
     };
 })(); // End IIFE
