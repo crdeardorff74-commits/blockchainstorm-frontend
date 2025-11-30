@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playTsunamiWhoosh } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -2382,6 +2382,7 @@ function spawnTornado() {
     }
     
     playSoundEffect('alert', soundToggle);
+    startTornadoWind(soundToggle); // Start continuous wind sound
     console.log('🌪️ Tornado spawned!');
 }
 
@@ -2515,6 +2516,7 @@ function updateTornado() {
             playSoundEffect('gold', soundToggle);
             setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
             tornadoActive = false;
+            stopTornadoWind(); // Stop the wind sound
             return;
         }
         
@@ -2559,7 +2561,7 @@ function updateTornado() {
                             isRandomBlock[y][x] = false;
                             fadingBlocks[y][x] = null;
                         });
-                        playSoundEffect('rotate', soundToggle); // Disintegrate sound
+                        playSmallExplosion(soundToggle); // Explosion sound for destroyed blob
                         
                         // Apply gravity after removing the blob
                         applyGravity();
@@ -2692,6 +2694,7 @@ function updateTornado() {
         
         if (tornadoFadeProgress >= 1.0) {
             tornadoActive = false;
+            stopTornadoWind(); // Stop the wind sound
         }
     }
 }
@@ -9516,6 +9519,7 @@ function startGame(mode) {
     
     // Reset tornado state
     tornadoActive = false;
+    stopTornadoWind(); // Make sure wind sound stops
     tornadoState = 'descending';
     tornadoY = 0;
     tornadoX = 0;
@@ -9696,9 +9700,7 @@ document.addEventListener('keydown', e => {
             
             paused = true; StarfieldSystem.setPaused(true);
             settingsBtn.classList.remove('hidden-during-play');
-            if (musicPlaying) {
-                stopMusic();
-            }
+            stopMusic(); // stopMusic() already checks internally if music is playing
             return;
         }
         
@@ -9934,9 +9936,7 @@ settingsBtn.addEventListener('click', () => {
         
         paused = true; StarfieldSystem.setPaused(true);
         // Don't toggle UI - keep histogram visible
-        if (musicPlaying) {
-            stopMusic();
-        }
+        stopMusic(); // stopMusic() already checks internally if music is playing
     }
     settingsOverlay.style.display = 'flex';
 });
