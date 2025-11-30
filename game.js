@@ -3322,7 +3322,7 @@ function drawEarthquake() {
     } else if (earthquakePhase === 'crack' || earthquakePhase === 'shift') {
         // Clear canvas and draw background (same as drawBoard)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Draw storm particles behind gameplay
@@ -8568,8 +8568,13 @@ function clearLines() {
         lines += completedRows.length;
         
         // Check for 42 lines easter egg
-        if (lines === 42 && !ufoActive) {
+        if (lines === 42 && !StarfieldSystem.isUFOActive()) {
             StarfieldSystem.triggerUFO();
+        }
+        
+        // If UFO is active and lines changed from 42, make it leave
+        if (StarfieldSystem.isUFOActive() && lines !== 42) {
+            StarfieldSystem.departUFO();
         }
         
         // Update Six Seven counter
@@ -9461,9 +9466,6 @@ function startGame(mode) {
     tornadoSpeed = 8;
     tornadoCol = 0;
     
-    // Reset UFO state (42 lines easter egg)
-    ufoActive = false;
-    ufoPhase = 'entering';
     tornadoRow = 0;
     tornadoRotation = 0;
     tornadoPickedBlob = null;
