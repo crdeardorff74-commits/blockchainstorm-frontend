@@ -1061,6 +1061,7 @@ let earthquakeCrackMap = new Map(); // Map of Y -> X position for fast lookup
 let earthquakeShiftProgress = 0;
 let earthquakeLeftBlocks = []; // Blocks on left side of crack
 let earthquakeRightBlocks = []; // Blocks on right side of crack
+let earthquakeShiftType = 'both'; // 'both', 'left', 'right' - determines which side(s) move
 
 // Black Hole Animation System
 let blackHoleActive = false;
@@ -3260,6 +3261,17 @@ function splitBlocksByCrack() {
     earthquakeLeftBlocks = [];
     earthquakeRightBlocks = [];
     
+    // Randomly decide shift type: 1/3 both sides, 1/3 left only, 1/3 right only
+    const rand = Math.random();
+    if (rand < 0.333) {
+        earthquakeShiftType = 'both';
+    } else if (rand < 0.666) {
+        earthquakeShiftType = 'left';
+    } else {
+        earthquakeShiftType = 'right';
+    }
+    console.log('🌍 Earthquake shift type:', earthquakeShiftType);
+    
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
     earthquakeCrack.forEach(pt => {
@@ -3295,7 +3307,7 @@ function splitBlocksByCrack() {
 }
 
 function applyEarthquakeShift() {
-    console.log('🌍 Applying earthquake shift...');
+    console.log('🌍 Applying earthquake shift... Type:', earthquakeShiftType);
     
     // Save the isRandomBlock state for blocks that will be moved
     const blockStates = new Map();
@@ -3322,9 +3334,10 @@ function applyEarthquakeShift() {
         }
     }
     
-    // Place left blocks shifted one column left
+    // Place left blocks - shift left only if shiftType is 'both' or 'left'
     earthquakeLeftBlocks.forEach(block => {
-        const newX = block.x - 1;
+        const shiftLeft = (earthquakeShiftType === 'both' || earthquakeShiftType === 'left');
+        const newX = shiftLeft ? block.x - 1 : block.x;
         if (newX >= 0) {
             board[block.y][newX] = block.color;
             const key = `${block.x},${block.y}`;
@@ -3336,9 +3349,10 @@ function applyEarthquakeShift() {
         // If newX < 0, block falls off the edge
     });
     
-    // Place right blocks shifted one column right
+    // Place right blocks - shift right only if shiftType is 'both' or 'right'
     earthquakeRightBlocks.forEach(block => {
-        const newX = block.x + 1;
+        const shiftRight = (earthquakeShiftType === 'both' || earthquakeShiftType === 'right');
+        const newX = shiftRight ? block.x + 1 : block.x;
         if (newX < COLS) {
             board[block.y][newX] = block.color;
             const key = `${block.x},${block.y}`;
@@ -3495,9 +3509,13 @@ function drawEarthquake() {
         // During shift, physically separate the blobs with SMOOTH interpolation
         const shiftProgress = earthquakeShiftProgress / 60; // 0 to 1 (doubled duration)
         
-        // Draw left blobs - shift them smoothly to the left
+        // Calculate shift amounts based on shift type
+        const leftShiftAmount = (earthquakeShiftType === 'both' || earthquakeShiftType === 'left') ? -shiftProgress * BLOCK_SIZE : 0;
+        const rightShiftAmount = (earthquakeShiftType === 'both' || earthquakeShiftType === 'right') ? shiftProgress * BLOCK_SIZE : 0;
+        
+        // Draw left blobs - shift them smoothly to the left (if applicable)
         ctx.save();
-        ctx.translate(-shiftProgress * BLOCK_SIZE, 0);
+        ctx.translate(leftShiftAmount, 0);
         const leftBlobs = [];
         const visited = new Set();
         
@@ -3537,9 +3555,9 @@ function drawEarthquake() {
         });
         ctx.restore();
         
-        // Draw right blobs - shift them smoothly to the right
+        // Draw right blobs - shift them smoothly to the right (if applicable)
         ctx.save();
-        ctx.translate(shiftProgress * BLOCK_SIZE, 0);
+        ctx.translate(rightShiftAmount, 0);
         const rightBlobs = [];
         visited.clear();
         
