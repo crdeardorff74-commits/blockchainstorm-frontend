@@ -30,6 +30,10 @@ const StarfieldSystem = (function() {
     let ufoCircleTime = 0;
     let ufoBeamOpacity = 0;
     
+    // Stranger mode (upside down) variables
+    let strangerModeActive = false;
+    let vineOverlays = []; // Array of vine overlay elements
+    
     // Solar system data
     const planets = [
         {
@@ -1107,6 +1111,113 @@ const StarfieldSystem = (function() {
     }
     
     // ============================================
+    // STRANGER MODE FUNCTIONS
+    // ============================================
+    
+    function setStrangerMode(active) {
+        strangerModeActive = active;
+    }
+    
+    function isStrangerMode() {
+        return strangerModeActive;
+    }
+    
+    function createVineOverlay(targetCanvas) {
+        if (!targetCanvas) return;
+        
+        // Create an overlay div for vines
+        const overlay = document.createElement('div');
+        overlay.className = 'vine-overlay';
+        overlay.style.cssText = `
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+            overflow: hidden;
+        `;
+        
+        // Position overlay over the target canvas
+        const rect = targetCanvas.getBoundingClientRect();
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+        overlay.style.width = rect.width + 'px';
+        overlay.style.height = rect.height + 'px';
+        
+        // Create vine SVG elements (decorative border effect)
+        const vineCount = 8;
+        for (let i = 0; i < vineCount; i++) {
+            const vine = document.createElement('div');
+            const isLeft = i % 2 === 0;
+            const yPos = (i / vineCount) * 100;
+            
+            vine.style.cssText = `
+                position: absolute;
+                ${isLeft ? 'left: 0' : 'right: 0'};
+                top: ${yPos}%;
+                width: 20px;
+                height: 40px;
+                background: linear-gradient(${isLeft ? '90deg' : '270deg'}, 
+                    rgba(34, 139, 34, 0.6) 0%, 
+                    rgba(0, 100, 0, 0.4) 50%,
+                    transparent 100%);
+                border-radius: ${isLeft ? '0 20px 20px 0' : '20px 0 0 20px'};
+            `;
+            overlay.appendChild(vine);
+        }
+        
+        // Add top and bottom vine borders
+        const topBorder = document.createElement('div');
+        topBorder.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 15px;
+            background: linear-gradient(180deg, 
+                rgba(34, 139, 34, 0.5) 0%, 
+                transparent 100%);
+        `;
+        overlay.appendChild(topBorder);
+        
+        const bottomBorder = document.createElement('div');
+        bottomBorder.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 15px;
+            background: linear-gradient(0deg, 
+                rgba(34, 139, 34, 0.5) 0%, 
+                transparent 100%);
+        `;
+        overlay.appendChild(bottomBorder);
+        
+        document.body.appendChild(overlay);
+        vineOverlays.push({ overlay, canvas: targetCanvas });
+    }
+    
+    function updateVineOverlayPosition(targetCanvas) {
+        if (!targetCanvas) return;
+        
+        const overlay = vineOverlays.find(v => v.canvas === targetCanvas);
+        if (overlay) {
+            const rect = targetCanvas.getBoundingClientRect();
+            overlay.overlay.style.left = rect.left + 'px';
+            overlay.overlay.style.top = rect.top + 'px';
+            overlay.overlay.style.width = rect.width + 'px';
+            overlay.overlay.style.height = rect.height + 'px';
+        }
+    }
+    
+    function removeVineOverlay() {
+        vineOverlays.forEach(v => {
+            if (v.overlay && v.overlay.parentNode) {
+                v.overlay.parentNode.removeChild(v.overlay);
+            }
+        });
+        vineOverlays = [];
+    }
+    
+    // ============================================
     // PUBLIC API
     // ============================================
     
@@ -1143,6 +1254,13 @@ const StarfieldSystem = (function() {
         // Planet stats functions
         showPlanetStats: showPlanetStats,
         hidePlanetStats: hidePlanetStats,
+        
+        // Stranger mode functions
+        setStrangerMode: setStrangerMode,
+        isStrangerMode: isStrangerMode,
+        createVineOverlay: createVineOverlay,
+        updateVineOverlayPosition: updateVineOverlayPosition,
+        removeVineOverlay: removeVineOverlay,
         
         // Reset function for new game
         reset: () => {
