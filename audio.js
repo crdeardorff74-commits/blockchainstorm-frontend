@@ -1300,6 +1300,64 @@ function playVolcanoRumble(soundToggle) {
     rumble.stop(audioContext.currentTime + duration);
 }
 
+// Continuous earthquake rumble (shorter than volcano, more shaky)
+function playEarthquakeRumble(soundToggle) {
+    if (!soundToggle.checked) return;
+    
+    // Create a 2.5 second rumble with shaking character
+    const rumble = audioContext.createBufferSource();
+    const rumbleGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    
+    const duration = 2.5;
+    const bufferSize = audioContext.sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const progress = i / bufferSize;
+        const time = progress * duration;
+        
+        // Envelope: quick attack, sustain, then fade
+        let envelope;
+        if (time < 0.1) {
+            envelope = time / 0.1; // Quick ramp up
+        } else if (time < 1.8) {
+            envelope = 1.0; // Sustain
+        } else {
+            envelope = 1.0 - ((time - 1.8) / 0.7); // Fade out
+        }
+        
+        // Add shaking/rattling modulation
+        const shake = 1 + 0.2 * Math.sin(time * 25 * Math.PI); // Fast shake
+        const rattle = 1 + 0.1 * Math.sin(time * 60 * Math.PI); // Higher freq rattle
+        
+        // Base rumble noise
+        const noise = Math.random() * 2 - 1;
+        
+        // Very low frequency component for ground shake feel
+        const groundShake = Math.sin(time * 20 * Math.PI) * 0.3;
+        
+        data[i] = (noise * 0.5 + groundShake) * envelope * shake * rattle;
+    }
+    
+    rumble.buffer = buffer;
+    
+    // Very low-pass for deep, earth-shaking rumble
+    filter.type = 'lowpass';
+    filter.frequency.value = 120;
+    filter.Q.value = 1.2;
+    
+    rumbleGain.gain.setValueAtTime(2.0, audioContext.currentTime);
+    
+    rumble.connect(filter);
+    filter.connect(rumbleGain);
+    rumbleGain.connect(audioContext.destination);
+    
+    rumble.start(audioContext.currentTime);
+    rumble.stop(audioContext.currentTime + duration);
+}
+
 // Main sound effects dispatcher
 function playSoundEffect(effect, soundToggle) {
     if (!soundToggle.checked) return;
@@ -1499,44 +1557,34 @@ function startTornadoWind(soundToggle) {
     const filter = audioContext.createBiquadFilter();
     const highFilter = audioContext.createBiquadFilter();
     
-    // Create a looping noise buffer (2 seconds, will loop)
-    const duration = 2.0;
+    // Create a looping noise buffer (4 seconds for smoother loop)
+    const duration = 4.0;
     const bufferSize = audioContext.sampleRate * duration;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
     
     for (let i = 0; i < bufferSize; i++) {
-        const progress = i / bufferSize;
-        const time = progress * duration;
-        
-        // Modulating wind effect
-        const windMod = 1 + 0.3 * Math.sin(time * 2 * Math.PI); // Slow wind gusts
-        const fastMod = 1 + 0.15 * Math.sin(time * 7 * Math.PI); // Faster variation
-        
-        // Base noise
+        // Just pure filtered noise - no modulation for constant sound
         const noise = Math.random() * 2 - 1;
-        
-        // Add some whooshing tonal element
-        const whoosh = Math.sin(time * 40 * Math.PI) * 0.1;
-        
-        data[i] = (noise * 0.7 + whoosh) * windMod * fastMod;
+        data[i] = noise;
     }
     
     tornadoWindSource.buffer = buffer;
     tornadoWindSource.loop = true;
     
-    // Band-pass for wind character
-    filter.type = 'bandpass';
-    filter.frequency.value = 400;
-    filter.Q.value = 0.5;
+    // Low-pass filter for softer, less harsh sound
+    filter.type = 'lowpass';
+    filter.frequency.value = 600;
+    filter.Q.value = 0.3;
     
-    // High-pass to remove rumble
+    // High-pass to remove low rumble
     highFilter.type = 'highpass';
-    highFilter.frequency.value = 150;
+    highFilter.frequency.value = 200;
+    highFilter.Q.value = 0.3;
     
-    // Fade in
+    // Lower volume for subtlety
     tornadoWindGain.gain.setValueAtTime(0, audioContext.currentTime);
-    tornadoWindGain.gain.linearRampToValueAtTime(1.8, audioContext.currentTime + 0.3);
+    tornadoWindGain.gain.linearRampToValueAtTime(0.8, audioContext.currentTime + 0.5);
     
     tornadoWindSource.connect(filter);
     filter.connect(highFilter);
@@ -1632,6 +1680,7 @@ function playSmallExplosion(soundToggle) {
         playEnhancedThunder,
         playThunder,
         playVolcanoRumble,
+        playEarthquakeRumble,
         playTsunamiWhoosh,
         startTornadoWind,
         stopTornadoWind,
