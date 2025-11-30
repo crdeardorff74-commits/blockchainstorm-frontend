@@ -1359,10 +1359,11 @@ function playEarthquakeRumble(soundToggle) {
 }
 
 // Prolonged cracking/splitting sound for earthquake crack forming
+// Similar to the rumble but with added crunchiness
 function playEarthquakeCrack(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create a 2.5 second sustained crackling/splitting sound
+    // Create a 2.5 second rumble with crunchy texture
     const crack = audioContext.createBufferSource();
     const crackGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
@@ -1376,42 +1377,40 @@ function playEarthquakeCrack(soundToggle) {
         const progress = i / bufferSize;
         const time = progress * duration;
         
-        // Sustained envelope - builds up then slowly fades
+        // Envelope: quick attack, sustain, then fade (same as rumble)
         let envelope;
-        if (time < 0.2) {
-            envelope = time / 0.2 * 0.7; // Ramp up
+        if (time < 0.1) {
+            envelope = time / 0.1;
         } else if (time < 1.8) {
-            envelope = 0.7 + 0.3 * Math.sin((time - 0.2) * 0.8); // Sustained with slight variation
+            envelope = 1.0;
         } else {
-            envelope = 1.0 * Math.exp(-(time - 1.8) * 2); // Fade out
+            envelope = 1.0 - ((time - 1.8) / 0.7);
         }
         
-        // Base crackling noise
+        // Shaking/rattling modulation (same as rumble)
+        const shake = 1 + 0.2 * Math.sin(time * 25 * Math.PI);
+        const rattle = 1 + 0.1 * Math.sin(time * 60 * Math.PI);
+        
+        // Base rumble noise
         const noise = Math.random() * 2 - 1;
         
-        // Random micro-cracks (frequent small pops)
-        const microCrack = (Math.random() < 0.08) ? (Math.random() - 0.5) * 1.5 : 0;
+        // Ground shake (same as rumble)
+        const groundShake = Math.sin(time * 20 * Math.PI) * 0.3;
         
-        // Grinding/stressed material sound
-        const grind = Math.sin(time * 25 * Math.PI + Math.random() * 2) * 0.2;
+        // Add subtle crunchiness - occasional micro-cracks
+        const crunch = (Math.random() < 0.02) ? (Math.random() - 0.5) * 0.4 : 0;
         
-        // Stress creaking
-        const creak = Math.sin(time * 80 * Math.PI) * 0.1 * (1 + Math.sin(time * 3 * Math.PI) * 0.5);
-        
-        // Low frequency stress
-        const stress = Math.sin(time * 15 * Math.PI) * 0.15;
-        
-        data[i] = (noise * 0.4 + microCrack + grind + creak + stress) * envelope;
+        data[i] = (noise * 0.5 + groundShake + crunch) * envelope * shake * rattle;
     }
     
     crack.buffer = buffer;
     
-    // Filter for crackling character - wider band
-    filter.type = 'bandpass';
-    filter.frequency.value = 1000;
-    filter.Q.value = 0.3; // Wide Q for fuller sound
+    // Low-pass for deep rumble (same as earthquake rumble)
+    filter.type = 'lowpass';
+    filter.frequency.value = 150; // Slightly higher than pure rumble to let crunch through
+    filter.Q.value = 1.0;
     
-    crackGain.gain.setValueAtTime(2.0, audioContext.currentTime);
+    crackGain.gain.setValueAtTime(3.5, audioContext.currentTime); // Same volume as rumble
     
     crack.connect(filter);
     filter.connect(crackGain);
@@ -1688,16 +1687,16 @@ function stopTornadoWind() {
     }, 1600);
 }
 
-// Crumbly destruction sound for tornado destroying blobs
+// Low rumble/crumble sound for tornado destroying blobs
 function playSmallExplosion(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create a sustained crumbling/breaking apart sound
+    // Create a sustained low crumbling sound
     const crumble = audioContext.createBufferSource();
     const crumbleGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
     
-    const duration = 1.2;
+    const duration = 1.8;
     const bufferSize = audioContext.sampleRate * duration;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
@@ -1706,42 +1705,41 @@ function playSmallExplosion(soundToggle) {
         const progress = i / bufferSize;
         const time = progress * duration;
         
-        // Sustained envelope with gradual decay
+        // Gradual envelope with long fade out
         let envelope;
-        if (time < 0.05) {
-            envelope = time / 0.05; // Quick attack
-        } else if (time < 0.4) {
-            envelope = 1.0 - (time - 0.05) * 0.3; // Slow initial decay
+        if (time < 0.1) {
+            envelope = time / 0.1; // Quick attack
+        } else if (time < 0.5) {
+            envelope = 1.0; // Sustain
         } else {
-            envelope = 0.7 * Math.exp(-(time - 0.4) * 2.5); // Gradual tail off
+            envelope = Math.exp(-(time - 0.5) * 1.5); // Long gradual fade
         }
         
-        // Multiple crumble/crackle layers
+        // Base low rumble noise
         const noise = Math.random() * 2 - 1;
         
-        // Crackling - random pops throughout
-        const crackle = (Math.random() < 0.03) ? (Math.random() * 2 - 1) * 2 : 0;
+        // Low frequency rumble components
+        const rumble1 = Math.sin(time * 30 * Math.PI) * 0.3;
+        const rumble2 = Math.sin(time * 45 * Math.PI) * 0.2;
+        const rumble3 = Math.sin(time * 20 * Math.PI) * 0.25;
         
-        // Low rumble of debris
-        const rumble = Math.sin(time * 35 * Math.PI) * 0.2 * Math.exp(-time * 2);
+        // Subtle crunch texture
+        const crunch = (Math.random() < 0.03) ? (Math.random() - 0.5) * 0.3 : 0;
         
-        // Mid-frequency breaking sounds
-        const breaking = Math.sin(time * 120 * Math.PI + Math.random() * 0.5) * 0.15 * Math.exp(-time * 3);
+        // Ground shake feel
+        const shake = 1 + 0.15 * Math.sin(time * 18 * Math.PI);
         
-        // Gritty texture
-        const grit = (Math.random() * 2 - 1) * 0.3 * Math.sin(time * 8 * Math.PI);
-        
-        data[i] = (noise * 0.35 + crackle * 0.25 + rumble + breaking + grit) * envelope;
+        data[i] = (noise * 0.4 + rumble1 + rumble2 + rumble3 + crunch) * envelope * shake;
     }
     
     crumble.buffer = buffer;
     
-    // Band-pass for crumbly character
-    filter.type = 'bandpass';
-    filter.frequency.value = 800;
-    filter.Q.value = 0.4;
+    // Low-pass for deep rumble
+    filter.type = 'lowpass';
+    filter.frequency.value = 180;
+    filter.Q.value = 0.8;
     
-    crumbleGain.gain.setValueAtTime(3.0, audioContext.currentTime);
+    crumbleGain.gain.setValueAtTime(2.5, audioContext.currentTime);
     
     crumble.connect(filter);
     filter.connect(crumbleGain);
@@ -1749,34 +1747,6 @@ function playSmallExplosion(soundToggle) {
     
     crumble.start(audioContext.currentTime);
     crumble.stop(audioContext.currentTime + duration);
-    
-    // Scattered debris sounds throughout
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(200, 0.1, 'triangle');
-        playSound(150, 0.12, 'sine');
-    }, 50);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(180, 0.08, 'triangle');
-    }, 200);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(120, 0.1, 'sine');
-        playSound(250, 0.06, 'triangle');
-    }, 400);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(100, 0.12, 'sine');
-    }, 700);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(80, 0.15, 'sine');
-    }, 900);
 }
 
     // Export all public functions for use in main game
