@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -1410,8 +1410,8 @@ function triggerVolcano(lavaBlob, eruptionColumn, edgeType = 'bottom') {
     // DON'T remove blocks yet - they stay on board during warming
     // They'll be removed when eruption phase starts
     
-    // Play rumble sound to indicate volcano is warming up
-    playSoundEffect('rumble', soundToggle);
+    // Play continuous rumble sound to indicate volcano is warming up
+    playVolcanoRumble(soundToggle);
 }
 
 function updateVolcanoAnimation() {
@@ -1425,8 +1425,8 @@ function updateVolcanoAnimation() {
         volcanoColorProgress = warmingProgress;
         
         // Vibration gets more intense as it heats up
-        const intensity = 0.5 + warmingProgress * 1.5; // 0.5 to 2.0 pixels
-        const frequency = 0.1 - warmingProgress * 0.05; // Faster vibration over time
+        const intensity = 2 + warmingProgress * 6; // 2 to 8 pixels
+        const frequency = 0.02 + warmingProgress * 0.03; // Faster vibration over time
         volcanoVibrateOffset.x = Math.sin(Date.now() * frequency) * intensity;
         volcanoVibrateOffset.y = Math.cos(Date.now() * frequency * 1.3) * intensity;
         
@@ -1496,24 +1496,54 @@ function updateVolcanoAnimation() {
             p.y += p.vy;
             
             // Check if landed on board or bottom
-            const gridX = Math.round(p.x / BLOCK_SIZE);
+            let gridX = Math.round(p.x / BLOCK_SIZE);
             const gridY = Math.round(p.y / BLOCK_SIZE);
             
-            // If below board, place it at bottom if column is valid
-            if (p.y >= ROWS * BLOCK_SIZE) {
-                if (gridX >= 0 && gridX < COLS) {
-                    // Find highest empty spot in this column
-                    for (let y = ROWS - 1; y >= 0; y--) {
-                        if (!board[y][gridX]) {
-                            board[y][gridX] = volcanoLavaColor;
-                            isRandomBlock[y][gridX] = false;
-                            p.landed = true;
-                            playSoundEffect('drop', soundToggle);
-                            return false; // Remove projectile
+            // Clamp gridX to valid columns
+            gridX = Math.max(0, Math.min(COLS - 1, gridX));
+            
+            // Helper function to find ANY empty spot on the board (searches all columns)
+            const findAnyEmptySpot = () => {
+                // First try the target column
+                for (let y = ROWS - 1; y >= 0; y--) {
+                    if (!board[y][gridX]) {
+                        return { x: gridX, y: y };
+                    }
+                }
+                // If target column is full, search outward from it
+                for (let offset = 1; offset < COLS; offset++) {
+                    // Try left
+                    const leftX = gridX - offset;
+                    if (leftX >= 0) {
+                        for (let y = ROWS - 1; y >= 0; y--) {
+                            if (!board[y][leftX]) {
+                                return { x: leftX, y: y };
+                            }
+                        }
+                    }
+                    // Try right
+                    const rightX = gridX + offset;
+                    if (rightX < COLS) {
+                        for (let y = ROWS - 1; y >= 0; y--) {
+                            if (!board[y][rightX]) {
+                                return { x: rightX, y: y };
+                            }
                         }
                     }
                 }
-                return false; // Off board, remove
+                return null; // Board is completely full
+            };
+            
+            // If below board, place it in an empty spot
+            if (p.y >= ROWS * BLOCK_SIZE) {
+                const spot = findAnyEmptySpot();
+                if (spot) {
+                    board[spot.y][spot.x] = volcanoLavaColor;
+                    isRandomBlock[spot.y][spot.x] = false;
+                    p.landed = true;
+                    playSoundEffect('drop', soundToggle);
+                }
+                return false; // Remove projectile (landed or board full)
             }
             
             // Check if hit existing block
@@ -1521,12 +1551,22 @@ function updateVolcanoAnimation() {
                 // Check if next position down has a block
                 const nextY = gridY + 1;
                 if (nextY < ROWS && board[nextY] && board[nextY][gridX]) {
-                    // Land on top of this block
+                    // Land on top of this block if spot is empty
                     if (!board[gridY][gridX]) {
                         board[gridY][gridX] = volcanoLavaColor;
                         isRandomBlock[gridY][gridX] = false;
                         p.landed = true;
                         playSoundEffect('drop', soundToggle);
+                        return false;
+                    } else {
+                        // Spot is occupied - find another empty spot
+                        const spot = findAnyEmptySpot();
+                        if (spot) {
+                            board[spot.y][spot.x] = volcanoLavaColor;
+                            isRandomBlock[spot.y][spot.x] = false;
+                            p.landed = true;
+                            playSoundEffect('drop', soundToggle);
+                        }
                         return false;
                     }
                 }
@@ -8411,7 +8451,7 @@ function clearLines() {
             }
         });
         
-        const isStrike = completedRows.length === 4;
+        const isStrike = completedRows.length >= 4;
         
         // Play appropriate sound/effect immediately as animation starts
         // Priority: Strike > Black Hole > Tsunami > Normal
