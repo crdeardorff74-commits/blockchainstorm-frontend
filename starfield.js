@@ -144,10 +144,11 @@ const StarfieldSystem = (function() {
     }
     
     function drawWrappingVineRope(ctx, width, height) {
-        // Vine colors - dark and sinister with red streaks
-        const baseColor = 'rgba(20, 12, 8, 0.95)';      // Very dark brown, almost black
-        const darkColor = 'rgba(8, 3, 2, 0.95)';        // Near black
-        const accentColor = 'rgba(80, 15, 15, 0.8)';    // Dark blood red
+        // Vine colors - darker and more sinister with prominent red streaks
+        const baseColor = 'rgba(10, 5, 3, 0.98)';         // Nearly black
+        const darkColor = 'rgba(5, 2, 1, 0.98)';          // Almost pure black
+        const accentColor = 'rgba(100, 15, 10, 0.9)';     // Brighter blood red
+        const redHighlight = 'rgba(140, 20, 15, 0.85)';   // Even brighter red for highlights
         
         const ropeWidth = Math.min(width, height) * 0.025; // Thinner rope
         
@@ -211,10 +212,19 @@ const StarfieldSystem = (function() {
         ctx.stroke();
         
         // Draw twisted strand lines along the rope (creates rope texture)
-        const numStrands = 4;
+        // More strands, with more reds
+        const numStrands = 6;
         for (let strand = 0; strand < numStrands; strand++) {
-            // Alternate between dark and red streaks
-            ctx.strokeStyle = strand % 2 === 0 ? darkColor : accentColor;
+            // More red strands than dark: pattern is dark, red, red highlight, dark, red, red highlight
+            let strandColor;
+            if (strand % 3 === 0) {
+                strandColor = darkColor;
+            } else if (strand % 3 === 1) {
+                strandColor = accentColor;
+            } else {
+                strandColor = redHighlight;
+            }
+            ctx.strokeStyle = strandColor;
             ctx.lineWidth = ropeWidth * 0.15;
             
             ctx.beginPath();
