@@ -159,39 +159,86 @@ function startDrizzleMusic() {
     wobble.lfo.frequency.value = 2; // Slow wobble
     wobble.filter.frequency.value = 400; // Mellow filter
     
-    // Gentle 80s arp melody
-    const melody = [
+    // Multiple melody variations
+    const melodyA = [
         { note: 330, duration: 0.3 }, { note: 294, duration: 0.3 },
         { note: 262, duration: 0.3 }, { note: 294, duration: 0.3 },
         { note: 330, duration: 0.4 }, { note: 392, duration: 0.4 }
     ];
+    const melodyB = [
+        { note: 392, duration: 0.3 }, { note: 349, duration: 0.3 },
+        { note: 330, duration: 0.4 }, { note: 294, duration: 0.3 },
+        { note: 262, duration: 0.5 }
+    ];
+    const melodyC = [
+        { note: 294, duration: 0.4 }, { note: 330, duration: 0.3 },
+        { note: 392, duration: 0.3 }, { note: 440, duration: 0.4 },
+        { note: 392, duration: 0.3 }, { note: 330, duration: 0.4 }
+    ];
+    const melodyD = [
+        { note: 262, duration: 0.5 }, { note: 330, duration: 0.3 },
+        { note: 294, duration: 0.3 }, { note: 349, duration: 0.4 },
+        { note: 330, duration: 0.5 }
+    ];
     
+    const melodies = [melodyA, melodyB, melodyC, melodyD];
+    let currentMelody = melodyA;
     let melodyIndex = 0;
     let beat = 0;
+    let section = 0;
+    let measureInSection = 0;
     const beatInterval = 60000 / 100; // 100 BPM
     
+    // Bass patterns
+    const bassPatterns = [
+        [55, 65, 73, 65],     // A-C-D-C
+        [55, 55, 73, 82],     // A-A-D-E
+        [65, 73, 82, 73],     // C-D-E-D
+        [73, 65, 55, 65]      // D-C-A-C
+    ];
+    let currentBassPattern = bassPatterns[0];
+    
     kickScheduler = setInterval(() => {
-        // Simple kick pattern
+        // Section changes every 64 beats (16 bars)
+        if (beat % 64 === 0 && beat > 0) {
+            section++;
+            currentMelody = melodies[section % melodies.length];
+            currentBassPattern = bassPatterns[section % bassPatterns.length];
+            // Subtle filter movement
+            wobble.filter.frequency.value = 350 + (section % 3) * 75;
+            wobble.lfo.frequency.value = 2 + (section % 2) * 0.5;
+        }
+        
+        measureInSection = Math.floor((beat % 64) / 4);
+        
+        // Kick pattern with occasional variation
         if (beat % 4 === 0) {
             playKick();
         }
+        // Add extra kick every 4th measure
+        if (measureInSection % 4 === 3 && beat % 4 === 2) {
+            playKick();
+        }
         
-        // Snare on 2 and 4
+        // Snare on 2 and 4, with fills
         if (beat % 4 === 2) {
             playSnare();
         }
+        // Fill before section change
+        if (beat % 64 >= 60 && beat % 2 === 0) {
+            setTimeout(() => playSnare(), 150);
+        }
         
-        // Melody every 2 beats
-        if (beat % 2 === 0) {
-            const note = melody[melodyIndex % melody.length];
+        // Melody every 2 beats, skip occasionally for breathing room
+        if (beat % 2 === 0 && !(measureInSection === 7 && beat % 8 >= 4)) {
+            const note = currentMelody[melodyIndex % currentMelody.length];
             playMelodyNote(note.note, note.duration);
             melodyIndex++;
         }
         
-        // Gentle bass line
+        // Bass line with pattern variation
         if (beat % 8 === 0) {
-            const bassNotes = [55, 65, 73, 65]; // A-C-D-C
-            wobble.bass.frequency.value = bassNotes[(beat / 8) % bassNotes.length];
+            wobble.bass.frequency.value = currentBassPattern[(beat / 8) % currentBassPattern.length];
         }
         
         beat++;
@@ -204,46 +251,100 @@ function startDownpourMusic() {
     bassOscillator = wobble;
     wobble.lfo.frequency.value = 4; // Moderate wobble
     
-    const melody = [
+    // Multiple melody patterns
+    const melodyA = [
         { note: 330, duration: 0.25 }, { note: 294, duration: 0.2 },
         { note: 262, duration: 0.25 }, { note: 294, duration: 0.2 },
         { note: 330, duration: 0.3 }, { note: 392, duration: 0.3 },
         { note: 440, duration: 0.35 }
     ];
+    const melodyB = [
+        { note: 440, duration: 0.25 }, { note: 392, duration: 0.2 },
+        { note: 349, duration: 0.25 }, { note: 330, duration: 0.3 },
+        { note: 392, duration: 0.35 }
+    ];
+    const melodyC = [
+        { note: 262, duration: 0.3 }, { note: 330, duration: 0.2 },
+        { note: 392, duration: 0.25 }, { note: 440, duration: 0.25 },
+        { note: 494, duration: 0.3 }, { note: 440, duration: 0.25 }
+    ];
+    const melodyD = [
+        { note: 349, duration: 0.2 }, { note: 392, duration: 0.25 },
+        { note: 330, duration: 0.2 }, { note: 294, duration: 0.3 },
+        { note: 330, duration: 0.35 }, { note: 262, duration: 0.4 }
+    ];
     
+    const melodies = [melodyA, melodyB, melodyC, melodyD];
+    let currentMelody = melodyA;
     let melodyIndex = 0;
     let beat = 0;
     let section = 0;
+    let measureInSection = 0;
     const beatInterval = 60000 / 120; // 120 BPM
     
+    // Bass patterns
+    const bassPatterns = [
+        [55, 73, 65, 55],
+        [73, 82, 65, 55],
+        [55, 55, 82, 73],
+        [65, 73, 55, 82]
+    ];
+    let currentBassPattern = bassPatterns[0];
+    
+    // Wobble presets
+    const wobblePresets = [
+        { lfo: 4, filter: 700 },
+        { lfo: 5, filter: 900 },
+        { lfo: 6, filter: 800 },
+        { lfo: 4, filter: 1000 }
+    ];
+    
     kickScheduler = setInterval(() => {
+        // Section changes every 32 beats
         if (beat % 32 === 0) {
             section++;
-            wobble.lfo.frequency.value = section % 2 === 0 ? 4 : 5;
-            wobble.filter.frequency.value = section % 2 === 0 ? 700 : 900;
+            currentMelody = melodies[section % melodies.length];
+            currentBassPattern = bassPatterns[section % bassPatterns.length];
+            const preset = wobblePresets[section % wobblePresets.length];
+            wobble.lfo.frequency.value = preset.lfo;
+            wobble.filter.frequency.value = preset.filter;
         }
         
-        // Standard dubstep kick pattern
-        if (beat % 4 === 0 || beat % 4 === 2) {
-            playKick();
+        measureInSection = Math.floor((beat % 32) / 4);
+        
+        // Varied kick patterns
+        const kickVariation = section % 3;
+        if (kickVariation === 0) {
+            // Standard dubstep
+            if (beat % 4 === 0 || beat % 4 === 2) playKick();
+        } else if (kickVariation === 1) {
+            // Syncopated
+            if (beat % 4 === 0 || beat % 8 === 3) playKick();
+        } else {
+            // Four on floor with ghost
+            if (beat % 4 === 0) playKick();
+            if (beat % 8 === 6) setTimeout(() => playKick(), 100);
         }
         
-        // Snare on 2 and 4
+        // Snare with variations
         if (beat % 4 === 1 || beat % 4 === 3) {
             playSnare();
         }
+        // Build-up fills
+        if (measureInSection === 7) {
+            if (beat % 2 === 0) setTimeout(() => playSnare(), 125);
+        }
         
-        // Active melody
-        if (beat % 2 === 0) {
-            const note = melody[melodyIndex % melody.length];
+        // Melody with occasional rests
+        if (beat % 2 === 0 && measureInSection !== 4) {
+            const note = currentMelody[melodyIndex % currentMelody.length];
             playMelodyNote(note.note, note.duration);
             melodyIndex++;
         }
         
         // Dynamic bass
         if (beat % 8 === 0) {
-            const bassNotes = [55, 73, 65, 55];
-            wobble.bass.frequency.value = bassNotes[(beat / 8) % bassNotes.length];
+            wobble.bass.frequency.value = currentBassPattern[(beat / 8) % currentBassPattern.length];
         }
         
         beat++;
@@ -261,51 +362,115 @@ function startHailstormMusic() {
         { note: 349, duration: 0.2 }, { note: 330, duration: 0.15 },
         { note: 392, duration: 0.25 }, { note: 440, duration: 0.25 }
     ];
-    
     const melodyB = [
         { note: 523, duration: 0.15 }, { note: 494, duration: 0.15 },
         { note: 440, duration: 0.2 }, { note: 392, duration: 0.2 },
         { note: 440, duration: 0.25 }
     ];
+    const melodyC = [
+        { note: 392, duration: 0.18 }, { note: 440, duration: 0.15 },
+        { note: 494, duration: 0.18 }, { note: 523, duration: 0.2 },
+        { note: 494, duration: 0.15 }, { note: 440, duration: 0.2 }
+    ];
+    const melodyD = [
+        { note: 349, duration: 0.2 }, { note: 392, duration: 0.15 },
+        { note: 330, duration: 0.18 }, { note: 294, duration: 0.2 },
+        { note: 330, duration: 0.25 }, { note: 392, duration: 0.2 }
+    ];
+    const melodyBreak = [
+        { note: 523, duration: 0.3 }, { note: 0, duration: 0.2 },
+        { note: 440, duration: 0.3 }, { note: 0, duration: 0.2 }
+    ];
     
+    const melodies = [melodyA, melodyB, melodyC, melodyD];
     let currentMelody = melodyA;
     let melodyIndex = 0;
     let beat = 0;
     let section = 0;
+    let measureInSection = 0;
+    let isBreakdown = false;
     const beatInterval = 60000 / 140; // 140 BPM
     
+    // More bass patterns
+    const bassPatterns = [
+        [55, 82, 73, 65],
+        [73, 55, 82, 65],
+        [55, 65, 55, 82],
+        [82, 73, 65, 55]
+    ];
+    let currentBassPattern = bassPatterns[0];
+    
     kickScheduler = setInterval(() => {
+        // Section changes every 32 beats
         if (beat % 32 === 0) {
             section++;
-            currentMelody = section % 2 === 0 ? melodyA : melodyB;
-            wobble.lfo.frequency.value = [6, 7, 8][section % 3];
-            wobble.filter.frequency.value = [800, 1000, 1200][section % 3];
+            // Every 4th section is a breakdown
+            isBreakdown = section % 4 === 3;
+            
+            if (isBreakdown) {
+                currentMelody = melodyBreak;
+                wobble.lfo.frequency.value = 3;
+                wobble.filter.frequency.value = 500;
+            } else {
+                currentMelody = melodies[section % melodies.length];
+                currentBassPattern = bassPatterns[section % bassPatterns.length];
+                wobble.lfo.frequency.value = [6, 7, 8, 9][section % 4];
+                wobble.filter.frequency.value = [800, 1000, 1200, 900][section % 4];
+            }
         }
         
-        // More aggressive kick pattern
-        if (beat % 4 === 0 || beat % 4 === 2) {
-            playKick();
-        }
-        if (beat % 16 === 7) {
-            setTimeout(() => playKick(), 100); // Double kick
+        measureInSection = Math.floor((beat % 32) / 4);
+        
+        // Kick pattern varies
+        if (!isBreakdown) {
+            if (beat % 4 === 0 || beat % 4 === 2) {
+                playKick();
+            }
+            // Double kicks with variation
+            if (beat % 16 === 7 || beat % 16 === 15) {
+                setTimeout(() => playKick(), 100);
+            }
+            // Extra syncopation every other section
+            if (section % 2 === 1 && beat % 8 === 5) {
+                playKick();
+            }
+        } else {
+            // Sparse kicks during breakdown
+            if (beat % 8 === 0) playKick();
         }
         
-        // Snare
-        if (beat % 4 === 1 || beat % 4 === 3) {
-            playSnare();
+        // Snare with fills
+        if (!isBreakdown) {
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                playSnare();
+            }
+            // Build-up fill
+            if (measureInSection >= 6 && beat % 2 === 0) {
+                setTimeout(() => playSnare(), 70);
+            }
+        } else {
+            // Breakdown snare
+            if (beat % 8 === 4) playSnare();
         }
         
-        // Fast melody
-        if (beat % 1 === 0) {
+        // Melody with dynamics
+        if (beat % 1 === 0 && !isBreakdown) {
             const note = currentMelody[melodyIndex % currentMelody.length];
-            playMelodyNote(note.note, note.duration);
+            if (note.note > 0) {
+                playMelodyNote(note.note, note.duration);
+            }
+            melodyIndex++;
+        } else if (isBreakdown && beat % 4 === 0) {
+            const note = currentMelody[melodyIndex % currentMelody.length];
+            if (note.note > 0) {
+                playMelodyNote(note.note, note.duration * 1.5);
+            }
             melodyIndex++;
         }
         
-        // Active bass movement
+        // Bass movement
         if (beat % 4 === 0) {
-            const bassNotes = [55, 82, 73, 65];
-            wobble.bass.frequency.value = bassNotes[(beat / 4) % bassNotes.length];
+            wobble.bass.frequency.value = currentBassPattern[(beat / 4) % currentBassPattern.length];
         }
         
         beat++;
@@ -323,47 +488,109 @@ function startBlizzardMusic() {
         { note: 440, duration: 0.15 }, { note: 392, duration: 0.12 },
         { note: 349, duration: 0.15 }, { note: 440, duration: 0.2 }
     ];
-    
     const melodyB = [
         { note: 587, duration: 0.12 }, { note: 523, duration: 0.12 },
         { note: 494, duration: 0.15 }, { note: 440, duration: 0.15 },
         { note: 523, duration: 0.2 }
     ];
-    
     const melodyC = [
         { note: 659, duration: 0.1 }, { note: 587, duration: 0.1 },
         { note: 523, duration: 0.12 }, { note: 494, duration: 0.12 },
         { note: 440, duration: 0.15 }, { note: 523, duration: 0.2 }
     ];
+    const melodyD = [
+        { note: 440, duration: 0.15 }, { note: 523, duration: 0.12 },
+        { note: 587, duration: 0.15 }, { note: 523, duration: 0.12 },
+        { note: 494, duration: 0.18 }
+    ];
+    const melodyE = [
+        { note: 392, duration: 0.12 }, { note: 440, duration: 0.12 },
+        { note: 494, duration: 0.15 }, { note: 523, duration: 0.15 },
+        { note: 587, duration: 0.2 }, { note: 523, duration: 0.15 }
+    ];
+    const buildUp = [
+        { note: 523, duration: 0.1 }, { note: 523, duration: 0.1 },
+        { note: 587, duration: 0.1 }, { note: 587, duration: 0.1 },
+        { note: 659, duration: 0.1 }, { note: 659, duration: 0.1 }
+    ];
     
+    const melodies = [melodyA, melodyB, melodyC, melodyD, melodyE];
     let currentMelody = melodyA;
     let melodyIndex = 0;
     let beat = 0;
     let section = 0;
+    let measureInSection = 0;
+    let isBuildUp = false;
     const beatInterval = 60000 / 160; // 160 BPM
     
+    const bassPatterns = [
+        [55, 82, 73, 65, 49, 73],
+        [49, 55, 73, 82, 65, 55],
+        [73, 65, 55, 82, 73, 49],
+        [55, 73, 49, 82, 65, 73]
+    ];
+    let currentBassPattern = bassPatterns[0];
+    
     kickScheduler = setInterval(() => {
+        // Section changes every 32 beats
         if (beat % 32 === 0) {
             section++;
-            if (section % 3 === 0) currentMelody = melodyA;
-            else if (section % 3 === 1) currentMelody = melodyB;
-            else currentMelody = melodyC;
+            // Build-up every 5th section
+            isBuildUp = section % 5 === 4;
             
-            wobble.lfo.frequency.value = [8, 10, 12][section % 3];
-            wobble.filter.frequency.value = [1000, 1200, 1400][section % 3];
+            if (isBuildUp) {
+                currentMelody = buildUp;
+                wobble.lfo.frequency.value = 12;
+                wobble.filter.frequency.value = 1600;
+            } else {
+                currentMelody = melodies[section % melodies.length];
+                currentBassPattern = bassPatterns[section % bassPatterns.length];
+                wobble.lfo.frequency.value = [8, 10, 12, 9, 11][section % 5];
+                wobble.filter.frequency.value = [1000, 1200, 1400, 1100, 1300][section % 5];
+            }
         }
+        
+        measureInSection = Math.floor((beat % 32) / 4);
         
         // Complex kick pattern
-        if (beat % 4 === 0 || beat % 4 === 2) {
-            playKick();
-        }
-        if (beat % 8 === 3 || beat % 8 === 7) {
-            setTimeout(() => playKick(), 80);
+        if (!isBuildUp) {
+            if (beat % 4 === 0 || beat % 4 === 2) {
+                playKick();
+            }
+            if (beat % 8 === 3 || beat % 8 === 7) {
+                setTimeout(() => playKick(), 80);
+            }
+            // Random extra hits for chaos
+            if (section % 3 === 2 && beat % 16 === 5) {
+                playKick();
+            }
+        } else {
+            // Build-up kick roll
+            if (measureInSection < 4) {
+                if (beat % 4 === 0) playKick();
+            } else if (measureInSection < 6) {
+                if (beat % 2 === 0) playKick();
+            } else {
+                playKick(); // Every beat
+            }
         }
         
-        // Snare
-        if (beat % 4 === 1 || beat % 4 === 3) {
-            playSnare();
+        // Snare with fills
+        if (!isBuildUp) {
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                playSnare();
+            }
+            // Extra snare hits
+            if (measureInSection >= 6 && beat % 2 === 1) {
+                setTimeout(() => playSnare(), 60);
+            }
+        } else {
+            // Build-up snare roll
+            if (measureInSection >= 6) {
+                playSnare();
+            } else if (beat % 4 === 2) {
+                playSnare();
+            }
         }
         
         // Rapid melody
@@ -375,8 +602,7 @@ function startBlizzardMusic() {
         
         // Rapid bass changes
         if (beat % 4 === 0) {
-            const bassNotes = [55, 82, 73, 65, 49, 73];
-            wobble.bass.frequency.value = bassNotes[(beat / 4) % bassNotes.length];
+            wobble.bass.frequency.value = currentBassPattern[(beat / 4) % currentBassPattern.length];
         }
         
         beat++;
@@ -394,61 +620,144 @@ function startHurricaneMusic() {
         { note: 523, duration: 0.12 }, { note: 494, duration: 0.1 },
         { note: 440, duration: 0.12 }, { note: 523, duration: 0.15 }
     ];
-    
     const melodyB = [
         { note: 784, duration: 0.08 }, { note: 659, duration: 0.1 },
         { note: 587, duration: 0.1 }, { note: 523, duration: 0.12 },
         { note: 659, duration: 0.15 }
     ];
-    
     const melodyC = [
         { note: 880, duration: 0.08 }, { note: 784, duration: 0.08 },
         { note: 659, duration: 0.1 }, { note: 587, duration: 0.1 },
         { note: 523, duration: 0.12 }, { note: 659, duration: 0.15 }
     ];
+    const melodyD = [
+        { note: 587, duration: 0.1 }, { note: 659, duration: 0.08 },
+        { note: 784, duration: 0.1 }, { note: 659, duration: 0.08 },
+        { note: 587, duration: 0.12 }, { note: 523, duration: 0.12 }
+    ];
+    const melodyE = [
+        { note: 523, duration: 0.1 }, { note: 587, duration: 0.1 },
+        { note: 659, duration: 0.08 }, { note: 784, duration: 0.08 },
+        { note: 880, duration: 0.12 }, { note: 784, duration: 0.1 }
+    ];
+    const dropMelody = [
+        { note: 220, duration: 0.2 }, { note: 0, duration: 0.1 },
+        { note: 220, duration: 0.15 }, { note: 262, duration: 0.15 }
+    ];
+    const riseMelody = [
+        { note: 440, duration: 0.08 }, { note: 494, duration: 0.08 },
+        { note: 523, duration: 0.08 }, { note: 587, duration: 0.08 },
+        { note: 659, duration: 0.08 }, { note: 784, duration: 0.08 },
+        { note: 880, duration: 0.1 }
+    ];
     
+    const melodies = [melodyA, melodyB, melodyC, melodyD, melodyE];
     let currentMelody = melodyA;
     let melodyIndex = 0;
     let beat = 0;
     let section = 0;
+    let measureInSection = 0;
+    let isDrop = false;
+    let isRise = false;
     const beatInterval = 60000 / 180; // 180 BPM - EXTREME
     
+    const bassPatterns = [
+        [55, 82, 73, 65, 49, 73, 82, 55],
+        [49, 55, 65, 82, 73, 55, 82, 65],
+        [73, 82, 55, 49, 65, 73, 82, 55],
+        [55, 49, 73, 82, 65, 55, 82, 73]
+    ];
+    let currentBassPattern = bassPatterns[0];
+    
     kickScheduler = setInterval(() => {
+        // Section changes every 32 beats
         if (beat % 32 === 0) {
             section++;
-            if (section % 3 === 0) currentMelody = melodyA;
-            else if (section % 3 === 1) currentMelody = melodyB;
-            else currentMelody = melodyC;
+            // Drops and rises for dynamics
+            isDrop = section % 6 === 4;
+            isRise = section % 6 === 5;
             
-            wobble.lfo.frequency.value = [12, 14, 16, 18][section % 4];
-            wobble.filter.frequency.value = [1200, 1400, 1600, 1800][section % 4];
+            if (isDrop) {
+                currentMelody = dropMelody;
+                wobble.lfo.frequency.value = 6;
+                wobble.filter.frequency.value = 600;
+            } else if (isRise) {
+                currentMelody = riseMelody;
+                wobble.lfo.frequency.value = 20;
+                wobble.filter.frequency.value = 2000;
+            } else {
+                currentMelody = melodies[section % melodies.length];
+                currentBassPattern = bassPatterns[section % bassPatterns.length];
+                wobble.lfo.frequency.value = [12, 14, 16, 18, 15][section % 5];
+                wobble.filter.frequency.value = [1200, 1400, 1600, 1800, 1500][section % 5];
+            }
         }
         
-        // Maximum kick intensity
-        if (beat % 4 === 0 || beat % 4 === 2) {
-            playKick();
-        }
-        if (beat % 4 === 1 || beat % 4 === 3) {
-            setTimeout(() => playKick(), 60); // Frequent double kicks
+        measureInSection = Math.floor((beat % 32) / 4);
+        
+        // Kick patterns vary by section type
+        if (isDrop) {
+            // Sparse, heavy kicks during drop
+            if (beat % 8 === 0) playKick();
+            if (beat % 8 === 4) setTimeout(() => playKick(), 80);
+        } else if (isRise) {
+            // Accelerating kicks during rise
+            if (measureInSection < 2) {
+                if (beat % 4 === 0) playKick();
+            } else if (measureInSection < 4) {
+                if (beat % 2 === 0) playKick();
+            } else if (measureInSection < 6) {
+                playKick();
+            } else {
+                playKick();
+                setTimeout(() => playKick(), 40);
+            }
+        } else {
+            // Maximum kick intensity
+            if (beat % 4 === 0 || beat % 4 === 2) {
+                playKick();
+            }
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                setTimeout(() => playKick(), 60);
+            }
+            // Extra chaos kicks
+            if (section % 3 === 0 && beat % 8 === 5) {
+                playKick();
+            }
         }
         
-        // Rapid snare
-        if (beat % 4 === 1 || beat % 4 === 3) {
-            playSnare();
-        }
-        if (section % 2 === 1 && beat % 8 === 5) {
-            setTimeout(() => playSnare(), 50);
+        // Snare patterns
+        if (isDrop) {
+            if (beat % 8 === 4) playSnare();
+        } else if (isRise) {
+            if (measureInSection >= 4) {
+                playSnare();
+            } else if (beat % 4 === 2) {
+                playSnare();
+            }
+        } else {
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                playSnare();
+            }
+            if (section % 2 === 1 && beat % 8 === 5) {
+                setTimeout(() => playSnare(), 50);
+            }
+            // Fill before section change
+            if (measureInSection === 7 && beat % 2 === 1) {
+                setTimeout(() => playSnare(), 30);
+            }
         }
         
-        // Ultra-fast melody
+        // Melody
         const note = currentMelody[melodyIndex % currentMelody.length];
-        playMelodyNote(note.note, note.duration);
+        if (note.note > 0) {
+            playMelodyNote(note.note, note.duration);
+        }
         melodyIndex++;
         
         // Chaotic bass
         if (beat % 2 === 0) {
-            const bassNotes = [55, 82, 73, 65, 49, 73, 82, 55];
-            wobble.bass.frequency.value = bassNotes[(beat / 2) % bassNotes.length];
+            wobble.bass.frequency.value = currentBassPattern[(beat / 2) % currentBassPattern.length];
         }
         
         beat++;
