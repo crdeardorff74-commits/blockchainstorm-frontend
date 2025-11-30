@@ -1362,12 +1362,12 @@ function playEarthquakeRumble(soundToggle) {
 function playEarthquakeCrack(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create a 2 second cracking/splitting sound
+    // Create a 2.5 second sustained crackling/splitting sound
     const crack = audioContext.createBufferSource();
     const crackGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
     
-    const duration = 2.0;
+    const duration = 2.5;
     const bufferSize = audioContext.sampleRate * duration;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
@@ -1376,40 +1376,42 @@ function playEarthquakeCrack(soundToggle) {
         const progress = i / bufferSize;
         const time = progress * duration;
         
-        // Envelope with multiple crack peaks
-        let envelope = 0;
+        // Sustained envelope - builds up then slowly fades
+        let envelope;
+        if (time < 0.2) {
+            envelope = time / 0.2 * 0.7; // Ramp up
+        } else if (time < 1.8) {
+            envelope = 0.7 + 0.3 * Math.sin((time - 0.2) * 0.8); // Sustained with slight variation
+        } else {
+            envelope = 1.0 * Math.exp(-(time - 1.8) * 2); // Fade out
+        }
         
-        // Series of crack sounds that build and overlap
-        const crack1 = time < 0.3 ? Math.exp(-time * 8) : 0;
-        const crack2 = (time > 0.2 && time < 0.6) ? Math.exp(-(time - 0.2) * 6) * 0.8 : 0;
-        const crack3 = (time > 0.5 && time < 1.0) ? Math.exp(-(time - 0.5) * 5) * 0.7 : 0;
-        const crack4 = (time > 0.8 && time < 1.4) ? Math.exp(-(time - 0.8) * 4) * 0.6 : 0;
-        const crack5 = (time > 1.2 && time < 2.0) ? Math.exp(-(time - 1.2) * 3) * 0.5 : 0;
-        
-        envelope = crack1 + crack2 + crack3 + crack4 + crack5;
-        
-        // Mix of noise for cracking texture and some tonal elements
+        // Base crackling noise
         const noise = Math.random() * 2 - 1;
         
-        // Sharp transients for crack sounds
-        const crackTone1 = Math.sin(time * 800 * Math.PI) * Math.exp(-time * 20);
-        const crackTone2 = Math.sin((time - 0.2) * 600 * Math.PI) * Math.exp(-(time - 0.2) * 18) * (time > 0.2 ? 1 : 0);
-        const crackTone3 = Math.sin((time - 0.5) * 500 * Math.PI) * Math.exp(-(time - 0.5) * 15) * (time > 0.5 ? 1 : 0);
+        // Random micro-cracks (frequent small pops)
+        const microCrack = (Math.random() < 0.08) ? (Math.random() - 0.5) * 1.5 : 0;
         
-        // Low grinding undertone
-        const grind = Math.sin(time * 40 * Math.PI) * 0.15;
+        // Grinding/stressed material sound
+        const grind = Math.sin(time * 25 * Math.PI + Math.random() * 2) * 0.2;
         
-        data[i] = (noise * 0.5 + crackTone1 * 0.2 + crackTone2 * 0.15 + crackTone3 * 0.1 + grind) * envelope;
+        // Stress creaking
+        const creak = Math.sin(time * 80 * Math.PI) * 0.1 * (1 + Math.sin(time * 3 * Math.PI) * 0.5);
+        
+        // Low frequency stress
+        const stress = Math.sin(time * 15 * Math.PI) * 0.15;
+        
+        data[i] = (noise * 0.4 + microCrack + grind + creak + stress) * envelope;
     }
     
     crack.buffer = buffer;
     
-    // Band-pass for cracking character
+    // Filter for crackling character - wider band
     filter.type = 'bandpass';
-    filter.frequency.value = 1500;
-    filter.Q.value = 0.5;
+    filter.frequency.value = 1000;
+    filter.Q.value = 0.3; // Wide Q for fuller sound
     
-    crackGain.gain.setValueAtTime(2.5, audioContext.currentTime);
+    crackGain.gain.setValueAtTime(2.0, audioContext.currentTime);
     
     crack.connect(filter);
     filter.connect(crackGain);
@@ -1417,29 +1419,6 @@ function playEarthquakeCrack(soundToggle) {
     
     crack.start(audioContext.currentTime);
     crack.stop(audioContext.currentTime + duration);
-    
-    // Add some discrete crack pops
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(1200, 0.04, 'square');
-        playSound(800, 0.05, 'square');
-    }, 100);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(1000, 0.04, 'square');
-    }, 400);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(900, 0.05, 'square');
-        playSound(600, 0.06, 'triangle');
-    }, 800);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(700, 0.05, 'square');
-    }, 1200);
 }
 
 // Main sound effects dispatcher
@@ -1709,16 +1688,16 @@ function stopTornadoWind() {
     }, 1600);
 }
 
-// Dramatic explosion for tornado destroying blobs
+// Crumbly destruction sound for tornado destroying blobs
 function playSmallExplosion(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create a punchy, dramatic explosion
-    const explosion = audioContext.createBufferSource();
-    const explosionGain = audioContext.createGain();
+    // Create a sustained crumbling/breaking apart sound
+    const crumble = audioContext.createBufferSource();
+    const crumbleGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
     
-    const duration = 0.8;
+    const duration = 1.2;
     const bufferSize = audioContext.sampleRate * duration;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
@@ -1727,55 +1706,77 @@ function playSmallExplosion(soundToggle) {
         const progress = i / bufferSize;
         const time = progress * duration;
         
-        // Sharp attack, medium decay
+        // Sustained envelope with gradual decay
         let envelope;
-        if (time < 0.01) {
-            envelope = time / 0.01; // Very quick attack
-        } else if (time < 0.1) {
-            envelope = 1.0; // Brief sustain at peak
+        if (time < 0.05) {
+            envelope = time / 0.05; // Quick attack
+        } else if (time < 0.4) {
+            envelope = 1.0 - (time - 0.05) * 0.3; // Slow initial decay
         } else {
-            envelope = Math.exp(-(time - 0.1) * 5); // Decay
+            envelope = 0.7 * Math.exp(-(time - 0.4) * 2.5); // Gradual tail off
         }
         
-        // Noise with strong low frequency thump
+        // Multiple crumble/crackle layers
         const noise = Math.random() * 2 - 1;
-        const thump = Math.sin(time * 50 * Math.PI) * Math.exp(-time * 10);
-        const boom = Math.sin(time * 30 * Math.PI) * Math.exp(-time * 8);
         
-        data[i] = (noise * 0.4 + thump * 0.35 + boom * 0.25) * envelope;
+        // Crackling - random pops throughout
+        const crackle = (Math.random() < 0.03) ? (Math.random() * 2 - 1) * 2 : 0;
+        
+        // Low rumble of debris
+        const rumble = Math.sin(time * 35 * Math.PI) * 0.2 * Math.exp(-time * 2);
+        
+        // Mid-frequency breaking sounds
+        const breaking = Math.sin(time * 120 * Math.PI + Math.random() * 0.5) * 0.15 * Math.exp(-time * 3);
+        
+        // Gritty texture
+        const grit = (Math.random() * 2 - 1) * 0.3 * Math.sin(time * 8 * Math.PI);
+        
+        data[i] = (noise * 0.35 + crackle * 0.25 + rumble + breaking + grit) * envelope;
     }
     
-    explosion.buffer = buffer;
+    crumble.buffer = buffer;
     
-    // Low-pass for bassy explosion
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1200, audioContext.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.2);
-    filter.Q.value = 0.8;
+    // Band-pass for crumbly character
+    filter.type = 'bandpass';
+    filter.frequency.value = 800;
+    filter.Q.value = 0.4;
     
-    explosionGain.gain.value = 3.5; // Louder
+    crumbleGain.gain.setValueAtTime(3.0, audioContext.currentTime);
     
-    explosion.connect(filter);
-    filter.connect(explosionGain);
-    explosionGain.connect(audioContext.destination);
+    crumble.connect(filter);
+    filter.connect(crumbleGain);
+    crumbleGain.connect(audioContext.destination);
     
-    explosion.start(audioContext.currentTime);
-    explosion.stop(audioContext.currentTime + duration);
+    crumble.start(audioContext.currentTime);
+    crumble.stop(audioContext.currentTime + duration);
     
-    // Add impact crack sounds
+    // Scattered debris sounds throughout
     setTimeout(() => {
         if (!soundToggle.checked) return;
-        playSound(500, 0.06, 'square');
-        playSound(350, 0.08, 'square');
-        playSound(200, 0.1, 'sine');
-    }, 5);
+        playSound(200, 0.1, 'triangle');
+        playSound(150, 0.12, 'sine');
+    }, 50);
     
-    // Secondary rumble
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(180, 0.08, 'triangle');
+    }, 200);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(120, 0.1, 'sine');
+        playSound(250, 0.06, 'triangle');
+    }, 400);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(100, 0.12, 'sine');
+    }, 700);
+    
     setTimeout(() => {
         if (!soundToggle.checked) return;
         playSound(80, 0.15, 'sine');
-        playSound(60, 0.2, 'sine');
-    }, 50);
+    }, 900);
 }
 
     // Export all public functions for use in main game
