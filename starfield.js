@@ -12,6 +12,7 @@ const StarfieldSystem = (function() {
     const stars = [];
     const numStars = 400;
     let starSpeed = 1;
+    let starsEnabled = true;
     const maxDepth = 1000;
     let centerX, centerY;
     
@@ -30,9 +31,501 @@ const StarfieldSystem = (function() {
     let ufoCircleTime = 0;
     let ufoBeamOpacity = 0;
     
-    // Stranger mode (upside down) variables
-    let strangerModeActive = false;
-    let vineOverlays = []; // Array of vine overlay elements
+    // Stranger Mode - Upside Down particles (ash/spore flakes)
+    let strangerMode = false;
+    const ashParticles = [];
+    const numAshParticles = 150;
+    
+    // Initialize ash particles
+    function initAshParticles() {
+        ashParticles.length = 0;
+        for (let i = 0; i < numAshParticles; i++) {
+            ashParticles.push(createAshParticle(true));
+        }
+    }
+    
+    function createAshParticle(initialSpread = false) {
+        // Use actual canvas dimensions
+        const w = starfieldCanvas.width || 1920;
+        const h = starfieldCanvas.height || 1080;
+        
+        return {
+            x: initialSpread ? Math.random() * w : Math.random() * w,
+            y: initialSpread ? Math.random() * h : -20 - Math.random() * 50,
+            size: 2 + Math.random() * 4,  // Slightly larger, 2-6 pixels
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.002, // Even slower rotation
+            driftX: (Math.random() - 0.5) * 0.08,  // Even more subtle horizontal drift
+            driftY: 0.02 + Math.random() * 0.05,   // Much slower downward drift
+            wobblePhase: Math.random() * Math.PI * 2,
+            wobbleSpeed: 0.005 + Math.random() * 0.01,
+            opacity: 0.15 + Math.random() * 0.35,  // Semi-transparent
+            // Irregular shape - random number of points
+            points: Math.floor(3 + Math.random() * 4), // 3-6 points
+            irregularity: []
+        };
+    }
+    
+    // Generate irregular shape points
+    function generateIrregularShape(particle) {
+        particle.irregularity = [];
+        for (let i = 0; i < particle.points; i++) {
+            particle.irregularity.push(0.5 + Math.random() * 0.5); // 50-100% of radius
+        }
+    }
+    
+    // Draw floating ash particles
+    function drawAshParticles() {
+        const w = starfieldCanvas.width;
+        const h = starfieldCanvas.height;
+        
+        ashParticles.forEach(particle => {
+            // Subtle wobble
+            particle.wobblePhase += particle.wobbleSpeed;
+            const wobbleX = Math.sin(particle.wobblePhase) * 0.15;
+            
+            // Very slow drift
+            particle.x += particle.driftX + wobbleX;
+            particle.y += particle.driftY;
+            particle.rotation += particle.rotationSpeed;
+            
+            // Wrap around screen
+            if (particle.y > h + 20) {
+                particle.y = -20;
+                particle.x = Math.random() * w;
+            }
+            if (particle.x < -20) particle.x = w + 20;
+            if (particle.x > w + 20) particle.x = -20;
+            
+            // Generate shape if not done
+            if (particle.irregularity.length === 0) {
+                generateIrregularShape(particle);
+            }
+            
+            // Draw irregular flake shape
+            starfieldCtx.save();
+            starfieldCtx.translate(particle.x, particle.y);
+            starfieldCtx.rotate(particle.rotation);
+            starfieldCtx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
+            
+            starfieldCtx.beginPath();
+            for (let i = 0; i < particle.points; i++) {
+                const angle = (i / particle.points) * Math.PI * 2;
+                const radius = particle.size * particle.irregularity[i];
+                const px = Math.cos(angle) * radius;
+                const py = Math.sin(angle) * radius;
+                if (i === 0) {
+                    starfieldCtx.moveTo(px, py);
+                } else {
+                    starfieldCtx.lineTo(px, py);
+                }
+            }
+            starfieldCtx.closePath();
+            starfieldCtx.fill();
+            
+            starfieldCtx.restore();
+        });
+    }
+    
+    // Static vine rope wrapping around canvas edges - per-canvas cache
+    const vineCanvasCache = new Map();
+    
+    function generateVineCache(width, height) {
+        // Create offscreen canvas for static vines
+        const cacheCanvas = document.createElement('canvas');
+        cacheCanvas.width = width;
+        cacheCanvas.height = height;
+        const cacheCtx = cacheCanvas.getContext('2d');
+        
+        // Draw a rope that wraps around the entire perimeter ON the edge
+        drawWrappingVineRope(cacheCtx, width, height);
+        
+        return cacheCanvas;
+    }
+    
+    function drawWrappingVineRope(ctx, width, height) {
+        // Vine colors - dark and sinister with red streaks
+        const baseColor = 'rgba(20, 12, 8, 0.95)';      // Very dark brown, almost black
+        const darkColor = 'rgba(8, 3, 2, 0.95)';        // Near black
+        const accentColor = 'rgba(80, 15, 15, 0.8)';    // Dark blood red
+        
+        const ropeWidth = Math.min(width, height) * 0.025; // Thinner rope
+        
+        // Generate wavy path points around the perimeter - ON the edge (0 offset)
+        const points = [];
+        const segments = 80;
+        const perimeter = 2 * width + 2 * height;
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const dist = t * perimeter;
+            
+            let x, y, normalX, normalY;
+            
+            if (dist < width) {
+                // Top edge
+                x = dist;
+                y = 0;
+                normalX = 0;
+                normalY = 1;
+            } else if (dist < width + height) {
+                // Right edge
+                x = width;
+                y = dist - width;
+                normalX = -1;
+                normalY = 0;
+            } else if (dist < 2 * width + height) {
+                // Bottom edge
+                x = width - (dist - width - height);
+                y = height;
+                normalX = 0;
+                normalY = -1;
+            } else {
+                // Left edge
+                x = 0;
+                y = height - (dist - 2 * width - height);
+                normalX = 1;
+                normalY = 0;
+            }
+            
+            // Subtle waviness along the edge
+            const wave = Math.sin(i * 1.2) * (ropeWidth * 0.2);
+            x += normalX * wave;
+            y += normalY * wave;
+            
+            points.push({ x, y, normalX, normalY });
+        }
+        
+        // Draw the main rope body
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        // Base rope layer
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = ropeWidth;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        
+        // Draw twisted strand lines along the rope (creates rope texture)
+        const numStrands = 4;
+        for (let strand = 0; strand < numStrands; strand++) {
+            // Alternate between dark and red streaks
+            ctx.strokeStyle = strand % 2 === 0 ? darkColor : accentColor;
+            ctx.lineWidth = ropeWidth * 0.15;
+            
+            ctx.beginPath();
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                // Spiral offset around the rope
+                const spiralPhase = (i * 0.6) + (strand * Math.PI * 2 / numStrands);
+                const spiralOffset = Math.sin(spiralPhase) * (ropeWidth * 0.35);
+                
+                const px = p.x + p.normalX * spiralOffset;
+                const py = p.y + p.normalY * spiralOffset;
+                
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.stroke();
+        }
+        
+        // Add some darker patches/shadows for depth
+        ctx.strokeStyle = darkColor;
+        ctx.lineWidth = ropeWidth * 0.3;
+        for (let i = 10; i < points.length - 10; i += 15) {
+            const startIdx = i;
+            const endIdx = Math.min(i + 5, points.length - 1);
+            ctx.beginPath();
+            ctx.moveTo(points[startIdx].x, points[startIdx].y);
+            for (let j = startIdx + 1; j <= endIdx; j++) {
+                ctx.lineTo(points[j].x, points[j].y);
+            }
+            ctx.stroke();
+        }
+        
+        // Add small tendrils/offshoots occasionally pointing inward
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = ropeWidth * 0.2;
+        for (let i = 8; i < points.length - 8; i += 10) {
+            if (Math.random() > 0.5) {
+                const p = points[i];
+                const tendrilLen = ropeWidth * (0.8 + Math.random() * 1.2);
+                const tendrilAngle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.5;
+                
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                
+                // Curvy tendril pointing inward
+                const endX = p.x + Math.cos(tendrilAngle) * tendrilLen;
+                const endY = p.y + Math.sin(tendrilAngle) * tendrilLen;
+                
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+        }
+    }
+    
+    // Draw vines overlay from cache
+    function drawVinesOverlay(targetCanvas, targetCtx) {
+        const width = targetCanvas.width;
+        const height = targetCanvas.height;
+        const cacheKey = `${width}x${height}`;
+        
+        // Generate cache if not exists for this size
+        if (!vineCanvasCache.has(cacheKey)) {
+            vineCanvasCache.set(cacheKey, generateVineCache(width, height));
+        }
+        
+        // Draw cached vines
+        targetCtx.drawImage(vineCanvasCache.get(cacheKey), 0, 0);
+    }
+    
+    // Create vine overlays that wrap AROUND target elements
+    // Use a Map to track multiple overlays (e.g., game canvas and next piece canvas)
+    const vineOverlays = new Map(); // Map<targetElement, {canvas, ctx, wrapper}>
+    
+    function createVineOverlay(targetElement) {
+        // Remove existing overlay for this element if any
+        removeVineOverlayFor(targetElement);
+        
+        // Create wrapper with position:relative to contain the overlay
+        const wrapper = document.createElement('div');
+        wrapper.className = 'vineWrapper';
+        
+        // For nextCanvas, preserve centering by using block display with auto margins
+        const isNextCanvas = targetElement.id === 'nextCanvas';
+        if (isNextCanvas) {
+            wrapper.style.cssText = 'position: relative; display: block; margin-left: auto; margin-right: auto; width: fit-content;';
+        } else {
+            wrapper.style.cssText = 'position: relative; display: inline-block;';
+        }
+        
+        // Insert wrapper before canvas, move canvas into wrapper
+        targetElement.parentNode.insertBefore(wrapper, targetElement);
+        wrapper.appendChild(targetElement);
+        
+        // Create overlay canvas
+        const overlayCanvas = document.createElement('canvas');
+        overlayCanvas.className = 'vineOverlay';
+        overlayCanvas.style.cssText = `
+            position: absolute;
+            pointer-events: none;
+            z-index: 100;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        `;
+        
+        // Add overlay to wrapper (after canvas)
+        wrapper.appendChild(overlayCanvas);
+        const overlayCtx = overlayCanvas.getContext('2d');
+        
+        // Store in map
+        vineOverlays.set(targetElement, {
+            canvas: overlayCanvas,
+            ctx: overlayCtx,
+            wrapper: wrapper
+        });
+        
+        // Position and draw after layout settles
+        requestAnimationFrame(() => {
+            positionAndDrawVinesFor(targetElement);
+        });
+        
+        return overlayCanvas;
+    }
+    
+    function positionAndDrawVinesFor(targetElement) {
+        const overlay = vineOverlays.get(targetElement);
+        if (!overlay) return;
+        
+        const { canvas: overlayCanvas, ctx: overlayCtx } = overlay;
+        const extend = 15;
+        
+        // Get the VISUAL size of the canvas (what's actually displayed on screen)
+        const rect = targetElement.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        
+        // Set overlay size
+        const overlayWidth = width + extend * 2;
+        const overlayHeight = height + extend * 2;
+        
+        overlayCanvas.width = overlayWidth;
+        overlayCanvas.height = overlayHeight;
+        overlayCanvas.style.width = overlayWidth + 'px';
+        overlayCanvas.style.height = overlayHeight + 'px';
+        
+        // Position overlay: canvas is at (0,0) in wrapper, so offset by -extend
+        overlayCanvas.style.left = -extend + 'px';
+        overlayCanvas.style.top = -extend + 'px';
+        
+        // Clear and draw
+        overlayCtx.clearRect(0, 0, overlayWidth, overlayHeight);
+        
+        // Draw vines - the canvas edge is at 'extend' pixels from overlay edge
+        drawWrappingRope(overlayCtx, extend, extend, width, height);
+    }
+    
+    function removeVineOverlayFor(targetElement) {
+        const overlay = vineOverlays.get(targetElement);
+        if (!overlay) return;
+        
+        const { canvas: overlayCanvas, wrapper } = overlay;
+        
+        // Remove overlay canvas
+        if (overlayCanvas && overlayCanvas.parentNode) {
+            overlayCanvas.parentNode.removeChild(overlayCanvas);
+        }
+        
+        // Unwrap the target element
+        if (wrapper && wrapper.parentNode) {
+            wrapper.parentNode.insertBefore(targetElement, wrapper);
+            wrapper.parentNode.removeChild(wrapper);
+        }
+        
+        vineOverlays.delete(targetElement);
+    }
+    
+    function removeVineOverlay() {
+        // Remove all vine overlays
+        for (const targetElement of vineOverlays.keys()) {
+            removeVineOverlayFor(targetElement);
+        }
+    }
+    
+    // Alias for compatibility
+    function updateVineOverlayPosition(targetElement) {
+        positionAndDrawVinesFor(targetElement);
+    }
+    
+    function drawWrappingVineOverlay(targetElement) {
+        positionAndDrawVinesFor(targetElement);
+    }
+    
+    function drawWrappingRope(ctx, offsetX, offsetY, innerWidth, innerHeight) {
+        const baseRopeWidth = Math.min(innerWidth, innerHeight) * 0.015;
+        const coilFrequency = 0.18; // Less frequent coiling
+        
+        // Generate path points around the perimeter
+        const points = [];
+        const segments = 180;
+        const perimeter = 2 * innerWidth + 2 * innerHeight;
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const dist = t * perimeter;
+            
+            let x, y, normalX, normalY;
+            
+            if (dist < innerWidth) {
+                x = offsetX + dist;
+                y = offsetY;
+                normalX = 0;
+                normalY = 1;
+            } else if (dist < innerWidth + innerHeight) {
+                x = offsetX + innerWidth;
+                y = offsetY + (dist - innerWidth);
+                normalX = -1;
+                normalY = 0;
+            } else if (dist < 2 * innerWidth + innerHeight) {
+                x = offsetX + innerWidth - (dist - innerWidth - innerHeight);
+                y = offsetY + innerHeight;
+                normalX = 0;
+                normalY = -1;
+            } else {
+                x = offsetX;
+                y = offsetY + innerHeight - (dist - 2 * innerWidth - innerHeight);
+                normalX = 1;
+                normalY = 0;
+            }
+            
+            const coilPhase = i * coilFrequency;
+            const coilSin = Math.sin(coilPhase);
+            
+            // Much smaller offset - stays close to the edge
+            const coilOffset = coilSin * baseRopeWidth * 0.25;
+            x += normalX * coilOffset;
+            y += normalY * coilOffset;
+            
+            const depth = (coilSin + 1) / 2;
+            
+            points.push({ x, y, normalX, normalY, coilSin, depth, idx: i });
+        }
+        
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        // Draw continuous rope with subtle shading
+        for (let i = 1; i < points.length; i++) {
+            const p = points[i];
+            const prevP = points[i - 1];
+            
+            const r = Math.floor(15 + p.depth * 30);
+            const g = Math.floor(8 + p.depth * 15);
+            const b = Math.floor(5 + p.depth * 12);
+            
+            // Subtle width variation
+            const width = baseRopeWidth * (0.85 + p.depth * 0.2);
+            
+            ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(prevP.x, prevP.y);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+        }
+        
+        // Subtle red veins
+        ctx.lineWidth = baseRopeWidth * 0.1;
+        ctx.strokeStyle = 'rgba(60, 15, 10, 0.5)';
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            if (p.depth > 0.5) {
+                const offset = Math.sin(i * 0.5) * baseRopeWidth * 0.15;
+                const vx = p.x + p.normalX * offset;
+                const vy = p.y + p.normalY * offset;
+                if (!started) {
+                    ctx.moveTo(vx, vy);
+                    started = true;
+                } else {
+                    ctx.lineTo(vx, vy);
+                }
+            } else if (started) {
+                ctx.stroke();
+                ctx.beginPath();
+                started = false;
+            }
+        }
+        if (started) ctx.stroke();
+        
+        // Small tendrils
+        ctx.strokeStyle = 'rgba(25, 12, 8, 0.6)';
+        ctx.lineWidth = baseRopeWidth * 0.08;
+        for (let i = 20; i < points.length - 20; i += 25) {
+            const p = points[i];
+            if (p.depth > 0.6) {
+                const len = baseRopeWidth * (0.5 + Math.random() * 0.4);
+                const angle = Math.atan2(p.normalY, p.normalX) + (Math.random() - 0.5) * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(
+                    p.x + Math.cos(angle) * len,
+                    p.y + Math.sin(angle) * len
+                );
+                ctx.stroke();
+            }
+        }
+    }
     
     // Solar system data
     const planets = [
@@ -232,9 +725,16 @@ const StarfieldSystem = (function() {
             transitionProgress = 1.0;
         }
         
-        const r = Math.floor(255);
+        // Normal sun colors (yellow/orange)
+        const r = 255;
         const g = Math.floor(200 + (55 * transitionProgress));
         const b = Math.floor(100 * transitionProgress);
+        
+        // Apply darkening filter in stranger mode
+        if (strangerMode) {
+            starfieldCtx.save();
+            starfieldCtx.globalAlpha = 0.4; // Dim to 40%
+        }
         
         if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
             starfieldCtx.save();
@@ -254,7 +754,7 @@ const StarfieldSystem = (function() {
             
             if (morphToWhite > 0) {
                 starfieldCtx.save();
-                starfieldCtx.globalAlpha = morphToWhite;
+                starfieldCtx.globalAlpha = strangerMode ? morphToWhite * 0.4 : morphToWhite;
                 starfieldCtx.fillStyle = '#FFFFFF';
                 starfieldCtx.beginPath();
                 starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
@@ -315,7 +815,6 @@ const StarfieldSystem = (function() {
                 const centerR = 255;
                 const centerG = Math.floor(250 - (transitionProgress * 5));
                 const centerB = Math.floor(205 + (transitionProgress * 50));
-                
                 bodyGradient.addColorStop(0, `rgb(${centerR}, ${centerG}, ${centerB})`);
                 bodyGradient.addColorStop(0.5, `rgb(${r}, ${g}, ${Math.floor(b * 0.5)})`);
                 bodyGradient.addColorStop(1, `rgb(${Math.floor(r * 0.95)}, ${Math.floor(g * 0.9)}, ${Math.floor(b * 0.3)})`);
@@ -326,6 +825,11 @@ const StarfieldSystem = (function() {
                 starfieldCtx.fill();
             }
         }
+        
+        // Restore from stranger mode darkening
+        if (strangerMode) {
+            starfieldCtx.restore();
+        }
     }
     
     // ============================================
@@ -335,6 +839,12 @@ const StarfieldSystem = (function() {
     function drawPlanet(planet, position) {
         const x = centerX + position.x;
         const y = centerY + position.y;
+        
+        // Apply darkening filter in stranger mode
+        if (strangerMode) {
+            starfieldCtx.save();
+            starfieldCtx.globalAlpha = 0.4; // Dim to 40%
+        }
         
         if (planetImages[planet.name]) {
             const img = planetImages[planet.name];
@@ -367,6 +877,8 @@ const StarfieldSystem = (function() {
             starfieldCtx.arc(x, y, planet.size, 0, Math.PI * 2);
             starfieldCtx.fill();
         } else {
+            const planetColor = planet.color;
+            
             if (planet.name === 'Earth') {
                 const earthGradient = starfieldCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
@@ -381,7 +893,7 @@ const StarfieldSystem = (function() {
                 starfieldCtx.fill();
                 
                 starfieldCtx.fillStyle = '#228B22';
-                starfieldCtx.globalAlpha = 1.0;
+                starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
                 
                 starfieldCtx.beginPath();
                 starfieldCtx.ellipse(x + planet.size * 0.2, y - planet.size * 0.1, planet.size * 0.35, planet.size * 0.25, 0.5, 0, Math.PI * 2);
@@ -399,16 +911,16 @@ const StarfieldSystem = (function() {
                 starfieldCtx.arc(x + planet.size * 0.4, y - planet.size * 0.25, planet.size * 0.15, 0, Math.PI * 2);
                 starfieldCtx.fill();
                 
-                starfieldCtx.globalAlpha = 1.0;
+                starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
             } else {
                 const bodyGradient = starfieldCtx.createRadialGradient(
                     x - planet.size * 0.3, y - planet.size * 0.3, planet.size * 0.1,
                     x, y, planet.size
                 );
                 
-                bodyGradient.addColorStop(0, lightenColor(planet.color, 40));
-                bodyGradient.addColorStop(0.5, planet.color);
-                bodyGradient.addColorStop(1, darkenColor(planet.color, 40));
+                bodyGradient.addColorStop(0, lightenColor(planetColor, 40));
+                bodyGradient.addColorStop(0.5, planetColor);
+                bodyGradient.addColorStop(1, darkenColor(planetColor, 40));
                 
                 starfieldCtx.fillStyle = bodyGradient;
                 starfieldCtx.beginPath();
@@ -418,7 +930,7 @@ const StarfieldSystem = (function() {
         }
         
         if (planet.hasRings) {
-            starfieldCtx.globalAlpha = 1.0;
+            starfieldCtx.globalAlpha = strangerMode ? 0.4 : 1.0;
             starfieldCtx.strokeStyle = '#D4A76A';
             starfieldCtx.lineWidth = planet.size * 0.15;
             starfieldCtx.beginPath();
@@ -431,6 +943,11 @@ const StarfieldSystem = (function() {
             starfieldCtx.ellipse(x, y, planet.size * 1.6, planet.size * 0.35, 0, 0, Math.PI * 2);
             starfieldCtx.stroke();
             starfieldCtx.globalAlpha = 1.0;
+        }
+        
+        // Restore from stranger mode darkening
+        if (strangerMode) {
+            starfieldCtx.restore();
         }
     }
     
@@ -710,14 +1227,12 @@ const StarfieldSystem = (function() {
         }
     }
     
-    // Force UFO to immediately start exiting (called when lines changes from 42)
+    // Force UFO to depart (when lines change from 42)
     function departUFO() {
         if (!ufoActive) return;
-        if (ufoPhase === 'exiting') return; // Already leaving
-        
-        console.log('🛸 UFO departing - lines no longer 42!');
         ufoPhase = 'exiting';
         ufoBeamOpacity = 0;
+        console.log('🛸 UFO departing early - lines changed from 42!');
     }
     
     function drawUFO() {
@@ -892,10 +1407,17 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function animateStarfield() {
+        // Normal black background for all modes
         starfieldCtx.fillStyle = '#000';
         starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
         
-        // Draw sun in background
+        // In Stranger mode, draw ash particles instead of stars
+        if (strangerMode) {
+            drawAshParticles();
+            // Continue to draw sun/planets (they have invert filter applied)
+        }
+        
+        // Draw sun in background (invert filter applied inside if strangerMode)
         if (gameRunning && !cameraReversed) {
             drawSun();
             if (!paused) {
@@ -1029,68 +1551,70 @@ const StarfieldSystem = (function() {
             }
         }
         
-        // Draw stars
-        stars.forEach(star => {
-            if (cameraReversed) {
-                star.z -= starSpeed;
-                if (star.z <= 0) {
-                    star.x = (Math.random() - 0.5) * 2000;
-                    star.y = (Math.random() - 0.5) * 2000;
-                    star.z = maxDepth;
-                }
-            } else {
-                star.z += starSpeed;
-                if (star.z >= maxDepth) {
-                    star.x = (Math.random() - 0.5) * 2000;
-                    star.y = (Math.random() - 0.5) * 2000;
-                    star.z = 1;
-                }
-            }
-            
-            const k = 128 / star.z;
-            const px = star.x * k + centerX;
-            const py = star.y * k + centerY;
-            
-            if (px >= 0 && px <= starfieldCanvas.width && 
-                py >= 0 && py <= starfieldCanvas.height) {
-                
-                const size = (1 - star.z / maxDepth) * 2;
-                const opacity = 1 - star.z / maxDepth;
-                
-                starfieldCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-                starfieldCtx.beginPath();
-                starfieldCtx.arc(px, py, size, 0, Math.PI * 2);
-                starfieldCtx.fill();
-                
+        // Draw stars (only if enabled and not in stranger mode)
+        if (starsEnabled && !strangerMode) {
+            stars.forEach(star => {
                 if (cameraReversed) {
-                    if (star.z < 300) {
-                        const k2 = 128 / (star.z + starSpeed * 2);
-                        const px2 = star.x * k2 + centerX;
-                        const py2 = star.y * k2 + centerY;
-                        
-                        starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
-                        starfieldCtx.lineWidth = size / 2;
-                        starfieldCtx.beginPath();
-                        starfieldCtx.moveTo(px, py);
-                        starfieldCtx.lineTo(px2, py2);
-                        starfieldCtx.stroke();
+                    star.z -= starSpeed;
+                    if (star.z <= 0) {
+                        star.x = (Math.random() - 0.5) * 2000;
+                        star.y = (Math.random() - 0.5) * 2000;
+                        star.z = maxDepth;
                     }
                 } else {
-                    if (star.z < 300) {
-                        const k2 = 128 / (star.z - starSpeed * 2);
-                        const px2 = star.x * k2 + centerX;
-                        const py2 = star.y * k2 + centerY;
-                        
-                        starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
-                        starfieldCtx.lineWidth = size / 2;
-                        starfieldCtx.beginPath();
-                        starfieldCtx.moveTo(px, py);
-                        starfieldCtx.lineTo(px2, py2);
-                        starfieldCtx.stroke();
+                    star.z += starSpeed;
+                    if (star.z >= maxDepth) {
+                        star.x = (Math.random() - 0.5) * 2000;
+                        star.y = (Math.random() - 0.5) * 2000;
+                        star.z = 1;
                     }
                 }
-            }
-        });
+                
+                const k = 128 / star.z;
+                const px = star.x * k + centerX;
+                const py = star.y * k + centerY;
+                
+                if (px >= 0 && px <= starfieldCanvas.width && 
+                    py >= 0 && py <= starfieldCanvas.height) {
+                    
+                    const size = (1 - star.z / maxDepth) * 2;
+                    const opacity = 1 - star.z / maxDepth;
+                    
+                    starfieldCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    starfieldCtx.beginPath();
+                    starfieldCtx.arc(px, py, size, 0, Math.PI * 2);
+                    starfieldCtx.fill();
+                    
+                    if (cameraReversed) {
+                        if (star.z < 300) {
+                            const k2 = 128 / (star.z + starSpeed * 2);
+                            const px2 = star.x * k2 + centerX;
+                            const py2 = star.y * k2 + centerY;
+                            
+                            starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                            starfieldCtx.lineWidth = size / 2;
+                            starfieldCtx.beginPath();
+                            starfieldCtx.moveTo(px, py);
+                            starfieldCtx.lineTo(px2, py2);
+                            starfieldCtx.stroke();
+                        }
+                    } else {
+                        if (star.z < 300) {
+                            const k2 = 128 / (star.z - starSpeed * 2);
+                            const px2 = star.x * k2 + centerX;
+                            const py2 = star.y * k2 + centerY;
+                            
+                            starfieldCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                            starfieldCtx.lineWidth = size / 2;
+                            starfieldCtx.beginPath();
+                            starfieldCtx.moveTo(px, py);
+                            starfieldCtx.lineTo(px2, py2);
+                            starfieldCtx.stroke();
+                        }
+                    }
+                }
+            });
+        }
         
         // Draw UFO
         drawUFO();
@@ -1111,113 +1635,6 @@ const StarfieldSystem = (function() {
     }
     
     // ============================================
-    // STRANGER MODE FUNCTIONS
-    // ============================================
-    
-    function setStrangerMode(active) {
-        strangerModeActive = active;
-    }
-    
-    function isStrangerMode() {
-        return strangerModeActive;
-    }
-    
-    function createVineOverlay(targetCanvas) {
-        if (!targetCanvas) return;
-        
-        // Create an overlay div for vines
-        const overlay = document.createElement('div');
-        overlay.className = 'vine-overlay';
-        overlay.style.cssText = `
-            position: absolute;
-            pointer-events: none;
-            z-index: 1000;
-            overflow: hidden;
-        `;
-        
-        // Position overlay over the target canvas
-        const rect = targetCanvas.getBoundingClientRect();
-        overlay.style.left = rect.left + 'px';
-        overlay.style.top = rect.top + 'px';
-        overlay.style.width = rect.width + 'px';
-        overlay.style.height = rect.height + 'px';
-        
-        // Create vine SVG elements (decorative border effect)
-        const vineCount = 8;
-        for (let i = 0; i < vineCount; i++) {
-            const vine = document.createElement('div');
-            const isLeft = i % 2 === 0;
-            const yPos = (i / vineCount) * 100;
-            
-            vine.style.cssText = `
-                position: absolute;
-                ${isLeft ? 'left: 0' : 'right: 0'};
-                top: ${yPos}%;
-                width: 20px;
-                height: 40px;
-                background: linear-gradient(${isLeft ? '90deg' : '270deg'}, 
-                    rgba(34, 139, 34, 0.6) 0%, 
-                    rgba(0, 100, 0, 0.4) 50%,
-                    transparent 100%);
-                border-radius: ${isLeft ? '0 20px 20px 0' : '20px 0 0 20px'};
-            `;
-            overlay.appendChild(vine);
-        }
-        
-        // Add top and bottom vine borders
-        const topBorder = document.createElement('div');
-        topBorder.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 15px;
-            background: linear-gradient(180deg, 
-                rgba(34, 139, 34, 0.5) 0%, 
-                transparent 100%);
-        `;
-        overlay.appendChild(topBorder);
-        
-        const bottomBorder = document.createElement('div');
-        bottomBorder.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 15px;
-            background: linear-gradient(0deg, 
-                rgba(34, 139, 34, 0.5) 0%, 
-                transparent 100%);
-        `;
-        overlay.appendChild(bottomBorder);
-        
-        document.body.appendChild(overlay);
-        vineOverlays.push({ overlay, canvas: targetCanvas });
-    }
-    
-    function updateVineOverlayPosition(targetCanvas) {
-        if (!targetCanvas) return;
-        
-        const overlay = vineOverlays.find(v => v.canvas === targetCanvas);
-        if (overlay) {
-            const rect = targetCanvas.getBoundingClientRect();
-            overlay.overlay.style.left = rect.left + 'px';
-            overlay.overlay.style.top = rect.top + 'px';
-            overlay.overlay.style.width = rect.width + 'px';
-            overlay.overlay.style.height = rect.height + 'px';
-        }
-    }
-    
-    function removeVineOverlay() {
-        vineOverlays.forEach(v => {
-            if (v.overlay && v.overlay.parentNode) {
-                v.overlay.parentNode.removeChild(v.overlay);
-            }
-        });
-        vineOverlays = [];
-    }
-    
-    // ============================================
     // PUBLIC API
     // ============================================
     
@@ -1231,6 +1648,23 @@ const StarfieldSystem = (function() {
         setCurrentGameLevel: (val) => { currentGameLevel = val; },
         setTabletModeEnabled: (val) => { tabletModeEnabled = val; },
         setStarSpeed: (val) => { starSpeed = val; },
+        setStarsEnabled: (val) => { starsEnabled = val; },
+        setStrangerMode: (val) => { 
+            strangerMode = val; 
+            if (val) {
+                // Always reinitialize particles when entering stranger mode
+                initAshParticles();
+            }
+            // Clear vine cache so it regenerates for each canvas
+            vineCanvasCache.clear();
+        },
+        
+        // Stranger mode vine drawing (for game canvas overlay)
+        drawVinesOverlay: drawVinesOverlay,
+        createVineOverlay: createVineOverlay,
+        removeVineOverlay: removeVineOverlay,
+        updateVineOverlayPosition: updateVineOverlayPosition,
+        isStrangerMode: () => strangerMode,
         
         // Sound callback
         setSoundCallback: (callback, toggle) => {
@@ -1254,13 +1688,6 @@ const StarfieldSystem = (function() {
         // Planet stats functions
         showPlanetStats: showPlanetStats,
         hidePlanetStats: hidePlanetStats,
-        
-        // Stranger mode functions
-        setStrangerMode: setStrangerMode,
-        isStrangerMode: isStrangerMode,
-        createVineOverlay: createVineOverlay,
-        updateVineOverlayPosition: updateVineOverlayPosition,
-        removeVineOverlay: removeVineOverlay,
         
         // Reset function for new game
         reset: () => {
