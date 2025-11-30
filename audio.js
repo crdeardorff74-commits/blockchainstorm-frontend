@@ -1574,17 +1574,17 @@ function startTornadoWind(soundToggle) {
     
     // Low-pass filter for softer, less harsh sound
     filter.type = 'lowpass';
-    filter.frequency.value = 600;
-    filter.Q.value = 0.3;
+    filter.frequency.value = 400; // Even lower for softer sound
+    filter.Q.value = 0.2;
     
     // High-pass to remove low rumble
     highFilter.type = 'highpass';
-    highFilter.frequency.value = 200;
-    highFilter.Q.value = 0.3;
+    highFilter.frequency.value = 250;
+    highFilter.Q.value = 0.2;
     
-    // Lower volume for subtlety
+    // Much lower volume for subtlety
     tornadoWindGain.gain.setValueAtTime(0, audioContext.currentTime);
-    tornadoWindGain.gain.linearRampToValueAtTime(0.8, audioContext.currentTime + 0.5);
+    tornadoWindGain.gain.linearRampToValueAtTime(0.35, audioContext.currentTime + 0.8);
     
     tornadoWindSource.connect(filter);
     filter.connect(highFilter);
@@ -1596,8 +1596,8 @@ function startTornadoWind(soundToggle) {
 
 function stopTornadoWind() {
     if (tornadoWindSource && tornadoWindGain) {
-        // Fade out
-        tornadoWindGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+        // Gradual fade out over 1 second
+        tornadoWindGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1.0);
         const sourceToStop = tornadoWindSource;
         setTimeout(() => {
             try {
@@ -1605,22 +1605,22 @@ function stopTornadoWind() {
             } catch (e) {
                 // Already stopped
             }
-        }, 600);
+        }, 1100);
         tornadoWindSource = null;
         tornadoWindGain = null;
     }
 }
 
-// Small explosion for tornado destroying blobs
+// Dramatic explosion for tornado destroying blobs
 function playSmallExplosion(soundToggle) {
     if (!soundToggle.checked) return;
     
-    // Create a short punchy explosion
+    // Create a punchy, dramatic explosion
     const explosion = audioContext.createBufferSource();
     const explosionGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
     
-    const duration = 0.4;
+    const duration = 0.8;
     const bufferSize = audioContext.sampleRate * duration;
     const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
@@ -1629,30 +1629,33 @@ function playSmallExplosion(soundToggle) {
         const progress = i / bufferSize;
         const time = progress * duration;
         
-        // Sharp attack, quick decay
+        // Sharp attack, medium decay
         let envelope;
-        if (time < 0.02) {
-            envelope = time / 0.02; // Quick attack
+        if (time < 0.01) {
+            envelope = time / 0.01; // Very quick attack
+        } else if (time < 0.1) {
+            envelope = 1.0; // Brief sustain at peak
         } else {
-            envelope = Math.exp(-(time - 0.02) * 8); // Fast decay
+            envelope = Math.exp(-(time - 0.1) * 5); // Decay
         }
         
-        // Noise with some low frequency thump
+        // Noise with strong low frequency thump
         const noise = Math.random() * 2 - 1;
-        const thump = Math.sin(time * 60 * Math.PI) * Math.exp(-time * 15);
+        const thump = Math.sin(time * 50 * Math.PI) * Math.exp(-time * 10);
+        const boom = Math.sin(time * 30 * Math.PI) * Math.exp(-time * 8);
         
-        data[i] = (noise * 0.6 + thump * 0.4) * envelope;
+        data[i] = (noise * 0.4 + thump * 0.35 + boom * 0.25) * envelope;
     }
     
     explosion.buffer = buffer;
     
     // Low-pass for bassy explosion
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, audioContext.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
-    filter.Q.value = 1.0;
+    filter.frequency.setValueAtTime(1200, audioContext.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.2);
+    filter.Q.value = 0.8;
     
-    explosionGain.gain.value = 2.0;
+    explosionGain.gain.value = 3.5; // Louder
     
     explosion.connect(filter);
     filter.connect(explosionGain);
@@ -1661,12 +1664,20 @@ function playSmallExplosion(soundToggle) {
     explosion.start(audioContext.currentTime);
     explosion.stop(audioContext.currentTime + duration);
     
-    // Add a crack
+    // Add impact crack sounds
     setTimeout(() => {
         if (!soundToggle.checked) return;
-        playSound(300, 0.05, 'square');
-        playSound(200, 0.08, 'square');
-    }, 10);
+        playSound(500, 0.06, 'square');
+        playSound(350, 0.08, 'square');
+        playSound(200, 0.1, 'sine');
+    }, 5);
+    
+    // Secondary rumble
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(80, 0.15, 'sine');
+        playSound(60, 0.2, 'sine');
+    }, 50);
 }
 
     // Export all public functions for use in main game
