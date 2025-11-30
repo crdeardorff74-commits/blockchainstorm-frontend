@@ -1348,7 +1348,7 @@ function playEarthquakeRumble(soundToggle) {
     filter.frequency.value = 120;
     filter.Q.value = 1.2;
     
-    rumbleGain.gain.setValueAtTime(2.0, audioContext.currentTime);
+    rumbleGain.gain.setValueAtTime(3.5, audioContext.currentTime); // Louder
     
     rumble.connect(filter);
     filter.connect(rumbleGain);
@@ -1356,6 +1356,90 @@ function playEarthquakeRumble(soundToggle) {
     
     rumble.start(audioContext.currentTime);
     rumble.stop(audioContext.currentTime + duration);
+}
+
+// Prolonged cracking/splitting sound for earthquake crack forming
+function playEarthquakeCrack(soundToggle) {
+    if (!soundToggle.checked) return;
+    
+    // Create a 2 second cracking/splitting sound
+    const crack = audioContext.createBufferSource();
+    const crackGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    
+    const duration = 2.0;
+    const bufferSize = audioContext.sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const progress = i / bufferSize;
+        const time = progress * duration;
+        
+        // Envelope with multiple crack peaks
+        let envelope = 0;
+        
+        // Series of crack sounds that build and overlap
+        const crack1 = time < 0.3 ? Math.exp(-time * 8) : 0;
+        const crack2 = (time > 0.2 && time < 0.6) ? Math.exp(-(time - 0.2) * 6) * 0.8 : 0;
+        const crack3 = (time > 0.5 && time < 1.0) ? Math.exp(-(time - 0.5) * 5) * 0.7 : 0;
+        const crack4 = (time > 0.8 && time < 1.4) ? Math.exp(-(time - 0.8) * 4) * 0.6 : 0;
+        const crack5 = (time > 1.2 && time < 2.0) ? Math.exp(-(time - 1.2) * 3) * 0.5 : 0;
+        
+        envelope = crack1 + crack2 + crack3 + crack4 + crack5;
+        
+        // Mix of noise for cracking texture and some tonal elements
+        const noise = Math.random() * 2 - 1;
+        
+        // Sharp transients for crack sounds
+        const crackTone1 = Math.sin(time * 800 * Math.PI) * Math.exp(-time * 20);
+        const crackTone2 = Math.sin((time - 0.2) * 600 * Math.PI) * Math.exp(-(time - 0.2) * 18) * (time > 0.2 ? 1 : 0);
+        const crackTone3 = Math.sin((time - 0.5) * 500 * Math.PI) * Math.exp(-(time - 0.5) * 15) * (time > 0.5 ? 1 : 0);
+        
+        // Low grinding undertone
+        const grind = Math.sin(time * 40 * Math.PI) * 0.15;
+        
+        data[i] = (noise * 0.5 + crackTone1 * 0.2 + crackTone2 * 0.15 + crackTone3 * 0.1 + grind) * envelope;
+    }
+    
+    crack.buffer = buffer;
+    
+    // Band-pass for cracking character
+    filter.type = 'bandpass';
+    filter.frequency.value = 1500;
+    filter.Q.value = 0.5;
+    
+    crackGain.gain.setValueAtTime(2.5, audioContext.currentTime);
+    
+    crack.connect(filter);
+    filter.connect(crackGain);
+    crackGain.connect(audioContext.destination);
+    
+    crack.start(audioContext.currentTime);
+    crack.stop(audioContext.currentTime + duration);
+    
+    // Add some discrete crack pops
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(1200, 0.04, 'square');
+        playSound(800, 0.05, 'square');
+    }, 100);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(1000, 0.04, 'square');
+    }, 400);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(900, 0.05, 'square');
+        playSound(600, 0.06, 'triangle');
+    }, 800);
+    
+    setTimeout(() => {
+        if (!soundToggle.checked) return;
+        playSound(700, 0.05, 'square');
+    }, 1200);
 }
 
 // Main sound effects dispatcher
@@ -1546,10 +1630,13 @@ function playSoundEffect(effect, soundToggle) {
 // Continuous tornado wind sound - returns stop function
 let tornadoWindSource = null;
 let tornadoWindGain = null;
+let tornadoWindFading = false;
 
 function startTornadoWind(soundToggle) {
     if (!soundToggle.checked) return;
     if (tornadoWindSource) return; // Already playing
+    
+    tornadoWindFading = false;
     
     // Create continuous wind noise
     tornadoWindSource = audioContext.createBufferSource();
@@ -1572,19 +1659,19 @@ function startTornadoWind(soundToggle) {
     tornadoWindSource.buffer = buffer;
     tornadoWindSource.loop = true;
     
-    // Low-pass filter for softer, less harsh sound
+    // Low-pass filter for very soft sound
     filter.type = 'lowpass';
-    filter.frequency.value = 400; // Even lower for softer sound
-    filter.Q.value = 0.2;
+    filter.frequency.value = 350;
+    filter.Q.value = 0.1;
     
     // High-pass to remove low rumble
     highFilter.type = 'highpass';
-    highFilter.frequency.value = 250;
-    highFilter.Q.value = 0.2;
+    highFilter.frequency.value = 280;
+    highFilter.Q.value = 0.1;
     
-    // Much lower volume for subtlety
+    // Very low volume for maximum subtlety
     tornadoWindGain.gain.setValueAtTime(0, audioContext.currentTime);
-    tornadoWindGain.gain.linearRampToValueAtTime(0.35, audioContext.currentTime + 0.8);
+    tornadoWindGain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 1.0);
     
     tornadoWindSource.connect(filter);
     filter.connect(highFilter);
@@ -1595,20 +1682,31 @@ function startTornadoWind(soundToggle) {
 }
 
 function stopTornadoWind() {
-    if (tornadoWindSource && tornadoWindGain) {
-        // Gradual fade out over 1 second
-        tornadoWindGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1.0);
-        const sourceToStop = tornadoWindSource;
-        setTimeout(() => {
-            try {
-                sourceToStop.stop();
-            } catch (e) {
-                // Already stopped
-            }
-        }, 1100);
+    if (tornadoWindFading) return; // Already fading
+    if (!tornadoWindSource || !tornadoWindGain) return;
+    
+    tornadoWindFading = true;
+    
+    // Get current gain value and fade from there
+    const currentGain = tornadoWindGain.gain.value;
+    tornadoWindGain.gain.cancelScheduledValues(audioContext.currentTime);
+    tornadoWindGain.gain.setValueAtTime(currentGain, audioContext.currentTime);
+    tornadoWindGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1.5);
+    
+    // Store references before clearing
+    const sourceToStop = tornadoWindSource;
+    
+    // Stop after fade completes
+    setTimeout(() => {
+        try {
+            sourceToStop.stop();
+        } catch (e) {
+            // Already stopped
+        }
         tornadoWindSource = null;
         tornadoWindGain = null;
-    }
+        tornadoWindFading = false;
+    }, 1600);
 }
 
 // Dramatic explosion for tornado destroying blobs
@@ -1692,6 +1790,7 @@ function playSmallExplosion(soundToggle) {
         playThunder,
         playVolcanoRumble,
         playEarthquakeRumble,
+        playEarthquakeCrack,
         playTsunamiWhoosh,
         startTornadoWind,
         stopTornadoWind,
