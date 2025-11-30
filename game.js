@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -2454,8 +2454,8 @@ function spawnEarthquake() {
     
     // Crack will be generated after shake delay completes
     
-    // Play rumble sound to indicate earthquake starting
-    playSoundEffect('rumble', soundToggle);
+    // Play continuous rumble sound to indicate earthquake starting
+    playEarthquakeRumble(soundToggle);
 }
 
 function updateTornado() {
