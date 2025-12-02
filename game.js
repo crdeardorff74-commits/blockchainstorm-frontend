@@ -1489,12 +1489,70 @@ function updateVolcanoAnimation() {
         
         // Update projectiles
         volcanoProjectiles = volcanoProjectiles.filter(p => {
+            // Check if projectile is sliding down a wall
+            if (p.slidingWall) {
+                // Just fall straight down along the wall
+                p.vy += p.gravity;
+                p.y += p.vy;
+                p.vx = 0; // No horizontal movement while sliding
+                
+                // Determine the grid column for this wall
+                const wallGridX = p.slidingWall === 'left' ? 0 : COLS - 1;
+                p.x = wallGridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+                const gridY = Math.round(p.y / BLOCK_SIZE);
+                
+                // Check if we've hit bottom or an existing block
+                if (p.y >= ROWS * BLOCK_SIZE) {
+                    // Find the lowest empty spot in the wall column
+                    for (let y = ROWS - 1; y >= 0; y--) {
+                        if (!board[y][wallGridX]) {
+                            board[y][wallGridX] = volcanoLavaColor;
+                            isRandomBlock[y][wallGridX] = false;
+                            p.landed = true;
+                            playSoundEffect('drop', soundToggle);
+                            break;
+                        }
+                    }
+                    return false;
+                }
+                
+                // Check if hit an existing block while sliding
+                if (gridY >= 0 && gridY < ROWS) {
+                    const nextY = gridY + 1;
+                    if (nextY < ROWS && board[nextY] && board[nextY][wallGridX]) {
+                        if (!board[gridY][wallGridX]) {
+                            board[gridY][wallGridX] = volcanoLavaColor;
+                            isRandomBlock[gridY][wallGridX] = false;
+                            p.landed = true;
+                            playSoundEffect('drop', soundToggle);
+                            return false;
+                        }
+                    }
+                }
+                
+                return true; // Keep sliding
+            }
+            
+            // Normal projectile physics (not sliding)
             // Apply gravity
             p.vy += p.gravity;
             
             // Update position
             p.x += p.vx;
             p.y += p.vy;
+            
+            // Check if projectile hit the left or right wall - start sliding
+            if (p.x < BLOCK_SIZE / 2) {
+                p.slidingWall = 'left';
+                p.x = BLOCK_SIZE / 2;
+                p.vx = 0;
+                return true; // Continue to slide
+            } else if (p.x > (COLS - 1) * BLOCK_SIZE + BLOCK_SIZE / 2) {
+                p.slidingWall = 'right';
+                p.x = (COLS - 1) * BLOCK_SIZE + BLOCK_SIZE / 2;
+                p.vx = 0;
+                return true; // Continue to slide
+            }
             
             // Check if landed on board or bottom
             let gridX = Math.round(p.x / BLOCK_SIZE);
@@ -1634,18 +1692,19 @@ function spawnLavaProjectile() {
         direction = Math.random() < 0.5 ? -1 : 1;
     }
     
-    // Launch velocity
-    const vx = direction * (1 + Math.random() * 3); // 1-4 pixels/frame horizontal
-    const vy = -(8 + Math.random() * 6); // -8 to -14 pixels/frame vertical (upward)
+    // Launch velocity - high arcing trajectories with lots of variation
+    const vx = direction * (1 + Math.random() * 5); // 1-6 pixels/frame horizontal for wider spread
+    const vy = -(16 + Math.random() * 10); // -16 to -26 pixels/frame vertical (much higher arcs)
     
     volcanoProjectiles.push({
         x: spawnX,
         y: spawnY,
         vx: vx,
         vy: vy,
-        gravity: 0.3, // Same as other falling physics
+        gravity: 0.35, // Slightly higher gravity for nice arcs
         color: volcanoLavaColor,
-        landed: false
+        landed: false,
+        slidingWall: null // null, 'left', or 'right' - when hitting a wall edge
     });
     
     console.log('🌋 Projectile spawned, remaining lava blocks:', volcanoLavaBlob.positions.length);
