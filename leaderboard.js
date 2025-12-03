@@ -217,6 +217,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         let events = [];
         if (entry.strikes > 0) events.push(`⚡${entry.strikes}`);
         if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
+        if (entry.volcanoes > 0) events.push(`🌋${entry.volcanoes}`);
         if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
         const eventsStr = events.length > 0 ? `<br><span class="special-events">${events.join(' ')}</span>` : '';
         
@@ -502,6 +503,7 @@ function promptForName(scoreData) {
                 level: scoreData.level,
                 strikes: scoreData.strikes || 0,
                 tsunamis: scoreData.tsunamis || 0,
+                volcanoes: scoreData.volcanoes || 0,
                 blackholes: scoreData.blackholes || 0,
                 challenges: scoreData.challenges || [],
                 played_at: new Date().toISOString()
@@ -662,6 +664,7 @@ async function submitScore(gameData) {
         level: gameData.level,
         strikes: gameData.strikes || 0,
         tsunamis: gameData.tsunamis || 0,
+        volcanoes: gameData.volcanoes || 0,
         blackholes: gameData.blackholes || 0,
         duration_seconds: Math.floor(gameData.duration || 0)
     };
