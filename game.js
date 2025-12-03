@@ -1605,8 +1605,8 @@ function updateVolcanoAnimation() {
                 return false; // Remove projectile (landed or board full)
             }
             
-            // Check if hit existing block
-            if (gridY >= 0 && gridY < ROWS && gridX >= 0 && gridX < COLS) {
+            // Only check for block collision when falling (not while ascending)
+            if (p.vy > 0 && gridY >= 0 && gridY < ROWS && gridX >= 0 && gridX < COLS) {
                 // Check if next position down has a block
                 const nextY = gridY + 1;
                 if (nextY < ROWS && board[nextY] && board[nextY][gridX]) {
