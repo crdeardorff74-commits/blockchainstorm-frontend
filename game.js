@@ -7429,6 +7429,19 @@ function mergeBouncingPiece(piece) {
     
     console.log('🎯 Bouncing piece landed and merged');
     
+    // Yes, And... mode: Spawn random limbs after bounced piece lands
+    const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand') || soRandomCurrentMode === 'yesand';
+    if (isYesAndMode) {
+        // Create a temporary piece object for spawnYesAndLimbs
+        const landedPiece = {
+            shape: shape,
+            x: finalX,
+            y: finalY,
+            color: piece.color
+        };
+        spawnYesAndLimbs(landedPiece);
+    }
+    
     // CRITICAL: Apply gravity to ensure no floating pieces
     // Use the full gravity system instead of just local gravity
     console.log('🌍 Applying gravity after bounce landing...');
@@ -7518,11 +7531,15 @@ function drawBouncingPieces() {
     bouncingPieces.forEach(piece => {
         ctx.save();
         
+        // Use rounded positions for consistent block rendering
+        const renderX = Math.round(piece.x);
+        const renderY = Math.round(piece.y);
+        
         // Calculate center of the piece shape
         const shapeWidth = piece.shape[0].length;
         const shapeHeight = piece.shape.length;
-        const centerX = piece.x + shapeWidth / 2;
-        const centerY = piece.y + shapeHeight / 2;
+        const centerX = renderX + shapeWidth / 2;
+        const centerY = renderY + shapeHeight / 2;
         
         // Translate to center for rotation
         ctx.translate(centerX * BLOCK_SIZE, centerY * BLOCK_SIZE);
@@ -7538,7 +7555,7 @@ function drawBouncingPieces() {
         piece.shape.forEach((row, y) => {
             row.forEach((value, x) => {
                 if (value) {
-                    positions.push([piece.x + x, piece.y + y]);
+                    positions.push([renderX + x, renderY + y]);
                 }
             });
         });
