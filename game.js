@@ -9180,10 +9180,11 @@ async function gameOver() {
     
     // Display special event statistics
     let statsHTML = `Lines: ${lines} | Level: ${level}<br>`;
-    if (strikeCount > 0 || tsunamiCount > 0 || blackHoleCount > 0) {
+    if (strikeCount > 0 || tsunamiCount > 0 || volcanoCount > 0 || blackHoleCount > 0) {
         statsHTML += '<br>';
         if (strikeCount > 0) statsHTML += `⚡ Strikes: ${strikeCount}<br>`;
         if (tsunamiCount > 0) statsHTML += `🌊 Tsunamis: ${tsunamiCount}<br>`;
+        if (volcanoCount > 0) statsHTML += `🌋 Volcanoes: ${volcanoCount}<br>`;
         if (blackHoleCount > 0) statsHTML += `🕳️ Black Holes: ${blackHoleCount}<br>`;
     }
     finalStatsDisplay.innerHTML = statsHTML;
