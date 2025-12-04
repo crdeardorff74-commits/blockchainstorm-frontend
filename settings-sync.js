@@ -125,19 +125,25 @@ const SettingsSync = {
             return null;
         }
         
+        const url = `${this.API_URL}/settings/${this.GAME_NAME}`;
+        console.log('⚙️ Loading settings from:', url);
+        
         try {
-            const response = await fetch(
-                `${this.API_URL}/settings/${this.GAME_NAME}`,
-                {
-                    method: 'GET',
-                    headers: this.getAuthHeaders()
-                }
-            );
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: this.getAuthHeaders()
+            });
+            
+            console.log('⚙️ Settings response status:', response.status);
             
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.log('⚙️ Token expired, clearing');
-                    localStorage.removeItem('oi_token');
+                    console.log('⚙️ Token expired or invalid');
+                    return null;
+                }
+                if (response.status === 404) {
+                    // Endpoint might not be deployed yet - not an error
+                    console.log('⚙️ Settings endpoint not available (404)');
                     return null;
                 }
                 throw new Error(`HTTP ${response.status}`);
@@ -178,21 +184,22 @@ const SettingsSync = {
      */
     async _doSave() {
         const settings = this.getCurrentSettings();
+        const url = `${this.API_URL}/settings/${this.GAME_NAME}`;
         
         try {
-            const response = await fetch(
-                `${this.API_URL}/settings/${this.GAME_NAME}`,
-                {
-                    method: 'PUT',
-                    headers: this.getAuthHeaders(),
-                    body: JSON.stringify({ settings, merge: false })
-                }
-            );
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({ settings, merge: false })
+            });
             
             if (!response.ok) {
                 if (response.status === 401) {
                     console.log('⚙️ Token expired during save');
-                    localStorage.removeItem('oi_token');
+                    return;
+                }
+                if (response.status === 404) {
+                    console.log('⚙️ Settings endpoint not available');
                     return;
                 }
                 throw new Error(`HTTP ${response.status}`);
