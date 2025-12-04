@@ -16,14 +16,12 @@ let isAnonymous = true;
 function censorProfanity(text) {
     // Common profanity patterns (case-insensitive)
     const profanityPatterns = [
-        /\bf+u+c+k+\w*/gi,
+        /f+u+c+k+\w*/gi,
         /\bs+h+i+t+\w*/gi,
         /\ba+s+s+(?:hole|hat|wipe)?\b/gi,
         /\bb+i+t+c+h+\w*/gi,
         /\bc+u+n+t+\w*/gi,
         /\bd+a+m+n+\w*/gi,
-        /\bd+i+c+k+\w*/gi,
-        /\bp+i+s+s+\w*/gi,
         /\bc+o+c+k+\w*/gi,
         /\bw+h+o+r+e+\w*/gi,
         /\bs+l+u+t+\w*/gi,
@@ -32,9 +30,10 @@ function censorProfanity(text) {
         /\br+e+t+a+r+d+\w*/gi,
         /\bt+w+a+t+\w*/gi,
         /\bp+u+s+s+y+\w*/gi,
-        /\bb+a+s+t+a+r+d+\w*/gi,
+        /\bp+a*e+d+o+\w*/gi,
+        /\bc+h+o+m+o+\w*/gi,
         // Leetspeak variations
-        /\bf[u\*@0]+[c\(k]+/gi,
+        /f[u\*@0]+[c\(k]+/gi,
         /\b[s\$5]+h[i1!]+t/gi,
         /\b[a@4]+[s\$5]+[s\$5]+/gi,
     ];
