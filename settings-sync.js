@@ -217,6 +217,9 @@ const SettingsSync = {
      */
     async init() {
         console.log('⚙️ Initializing Settings Sync');
+        const token = localStorage.getItem('oi_token');
+        console.log('⚙️ Token exists:', !!token);
+        console.log('⚙️ Logged in:', this.isLoggedIn());
         
         // Load settings if logged in
         if (this.isLoggedIn()) {
@@ -244,10 +247,18 @@ const SettingsSync = {
             'trainingWheelsToggle'
         ];
         
+        let attachedCount = 0;
+        
         checkboxes.forEach(id => {
             const elem = document.getElementById(id);
             if (elem) {
-                elem.addEventListener('change', () => this.saveSettings());
+                elem.addEventListener('change', () => {
+                    console.log(`⚙️ Setting changed: ${id}`);
+                    this.saveSettings();
+                });
+                attachedCount++;
+            } else {
+                console.warn(`⚙️ Element not found: ${id}`);
             }
         });
         
@@ -259,10 +270,17 @@ const SettingsSync = {
         sliders.forEach(id => {
             const elem = document.getElementById(id);
             if (elem) {
-                // Use 'change' for final value (after release)
-                elem.addEventListener('change', () => this.saveSettings());
+                elem.addEventListener('change', () => {
+                    console.log(`⚙️ Setting changed: ${id}`);
+                    this.saveSettings();
+                });
+                attachedCount++;
+            } else {
+                console.warn(`⚙️ Element not found: ${id}`);
             }
         });
+        
+        console.log(`⚙️ Attached listeners to ${attachedCount} settings elements`);
     }
 };
 
