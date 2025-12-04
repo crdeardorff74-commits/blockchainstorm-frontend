@@ -293,7 +293,7 @@ function getChallengeDisplayName(challenge) {
         'dyslexic': 'Dyslexic',
         'phantom': 'Phantom Zone',
         'gremlins': 'Gremlins',
-        'rubber': 'Rubber Blocks',
+        'rubber': 'Rubber & Glue',
         'oz': 'Land of Oz',
         'lattice': 'Lattice',
         'yesand': 'Yes, And...',
