@@ -3,6 +3,22 @@
  * Saves and restores game settings for logged-in users
  */
 
+// Check for token in URL (passed from main site) and store it
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+        localStorage.setItem('oi_token', token);
+        // Clean URL (remove token from address bar)
+        params.delete('token');
+        const newUrl = params.toString() 
+            ? `${window.location.pathname}?${params}` 
+            : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        console.log('⚙️ Token received from main site');
+    }
+})();
+
 const SettingsSync = {
     API_URL: 'https://official-intelligence-api.onrender.com',
     GAME_NAME: 'blockchainstorm',
