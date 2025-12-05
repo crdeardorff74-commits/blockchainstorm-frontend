@@ -373,6 +373,31 @@
             max-height: 6vh;
         }
         
+        /* Minimalist mode styles (Developer only) */
+        body.minimalist-mode .rules-panel,
+        body.minimalist-mode .side-panel {
+            display: none !important;
+        }
+        
+        body.minimalist-mode canvas#gameCanvas {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        body.minimalist-mode .header {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        body.minimalist-mode .settings-btn {
+            opacity: 0.2;
+            transition: opacity 0.3s;
+        }
+        
+        body.minimalist-mode .settings-btn:hover {
+            opacity: 1;
+        }
+        
         /* Global custom scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -1943,6 +1968,19 @@
                 <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
                     <span>Off/Slow</span>
                     <span>Fast</span>
+                </div>
+            </div>
+            
+            <div class="settings-option developer-only-setting" id="minimalistOption" style="display: none;">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Minimalist Mode (Dev)</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="minimalistToggle">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                    Hides UI, transparent well, ultra-slow camera drift
                 </div>
             </div>
             
