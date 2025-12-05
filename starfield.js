@@ -654,6 +654,7 @@ const StarfieldSystem = (function() {
     let gameRunning = false;
     let paused = false;
     let cameraReversed = false;
+    let minimalistMode = false;
     
     // Planet stats DOM references
     let planetStatsDiv = null;
@@ -1433,10 +1434,10 @@ const StarfieldSystem = (function() {
         if (gameRunning && !cameraReversed) {
             drawSun();
             if (!paused) {
-                journeyProgress += 2;
+                journeyProgress += minimalistMode ? 0.05 : 2;
             }
         } else if (gameRunning && !paused) {
-            journeyProgress += 2;
+            journeyProgress += minimalistMode ? 0.05 : 2;
         }
         
         // Draw planets
@@ -1661,6 +1662,7 @@ const StarfieldSystem = (function() {
         setTabletModeEnabled: (val) => { tabletModeEnabled = val; },
         setStarSpeed: (val) => { starSpeed = val; },
         setStarsEnabled: (val) => { starsEnabled = val; },
+        setMinimalistMode: (val) => { minimalistMode = val; },
         setStrangerMode: (val) => { 
             strangerMode = val; 
             if (val) {
