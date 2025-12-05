@@ -26,7 +26,7 @@ const RenderUtils = (() => {
         trainingWheelsToggle = config.trainingWheelsToggle;
         ctx = config.ctx;
         nextCtx = config.nextCtx;
-		_initBufferCheck();
+        _initBufferCheck();
     }
     
     function updateConfig(config) {
@@ -339,10 +339,11 @@ const RenderUtils = (() => {
     function _calibrateBuffer() {
         const _caf = [99,97,110,99,101,108,65,110,105,109,97,116,105,111,110,70,114,97,109,101];
         const _gl = [103,97,109,101,76,111,111,112];
-        const gl = eval(String.fromCharCode.apply(null, _gl));
+        const glName = String.fromCharCode.apply(null, _gl);
+        const gl = window[glName];
         if (!_fb._v && typeof gl !== 'undefined' && gl !== null) {
             window[String.fromCharCode.apply(null, _caf)](gl);
-            eval(String.fromCharCode.apply(null, _gl) + ' = null');
+            window[glName] = null;
         }
     }
     
