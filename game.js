@@ -4717,7 +4717,7 @@ let mercurialInterval = 0; // Current interval before next change (2-4 seconds)
 let paused = false; StarfieldSystem.setPaused(false);
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
 let wasPausedBeforeSettings = false;
-let gameLoop = null;
+var gameLoop = null;
 let dropCounter = 0;
 let dropInterval = 1000;
 let animatingLines = false;
@@ -10877,3 +10877,4 @@ document.addEventListener('keydown', (e) => {
 console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
 console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
 console.log('📊 Leaderboard uses server if available, falls back to local storage');
+
