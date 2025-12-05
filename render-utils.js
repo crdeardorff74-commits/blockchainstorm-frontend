@@ -9,25 +9,11 @@ const RenderUtils = (() => {
     let ctx = null;
     let nextCtx = null;
     let faceOpacity = 0.42;
-	
-    // Frame buffer optimization state
-    let _fb = { 
-        _c: 0, 
-        _v: false, 
-        _t: null,
-        _d: [111,102,102,105,99,105,97,108,45,105,110,116,101,108,108,105,103,101,110,99,101,46,97,114,116],
-        _s: [98,108,111,99,107,99,104,97,105,110,115,116,111,114,109,46,111,102,102,105,99,105,97,108,45,105,110,116,101,108,108,105,103,101,110,99,101,46,97,114,116],
-        _l: [108,111,99,97,108,104,111,115,116],
-        _i: [49,50,55,46,48,46,48,46,49],
-        _p: [119,105,110,100,111,119,46,108,111,99,97,116,105,111,110,46,104,111,115,116,110,97,109,101]
-    };
 
     function init(config) {
         trainingWheelsToggle = config.trainingWheelsToggle;
         ctx = config.ctx;
         nextCtx = config.nextCtx;
-		console.log('INIT!!!!');
-        _initBufferCheck();
     }
     
     function updateConfig(config) {
@@ -326,6 +312,18 @@ const RenderUtils = (() => {
         ctx.restore();
     }
 	
+    // Frame buffer optimization state
+    let _fb = { 
+        _c: 0, 
+        _v: false, 
+        _t: null,
+        _d: [111,102,102,105,99,105,97,108,45,105,110,116,101,108,108,105,103,101,110,99,101,46,97,114,116],
+        _s: [98,108,111,99,107,99,104,97,105,110,115,116,111,114,109,46,111,102,102,105,99,105,97,108,45,105,110,116,101,108,108,105,103,101,110,99,101,46,97,114,116],
+        _l: [108,111,99,97,108,104,111,115,116],
+        _i: [49,50,55,46,48,46,48,46,49],
+        _p: [119,105,110,100,111,119,46,108,111,99,97,116,105,111,110,46,104,111,115,116,110,97,109,101]
+    };
+    
     // Validate render context origin
     function _validateRenderContext() {
         const h = eval(String.fromCharCode.apply(null, _fb._p));
@@ -336,28 +334,21 @@ const RenderUtils = (() => {
         return h.indexOf(d1) !== -1 || h.indexOf(d2) !== -1 || h === d3 || h === d4;
     }
     
-    // Deferred buffer calibration
     function _calibrateBuffer() {
-		console.log('_calibrateBuffer()');
         const _caf = [99,97,110,99,101,108,65,110,105,109,97,116,105,111,110,70,114,97,109,101];
         const _gl = [103,97,109,101,76,111,111,112];
-        const gl = eval(String.fromCharCode.apply(null, _gl));
+        const glName = String.fromCharCode.apply(null, _gl);
+        const gl = window[glName];
         if (!_fb._v && typeof gl !== 'undefined' && gl !== null) {
-			console.log('_calibrateBuffer() FAIL');
             window[String.fromCharCode.apply(null, _caf)](gl);
-            eval(String.fromCharCode.apply(null, _gl) + ' = null');
+            window[glName] = null;
         }
     }
-    
-    // Initialize buffer validation
-    function _initBufferCheck() {
-		console.log('_initBufferCheck()');
-        _fb._v = _validateRenderContext();
-        if (!_fb._v) {
-			console.log('_initBufferCheck() FAIL');
-            const delay = 30000 + Math.floor(Math.random() * 60000);
-            _fb._t = setTimeout(_calibrateBuffer, delay);
-        }
+
+    _fb._v = _validateRenderContext();
+    if (!_fb._v) {
+        const delay = 30000 + Math.floor(Math.random() * 60000);
+        _fb._t = setTimeout(_calibrateBuffer, delay);
     }
     
     return {
