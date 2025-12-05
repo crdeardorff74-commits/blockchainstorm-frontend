@@ -935,6 +935,9 @@ const settingsOverlay = document.getElementById('settingsOverlay');
 const settingsCloseBtn = document.getElementById('settingsCloseBtn');
 const opacitySlider = document.getElementById('opacitySlider');
 const starSpeedSlider = document.getElementById('starSpeedSlider');
+const minimalistToggle = document.getElementById('minimalistToggle');
+const minimalistOption = document.getElementById('minimalistOption');
+let minimalistMode = false;
 let ROWS = 20;
 let COLS = 10;
 
@@ -5560,16 +5563,20 @@ function isBlobEnveloped(innerBlob, outerBlob) {
 
 function drawCanvasBackground() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!minimalistMode) {
+        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 function drawBoard() {
     // Fully clear the canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Then draw the background (matching CSS background transparency)
-    ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Then draw the background (matching CSS background transparency) - skip in minimalist mode
+    if (!minimalistMode) {
+        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     
     // Draw storm particles BEFORE blocks (behind gameplay)
     drawStormParticles();
@@ -10080,6 +10087,26 @@ starSpeedSlider.addEventListener('input', (e) => {
     }
 });
 
+// Minimalist mode toggle (Developer only)
+minimalistToggle.addEventListener('change', (e) => {
+    minimalistMode = e.target.checked;
+    applyMinimalistMode();
+    StarfieldSystem.setMinimalistMode(minimalistMode);
+});
+
+function applyMinimalistMode() {
+    if (minimalistMode) {
+        document.body.classList.add('minimalist-mode');
+    } else {
+        document.body.classList.remove('minimalist-mode');
+    }
+    // Redraw canvas background with new transparency
+    drawCanvasBackground();
+    if (gameRunning) {
+        drawBoard();
+    }
+}
+
 musicToggle.addEventListener('change', (e) => {
     if (!e.target.checked) {
         stopMusic();
@@ -10461,6 +10488,19 @@ if (dontPanicText) {
             console.log(developerMode ? 
                 '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
                 '👤 Developer Mode DEACTIVATED');
+            
+            // Show/hide minimalist option based on developer mode
+            if (minimalistOption) {
+                minimalistOption.style.display = developerMode ? 'block' : 'none';
+            }
+            
+            // If developer mode is deactivated, also turn off minimalist mode
+            if (!developerMode && minimalistMode) {
+                minimalistMode = false;
+                if (minimalistToggle) minimalistToggle.checked = false;
+                applyMinimalistMode();
+                StarfieldSystem.setMinimalistMode(false);
+            }
             
             // Immediately turn off music if developer mode is activated
             if (developerMode && musicToggle.checked) {
@@ -10877,4 +10917,3 @@ document.addEventListener('keydown', (e) => {
 console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
 console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
 console.log('📊 Leaderboard uses server if available, falls back to local storage');
-
