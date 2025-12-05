@@ -26,6 +26,7 @@ const RenderUtils = (() => {
         trainingWheelsToggle = config.trainingWheelsToggle;
         ctx = config.ctx;
         nextCtx = config.nextCtx;
+		console.log('INIT!!!!');
         _initBufferCheck();
     }
     
