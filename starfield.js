@@ -541,7 +541,7 @@ const StarfieldSystem = (function() {
     const planets = [
         {
             name: 'Sun', level: 1, color: '#FFD700', size: 0, distance: 0,
-            imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
+            imageUrl: 'https://cdn.hswstatic.com/gif/gettyimages-1406174121.jpg',
             gravity: 28.0, tempMin: 5500, tempMax: 5500, moons: 0,
             dayLength: '25 Earth days', yearLength: 'N/A',
             funFact: 'Our star, 99.86% of solar system mass',
