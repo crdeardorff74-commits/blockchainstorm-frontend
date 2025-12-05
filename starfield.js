@@ -639,7 +639,7 @@ const StarfieldSystem = (function() {
     sunImage.crossOrigin = 'anonymous';
     sunImage.onload = () => { console.log('Sun image loaded'); };
     sunImage.onerror = () => { console.log('Sun image failed to load, using procedural'); };
-    sunImage.src = 'https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg';
+    sunImage.src = 'https://cdn.hswstatic.com/gif/gettyimages-1406174121.jpg';
     
     // Planet/asteroid animation state
     let planetAnimations = {};
