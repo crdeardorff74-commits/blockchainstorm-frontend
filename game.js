@@ -1899,11 +1899,6 @@ function detectVolcanoes(blobs) {
             const outer = blobs[j];
             
             if (isBlobEnvelopedForVolcano(inner, outer, edgeType)) {
-                // Check if inner blob is at least 4 blocks in size
-                if (inner.positions.length < 4) {
-                    continue; // Skip small blobs - volcanoes require at least 4 blocks
-                }
-                
                 // Found volcano! Choose random column from inner blob for eruption
                 const innerColumns = [...new Set(inner.positions.map(p => p[0]))];
                 const eruptionColumn = innerColumns[Math.floor(Math.random() * innerColumns.length)];

@@ -59,7 +59,8 @@ const SettingsSync = {
             'soundToggle', 
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'trainingWheelsToggle'
+            'trainingWheelsToggle',
+            'minimalistToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -102,7 +103,8 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle', 
             'cameraOrientationToggle',
-            'trainingWheelsToggle'
+            'trainingWheelsToggle',
+            'minimalistToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -260,7 +262,8 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'trainingWheelsToggle'
+            'trainingWheelsToggle',
+            'minimalistToggle'
         ];
         
         let attachedCount = 0;
