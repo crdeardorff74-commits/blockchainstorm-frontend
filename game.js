@@ -1696,7 +1696,7 @@ function spawnLavaProjectile() {
     }
     
     // Launch velocity - high arcing trajectories with lots of variation
-    const vx = direction * (1 + Math.random() * 5); // 1-6 pixels/frame horizontal for wider spread
+    const vx = direction * (0.5 + Math.random() * 2.5); // 0.5-3 pixels/frame horizontal (narrower arcs)
     const vy = -(11 + Math.random() * 6); // -11 to -17 pixels/frame vertical (reduced from -16 to -26)
     
     volcanoProjectiles.push({
