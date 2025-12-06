@@ -373,14 +373,26 @@
             max-height: 6vh;
         }
         
-        /* Minimalist mode styles (Developer only) */
-        body.minimalist-mode .rules-panel,
+        /* Minimalist mode styles */
+        body.minimalist-mode .rules-panel {
+            visibility: hidden !important;
+        }
+        
         body.minimalist-mode .side-panel {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        body.minimalist-mode .side-panel > *:not(.next-piece) {
+            visibility: hidden !important;
+        }
+        
+        body.minimalist-mode .next-piece .score-label {
             display: none !important;
         }
         
-        body.minimalist-mode canvas#gameCanvas {
-            border-color: transparent !important;
+        body.minimalist-mode .next-canvas {
+            background: transparent !important;
             box-shadow: none !important;
         }
         
@@ -1971,16 +1983,16 @@
                 </div>
             </div>
             
-            <div class="settings-option developer-only-setting" id="minimalistOption" style="display: none;">
+            <div class="settings-option" id="minimalistOption">
                 <label class="toggle-label">
-                    <span class="toggle-label-text">Minimalist Mode (Dev)</span>
+                    <span class="toggle-label-text">Minimalist Mode</span>
                     <div class="toggle-switch">
                         <input type="checkbox" id="minimalistToggle">
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
                 <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
-                    Hides UI, transparent well, ultra-slow camera drift
+                    Hides UI, transparent well, alternate Sun
                 </div>
             </div>
             

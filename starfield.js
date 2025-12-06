@@ -634,12 +634,19 @@ const StarfieldSystem = (function() {
         img.src = planet.imageUrl;
     });
     
-    // Sun image
+    // Sun image (normal mode)
     const sunImage = new Image();
     sunImage.crossOrigin = 'anonymous';
     sunImage.onload = () => { console.log('Sun image loaded'); };
     sunImage.onerror = () => { console.log('Sun image failed to load, using procedural'); };
     sunImage.src = 'https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg';
+    
+    // Alternate sun image (minimalist mode)
+    const sunImageMinimalist = new Image();
+    sunImageMinimalist.crossOrigin = 'anonymous';
+    sunImageMinimalist.onload = () => { console.log('Minimalist sun image loaded'); };
+    sunImageMinimalist.onerror = () => { console.log('Minimalist sun image failed to load'); };
+    sunImageMinimalist.src = 'https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764973199/gettyimages-1406174121_gjatmr.jpg';
     
     // Planet/asteroid animation state
     let planetAnimations = {};
@@ -747,14 +754,17 @@ const StarfieldSystem = (function() {
             starfieldCtx.globalAlpha = 0.4; // Dim to 40%
         }
         
-        if (sunSize > 4 && sunImage.complete && sunImage.naturalHeight !== 0) {
+        // Select sun image based on mode
+        const activeSunImage = minimalistMode ? sunImageMinimalist : sunImage;
+        
+        if (sunSize > 4 && activeSunImage.complete && activeSunImage.naturalHeight !== 0) {
             starfieldCtx.save();
             starfieldCtx.beginPath();
             starfieldCtx.arc(centerX, centerY, sunSize, 0, Math.PI * 2);
             starfieldCtx.clip();
             
             starfieldCtx.drawImage(
-                sunImage,
+                activeSunImage,
                 centerX - sunSize,
                 centerY - sunSize,
                 sunSize * 2,
@@ -1434,10 +1444,10 @@ const StarfieldSystem = (function() {
         if (gameRunning && !cameraReversed) {
             drawSun();
             if (!paused) {
-                journeyProgress += minimalistMode ? 0.05 : 2;
+                journeyProgress += 2;
             }
         } else if (gameRunning && !paused) {
-            journeyProgress += minimalistMode ? 0.05 : 2;
+            journeyProgress += 2;
         }
         
         // Draw planets

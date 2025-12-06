@@ -1697,7 +1697,7 @@ function spawnLavaProjectile() {
     
     // Launch velocity - high arcing trajectories with lots of variation
     const vx = direction * (1 + Math.random() * 5); // 1-6 pixels/frame horizontal for wider spread
-    const vy = -(16 + Math.random() * 10); // -16 to -26 pixels/frame vertical (much higher arcs)
+    const vy = -(11 + Math.random() * 6); // -11 to -17 pixels/frame vertical (reduced from -16 to -26)
     
     volcanoProjectiles.push({
         x: spawnX,
@@ -10488,19 +10488,6 @@ if (dontPanicText) {
             console.log(developerMode ? 
                 '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
                 '👤 Developer Mode DEACTIVATED');
-            
-            // Show/hide minimalist option based on developer mode
-            if (minimalistOption) {
-                minimalistOption.style.display = developerMode ? 'block' : 'none';
-            }
-            
-            // If developer mode is deactivated, also turn off minimalist mode
-            if (!developerMode && minimalistMode) {
-                minimalistMode = false;
-                if (minimalistToggle) minimalistToggle.checked = false;
-                applyMinimalistMode();
-                StarfieldSystem.setMinimalistMode(false);
-            }
             
             // Immediately turn off music if developer mode is activated
             if (developerMode && musicToggle.checked) {
