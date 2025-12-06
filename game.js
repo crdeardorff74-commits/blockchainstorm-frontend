@@ -1878,6 +1878,9 @@ function detectVolcanoes(blobs) {
     for (let i = 0; i < blobs.length; i++) {
         const inner = blobs[i];
         
+        // Skip blobs that are already lava-colored (prevents chain reactions from landed lava)
+        if (inner.color === volcanoLavaColor) continue;
+        
         // Check if ANY block in the blob is touching an edge of the well
         const touchesBottom = inner.positions.some(([x, y]) => y === ROWS - 1);
         const touchesLeft = inner.positions.some(([x, y]) => x === 0);
