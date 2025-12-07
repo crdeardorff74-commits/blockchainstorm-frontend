@@ -6053,14 +6053,20 @@ function drawBoard() {
         
         const baseAlpha = 1 - progress;
         
+        // Check if Stranger mode is active for red lightning
+        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
+        const glowColor = strangerActive ? '#FF0000' : '#00FFFF';
+        const innerGlowColor = strangerActive ? '#FF8888' : '#88FFFF';
+        const coreColor = '#FFFFFF';
+        
         // Draw outer glow layers (multiple passes for more intense glow)
         ctx.save();
         
         // Outermost glow - wide and soft
         ctx.globalAlpha = baseAlpha * 0.15;
-        ctx.strokeStyle = '#00FFFF';
+        ctx.strokeStyle = glowColor;
         ctx.shadowBlur = 60;
-        ctx.shadowColor = '#00FFFF';
+        ctx.shadowColor = glowColor;
         ctx.lineWidth = 20;
         ctx.beginPath();
         ctx.moveTo(lightning.x, 0);
@@ -6098,7 +6104,7 @@ function drawBoard() {
         
         // Inner glow
         ctx.globalAlpha = baseAlpha * 0.5;
-        ctx.strokeStyle = '#88FFFF';
+        ctx.strokeStyle = innerGlowColor;
         ctx.shadowBlur = 20;
         ctx.lineWidth = 6;
         ctx.beginPath();
@@ -6118,9 +6124,9 @@ function drawBoard() {
         
         // Main bolt (bright white core)
         ctx.globalAlpha = baseAlpha;
-        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeStyle = coreColor;
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowColor = coreColor;
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(lightning.x, 0);
