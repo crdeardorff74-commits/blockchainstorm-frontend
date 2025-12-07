@@ -423,6 +423,17 @@ function promptForName(scoreData) {
     
     console.log('✅ Name entry overlay should now be visible');
     
+    // Get the popup element and ensure touch events reach the input
+    const popup = overlay.querySelector('.name-entry-popup');
+    if (popup) {
+        popup.addEventListener('touchstart', (e) => {
+            // Don't stop propagation for the input itself
+            if (e.target.tagName !== 'INPUT') {
+                e.stopPropagation();
+            }
+        }, { passive: true });
+    }
+    
     // Remove any existing event listeners by cloning the elements
     const newSubmitBtn = submitBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
@@ -434,14 +445,31 @@ function promptForName(scoreData) {
     const newInput = input.cloneNode(true);
     input.parentNode.replaceChild(newInput, input);
     
+    // Ensure input is fully interactive for iOS
+    newInput.readOnly = false;
+    newInput.disabled = false;
+    newInput.style.pointerEvents = 'auto';
+    
     // Pre-fill with saved username if available
     const savedUsername = localStorage.getItem('blockchainstorm_username');
     newInput.value = savedUsername || '';
     
-    // Add touch handler to ensure keyboard pops up on mobile/tablet
-    // (programmatic focus() doesn't trigger keyboard on iOS/Android)
-    newInput.addEventListener('touchstart', function(e) {
+    // Add touch/click handlers to ensure keyboard pops up on mobile/tablet
+    // iOS requires user-initiated focus for keyboard, touchend works better than touchstart
+    const triggerKeyboard = function(e) {
+        console.log('Input touched/clicked, triggering focus');
+        e.stopPropagation();
         this.focus();
+        // Set cursor position to end - helps trigger keyboard on iOS
+        const len = this.value.length;
+        this.setSelectionRange(len, len);
+    };
+    newInput.addEventListener('touchend', triggerKeyboard, { passive: false });
+    newInput.addEventListener('click', triggerKeyboard);
+    
+    // Also try touchstart as backup
+    newInput.addEventListener('touchstart', function(e) {
+        console.log('Input touchstart');
     }, { passive: true });
     
     // Focus after a slight delay to ensure visibility

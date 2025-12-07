@@ -573,7 +573,7 @@
             display: none; /* Hidden by default */
             position: absolute;
             top: 1vh;
-            right: 1.5vw;
+            right: 10vw;
             padding: 1vh 1.5vw;
             font-size: 2.5vh;
             background: rgba(30, 60, 120, 0.9);
@@ -1629,6 +1629,7 @@
             position: relative;
             z-index: 100000;
             display: block !important; /* Always visible when parent is flex */
+            pointer-events: auto;
         }
         
         .name-entry-title {
@@ -1667,6 +1668,8 @@
             touch-action: manipulation;
             -webkit-appearance: none;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: text;
+            user-select: text;
         }
         
         .name-entry-input:focus {
