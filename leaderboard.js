@@ -454,9 +454,6 @@ function promptForName(scoreData) {
     const savedUsername = localStorage.getItem('blockchainstorm_username');
     newInput.value = savedUsername || '';
     
-    // Add touch/click handlers to ensure keyboard pops up on mobile/tablet
-    // iOS requires user-initiated focus for keyboard, touchend works better than touchstart
-    
     // On-screen debug for tablet testing
     let debugDiv = document.getElementById('tabletDebug');
     if (!debugDiv) {
@@ -467,40 +464,12 @@ function promptForName(scoreData) {
     }
     const dbg = (msg) => {
         debugDiv.innerHTML = msg + '<br>' + debugDiv.innerHTML;
-        console.log(msg);
     };
     
-    dbg('Input setup started');
+    dbg('Native input ready - tap to type');
     
-    const triggerKeyboard = function(e) {
-        dbg('Input touched/clicked');
-        e.stopPropagation();
-        this.focus();
-        dbg('Focus called');
-        // Set cursor position to end - helps trigger keyboard on iOS
-        const len = this.value.length;
-        this.setSelectionRange(len, len);
-        dbg('Selection set');
-    };
-    newInput.addEventListener('touchend', triggerKeyboard, { passive: false });
-    newInput.addEventListener('click', triggerKeyboard);
-    
-    // Also try touchstart as backup
-    newInput.addEventListener('touchstart', function(e) {
-        dbg('Input touchstart');
-    }, { passive: true });
-    
-    dbg('Event listeners added');
-    
-    // Focus after a slight delay to ensure visibility
-    setTimeout(() => {
-        newInput.focus();
-        // If there's a saved name, select it so user can easily change it
-        if (savedUsername) {
-            newInput.select();
-        }
-        console.log('Input focused');
-    }, 150);
+    // Don't call focus() programmatically on iOS - it prevents keyboard from appearing
+    // Just let user tap the input naturally
     
     console.log('Input setup complete, saved username:', savedUsername);
     
