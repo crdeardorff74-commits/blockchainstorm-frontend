@@ -4716,6 +4716,32 @@ let mercurialInterval = 0; // Current interval before next change (2-4 seconds)
 
 // gameRunning is declared in starfield section
 let paused = false; StarfieldSystem.setPaused(false);
+
+// Toggle pause state
+function togglePause() {
+    if (!gameRunning) return;
+    
+    const settingsBtn = document.getElementById('settingsBtn');
+    const musicToggle = document.getElementById('musicToggle');
+    
+    if (paused) {
+        // Unpause
+        paused = false;
+        StarfieldSystem.setPaused(false);
+        if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
+        if (musicToggle && musicToggle.checked) {
+            startMusic(gameMode, musicToggle);
+        }
+    } else {
+        // Pause
+        captureCanvasSnapshot();
+        paused = true;
+        StarfieldSystem.setPaused(true);
+        if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
+        stopMusic();
+    }
+}
+
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
 let wasPausedBeforeSettings = false;
 var gameLoop = null;

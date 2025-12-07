@@ -438,6 +438,12 @@ function promptForName(scoreData) {
     const savedUsername = localStorage.getItem('blockchainstorm_username');
     newInput.value = savedUsername || '';
     
+    // Add touch handler to ensure keyboard pops up on mobile/tablet
+    // (programmatic focus() doesn't trigger keyboard on iOS/Android)
+    newInput.addEventListener('touchstart', function(e) {
+        this.focus();
+    }, { passive: true });
+    
     // Focus after a slight delay to ensure visibility
     setTimeout(() => {
         newInput.focus();
