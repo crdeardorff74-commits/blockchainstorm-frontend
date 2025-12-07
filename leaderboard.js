@@ -456,12 +456,12 @@ function promptForName(scoreData) {
             left: 0;
             width: 100%;
             background: #222;
-            padding: 10px;
+            padding: 5px;
             box-sizing: border-box;
             z-index: 1000000;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 3px;
             border-top: 2px solid #FFD700;
         `;
         
@@ -474,23 +474,23 @@ function promptForName(scoreData) {
         
         rows.forEach((row, rowIndex) => {
             const rowDiv = document.createElement('div');
-            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:4px;';
+            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:2px;';
             
             row.split('').forEach(char => {
                 const key = document.createElement('button');
                 key.textContent = char;
                 key.style.cssText = `
-                    min-width: 32px;
-                    height: 44px;
-                    font-size: 18px;
+                    min-width: 24px;
+                    height: 36px;
+                    font-size: 14px;
                     font-weight: bold;
                     border: none;
-                    border-radius: 5px;
+                    border-radius: 4px;
                     background: #444;
                     color: white;
                     cursor: pointer;
                     flex: 1;
-                    max-width: 44px;
+                    max-width: 32px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
                 `;
@@ -511,20 +511,51 @@ function promptForName(scoreData) {
                 rowDiv.appendChild(key);
             });
             
-            // Add backspace to last row
+            // Add space and backspace to last row (after M)
             if (rowIndex === 3) {
+                const spaceBar = document.createElement('button');
+                spaceBar.textContent = '␣';
+                spaceBar.style.cssText = `
+                    min-width: 50px;
+                    height: 36px;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 4px;
+                    background: #444;
+                    color: white;
+                    cursor: pointer;
+                    margin-left: 4px;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                `;
+                spaceBar.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (newInput.value.length < 20) {
+                        newInput.value += ' ';
+                    }
+                });
+                spaceBar.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (newInput.value.length < 20) {
+                        newInput.value += ' ';
+                    }
+                });
+                rowDiv.appendChild(spaceBar);
+                
                 const backspace = document.createElement('button');
                 backspace.textContent = '⌫';
                 backspace.style.cssText = `
-                    min-width: 60px;
-                    height: 44px;
-                    font-size: 20px;
+                    min-width: 50px;
+                    height: 36px;
+                    font-size: 16px;
                     border: none;
-                    border-radius: 5px;
+                    border-radius: 4px;
                     background: #666;
                     color: white;
                     cursor: pointer;
-                    margin-left: 8px;
+                    margin-left: 4px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
                 `;
@@ -543,41 +574,6 @@ function promptForName(scoreData) {
             
             keyboard.appendChild(rowDiv);
         });
-        
-        // Add space bar row
-        const spaceRow = document.createElement('div');
-        spaceRow.style.cssText = 'display:flex;justify-content:center;gap:8px;';
-        
-        const spaceBar = document.createElement('button');
-        spaceBar.textContent = 'SPACE';
-        spaceBar.style.cssText = `
-            width: 200px;
-            height: 44px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            background: #444;
-            color: white;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-        `;
-        spaceBar.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (newInput.value.length < 20) {
-                newInput.value += ' ';
-            }
-        });
-        spaceBar.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (newInput.value.length < 20) {
-                newInput.value += ' ';
-            }
-        });
-        spaceRow.appendChild(spaceBar);
-        keyboard.appendChild(spaceRow);
         
         document.body.appendChild(keyboard);
     } else {
