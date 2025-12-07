@@ -11,6 +11,7 @@ let lastPlayerScore = null;
 let lastScoreData = null;
 let currentUser = null;
 let isAnonymous = true;
+let isSubmittingScore = false; // Module-level flag to prevent duplicate submissions
 
 // Profanity filter using regex
 function censorProfanity(text) {
@@ -563,16 +564,17 @@ function promptForName(scoreData) {
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
                 `;
-                enterKey.addEventListener('touchend', (e) => {
+                let enterHandled = false;
+                const handleEnter = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (enterHandled) return;
+                    enterHandled = true;
+                    setTimeout(() => { enterHandled = false; }, 300);
                     newSubmitBtn.click();
-                });
-                enterKey.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    newSubmitBtn.click();
-                });
+                };
+                enterKey.addEventListener('touchend', handleEnter);
+                enterKey.addEventListener('click', handleEnter);
                 rowDiv.appendChild(enterKey);
             }
             
@@ -656,19 +658,16 @@ function promptForName(scoreData) {
     
     console.log('Input setup complete, saved username:', savedUsername);
     
-    // Guard against double submission
-    let isSubmitting = false;
-    
     // Add submit handler
     const handleSubmit = async () => {
         console.log('=== handleSubmit START ===');
         
-        // Prevent double submission
-        if (isSubmitting) {
+        // Prevent double submission using module-level flag
+        if (isSubmittingScore) {
             console.log('Already submitting, ignoring duplicate');
             return;
         }
-        isSubmitting = true;
+        isSubmittingScore = true;
         newSubmitBtn.disabled = true;
         newSubmitBtn.textContent = 'Saving...';
         console.log('Button set to Saving...');
@@ -695,6 +694,7 @@ function promptForName(scoreData) {
             if (gameOverDiv) {
                 gameOverDiv.style.display = 'block';
             }
+            isSubmittingScore = false;
             return;
         }
         
@@ -792,6 +792,9 @@ function promptForName(scoreData) {
         if (gameOverDiv) {
             gameOverDiv.style.display = 'block';
         }
+        
+        // Reset submission flag for next game
+        isSubmittingScore = false;
         console.log('=== handleSubmit END ===');
     };
     
