@@ -456,21 +456,41 @@ function promptForName(scoreData) {
     
     // Add touch/click handlers to ensure keyboard pops up on mobile/tablet
     // iOS requires user-initiated focus for keyboard, touchend works better than touchstart
+    
+    // On-screen debug for tablet testing
+    let debugDiv = document.getElementById('tabletDebug');
+    if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'tabletDebug';
+        debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;background:rgba(0,0,0,0.8);color:lime;font-size:12px;padding:10px;max-width:300px;max-height:150px;overflow:auto;z-index:999999;font-family:monospace;';
+        document.body.appendChild(debugDiv);
+    }
+    const dbg = (msg) => {
+        debugDiv.innerHTML = msg + '<br>' + debugDiv.innerHTML;
+        console.log(msg);
+    };
+    
+    dbg('Input setup started');
+    
     const triggerKeyboard = function(e) {
-        console.log('Input touched/clicked, triggering focus');
+        dbg('Input touched/clicked');
         e.stopPropagation();
         this.focus();
+        dbg('Focus called');
         // Set cursor position to end - helps trigger keyboard on iOS
         const len = this.value.length;
         this.setSelectionRange(len, len);
+        dbg('Selection set');
     };
     newInput.addEventListener('touchend', triggerKeyboard, { passive: false });
     newInput.addEventListener('click', triggerKeyboard);
     
     // Also try touchstart as backup
     newInput.addEventListener('touchstart', function(e) {
-        console.log('Input touchstart');
+        dbg('Input touchstart');
     }, { passive: true });
+    
+    dbg('Event listeners added');
     
     // Focus after a slight delay to ensure visibility
     setTimeout(() => {
