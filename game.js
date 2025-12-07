@@ -4723,12 +4723,15 @@ function togglePause() {
     
     const settingsBtn = document.getElementById('settingsBtn');
     const musicToggle = document.getElementById('musicToggle');
+    const pauseBtn = document.getElementById('pauseBtn');
     
     if (paused) {
         // Unpause
         paused = false;
         StarfieldSystem.setPaused(false);
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
+        // Show pause button again (only in tablet mode)
+        if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
         if (musicToggle && musicToggle.checked) {
             startMusic(gameMode, musicToggle);
         }
@@ -4738,6 +4741,8 @@ function togglePause() {
         paused = true;
         StarfieldSystem.setPaused(true);
         if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
+        // Hide pause button while paused
+        if (pauseBtn) pauseBtn.style.display = 'none';
         stopMusic();
     }
 }
@@ -9810,6 +9815,9 @@ document.addEventListener('keydown', e => {
             e.preventDefault();
             paused = false; StarfieldSystem.setPaused(false);
             settingsBtn.classList.add('hidden-during-play');
+            // Show pause button again (only in tablet mode)
+            const pauseBtn = document.getElementById('pauseBtn');
+            if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
             if (musicToggle.checked) {
                 startMusic(gameMode, musicToggle);
             }
@@ -9825,6 +9833,9 @@ document.addEventListener('keydown', e => {
             
             paused = true; StarfieldSystem.setPaused(true);
             settingsBtn.classList.remove('hidden-during-play');
+            // Hide pause button while paused
+            const pauseBtn = document.getElementById('pauseBtn');
+            if (pauseBtn) pauseBtn.style.display = 'none';
             stopMusic(); // stopMusic() already checks internally if music is playing
             return;
         }
@@ -10060,6 +10071,9 @@ settingsBtn.addEventListener('click', () => {
         captureCanvasSnapshot();
         
         paused = true; StarfieldSystem.setPaused(true);
+        // Hide pause button while settings is open
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn) pauseBtn.style.display = 'none';
         // Don't toggle UI - keep histogram visible
         stopMusic(); // stopMusic() already checks internally if music is playing
     }
@@ -10070,6 +10084,9 @@ settingsCloseBtn.addEventListener('click', () => {
     settingsOverlay.style.display = 'none';
     if (gameRunning && !wasPausedBeforeSettings) {
         paused = false; StarfieldSystem.setPaused(false);
+        // Show pause button again (only in tablet mode)
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
         // Don't toggle UI - keep histogram visible
         if (musicToggle.checked) {
             startMusic(gameMode, musicToggle);
@@ -10941,3 +10958,28 @@ document.addEventListener('keydown', (e) => {
 console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
 console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
 console.log('📊 Leaderboard uses server if available, falls back to local storage');
+
+// Tap anywhere to unpause (for tablet mode)
+let unpauseHandled = false;
+const handleUnpauseTap = (e) => {
+    if (!gameRunning || !paused) return;
+    if (unpauseHandled) return;
+    
+    // Don't unpause if clicking on settings button or settings overlay
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    
+    if (settingsBtn && settingsBtn.contains(e.target)) return;
+    if (settingsOverlay && settingsOverlay.contains(e.target)) return;
+    if (settingsOverlay && settingsOverlay.style.display === 'flex') return;
+    
+    // Prevent double-firing from both touchend and click
+    unpauseHandled = true;
+    setTimeout(() => { unpauseHandled = false; }, 300);
+    
+    // Unpause
+    togglePause();
+};
+
+document.addEventListener('click', handleUnpauseTap);
+document.addEventListener('touchend', handleUnpauseTap);
