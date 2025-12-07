@@ -10810,6 +10810,13 @@ function animateToAnagram() {
 const clickMessage = document.getElementById('clickMessage');
 clickMessage.style.opacity = '0.5';
 
+// Check if on phone - show different message
+if (DeviceDetection.isMobile) {
+    clickMessage.innerHTML = 'This game requires a full-size screen.<br><br>Please visit on a tablet or computer.';
+    clickMessage.style.fontSize = '1.5em';
+    clickMessage.style.lineHeight = '1.5';
+}
+
 // Add click event to clickMessage to open YouTube link (only when anagram is active)
 clickMessage.addEventListener('click', (e) => {
     // Only open link if anagram is active
@@ -10819,11 +10826,17 @@ clickMessage.addEventListener('click', (e) => {
     }
 });
 
-// Start timers when page loads
-startAnagramTimers();
+// Start timers when page loads (only if not on phone)
+if (!DeviceDetection.isMobile) {
+    startAnagramTimers();
+}
 
 if (startOverlay) {
     startOverlay.addEventListener('click', () => {
+        // Don't start game on phones
+        if (DeviceDetection.isMobile) {
+            return;
+        }
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
