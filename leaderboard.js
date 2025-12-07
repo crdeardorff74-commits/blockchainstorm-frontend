@@ -436,70 +436,159 @@ function promptForName(scoreData) {
     newInput.type = 'text';
     newInput.id = 'nameEntryInput';
     newInput.className = 'name-entry-input';
-    newInput.placeholder = 'Tap here to enter name';
+    newInput.placeholder = 'Tap keyboard below';
     newInput.maxLength = 20;
-    newInput.autocomplete = 'off';
-    newInput.setAttribute('inputmode', 'text');
-    newInput.setAttribute('enterkeyhint', 'done');
+    newInput.readOnly = true; // Prevent system keyboard
     input.parentNode.replaceChild(newInput, input);
     
     // Pre-fill with saved username if available
     const savedUsername = localStorage.getItem('blockchainstorm_username');
     newInput.value = savedUsername || '';
     
-    // On-screen debug for tablet testing
-    let debugDiv = document.getElementById('tabletDebug');
-    if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'tabletDebug';
-        debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;background:rgba(0,0,0,0.8);color:lime;font-size:12px;padding:10px;max-width:300px;max-height:150px;overflow:auto;z-index:999999;font-family:monospace;';
-        document.body.appendChild(debugDiv);
-    }
-    const dbg = (msg) => {
-        debugDiv.innerHTML = msg + '<br>' + debugDiv.innerHTML;
-    };
-    
-    dbg('Fresh input created - tap to type');
-    
-    // TEST: Create a second input outside the popup to test if iOS keyboard works at all
-    let testInput = document.getElementById('testInput');
-    if (!testInput) {
-        testInput = document.createElement('input');
-        testInput.id = 'testInput';
-        testInput.type = 'text';
-        testInput.placeholder = 'TEST INPUT - tap here';
-        testInput.style.cssText = 'position:fixed;top:50px;left:10px;z-index:9999999;font-size:20px;padding:15px;width:200px;background:white;color:black;border:3px solid red;';
-        document.body.appendChild(testInput);
+    // Create custom on-screen keyboard
+    let keyboard = document.getElementById('customKeyboard');
+    if (!keyboard) {
+        keyboard = document.createElement('div');
+        keyboard.id = 'customKeyboard';
+        keyboard.style.cssText = `
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #222;
+            padding: 10px;
+            box-sizing: border-box;
+            z-index: 1000000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-top: 2px solid #FFD700;
+        `;
         
-        // Track focus events on test input
-        testInput.addEventListener('focus', () => dbg('TEST got focus'));
-        testInput.addEventListener('blur', () => dbg('TEST lost focus'));
-        dbg('Test input added at top-left');
+        const rows = [
+            '1234567890',
+            'QWERTYUIOP',
+            'ASDFGHJKL',
+            'ZXCVBNM'
+        ];
+        
+        rows.forEach((row, rowIndex) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:4px;';
+            
+            row.split('').forEach(char => {
+                const key = document.createElement('button');
+                key.textContent = char;
+                key.style.cssText = `
+                    min-width: 32px;
+                    height: 44px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 5px;
+                    background: #444;
+                    color: white;
+                    cursor: pointer;
+                    flex: 1;
+                    max-width: 44px;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                `;
+                key.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (newInput.value.length < 20) {
+                        newInput.value += char;
+                    }
+                });
+                key.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (newInput.value.length < 20) {
+                        newInput.value += char;
+                    }
+                });
+                rowDiv.appendChild(key);
+            });
+            
+            // Add backspace to last row
+            if (rowIndex === 3) {
+                const backspace = document.createElement('button');
+                backspace.textContent = '⌫';
+                backspace.style.cssText = `
+                    min-width: 60px;
+                    height: 44px;
+                    font-size: 20px;
+                    border: none;
+                    border-radius: 5px;
+                    background: #666;
+                    color: white;
+                    cursor: pointer;
+                    margin-left: 8px;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                `;
+                backspace.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    newInput.value = newInput.value.slice(0, -1);
+                });
+                backspace.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    newInput.value = newInput.value.slice(0, -1);
+                });
+                rowDiv.appendChild(backspace);
+            }
+            
+            keyboard.appendChild(rowDiv);
+        });
+        
+        // Add space bar row
+        const spaceRow = document.createElement('div');
+        spaceRow.style.cssText = 'display:flex;justify-content:center;gap:8px;';
+        
+        const spaceBar = document.createElement('button');
+        spaceBar.textContent = 'SPACE';
+        spaceBar.style.cssText = `
+            width: 200px;
+            height: 44px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background: #444;
+            color: white;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+        `;
+        spaceBar.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (newInput.value.length < 20) {
+                newInput.value += ' ';
+            }
+        });
+        spaceBar.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (newInput.value.length < 20) {
+                newInput.value += ' ';
+            }
+        });
+        spaceRow.appendChild(spaceBar);
+        keyboard.appendChild(spaceRow);
+        
+        document.body.appendChild(keyboard);
+    } else {
+        keyboard.style.display = 'flex';
     }
     
-    // Track focus events on main input
-    newInput.addEventListener('focus', () => dbg('MAIN got focus'));
-    newInput.addEventListener('blur', () => dbg('MAIN lost focus'));
-    
-    // Check active element periodically
-    setTimeout(() => {
-        dbg('Active element: ' + (document.activeElement ? document.activeElement.tagName + '#' + document.activeElement.id : 'none'));
-    }, 500);
-    
-    // iOS may not show keyboard in fullscreen - exit fullscreen for name entry
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        dbg('Exiting fullscreen for keyboard');
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        }
-    }
-    
-    // Check if running as standalone iOS app (added to home screen)
-    if (window.navigator.standalone) {
-        dbg('WARNING: Running as standalone iOS app - keyboard may be blocked');
-    }
+    // Remove debug elements
+    const debugDiv = document.getElementById('tabletDebug');
+    if (debugDiv) debugDiv.remove();
+    const testInput = document.getElementById('testInput');
+    if (testInput) testInput.remove();
     
     // Don't call focus() programmatically on iOS - it prevents keyboard from appearing
     // Just let user tap the input naturally
@@ -532,8 +621,10 @@ function promptForName(scoreData) {
             localStorage.setItem('blockchainstorm_username', rawUsername);
         }
         
-        // Hide overlay immediately - don't leave user waiting
+        // Hide overlay and keyboard immediately - don't leave user waiting
         overlay.style.display = 'none';
+        const keyboard = document.getElementById('customKeyboard');
+        if (keyboard) keyboard.style.display = 'none';
         console.log('Overlay hidden');
         
         // Don't save 0 scores
