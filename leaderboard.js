@@ -456,32 +456,71 @@ function promptForName(scoreData) {
             left: 0;
             width: 100%;
             background: #222;
-            padding: 5px;
+            padding: 3px;
             box-sizing: border-box;
             z-index: 1000000;
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 1px;
             border-top: 2px solid #FFD700;
         `;
         
         const rows = [
             '1234567890',
-            'QWERTYUIOP',
-            'ASDFGHJKL',
-            'ZXCVBNM'
+            'qwertyuiop',
+            'asdfghjkl',
+            'zxcvbnm'
         ];
+        
+        let isShifted = false;
+        const letterKeys = [];
         
         rows.forEach((row, rowIndex) => {
             const rowDiv = document.createElement('div');
             rowDiv.style.cssText = 'display:flex;justify-content:center;gap:2px;';
             
+            // Add SHIFT key before Z row
+            if (rowIndex === 3) {
+                const shiftKey = document.createElement('button');
+                shiftKey.textContent = '⇧';
+                shiftKey.style.cssText = `
+                    min-width: 40px;
+                    height: 32px;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 4px;
+                    background: #555;
+                    color: white;
+                    cursor: pointer;
+                    margin-right: 4px;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                `;
+                const toggleShift = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isShifted = !isShifted;
+                    shiftKey.style.background = isShifted ? '#4CAF50' : '#555';
+                    letterKeys.forEach(k => {
+                        k.textContent = isShifted ? k.dataset.char.toUpperCase() : k.dataset.char.toLowerCase();
+                    });
+                };
+                shiftKey.addEventListener('touchend', toggleShift);
+                shiftKey.addEventListener('click', toggleShift);
+                rowDiv.appendChild(shiftKey);
+            }
+            
             row.split('').forEach(char => {
                 const key = document.createElement('button');
+                const isLetter = /[a-z]/i.test(char);
                 key.textContent = char;
+                if (isLetter) {
+                    key.dataset.char = char;
+                    letterKeys.push(key);
+                }
                 key.style.cssText = `
                     min-width: 24px;
-                    height: 36px;
+                    height: 32px;
                     font-size: 14px;
                     font-weight: bold;
                     border: none;
@@ -494,22 +533,48 @@ function promptForName(scoreData) {
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
                 `;
-                key.addEventListener('touchend', (e) => {
+                const addChar = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     if (newInput.value.length < 20) {
-                        newInput.value += char;
+                        const c = isLetter ? (isShifted ? char.toUpperCase() : char.toLowerCase()) : char;
+                        newInput.value += c;
                     }
-                });
-                key.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (newInput.value.length < 20) {
-                        newInput.value += char;
-                    }
-                });
+                };
+                key.addEventListener('touchend', addChar);
+                key.addEventListener('click', addChar);
                 rowDiv.appendChild(key);
             });
+            
+            // Add ENTER to ASDFGHJKL row (after L)
+            if (rowIndex === 2) {
+                const enterKey = document.createElement('button');
+                enterKey.textContent = '↵';
+                enterKey.style.cssText = `
+                    min-width: 40px;
+                    height: 32px;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 4px;
+                    background: #4CAF50;
+                    color: white;
+                    cursor: pointer;
+                    margin-left: 4px;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                `;
+                enterKey.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    newSubmitBtn.click();
+                });
+                enterKey.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    newSubmitBtn.click();
+                });
+                rowDiv.appendChild(enterKey);
+            }
             
             // Add space and backspace to last row (after M)
             if (rowIndex === 3) {
@@ -517,7 +582,7 @@ function promptForName(scoreData) {
                 spaceBar.textContent = '␣';
                 spaceBar.style.cssText = `
                     min-width: 50px;
-                    height: 36px;
+                    height: 32px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
@@ -548,7 +613,7 @@ function promptForName(scoreData) {
                 backspace.textContent = '⌫';
                 backspace.style.cssText = `
                     min-width: 50px;
-                    height: 36px;
+                    height: 32px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
