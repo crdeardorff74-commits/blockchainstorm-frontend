@@ -6051,14 +6051,76 @@ function drawBoard() {
         
         console.log(`⚡ Rendering lightning at x=${lightning.x}, segments=${lightning.segments.length}, progress=${progress.toFixed(2)}`);
         
-        // Draw main lightning bolt and branches
+        const baseAlpha = 1 - progress;
+        
+        // Draw outer glow layers (multiple passes for more intense glow)
         ctx.save();
-        ctx.globalAlpha = 1 - progress;
+        
+        // Outermost glow - wide and soft
+        ctx.globalAlpha = baseAlpha * 0.15;
+        ctx.strokeStyle = '#00FFFF';
+        ctx.shadowBlur = 60;
+        ctx.shadowColor = '#00FFFF';
+        ctx.lineWidth = 20;
+        ctx.beginPath();
+        ctx.moveTo(lightning.x, 0);
+        for (let i = 0; i < lightning.segments.length; i++) {
+            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
+        }
+        ctx.stroke();
+        lightning.branches.forEach(branch => {
+            ctx.beginPath();
+            ctx.moveTo(branch.startX, branch.startY);
+            for (let i = 0; i < branch.segments.length; i++) {
+                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
+            }
+            ctx.stroke();
+        });
+        
+        // Middle glow
+        ctx.globalAlpha = baseAlpha * 0.3;
+        ctx.shadowBlur = 35;
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        ctx.moveTo(lightning.x, 0);
+        for (let i = 0; i < lightning.segments.length; i++) {
+            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
+        }
+        ctx.stroke();
+        lightning.branches.forEach(branch => {
+            ctx.beginPath();
+            ctx.moveTo(branch.startX, branch.startY);
+            for (let i = 0; i < branch.segments.length; i++) {
+                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
+            }
+            ctx.stroke();
+        });
+        
+        // Inner glow
+        ctx.globalAlpha = baseAlpha * 0.5;
+        ctx.strokeStyle = '#88FFFF';
+        ctx.shadowBlur = 20;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(lightning.x, 0);
+        for (let i = 0; i < lightning.segments.length; i++) {
+            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
+        }
+        ctx.stroke();
+        lightning.branches.forEach(branch => {
+            ctx.beginPath();
+            ctx.moveTo(branch.startX, branch.startY);
+            for (let i = 0; i < branch.segments.length; i++) {
+                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
+            }
+            ctx.stroke();
+        });
+        
+        // Main bolt (bright white core)
+        ctx.globalAlpha = baseAlpha;
         ctx.strokeStyle = '#FFFFFF';
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#00FFFF';
-        
-        // Main bolt (thicker)
+        ctx.shadowColor = '#FFFFFF';
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(lightning.x, 0);
@@ -6067,7 +6129,7 @@ function drawBoard() {
         }
         ctx.stroke();
         
-        // Branch bolts (thinner)
+        // Branch bolts (thinner white core)
         ctx.lineWidth = 2;
         lightning.branches.forEach(branch => {
             ctx.beginPath();
@@ -9875,6 +9937,13 @@ document.addEventListener('keydown', e => {
         if ((e.key === 'u' || e.key === 'U') && developerMode) {
             e.preventDefault();
             StarfieldSystem.triggerUFO();
+            return;
+        }
+        
+        // Backspace key - Trigger lightning (developer mode only)
+        if (e.key === 'Backspace' && developerMode) {
+            e.preventDefault();
+            triggerLightning(300);
             return;
         }
         
