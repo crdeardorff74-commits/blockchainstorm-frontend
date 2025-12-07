@@ -470,7 +470,35 @@ function promptForName(scoreData) {
         testInput.placeholder = 'TEST INPUT - tap here';
         testInput.style.cssText = 'position:fixed;top:50px;left:10px;z-index:9999999;font-size:20px;padding:15px;width:200px;background:white;color:black;border:3px solid red;';
         document.body.appendChild(testInput);
+        
+        // Track focus events on test input
+        testInput.addEventListener('focus', () => dbg('TEST got focus'));
+        testInput.addEventListener('blur', () => dbg('TEST lost focus'));
         dbg('Test input added at top-left');
+    }
+    
+    // Track focus events on main input
+    newInput.addEventListener('focus', () => dbg('MAIN got focus'));
+    newInput.addEventListener('blur', () => dbg('MAIN lost focus'));
+    
+    // Check active element periodically
+    setTimeout(() => {
+        dbg('Active element: ' + (document.activeElement ? document.activeElement.tagName + '#' + document.activeElement.id : 'none'));
+    }, 500);
+    
+    // iOS may not show keyboard in fullscreen - exit fullscreen for name entry
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        dbg('Exiting fullscreen for keyboard');
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    }
+    
+    // Check if running as standalone iOS app (added to home screen)
+    if (window.navigator.standalone) {
+        dbg('WARNING: Running as standalone iOS app - keyboard may be blocked');
     }
     
     // Don't call focus() programmatically on iOS - it prevents keyboard from appearing
