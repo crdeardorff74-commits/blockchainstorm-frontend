@@ -423,17 +423,6 @@ function promptForName(scoreData) {
     
     console.log('✅ Name entry overlay should now be visible');
     
-    // Get the popup element and ensure touch events reach the input
-    const popup = overlay.querySelector('.name-entry-popup');
-    if (popup) {
-        popup.addEventListener('touchstart', (e) => {
-            // Don't stop propagation for the input itself
-            if (e.target.tagName !== 'INPUT') {
-                e.stopPropagation();
-            }
-        }, { passive: true });
-    }
-    
     // Remove any existing event listeners by cloning the elements
     const newSubmitBtn = submitBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
@@ -442,13 +431,17 @@ function promptForName(scoreData) {
     newSubmitBtn.textContent = 'Submit Score';
     newSubmitBtn.disabled = false;
     
-    const newInput = input.cloneNode(true);
+    // Create a completely fresh input element (cloning may carry over problematic attributes)
+    const newInput = document.createElement('input');
+    newInput.type = 'text';
+    newInput.id = 'nameEntryInput';
+    newInput.className = 'name-entry-input';
+    newInput.placeholder = 'Tap here to enter name';
+    newInput.maxLength = 20;
+    newInput.autocomplete = 'off';
+    newInput.setAttribute('inputmode', 'text');
+    newInput.setAttribute('enterkeyhint', 'done');
     input.parentNode.replaceChild(newInput, input);
-    
-    // Ensure input is fully interactive for iOS
-    newInput.readOnly = false;
-    newInput.disabled = false;
-    newInput.style.pointerEvents = 'auto';
     
     // Pre-fill with saved username if available
     const savedUsername = localStorage.getItem('blockchainstorm_username');
@@ -466,7 +459,19 @@ function promptForName(scoreData) {
         debugDiv.innerHTML = msg + '<br>' + debugDiv.innerHTML;
     };
     
-    dbg('Native input ready - tap to type');
+    dbg('Fresh input created - tap to type');
+    
+    // TEST: Create a second input outside the popup to test if iOS keyboard works at all
+    let testInput = document.getElementById('testInput');
+    if (!testInput) {
+        testInput = document.createElement('input');
+        testInput.id = 'testInput';
+        testInput.type = 'text';
+        testInput.placeholder = 'TEST INPUT - tap here';
+        testInput.style.cssText = 'position:fixed;top:50px;left:10px;z-index:9999999;font-size:20px;padding:15px;width:200px;background:white;color:black;border:3px solid red;';
+        document.body.appendChild(testInput);
+        dbg('Test input added at top-left');
+    }
     
     // Don't call focus() programmatically on iOS - it prevents keyboard from appearing
     // Just let user tap the input naturally
