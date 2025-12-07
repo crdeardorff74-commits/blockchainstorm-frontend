@@ -6404,28 +6404,30 @@ function drawHistogram() {
     // Clear canvas with transparent background
     histogramCtx.clearRect(0, 0, width, height);
     
-    // Draw tick marks and labels for SCORE HISTOGRAM on the left
-    histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    histogramCtx.font = '12px Arial';
-    histogramCtx.textAlign = 'left'; // Changed to left-align
-    histogramCtx.lineWidth = 1;
-    
-    const tickCount = 5;
-    for (let i = 0; i <= tickCount; i++) {
-        const value = Math.round((scoreHistogramMaxScale / tickCount) * i);
-        const y = height - padding - (graphHeight / tickCount) * i;
+    // Draw tick marks and labels for SCORE HISTOGRAM on the left (skip in minimalist mode)
+    if (!minimalistMode) {
+        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        histogramCtx.font = '12px Arial';
+        histogramCtx.textAlign = 'left'; // Changed to left-align
+        histogramCtx.lineWidth = 1;
         
-        // Skip drawing tick mark and label for "0"
-        if (value !== 0) {
-            // Tick mark (moved to the right, same 5px length)
-            histogramCtx.beginPath();
-            histogramCtx.moveTo(padding + 1, y);
-            histogramCtx.lineTo(padding + 6, y);
-            histogramCtx.stroke();
+        const tickCount = 5;
+        for (let i = 0; i <= tickCount; i++) {
+            const value = Math.round((scoreHistogramMaxScale / tickCount) * i);
+            const y = height - padding - (graphHeight / tickCount) * i;
             
-            // Label positioned to the right of tick mark (left-aligned now)
-            histogramCtx.fillText(value.toString(), padding + 8, y + 4);
+            // Skip drawing tick mark and label for "0"
+            if (value !== 0) {
+                // Tick mark (moved to the right, same 5px length)
+                histogramCtx.beginPath();
+                histogramCtx.moveTo(padding + 1, y);
+                histogramCtx.lineTo(padding + 6, y);
+                histogramCtx.stroke();
+                
+                // Label positioned to the right of tick mark (left-aligned now)
+                histogramCtx.fillText(value.toString(), padding + 8, y + 4);
+            }
         }
     }
     
@@ -6515,27 +6517,30 @@ function drawHistogram() {
     const barSpacing = barWidth * 0.15;
     const actualBarWidth = barWidth - barSpacing;
     
-    // Draw tick marks and labels on right side for color histogram
-    histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    histogramCtx.font = '12px Arial';
-    histogramCtx.textAlign = 'left';
-    histogramCtx.lineWidth = 1;
-    
-    for (let i = 0; i <= tickCount; i++) {
-        const value = Math.round((histogramMaxScale / tickCount) * i);
-        const y = height - padding - (graphHeight / tickCount) * i;
+    // Draw tick marks and labels on right side for color histogram (skip in minimalist mode)
+    if (!minimalistMode) {
+        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        histogramCtx.font = '12px Arial';
+        histogramCtx.textAlign = 'left';
+        histogramCtx.lineWidth = 1;
         
-        // Skip drawing tick mark and label for "0"
-        if (value !== 0) {
-            // Tick mark
-            histogramCtx.beginPath();
-            histogramCtx.moveTo(colorGraphStart + graphWidth, y);
-            histogramCtx.lineTo(colorGraphStart + graphWidth + 5, y);
-            histogramCtx.stroke();
+        const tickCount = 5;
+        for (let i = 0; i <= tickCount; i++) {
+            const value = Math.round((histogramMaxScale / tickCount) * i);
+            const y = height - padding - (graphHeight / tickCount) * i;
             
-            // Label
-            histogramCtx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
+            // Skip drawing tick mark and label for "0"
+            if (value !== 0) {
+                // Tick mark
+                histogramCtx.beginPath();
+                histogramCtx.moveTo(colorGraphStart + graphWidth, y);
+                histogramCtx.lineTo(colorGraphStart + graphWidth + 5, y);
+                histogramCtx.stroke();
+                
+                // Label
+                histogramCtx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
+            }
         }
     }
     

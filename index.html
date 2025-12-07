@@ -406,8 +406,20 @@
             box-shadow: none !important;
         }
         
-        body.minimalist-mode .side-panel > *:not(.next-piece) {
-            visibility: hidden !important;
+        body.minimalist-mode .side-panel > *:not(.score-display:first-child) {
+            display: none !important;
+        }
+        
+        body.minimalist-mode .side-panel .score-display:first-child {
+            visibility: visible !important;
+        }
+        
+        body.minimalist-mode .side-panel .score-display:first-child .score-label {
+            display: none !important;
+        }
+        
+        body.minimalist-mode .side-panel .score-display:first-child #score {
+            font-size: 3vh !important;
         }
         
         body.minimalist-mode .next-piece .score-label {
