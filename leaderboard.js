@@ -437,214 +437,216 @@ function promptForName(scoreData) {
     newInput.type = 'text';
     newInput.id = 'nameEntryInput';
     newInput.className = 'name-entry-input';
-    newInput.placeholder = 'Tap keyboard below';
+    newInput.placeholder = window.navigator.standalone ? 'Tap keyboard below' : 'Enter your name';
     newInput.maxLength = 20;
-    newInput.readOnly = true; // Prevent system keyboard
+    newInput.readOnly = window.navigator.standalone ? true : false; // Prevent system keyboard only in standalone mode
     input.parentNode.replaceChild(newInput, input);
     
     // Pre-fill with saved username if available
     const savedUsername = localStorage.getItem('blockchainstorm_username');
     newInput.value = savedUsername || '';
     
-    // Create custom on-screen keyboard
-    let keyboard = document.getElementById('customKeyboard');
-    if (!keyboard) {
-        keyboard = document.createElement('div');
-        keyboard.id = 'customKeyboard';
-        keyboard.style.cssText = `
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #222;
-            padding: 3px;
-            box-sizing: border-box;
-            z-index: 1000000;
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-            border-top: 2px solid #FFD700;
-        `;
-        
-        const rows = [
-            '1234567890',
-            'qwertyuiop',
-            'asdfghjkl',
-            'zxcvbnm'
-        ];
-        
-        let isShifted = false;
-        const letterKeys = [];
-        
-        rows.forEach((row, rowIndex) => {
-            const rowDiv = document.createElement('div');
-            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:2px;';
+    // Create custom on-screen keyboard (only for standalone iOS apps where system keyboard doesn't work)
+    if (window.navigator.standalone) {
+        let keyboard = document.getElementById('customKeyboard');
+        if (!keyboard) {
+            keyboard = document.createElement('div');
+            keyboard.id = 'customKeyboard';
+            keyboard.style.cssText = `
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background: #222;
+                padding: 3px;
+                box-sizing: border-box;
+                z-index: 1000000;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+                border-top: 2px solid #FFD700;
+            `;
             
-            // Add SHIFT key before Z row
-            if (rowIndex === 3) {
-                const shiftKey = document.createElement('button');
-                shiftKey.textContent = '⇧';
-                shiftKey.style.cssText = `
-                    min-width: 40px;
-                    height: 32px;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #555;
-                    color: white;
-                    cursor: pointer;
-                    margin-right: 4px;
-                    touch-action: manipulation;
-                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-                `;
-                const toggleShift = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    isShifted = !isShifted;
-                    shiftKey.style.background = isShifted ? '#4CAF50' : '#555';
-                    letterKeys.forEach(k => {
-                        k.textContent = isShifted ? k.dataset.char.toUpperCase() : k.dataset.char.toLowerCase();
-                    });
-                };
-                shiftKey.addEventListener('touchend', toggleShift);
-                shiftKey.addEventListener('click', toggleShift);
-                rowDiv.appendChild(shiftKey);
-            }
+            const rows = [
+                '1234567890',
+                'qwertyuiop',
+                'asdfghjkl',
+                'zxcvbnm'
+            ];
             
-            row.split('').forEach(char => {
-                const key = document.createElement('button');
-                const isLetter = /[a-z]/i.test(char);
-                key.textContent = char;
-                if (isLetter) {
-                    key.dataset.char = char;
-                    letterKeys.push(key);
+            let isShifted = false;
+            const letterKeys = [];
+            
+            rows.forEach((row, rowIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.style.cssText = 'display:flex;justify-content:center;gap:2px;';
+                
+                // Add SHIFT key before Z row
+                if (rowIndex === 3) {
+                    const shiftKey = document.createElement('button');
+                    shiftKey.textContent = '⇧';
+                    shiftKey.style.cssText = `
+                        min-width: 40px;
+                        height: 32px;
+                        font-size: 16px;
+                        border: none;
+                        border-radius: 4px;
+                        background: #555;
+                        color: white;
+                        cursor: pointer;
+                        margin-right: 4px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    `;
+                    const toggleShift = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isShifted = !isShifted;
+                        shiftKey.style.background = isShifted ? '#4CAF50' : '#555';
+                        letterKeys.forEach(k => {
+                            k.textContent = isShifted ? k.dataset.char.toUpperCase() : k.dataset.char.toLowerCase();
+                        });
+                    };
+                    shiftKey.addEventListener('touchend', toggleShift);
+                    shiftKey.addEventListener('click', toggleShift);
+                    rowDiv.appendChild(shiftKey);
                 }
-                key.style.cssText = `
-                    min-width: 24px;
-                    height: 32px;
-                    font-size: 14px;
-                    font-weight: bold;
-                    border: none;
-                    border-radius: 4px;
-                    background: #444;
-                    color: white;
-                    cursor: pointer;
-                    flex: 1;
-                    max-width: 32px;
-                    touch-action: manipulation;
-                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-                `;
-                const addChar = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (newInput.value.length < 20) {
-                        const c = isLetter ? (isShifted ? char.toUpperCase() : char.toLowerCase()) : char;
-                        newInput.value += c;
+                
+                row.split('').forEach(char => {
+                    const key = document.createElement('button');
+                    const isLetter = /[a-z]/i.test(char);
+                    key.textContent = char;
+                    if (isLetter) {
+                        key.dataset.char = char;
+                        letterKeys.push(key);
                     }
-                };
-                key.addEventListener('touchend', addChar);
-                key.addEventListener('click', addChar);
-                rowDiv.appendChild(key);
+                    key.style.cssText = `
+                        min-width: 24px;
+                        height: 32px;
+                        font-size: 14px;
+                        font-weight: bold;
+                        border: none;
+                        border-radius: 4px;
+                        background: #444;
+                        color: white;
+                        cursor: pointer;
+                        flex: 1;
+                        max-width: 32px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    `;
+                    const addChar = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (newInput.value.length < 20) {
+                            const c = isLetter ? (isShifted ? char.toUpperCase() : char.toLowerCase()) : char;
+                            newInput.value += c;
+                        }
+                    };
+                    key.addEventListener('touchend', addChar);
+                    key.addEventListener('click', addChar);
+                    rowDiv.appendChild(key);
+                });
+                
+                // Add ENTER to ASDFGHJKL row (after L)
+                if (rowIndex === 2) {
+                    const enterKey = document.createElement('button');
+                    enterKey.textContent = '↵';
+                    enterKey.style.cssText = `
+                        min-width: 40px;
+                        height: 32px;
+                        font-size: 16px;
+                        border: none;
+                        border-radius: 4px;
+                        background: #4CAF50;
+                        color: white;
+                        cursor: pointer;
+                        margin-left: 4px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    `;
+                    let enterHandled = false;
+                    const handleEnter = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (enterHandled) return;
+                        enterHandled = true;
+                        setTimeout(() => { enterHandled = false; }, 300);
+                        newSubmitBtn.click();
+                    };
+                    enterKey.addEventListener('touchend', handleEnter);
+                    enterKey.addEventListener('click', handleEnter);
+                    rowDiv.appendChild(enterKey);
+                }
+                
+                // Add space and backspace to last row (after M)
+                if (rowIndex === 3) {
+                    const spaceBar = document.createElement('button');
+                    spaceBar.textContent = '␣';
+                    spaceBar.style.cssText = `
+                        min-width: 50px;
+                        height: 32px;
+                        font-size: 16px;
+                        border: none;
+                        border-radius: 4px;
+                        background: #444;
+                        color: white;
+                        cursor: pointer;
+                        margin-left: 4px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    `;
+                    spaceBar.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (newInput.value.length < 20) {
+                            newInput.value += ' ';
+                        }
+                    });
+                    spaceBar.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (newInput.value.length < 20) {
+                            newInput.value += ' ';
+                        }
+                    });
+                    rowDiv.appendChild(spaceBar);
+                    
+                    const backspace = document.createElement('button');
+                    backspace.textContent = '⌫';
+                    backspace.style.cssText = `
+                        min-width: 50px;
+                        height: 32px;
+                        font-size: 16px;
+                        border: none;
+                        border-radius: 4px;
+                        background: #666;
+                        color: white;
+                        cursor: pointer;
+                        margin-left: 4px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    `;
+                    backspace.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        newInput.value = newInput.value.slice(0, -1);
+                    });
+                    backspace.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        newInput.value = newInput.value.slice(0, -1);
+                    });
+                    rowDiv.appendChild(backspace);
+                }
+                
+                keyboard.appendChild(rowDiv);
             });
             
-            // Add ENTER to ASDFGHJKL row (after L)
-            if (rowIndex === 2) {
-                const enterKey = document.createElement('button');
-                enterKey.textContent = '↵';
-                enterKey.style.cssText = `
-                    min-width: 40px;
-                    height: 32px;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #4CAF50;
-                    color: white;
-                    cursor: pointer;
-                    margin-left: 4px;
-                    touch-action: manipulation;
-                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-                `;
-                let enterHandled = false;
-                const handleEnter = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (enterHandled) return;
-                    enterHandled = true;
-                    setTimeout(() => { enterHandled = false; }, 300);
-                    newSubmitBtn.click();
-                };
-                enterKey.addEventListener('touchend', handleEnter);
-                enterKey.addEventListener('click', handleEnter);
-                rowDiv.appendChild(enterKey);
-            }
-            
-            // Add space and backspace to last row (after M)
-            if (rowIndex === 3) {
-                const spaceBar = document.createElement('button');
-                spaceBar.textContent = '␣';
-                spaceBar.style.cssText = `
-                    min-width: 50px;
-                    height: 32px;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #444;
-                    color: white;
-                    cursor: pointer;
-                    margin-left: 4px;
-                    touch-action: manipulation;
-                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-                `;
-                spaceBar.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (newInput.value.length < 20) {
-                        newInput.value += ' ';
-                    }
-                });
-                spaceBar.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (newInput.value.length < 20) {
-                        newInput.value += ' ';
-                    }
-                });
-                rowDiv.appendChild(spaceBar);
-                
-                const backspace = document.createElement('button');
-                backspace.textContent = '⌫';
-                backspace.style.cssText = `
-                    min-width: 50px;
-                    height: 32px;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #666;
-                    color: white;
-                    cursor: pointer;
-                    margin-left: 4px;
-                    touch-action: manipulation;
-                    -webkit-tap-highlight-color: rgba(255,215,0,0.3);
-                `;
-                backspace.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    newInput.value = newInput.value.slice(0, -1);
-                });
-                backspace.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    newInput.value = newInput.value.slice(0, -1);
-                });
-                rowDiv.appendChild(backspace);
-            }
-            
-            keyboard.appendChild(rowDiv);
-        });
-        
-        document.body.appendChild(keyboard);
-    } else {
-        keyboard.style.display = 'flex';
+            document.body.appendChild(keyboard);
+        } else {
+            keyboard.style.display = 'flex';
+        }
     }
     
     // Remove debug elements
