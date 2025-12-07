@@ -4716,6 +4716,7 @@ let mercurialInterval = 0; // Current interval before next change (2-4 seconds)
 
 // gameRunning is declared in starfield section
 let paused = false; StarfieldSystem.setPaused(false);
+let justPaused = false; // Flag to prevent immediate unpause from tap handler
 
 // Toggle pause state
 function togglePause() {
@@ -4739,6 +4740,8 @@ function togglePause() {
         // Pause
         captureCanvasSnapshot();
         paused = true;
+        justPaused = true;
+        setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
         StarfieldSystem.setPaused(true);
         if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
         // Hide pause button while paused
@@ -9832,6 +9835,8 @@ document.addEventListener('keydown', e => {
             captureCanvasSnapshot();
             
             paused = true; StarfieldSystem.setPaused(true);
+            justPaused = true;
+            setTimeout(() => { justPaused = false; }, 300);
             settingsBtn.classList.remove('hidden-during-play');
             // Hide pause button while paused
             const pauseBtn = document.getElementById('pauseBtn');
@@ -10071,6 +10076,8 @@ settingsBtn.addEventListener('click', () => {
         captureCanvasSnapshot();
         
         paused = true; StarfieldSystem.setPaused(true);
+        justPaused = true;
+        setTimeout(() => { justPaused = false; }, 300);
         // Hide pause button while settings is open
         const pauseBtn = document.getElementById('pauseBtn');
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -10962,16 +10969,18 @@ console.log('📊 Leaderboard uses server if available, falls back to local stor
 // Tap anywhere to unpause (for tablet mode)
 let unpauseHandled = false;
 const handleUnpauseTap = (e) => {
-    if (!gameRunning || !paused) return;
+    if (!gameRunning || !paused || justPaused) return;
     if (unpauseHandled) return;
     
-    // Don't unpause if clicking on settings button or settings overlay
+    // Don't unpause if clicking on settings button, settings overlay, or pause button
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsOverlay = document.getElementById('settingsOverlay');
+    const pauseBtn = document.getElementById('pauseBtn');
     
     if (settingsBtn && settingsBtn.contains(e.target)) return;
     if (settingsOverlay && settingsOverlay.contains(e.target)) return;
     if (settingsOverlay && settingsOverlay.style.display === 'flex') return;
+    if (pauseBtn && pauseBtn.contains(e.target)) return;
     
     // Prevent double-firing from both touchend and click
     unpauseHandled = true;
