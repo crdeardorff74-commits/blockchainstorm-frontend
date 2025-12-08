@@ -9293,6 +9293,7 @@ function toggleUIElements(show) {
 
 async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
+    document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
     playSoundEffect('gameover', soundToggle);
@@ -9858,6 +9859,7 @@ function startGame(mode) {
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
+    document.body.classList.add('game-running');
     gameOverDiv.style.display = 'none';
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
