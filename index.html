@@ -411,6 +411,10 @@
         }
         
         body.minimalist-mode .side-panel .score-display:first-child {
+            visibility: hidden !important;
+        }
+        
+        body.minimalist-mode.game-started .side-panel .score-display:first-child {
             visibility: visible !important;
         }
         
@@ -434,15 +438,6 @@
         body.minimalist-mode.game-running .header {
             opacity: 0;
             pointer-events: none;
-        }
-        
-        body.minimalist-mode .settings-btn {
-            opacity: 0.2;
-            transition: opacity 0.3s;
-        }
-        
-        body.minimalist-mode .settings-btn:hover {
-            opacity: 1;
         }
         
         /* Global custom scrollbar styling */

@@ -9860,6 +9860,7 @@ function startGame(mode) {
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
     document.body.classList.add('game-running');
+    document.body.classList.add('game-started');
     gameOverDiv.style.display = 'none';
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
@@ -10100,6 +10101,7 @@ updateSelectedMode();
 playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
+    document.body.classList.remove('game-started');
     toggleUIElements(true); // Show UI elements when returning to menu
     
     // Hide planet stats
