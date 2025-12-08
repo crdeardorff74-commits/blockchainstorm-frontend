@@ -664,8 +664,18 @@ function promptForName(scoreData) {
     const testInput = document.getElementById('testInput');
     if (testInput) testInput.remove();
     
-    // Don't call focus() programmatically on iOS - it prevents keyboard from appearing
-    // Just let user tap the input naturally
+    // Focus the input for non-standalone mode (PC/browser)
+    // Don't call focus() on iOS standalone - it prevents keyboard from appearing
+    if (!window.navigator.standalone) {
+        setTimeout(() => {
+            newInput.focus();
+            // If there's a saved name, select it so user can easily change it
+            if (savedUsername) {
+                newInput.select();
+            }
+            console.log('Input focused');
+        }, 150);
+    }
     
     console.log('Input setup complete, saved username:', savedUsername);
     
@@ -736,9 +746,15 @@ function promptForName(scoreData) {
             
             // Try to submit to server with retries
             const submitToServer = async (retryCount = 0, maxRetries = 5) => {
+                // Add human-readable challenge names for the email
+                const challengeNames = scoreData.challenges && scoreData.challenges.length > 0
+                    ? scoreData.challenges.map(c => getChallengeDisplayName(c)).join(', ')
+                    : null;
+                
                 const dataToSubmit = {
                     ...scoreData,
-                    username: username
+                    username: username,
+                    challengeNames: challengeNames // Include readable names for email
                 };
                 
                 try {
