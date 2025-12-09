@@ -1709,6 +1709,31 @@
     </style>
 </head>
 <body>
+    <script>
+        // Domain-based title switching
+        (function() {
+            const hostname = window.location.hostname.toLowerCase();
+            const isTantris = hostname.includes('tantris');
+            
+            // Update document title
+            document.title = isTantris ? 'TaNTЯiS' : 'BLOCKCHaiNSTOЯM';
+            
+            // Switch visible title after DOM loads
+            document.addEventListener('DOMContentLoaded', function() {
+                const blockchainTitle = document.getElementById('title-blockchainstorm');
+                const tantrisTitle = document.getElementById('title-tantris');
+                
+                if (isTantris) {
+                    if (blockchainTitle) blockchainTitle.style.display = 'none';
+                    if (tantrisTitle) tantrisTitle.style.display = 'block';
+                }
+            });
+            
+            // Expose for other scripts
+            window.GAME_TITLE = isTantris ? 'TaNTЯiS' : 'BLOCKCHaiNSTOЯM';
+            window.IS_TANTRIS = isTantris;
+        })();
+    </script>
     <div class="start-overlay" id="startOverlay">
         <div class="start-message" id="dontPanicText">Don't Panic!</div>
         <div class="start-message" id="clickMessage">Click anywhere to start...</div>
@@ -1716,7 +1741,7 @@
     <canvas id="starfield"></canvas>
     <button class="settings-btn" id="settingsBtn">⚙️ Settings</button>
     <div class="header">
-        <div class="title">
+        <div class="title" id="title-blockchainstorm">
             ₿L<span style="position: relative; display: inline-block;">
                 <span style="position: relative; z-index: 1; -webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">O</span>
                 <svg style="position: absolute; left: 62%; top: 50%; transform: translate(-50%, -50%) rotate(10deg) scaleX(1.2); width: 150%; height: 150%; pointer-events: none; z-index: 2;" viewBox="0 0 10 10">
@@ -1758,6 +1783,9 @@
                           filter="url(#lightning-glow2)"/>
                 </svg>
             </span>ЯM
+        </div>
+        <div class="title" id="title-tantris" style="display: none;">
+            T<span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">a</span>NT<span style="-webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">Я</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">i</span>S
         </div>
     </div>
 

@@ -11046,7 +11046,7 @@ document.addEventListener('keydown', (e) => {
 }, { once: true });
 
 // Initialize high score system
-console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
+console.log(`🏆 ${window.GAME_TITLE || 'BLOCKCHaiNSTORM'} High Score System Initialized`);
 console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
 console.log('📊 Leaderboard uses server if available, falls back to local storage');
 
