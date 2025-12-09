@@ -1710,7 +1710,7 @@
 </head>
 <body>
     <script>
-        // Domain-based title switching
+        // Domain-based title switching - runs immediately
         (function() {
             const hostname = window.location.hostname.toLowerCase();
             const isTantris = hostname.includes('tantris');
@@ -1718,20 +1718,18 @@
             // Update document title
             document.title = isTantris ? 'TaNTЯiS' : 'BLOCKCHaiNSTOЯM';
             
-            // Switch visible title after DOM loads
-            document.addEventListener('DOMContentLoaded', function() {
-                const blockchainTitle = document.getElementById('title-blockchainstorm');
-                const tantrisTitle = document.getElementById('title-tantris');
-                
-                if (isTantris) {
-                    if (blockchainTitle) blockchainTitle.style.display = 'none';
-                    if (tantrisTitle) tantrisTitle.style.display = 'block';
-                }
-            });
-            
             // Expose for other scripts
             window.GAME_TITLE = isTantris ? 'TaNTЯiS' : 'BLOCKCHaiNSTOЯM';
             window.IS_TANTRIS = isTantris;
+            
+            // Inject CSS to handle title visibility immediately
+            const style = document.createElement('style');
+            if (isTantris) {
+                style.textContent = '#title-blockchainstorm { display: none !important; } #title-tantris { display: block !important; }';
+            } else {
+                style.textContent = '#title-tantris { display: none !important; }';
+            }
+            document.head.appendChild(style);
         })();
     </script>
     <div class="start-overlay" id="startOverlay">
