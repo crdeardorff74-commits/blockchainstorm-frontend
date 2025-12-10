@@ -9342,6 +9342,7 @@ async function gameOver() {
     // Prepare score data for submission
     const scoreData = {
         game: 'blockchainstorm',
+        gameTitle: window.GAME_TITLE || 'BLOCKCHaiNSTOЯM',
         difficulty: gameMode,
         mode: isChallenge ? 'challenge' : 'normal',
         score: score,
