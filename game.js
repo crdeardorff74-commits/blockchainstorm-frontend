@@ -9252,7 +9252,7 @@ function toggleUIElements(show) {
     const controls = document.querySelector('.controls');
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
-    const title = document.querySelector('.title');
+    const titles = document.querySelectorAll('.title');
     const pauseBtn = document.getElementById('pauseBtn');
     const planetStatsLeft = document.getElementById('planetStatsLeft');
     
@@ -9268,7 +9268,7 @@ function toggleUIElements(show) {
         controls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
-        if (title) title.style.display = 'block';
+        titles.forEach(title => title.style.display = '');
         
         // Hide tablet mode gameplay elements on menu
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -9281,7 +9281,7 @@ function toggleUIElements(show) {
         controls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
-        if (title) title.style.display = 'none';
+        titles.forEach(title => title.style.display = 'none');
         
         // Show tablet mode gameplay elements during game
         if (TabletMode.enabled) {
