@@ -1722,14 +1722,22 @@
             window.GAME_TITLE = isTantris ? 'TaNTЯiS' : 'BLOCKCHaiNSTOЯM';
             window.IS_TANTRIS = isTantris;
             
-            // Inject CSS to handle title visibility immediately
+            // Inject CSS to permanently hide the inactive title
             const style = document.createElement('style');
             if (isTantris) {
-                style.textContent = '#title-blockchainstorm { display: none !important; } #title-tantris { display: block !important; }';
+                style.textContent = '#title-blockchainstorm { display: none !important; }';
             } else {
                 style.textContent = '#title-tantris { display: none !important; }';
             }
             document.head.appendChild(style);
+            
+            // Remove inline style from tantris title when on tantris domain (so JS can control it)
+            if (isTantris) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    const tantrisTitle = document.getElementById('title-tantris');
+                    if (tantrisTitle) tantrisTitle.style.display = '';
+                });
+            }
         })();
     </script>
     <div class="start-overlay" id="startOverlay">
