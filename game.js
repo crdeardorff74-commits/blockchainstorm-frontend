@@ -8620,6 +8620,13 @@ function clearLines() {
         return;
     }
     
+    // Don't start a new line clear while one is already animating
+    // This prevents race conditions when tornado drops pieces during line clears
+    if (animatingLines) {
+        console.log('⏸️ Skipping clearLines - line animation in progress');
+        return;
+    }
+    
     const blobsBefore = getAllBlobs();
     const completedRows = [];
     
