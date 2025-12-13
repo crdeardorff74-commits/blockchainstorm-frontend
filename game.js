@@ -4756,6 +4756,7 @@ var gameLoop = null;
 let dropCounter = 0;
 let dropInterval = 1000;
 let animatingLines = false;
+let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
 let lineAnimations = [];
 let lightningEffects = [];
 let triggeredTsunamis = new Set(); // Track tsunamis that have already triggered
@@ -7772,14 +7773,18 @@ function checkForSpecialFormations() {
     let blackHoleData = [];
     
     // Check for Volcanoes (blob at bottom completely enveloped by another)
-    const volcanoes = detectVolcanoes(allBlobs);
-    if (volcanoes.length > 0) {
-        foundVolcano = true;
-        volcanoData = volcanoes;
+    // Skip if a volcano is already active to prevent duplicate counting
+    if (!volcanoActive) {
+        const volcanoes = detectVolcanoes(allBlobs);
+        if (volcanoes.length > 0) {
+            foundVolcano = true;
+            volcanoData = volcanoes;
+        }
     }
     
     // Check for Black Holes (one blob enveloping another of different color)
-    if (!foundVolcano) {
+    // Skip if a black hole is already active to prevent duplicate counting
+    if (!foundVolcano && !blackHoleActive) {
         const blackHoles = detectBlackHoles(allBlobs);
         if (blackHoles.length > 0) {
             foundBlackHole = true;
@@ -7788,7 +7793,8 @@ function checkForSpecialFormations() {
     }
     
     // Check for Tsunamis (blobs spanning full width)
-    if (!foundVolcano && !foundBlackHole) {
+    // Skip if a tsunami is already animating to prevent duplicate counting
+    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating) {
         allBlobs.forEach(blob => {
             const minX = Math.min(...blob.positions.map(p => p[0]));
             const maxX = Math.max(...blob.positions.map(p => p[0]));
@@ -8622,8 +8628,10 @@ function clearLines() {
     
     // Don't start a new line clear while one is already animating
     // This prevents race conditions when tornado drops pieces during line clears
+    // Set a flag to check again after the current animation completes
     if (animatingLines) {
-        console.log('⏸️ Skipping clearLines - line animation in progress');
+        console.log('⏸️ Deferring clearLines - line animation in progress');
+        pendingLineCheck = true;
         return;
     }
     
@@ -8999,6 +9007,15 @@ function clearLines() {
             runTwoPhaseGravity();
 
             animatingLines = false;
+            
+            // Check if another clearLines was requested during the animation
+            // (e.g., tornado dropped a piece that completed a line)
+            if (pendingLineCheck) {
+                pendingLineCheck = false;
+                console.log('🔄 Processing deferred line check');
+                clearLines();
+                return; // Don't spawn weather events if we're doing another clear
+            }
             
             // Check for tornado/earthquake with difficulty-based probability
             // Wait 1 second after lines clear, then check probability
@@ -9728,6 +9745,7 @@ function startGame(mode) {
     StarfieldSystem.reset(); // Reset all starfield state (planets, asteroids, journey)
     lineAnimations = [];
     animatingLines = false;
+    pendingLineCheck = false;
     paused = false; StarfieldSystem.setPaused(false);
     hailstormCounter = 0;
     triggeredTsunamis.clear();
