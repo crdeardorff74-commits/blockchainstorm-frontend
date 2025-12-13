@@ -966,19 +966,30 @@ const SHAPES = {
 // Extended shapes for Blizzard/Hurricane modes (5-block pieces)
 const EXTENDED_SHAPES = {
     ...SHAPES,
-    I5: [[1,1,1,1,1]],           // 5-long I piece
-    Plus: [[0,1,0],[1,1,1],[0,1,0]], // Plus/cross shape
-    W: [[1,0,0],[1,1,0],[0,1,1]],   // W shape
-    U: [[1,0,1],[1,1,1]],            // U shape
-    P: [[1,1],[1,1],[1,0]]           // P shape (3 high)
+    I5: [[1,1,1,1,1]],                    // 5-long I piece
+    Plus: [[0,1,0],[1,1,1],[0,1,0]],      // Plus/cross shape
+    W: [[1,0,0],[1,1,0],[0,1,1]],         // W shape
+    U: [[1,0,1],[1,1,1]],                 // U shape
+    P: [[1,1],[1,1],[1,0]],               // P shape (3 high)
+    F: [[0,1,1],[1,1,0],[0,1,0]],         // F shape
+    L5: [[1,0],[1,0],[1,0],[1,1]],        // L pentomino (4 high)
+    N: [[0,1],[1,1],[1,0],[1,0]],         // N shape
+    T5: [[1,1,1],[0,1,0],[0,1,0]],        // T pentomino (tall T)
+    V: [[1,0,0],[1,0,0],[1,1,1]],         // V shape
+    Y: [[0,1],[1,1],[0,1],[0,1]],         // Y shape
+    Z5: [[1,1,0],[0,1,0],[0,1,1]]         // Z pentomino
 };
 
-// Blizzard shapes - excludes Plus and W (harder configurations)
+// Blizzard shapes - moderate difficulty pentominoes
 const BLIZZARD_SHAPES = {
     ...SHAPES,
-    I5: [[1,1,1,1,1]],           // 5-long I piece
-    U: [[1,0,1],[1,1,1]],            // U shape
-    P: [[1,1],[1,1],[1,0]]           // P shape (3 high)
+    I5: [[1,1,1,1,1]],                    // 5-long I piece
+    U: [[1,0,1],[1,1,1]],                 // U shape
+    P: [[1,1],[1,1],[1,0]],               // P shape (3 high)
+    L5: [[1,0],[1,0],[1,0],[1,1]],        // L pentomino (4 high)
+    N: [[0,1],[1,1],[1,0],[1,0]],         // N shape
+    T5: [[1,1,1],[0,1,0],[0,1,0]],        // T pentomino (tall T)
+    V: [[1,0,0],[1,0,0],[1,1,1]]          // V shape
 };
 
 const COLORS = [
@@ -4778,15 +4789,29 @@ function randomColor() {
 
 function createPiece() {
     let shapeSet;
-    if (gameMode === 'blizzard') {
-        shapeSet = BLIZZARD_SHAPES; // Excludes Plus and W shapes
-    } else if (gameMode === 'hurricane') {
-        shapeSet = EXTENDED_SHAPES; // All 5-block shapes
+    let type;
+    
+    if (gameMode === 'blizzard' || gameMode === 'hurricane') {
+        // 75% tetrominoes, 25% pentominoes
+        const tetrominoKeys = Object.keys(SHAPES); // Standard 4-block pieces
+        const fullShapeSet = gameMode === 'blizzard' ? BLIZZARD_SHAPES : EXTENDED_SHAPES;
+        const pentominoKeys = Object.keys(fullShapeSet).filter(k => !SHAPES[k]); // Only 5-block pieces
+        
+        if (Math.random() < 0.75) {
+            // Pick a tetromino
+            type = tetrominoKeys[Math.floor(Math.random() * tetrominoKeys.length)];
+            shapeSet = SHAPES;
+        } else {
+            // Pick a pentomino
+            type = pentominoKeys[Math.floor(Math.random() * pentominoKeys.length)];
+            shapeSet = fullShapeSet;
+        }
     } else {
-        shapeSet = SHAPES; // Standard 4-block shapes
+        shapeSet = SHAPES; // Standard 4-block shapes only
+        const shapes = Object.keys(shapeSet);
+        type = shapes[Math.floor(Math.random() * shapes.length)];
     }
-    const shapes = Object.keys(shapeSet);
-    const type = shapes[Math.floor(Math.random() * shapes.length)];
+    
     return {
         shape: shapeSet[type],
         type: type,
