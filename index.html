@@ -147,6 +147,10 @@
             min-width: 0; /* Allow shrinking below content width */
             overflow: hidden; /* Prevent content from extending beyond bounds */
         }
+        /* Allow tooltip overflow when mode menu is visible */
+        .main-area:has(.mode-menu:not(.hidden)) {
+            overflow: visible;
+        }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
             display: block;
