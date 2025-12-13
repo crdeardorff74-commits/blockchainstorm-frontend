@@ -8497,20 +8497,15 @@ function applyGravity() {
 function updateFallingBlocks() {
     if (!gravityAnimating || fallingBlocks.length === 0) return;
     
-    // Get current celestial body's gravity multiplier
-    // Find the planet/sun for the current level
-    let gravityMultiplier = 1.0; // Default to Earth gravity
-    const planets = StarfieldSystem.getPlanets();
-    const currentBody = planets.find(p => p.level === currentGameLevel);
-    if (currentBody && currentBody.gravity !== undefined) {
-        gravityMultiplier = currentBody.gravity;
-    }
+    // Use consistent gravity (Mercury level = 0.38x Earth) regardless of current planet
+    // This prevents confusing fast cascades on high-gravity planets like the Sun
+    const gravityMultiplier = 0.38; // Mercury/Mars gravity
     
     // Base gravity and velocity for Earth (gravity = 1.0)
     const baseGravity = 0.45;
     const baseMaxVelocity = 4.5;
     
-    // Scale gravity and terminal velocity by the celestial body's gravity
+    // Scale gravity and terminal velocity by the fixed gravity multiplier
     // BUT enforce a minimum gravity floor so animations don't take forever
     const minGravity = 0.8; // Minimum gravity to keep animations reasonable
     const minMaxVelocity = 8.0; // Minimum max velocity
