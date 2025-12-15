@@ -5,7 +5,7 @@
  */
 
 const AUTH_API_URL = 'https://official-intelligence-api.onrender.com';
-let currentUser = null;
+let authCurrentUser = null;
 let isRegisterMode = false;
 
 // Check for OAuth callback token
@@ -32,7 +32,7 @@ async function checkAuth() {
         
         if (res.ok) {
             const data = await res.json();
-            currentUser = data.user;
+            authCurrentUser = data.user;
             updateUserMenu();
             updateIntroLoginButton();
         } else {
@@ -45,11 +45,11 @@ async function checkAuth() {
 
 function updateUserMenu() {
     const menu = document.getElementById('userMenu');
-    if (menu && currentUser) {
+    if (menu && authCurrentUser) {
         menu.innerHTML = `
             <div class="user-info">
-                ${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" alt="">` : ''}
-                <span>${currentUser.display_name || currentUser.username}</span>
+                ${authCurrentUser.avatar_url ? `<img src="${authCurrentUser.avatar_url}" alt="">` : ''}
+                <span>${authCurrentUser.display_name || authCurrentUser.username}</span>
                 <button onclick="logout()" style="margin-left: 10px;">LOGOUT</button>
             </div>
         `;
@@ -67,7 +67,7 @@ function updateIntroLoginButton() {
 
 function logout() {
     localStorage.removeItem('oi_token');
-    currentUser = null;
+    authCurrentUser = null;
     const menu = document.getElementById('userMenu');
     if (menu) {
         menu.innerHTML = '<button onclick="showLoginModal()">LOGIN</button>';
@@ -155,7 +155,7 @@ async function handleLogin(e) {
         
         if (res.ok && data.token) {
             localStorage.setItem('oi_token', data.token);
-            currentUser = data.user;
+            authCurrentUser = data.user;
             hideLoginModal();
             updateUserMenu();
             updateIntroLoginButton();
