@@ -772,7 +772,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
             gap: 20px;
         }
         .start-message {
@@ -787,20 +786,6 @@
             display: flex;
             align-items: flex-start;
             justify-content: center;
-        }
-        
-        /* Make clickMessage clickable when it contains the anagram */
-        #clickMessage {
-            cursor: default;
-        }
-        
-        /* Question mark cursor - when showing YOU'RE OKAY or anagram */
-        #clickMessage.anagram-active {
-            cursor: pointer;
-        }
-        
-        #clickMessage.anagram-active:hover {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="28" font-size="28">❓</text></svg>') 16 16, pointer;
         }
         
         @keyframes pulse {
@@ -821,6 +806,222 @@
             50% { transform: translate(var(--tx2), var(--ty2)) rotate(var(--r2)); }
             75% { transform: translate(var(--tx3), var(--ty3)) rotate(var(--r3)); }
         }
+        
+        /* Intro screen controls */
+        .intro-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .intro-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(30, 60, 120, 0.8);
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            min-width: 220px;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .intro-toggle:hover {
+            background: rgba(50, 80, 140, 0.9);
+            border-color: rgba(255, 215, 0, 0.5);
+        }
+        .intro-toggle-label {
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .intro-toggle .toggle-switch {
+            flex-shrink: 0;
+        }
+        .start-game-btn {
+            margin-top: 20px;
+            padding: 18px 50px;
+            font-size: 22px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .start-game-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(255, 215, 0, 0.6);
+        }
+        .start-game-btn:active {
+            transform: scale(0.98);
+        }
+        .login-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            background: rgba(30, 60, 120, 0.9);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .login-btn:hover {
+            background: rgba(50, 80, 140, 1);
+            border-color: #FFD700;
+        }
+        .login-btn.hidden {
+            display: none;
+        }
+        
+        /* Login Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .auth-modal {
+            background: rgba(30, 60, 120, 0.95);
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            min-width: 320px;
+            max-width: 400px;
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+        }
+        .auth-modal h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #FFD700;
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .modal-close:hover {
+            opacity: 1;
+        }
+        .auth-modal .form-group {
+            margin-bottom: 15px;
+        }
+        .auth-modal label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+        }
+        .auth-modal input[type="text"],
+        .auth-modal input[type="email"],
+        .auth-modal input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .auth-modal input:focus {
+            outline: none;
+            border-color: #FFD700;
+        }
+        .auth-submit-btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            letter-spacing: 2px;
+        }
+        .auth-submit-btn:hover {
+            transform: scale(1.02);
+        }
+        .auth-divider {
+            text-align: center;
+            margin: 20px 0;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+        .oauth-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .oauth-btn:hover {
+            background: #f0f0f0;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .auth-footer a {
+            color: #FFD700;
+            text-decoration: none;
+            margin-left: 5px;
+        }
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        .error-message {
+            background: rgba(255, 100, 100, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            display: none;
+        }
+        
         .settings-overlay {
             position: fixed;
             top: 0;
@@ -1756,8 +1957,32 @@
         })();
     </script>
     <div class="start-overlay" id="startOverlay">
+        <button class="login-btn" id="introLoginBtn">🔑 Login</button>
         <div class="start-message" id="dontPanicText">Don't Panic!</div>
-        <div class="start-message" id="clickMessage">Click anywhere to start...</div>
+        <div class="intro-controls" id="introControls">
+            <label class="intro-toggle" id="introFullscreenToggle">
+                <span class="intro-toggle-label">Full Screen</span>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="introFullscreenCheckbox" checked>
+                    <span class="toggle-slider"></span>
+                </div>
+            </label>
+            <label class="intro-toggle">
+                <span class="intro-toggle-label">Music</span>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="introMusicCheckbox" checked>
+                    <span class="toggle-slider"></span>
+                </div>
+            </label>
+            <label class="intro-toggle">
+                <span class="intro-toggle-label">Sound Effects</span>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="introSoundCheckbox" checked>
+                    <span class="toggle-slider"></span>
+                </div>
+            </label>
+            <button class="start-game-btn" id="startGameBtn">▶ Start Game</button>
+        </div>
     </div>
     <canvas id="starfield"></canvas>
     <button class="settings-btn" id="settingsBtn">⚙️ Settings</button>
@@ -2316,7 +2541,56 @@
             <button id="nameEntrySubmit" class="name-entry-button">Submit Score</button>
         </div>
     </div>
+    
+    <!-- Login Modal (from auth.js) -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="auth-modal">
+            <button class="modal-close" onclick="hideLoginModal()">&times;</button>
+            
+            <h2 id="modalTitle">LOGIN</h2>
+            
+            <div class="error-message" id="loginError"></div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group" id="usernameGroup" style="display: none;">
+                    <label>USERNAME</label>
+                    <input type="text" id="username" name="username" autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label>EMAIL</label>
+                    <input type="email" id="email" name="email" required autocomplete="email">
+                </div>
+                
+                <div class="form-group">
+                    <label>PASSWORD</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <div style="text-align: right; margin-bottom: 15px;">
+                    <a href="https://official-intelligence.art/reset-password" style="font-size: 12px; color: rgba(255,255,255,0.6);">Forgot password?</a>
+                </div>
+                
+                <button type="submit" class="auth-submit-btn" id="submitBtn">ENTER</button>
+            </form>
+            
+            <div class="auth-divider">OR</div>
+            
+            <div class="oauth-buttons">
+                <a href="https://official-intelligence-api.onrender.com/auth/google/login" class="oauth-btn">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </a>
+            </div>
+            
+            <div class="auth-footer">
+                <span id="authToggleText">No account?</span>
+                <a href="#" id="authToggle" onclick="toggleAuthMode(event)">Sign up</a>
+            </div>
+        </div>
+    </div>
 	
+	<script src="auth.js"></script>
 	<script src="leaderboard.js"></script>
 	<script src="storm-effects.js"></script>
 	<script src="render-utils.js"></script>

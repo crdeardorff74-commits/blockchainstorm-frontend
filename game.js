@@ -4821,56 +4821,55 @@ function createPiece() {
     };
 }
 
+// Hexomino shapes (6 blocks) - verified block counts
+const HEXOMINO_SHAPES = [
+    { name: 'I6', shape: [[1,1,1,1,1,1]] },                           // 6 in a row
+    { name: 'Rect', shape: [[1,1,1],[1,1,1]] },                       // 2x3 rectangle
+    { name: 'L6', shape: [[1,0,0],[1,0,0],[1,0,0],[1,1,1]] },         // L shape (4 tall)
+    { name: 'J6', shape: [[0,0,1],[0,0,1],[0,0,1],[1,1,1]] },         // J shape (mirror L)
+    { name: 'T6', shape: [[1,1,1,1],[0,1,0,0],[0,1,0,0]] },           // T with wide top
+    { name: 'Plus6', shape: [[0,1,0],[1,1,1],[0,1,0],[0,1,0]] },      // Plus with stem
+    { name: 'Y6', shape: [[0,1],[1,1],[0,1],[0,1],[0,1]] },           // Y shape
+    { name: 'P6', shape: [[1,1],[1,1],[1,0],[1,0]] },                 // P shape tall
+    { name: 'S6', shape: [[0,1,1],[0,1,0],[0,1,0],[1,1,0]] },         // S extended
+    { name: 'C6', shape: [[1,1],[1,0],[1,0],[1,1]] },                 // C/U open shape
+    { name: 'Z6', shape: [[1,1,0,0],[0,1,0,0],[0,1,1,1]] },           // Z extended
+    { name: 'W6', shape: [[1,0,0],[1,1,0],[0,1,1],[0,0,1]] }          // W/stairs shape
+];
+
+// Heptomino shapes (7 blocks) - verified block counts
+const HEPTOMINO_SHAPES = [
+    { name: 'I7', shape: [[1,1,1,1,1,1,1]] },                         // 7 in a row
+    { name: 'L7', shape: [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]] }, // L shape (5 tall)
+    { name: 'J7', shape: [[0,0,1],[0,0,1],[0,0,1],[0,0,1],[1,1,1]] }, // J shape (mirror L)
+    { name: 'T7', shape: [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0]] },     // T with wide top
+    { name: 'Plus7', shape: [[0,1,0],[0,1,0],[1,1,1],[0,1,0],[0,1,0]] }, // Plus symmetric
+    { name: 'Y7', shape: [[0,1],[0,1],[1,1],[0,1],[0,1],[0,1]] },     // Y shape tall
+    { name: 'U7', shape: [[1,0,1],[1,0,1],[1,1,1]] },                 // U shape
+    { name: 'P7', shape: [[1,1],[1,1],[1,0],[1,0],[1,0]] },           // P shape tall
+    { name: 'S7', shape: [[0,0,1,1],[0,0,1,0],[0,1,1,0],[1,1,0,0]] }, // S extended
+    { name: 'W7', shape: [[1,0,0],[1,1,0],[0,1,0],[0,1,1],[0,0,1]] }, // W/stairs
+    { name: 'F7', shape: [[0,1,1],[0,1,0],[1,1,0],[0,1,0],[0,1,0]] }, // F shape
+    { name: 'H7', shape: [[1,0,1],[1,1,1],[1,0,1]] }          // H shape (3 tall)
+];
+
 function createGiantPiece(segmentCount) {
     // Create various configurations of 6-7 segment pieces
     // These will be larger and need to fit centered in the Next Piece window
     const color = randomColor();
-    let shape;
-    const rand = Math.random();
+    let shapeData;
     
     if (segmentCount === 6) {
-        // 6-segment shapes
-        if (rand < 0.2) {
-            // Long I piece (6 blocks in a row)
-            shape = [[1,1,1,1,1,1]];
-        } else if (rand < 0.4) {
-            // 2x3 rectangle
-            shape = [[1,1,1],[1,1,1]];
-        } else if (rand < 0.6) {
-            // L shape (large)
-            shape = [[1,0,0],[1,0,0],[1,1,1]];
-        } else if (rand < 0.8) {
-            // T shape (large)
-            shape = [[1,1,1],[0,1,0],[0,1,0]];
-        } else {
-            // Z shape (large)
-            shape = [[1,1,0],[0,1,0],[0,1,1]];
-        }
+        shapeData = HEXOMINO_SHAPES[Math.floor(Math.random() * HEXOMINO_SHAPES.length)];
     } else {
-        // 7-segment shapes
-        if (rand < 0.2) {
-            // Long I piece (7 blocks in a row)
-            shape = [[1,1,1,1,1,1,1]];
-        } else if (rand < 0.4) {
-            // Plus/cross shape
-            shape = [[0,1,0],[1,1,1],[0,1,0],[0,1,0]];
-        } else if (rand < 0.6) {
-            // Large L
-            shape = [[1,0,0],[1,0,0],[1,0,0],[1,1,1]];
-        } else if (rand < 0.8) {
-            // Pyramid
-            shape = [[0,0,1,0,0],[0,1,1,1,0],[1,1,1,1,1]];
-        } else {
-            // Staircase
-            shape = [[1,0,0],[1,1,0],[0,1,1],[0,0,1]];
-        }
+        shapeData = HEPTOMINO_SHAPES[Math.floor(Math.random() * HEPTOMINO_SHAPES.length)];
     }
     
     return {
-        shape: shape,
+        shape: shapeData.shape,
         type: 'giant' + segmentCount,
         color: color,
-        x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
+        x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
         y: -1
     };
 }
@@ -10716,63 +10715,13 @@ function getNextAnagram() {
 }
 
 function startAnagramTimers() {
-    // Random wait (6-7 seconds), then fade out "Click anywhere..." and start animation
-    const randomWait = 6000 + Math.random() * 1000; // Random between 6-7 seconds
-    anagramTimers.first = setTimeout(() => {
-        if (!anagramTriggered && !isAnimating) {
-            const clickMessage = document.getElementById('clickMessage');
-            
-            // Fade out "Click anywhere..." (2 seconds)
-            clickMessage.style.transition = 'opacity 2s ease-out';
-            clickMessage.style.opacity = '0';
-            
-            // After fade out completes, start animation with fade in
-            setTimeout(() => {
-                animateToAnagram();
-            }, 2000);
-        }
-    }, randomWait);
+    // Anagram animation disabled - intro screen now uses button-based UI
+    return;
 }
 
 function resetToClickAnywhere() {
-    const clickMessage = document.getElementById('clickMessage');
-    
-    // Remove anagram-active class to disable middle finger cursor
-    clickMessage.classList.remove('anagram-active');
-    
-    // Fade out current anagram (2 seconds)
-    clickMessage.style.transition = 'opacity 2s ease-out';
-    clickMessage.style.opacity = '0';
-    
-    setTimeout(() => {
-        // Reset to "Click anywhere to start..."
-        clickMessage.innerHTML = 'Click anywhere to start...';
-        clickMessage.style.opacity = '0';
-        
-        // Fade in "Click anywhere..." to 50% opacity (2 seconds)
-        setTimeout(() => {
-            clickMessage.style.transition = 'opacity 2s ease-in';
-            clickMessage.style.opacity = '0.5';
-            
-            // After fade in completes (2s), wait random time (6-7s), then fade out and start next anagram
-            setTimeout(() => {
-                const randomWait = 6000 + Math.random() * 1000; // Random between 6-7 seconds
-                setTimeout(() => {
-                    if (!anagramTriggered) {
-                        // Fade out "Click anywhere..." (2 seconds)
-                        clickMessage.style.transition = 'opacity 2s ease-out';
-                        clickMessage.style.opacity = '0';
-                        
-                        // After fade out completes, start animation
-                        setTimeout(() => {
-                            isAnimating = false;
-                            animateToAnagram();
-                        }, 2000);
-                    }
-                }, randomWait);
-            }, 2000); // Wait for fade in to complete first
-        }, 50);
-    }, 2000);
+    // Anagram animation disabled - intro screen now uses button-based UI
+    return;
 }
 
 function cancelAnagramTimers() {
@@ -10782,8 +10731,11 @@ function cancelAnagramTimers() {
 }
 
 function animateToAnagram() {
-    isAnimating = true;
+    // Guard: clickMessage element no longer exists in new UI
     const clickMessage = document.getElementById('clickMessage');
+    if (!clickMessage) return;
+    
+    isAnimating = true;
     const originalText = "YOU'RE OKAY, PROMISE...";
     const targetAnagram = getNextAnagram(); // Get next unused anagram
     
@@ -11012,26 +10964,71 @@ if (!DeviceDetection.isMobile) {
 }
 
 if (startOverlay) {
-    startOverlay.addEventListener('click', () => {
-        // Don't start game on phones
-        if (DeviceDetection.isMobile) {
-            return;
+    // Get intro screen elements
+    const startGameBtn = document.getElementById('startGameBtn');
+    const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
+    const introMusicCheckbox = document.getElementById('introMusicCheckbox');
+    const introSoundCheckbox = document.getElementById('introSoundCheckbox');
+    const introLoginBtn = document.getElementById('introLoginBtn');
+    
+    // Sync intro toggles with settings toggles on load
+    if (introMusicCheckbox && musicToggle) {
+        introMusicCheckbox.checked = musicToggle.checked;
+        introMusicCheckbox.addEventListener('change', () => {
+            musicToggle.checked = introMusicCheckbox.checked;
+            musicToggle.dispatchEvent(new Event('change'));
+        });
+    }
+    if (introSoundCheckbox && soundToggle) {
+        introSoundCheckbox.checked = soundToggle.checked;
+        introSoundCheckbox.addEventListener('change', () => {
+            soundToggle.checked = introSoundCheckbox.checked;
+            soundToggle.dispatchEvent(new Event('change'));
+        });
+    }
+    
+    // Check login status and show/hide login button
+    function checkIntroLoginStatus() {
+        // Check if user is logged in via oi_token (from auth.js)
+        const isLoggedIn = !!localStorage.getItem('oi_token');
+        if (introLoginBtn) {
+            introLoginBtn.classList.toggle('hidden', isLoggedIn);
         }
+    }
+    checkIntroLoginStatus();
+    
+    // Login button handler - use auth.js showLoginModal
+    if (introLoginBtn) {
+        introLoginBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof showLoginModal === 'function') {
+                showLoginModal();
+            } else {
+                // Fallback if auth.js not loaded
+                window.location.href = 'https://official-intelligence.art/?login=1';
+            }
+        });
+    }
+    
+    // Start Game button handler
+    function startGame() {
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
             audioContext.resume();
         }
-        // Request full-screen mode
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => {
-                // Silently handle fullscreen errors (permissions, etc.)
-            });
-        } else if (elem.webkitRequestFullscreen) { // Safari
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { // IE11
-            elem.msRequestFullscreen();
+        // Request full-screen mode if toggle is checked
+        if (introFullscreenCheckbox && introFullscreenCheckbox.checked) {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => {
+                    // Silently handle fullscreen errors (permissions, etc.)
+                });
+            } else if (elem.webkitRequestFullscreen) { // Safari
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { // IE11
+                elem.msRequestFullscreen();
+            }
         }
         // Remove overlay
         startOverlay.style.display = 'none';
@@ -11039,54 +11036,35 @@ if (startOverlay) {
         if (musicToggle.checked) {
             startMenuMusic(musicToggle);
         }
-    });
+    }
+    
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startGame();
+        });
+    }
 
-    // Add touchstart for iOS Safari which may not fire click reliably
-    startOverlay.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent double-firing with click
-        cancelAnagramTimers();
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Request full-screen mode (may not work on iOS but try anyway)
-        const elem = document.documentElement;
-        if (elem.webkitRequestFullscreen) {
-            elem.webkitRequestFullscreen();
-        }
-        // Remove overlay
-        startOverlay.style.display = 'none';
-        // Start menu music (only if music is enabled)
-        if (musicToggle.checked) {
-            startMenuMusic(musicToggle);
-        }
-    }, { passive: false });
+    // Add touchstart for iOS Safari for the start button
+    if (startGameBtn) {
+        startGameBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startGame();
+        }, { passive: false });
+    }
 }
 
-// Also allow keyboard to start the game
+// Also allow keyboard to start the game (Enter or Space)
 document.addEventListener('keydown', (e) => {
     if (startOverlay && startOverlay.style.display !== 'none') {
-        cancelAnagramTimers();
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Request full-screen mode
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => {
-                // Silently handle fullscreen errors (permissions, etc.)
-            });
-        } else if (elem.webkitRequestFullscreen) { // Safari
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { // IE11
-            elem.msRequestFullscreen();
-        }
-        // Remove overlay
-        startOverlay.style.display = 'none';
-        // Start menu music (only if music is enabled)
-        if (musicToggle.checked) {
-            startMenuMusic(musicToggle);
+        // Only start on Enter or Space key
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const startGameBtn = document.getElementById('startGameBtn');
+            if (startGameBtn) {
+                startGameBtn.click();
+            }
         }
     }
 }, { once: true });
