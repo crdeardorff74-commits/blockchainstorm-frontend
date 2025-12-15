@@ -10999,15 +10999,21 @@ if (startOverlay) {
     
     // Login button handler - use auth.js showLoginModal
     if (introLoginBtn) {
+        console.log('Attaching click handler to introLoginBtn');
         introLoginBtn.addEventListener('click', (e) => {
+            console.log('Login button clicked');
             e.stopPropagation();
             if (typeof showLoginModal === 'function') {
+                console.log('Calling showLoginModal');
                 showLoginModal();
             } else {
+                console.log('showLoginModal not found, redirecting');
                 // Fallback if auth.js not loaded
                 window.location.href = 'https://official-intelligence.art/?login=1';
             }
         });
+    } else {
+        console.log('introLoginBtn not found');
     }
     
     // Start Game button handler
