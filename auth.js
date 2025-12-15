@@ -4,10 +4,6 @@
  * Modified for BLOCKCHaiNSTORM game integration
  */
 
-// Only define API_URL if not already defined (leaderboard.js may define it)
-if (typeof API_URL === 'undefined') {
-    var API_URL = 'https://official-intelligence-api.onrender.com';
-}
 const AUTH_API_URL = 'https://official-intelligence-api.onrender.com';
 let currentUser = null;
 let isRegisterMode = false;
