@@ -10938,25 +10938,39 @@ function animateToAnagram() {
     }, totalDuration);
 }
 
-// Initialize "Click anywhere..." to 50% opacity
+// Initialize "Click anywhere..." to 50% opacity (legacy - element may not exist)
 const clickMessage = document.getElementById('clickMessage');
-clickMessage.style.opacity = '0.5';
+if (clickMessage) {
+    clickMessage.style.opacity = '0.5';
 
-// Check if on phone - show different message
-if (DeviceDetection.isMobile) {
-    clickMessage.innerHTML = 'This game requires a full-size screen.<br><br>Please visit on a tablet or computer.';
-    clickMessage.style.fontSize = '1.5em';
-    clickMessage.style.lineHeight = '1.5';
+    // Check if on phone - show different message
+    if (DeviceDetection.isMobile) {
+        clickMessage.innerHTML = 'This game requires a full-size screen.<br><br>Please visit on a tablet or computer.';
+        clickMessage.style.fontSize = '1.5em';
+        clickMessage.style.lineHeight = '1.5';
+    }
+
+    // Add click event to clickMessage to open YouTube link (only when anagram is active)
+    clickMessage.addEventListener('click', (e) => {
+        // Only open link if anagram is active
+        if (clickMessage.classList.contains('anagram-active')) {
+            e.stopPropagation(); // Prevent the overlay click from firing
+            window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
+        }
+    });
 }
 
-// Add click event to clickMessage to open YouTube link (only when anagram is active)
-clickMessage.addEventListener('click', (e) => {
-    // Only open link if anagram is active
-    if (clickMessage.classList.contains('anagram-active')) {
-        e.stopPropagation(); // Prevent the overlay click from firing
-        window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
+// Handle mobile devices with intro controls
+if (DeviceDetection.isMobile) {
+    const introControls = document.getElementById('introControls');
+    const dontPanicText = document.getElementById('dontPanicText');
+    if (introControls) {
+        introControls.innerHTML = '<p style="color: white; font-size: 1.2em; text-align: center; padding: 20px;">This game requires a full-size screen.<br><br>Please visit on a tablet or computer.</p>';
     }
-});
+    if (dontPanicText) {
+        dontPanicText.style.display = 'none';
+    }
+}
 
 // Start timers when page loads (only if not on phone)
 if (!DeviceDetection.isMobile) {
@@ -10999,21 +11013,15 @@ if (startOverlay) {
     
     // Login button handler - use auth.js showLoginModal
     if (introLoginBtn) {
-        console.log('Attaching click handler to introLoginBtn');
         introLoginBtn.addEventListener('click', (e) => {
-            console.log('Login button clicked');
             e.stopPropagation();
             if (typeof showLoginModal === 'function') {
-                console.log('Calling showLoginModal');
                 showLoginModal();
             } else {
-                console.log('showLoginModal not found, redirecting');
                 // Fallback if auth.js not loaded
                 window.location.href = 'https://official-intelligence.art/?login=1';
             }
         });
-    } else {
-        console.log('introLoginBtn not found');
     }
     
     // Start Game button handler

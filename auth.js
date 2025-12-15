@@ -4,7 +4,11 @@
  * Modified for BLOCKCHaiNSTORM game integration
  */
 
-const API_URL = 'https://official-intelligence-api.onrender.com';
+// Only define API_URL if not already defined (leaderboard.js may define it)
+if (typeof API_URL === 'undefined') {
+    var API_URL = 'https://official-intelligence-api.onrender.com';
+}
+const AUTH_API_URL = 'https://official-intelligence-api.onrender.com';
 let currentUser = null;
 let isRegisterMode = false;
 
@@ -26,7 +30,7 @@ async function checkAuth() {
     if (!token) return;
     
     try {
-        const res = await fetch(`${API_URL}/auth/me`, {
+        const res = await fetch(`${AUTH_API_URL}/auth/me`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -145,7 +149,7 @@ async function handleLogin(e) {
         : { email, password };
     
     try {
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetch(`${AUTH_API_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
