@@ -5598,15 +5598,19 @@ function isBlobEnveloped(innerBlob, outerBlob) {
     const outerSet = new Set(outerBlob.positions.map(p => `${p[0]},${p[1]}`));
     const innerSet = new Set(innerBlob.positions.map(p => `${p[0]},${p[1]}`));
     
-    // For each block in inner blob, check if ALL 4 adjacent positions
+    // For each block in inner blob, check if ALL 8 adjacent positions (including diagonals)
     // are either part of outer blob OR part of inner blob
     // If ANY adjacent is out of bounds OR empty space, it's NOT enveloped
     for (const [x, y] of innerBlob.positions) {
         const adjacents = [
-            [x-1, y],   // left
-            [x+1, y],   // right
-            [x, y-1],   // top
-            [x, y+1]    // bottom
+            [x-1, y],     // left
+            [x+1, y],     // right
+            [x, y-1],     // top
+            [x, y+1],     // bottom
+            [x-1, y-1],   // top-left corner
+            [x+1, y-1],   // top-right corner
+            [x-1, y+1],   // bottom-left corner
+            [x+1, y+1]    // bottom-right corner
         ];
         
         for (const [ax, ay] of adjacents) {
@@ -5629,7 +5633,7 @@ function isBlobEnveloped(innerBlob, outerBlob) {
         }
     }
     
-    // All adjacent cells are either outer blob or inner blob, 
+    // All adjacent cells (including diagonals) are either outer blob or inner blob, 
     // and none touch the walls - it's truly enveloped!
     return true;
 }
