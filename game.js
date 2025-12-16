@@ -9730,11 +9730,10 @@ function startGame(mode) {
     console.log('  challengeMode:', challengeMode);
     console.log('  activeChallenges:', Array.from(activeChallenges));
     
-    // Read the selected challenge mode from dropdown BEFORE resetting
-    const selectedChallenge = challengeSelect.value;
-    console.log('  Selected challenge from dropdown:', selectedChallenge);
-    
-    challengeMode = selectedChallenge; // Set to the selected challenge
+    // Challenge mode is already set by the combo modal via applyChallengeMode
+    // The challengeMode and activeChallenges are already correct
+    const selectedChallenge = challengeMode;
+    console.log('  Selected challenge:', selectedChallenge);
     
     // Only clear activeChallenges if NOT in combo mode
     // In combo mode, the challenges were already set by the combo modal
@@ -10179,8 +10178,7 @@ function updateSelectedMode() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const challengeSelect = document.getElementById('challengeSelectMain');
-        const gameMode = challengeSelect ? (challengeSelect.value !== 'normal' ? 'challenge' : 'normal') : 'normal';
+        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 }
@@ -10345,7 +10343,7 @@ musicToggle.addEventListener('change', (e) => {
 });
 
 // Challenge mode handlers
-const challengeSelect = document.getElementById('challengeSelectMain');
+const challengeSelectBtn = document.getElementById('challengeSelectBtn');
 const comboModalOverlay = document.getElementById('comboModalOverlay');
 const comboApplyBtn = document.getElementById('comboApplyBtn');
 const comboCancelBtn = document.getElementById('comboCancelBtn');
@@ -10365,6 +10363,7 @@ const comboSixSeven = document.getElementById('comboSixSeven');
 const comboGremlins = document.getElementById('comboGremlins');
 const comboLattice = document.getElementById('comboLattice');
 const comboYesAnd = document.getElementById('comboYesAnd');
+const comboMercurial = document.getElementById('comboMercurial');
 const comboBonusPercent = document.getElementById('comboBonusPercent');
 
 // Function to update combo bonus display
@@ -10379,6 +10378,7 @@ function updateComboBonusDisplay() {
         'oz': 5,           // Grayscale until landing
         'lattice': 5,      // Pre-filled blocks
         'yesand': 5,       // Random extra blocks
+        'mercurial': 4,    // Color-shifting pieces
         'sixseven': 4,     // Occasional giant pieces
         'longago': 4,      // Perspective distortion
         'comingsoon': 4,   // Reverse perspective
@@ -10406,8 +10406,9 @@ function updateComboBonusDisplay() {
         { checkbox: comboSixSeven, type: 'sixseven' },
         { checkbox: comboGremlins, type: 'gremlins' },
         { checkbox: comboLattice, type: 'lattice' },
-        { checkbox: comboYesAnd, type: 'yesand' }
-    ];
+        { checkbox: comboYesAnd, type: 'yesand' },
+        { checkbox: comboMercurial, type: 'mercurial' }
+    ].filter(item => item.checkbox); // Filter out null checkboxes
     
     // Calculate total bonus
     let totalBonus = 0;
@@ -10424,7 +10425,7 @@ function updateComboBonusDisplay() {
 [comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
- comboLattice, comboYesAnd].forEach(checkbox => {
+ comboLattice, comboYesAnd, comboMercurial].filter(cb => cb).forEach(checkbox => {
     checkbox.addEventListener('change', updateComboBonusDisplay);
 });
 
@@ -10476,100 +10477,59 @@ function populateComboModal() {
     comboGremlins.checked = activeChallenges.has('gremlins');
     comboLattice.checked = activeChallenges.has('lattice');
     comboYesAnd.checked = activeChallenges.has('yesand');
+    if (comboMercurial) comboMercurial.checked = activeChallenges.has('mercurial');
     updateComboBonusDisplay();
 }
 
-// Track combo dropdown interactions
-let comboClickCount = 0;
-let comboClickResetTimer = null;
-let comboChangeOccurred = false;
+// Challenge display names for the button label
+const challengeDisplayNames = {
+    'normal': 'Normal',
+    'stranger': 'Stranger',
+    'dyslexic': 'Dyslexic',
+    'phantom': 'Phantom',
+    'rubber': 'Rubber & Glue',
+    'oz': 'Oz',
+    'thinner': 'Thinner',
+    'thicker': 'Thicker',
+    'carrie': 'Carrie',
+    'nokings': 'No Kings',
+    'longago': 'Long Ago...',
+    'comingsoon': 'Coming Soon...',
+    'nervous': 'Nervous',
+    'sixseven': 'Six Seven',
+    'gremlins': 'Gremlins',
+    'lattice': 'Lattice',
+    'yesand': 'Yes, And...',
+    'mercurial': 'Mercurial',
+    'sorandom': 'So Random',
+    'combo': 'Combo'
+};
 
-challengeSelect.addEventListener('mousedown', (e) => {
-    // Reset change flag on new interaction
-    comboChangeOccurred = false;
-    
-    // Only track clicks when combo is currently selected
-    if (challengeSelect.value === 'combo') {
-        comboClickCount++;
-        
-        // Reset click count after 2 seconds of no activity
-        if (comboClickResetTimer) clearTimeout(comboClickResetTimer);
-        comboClickResetTimer = setTimeout(() => {
-            comboClickCount = 0;
-        }, 2000);
-        
-        // On second click (closing dropdown), check if we should show modal
-        if (comboClickCount >= 2) {
-            setTimeout(() => {
-                if (!comboChangeOccurred && 
-                    challengeSelect.value === 'combo' &&
-                    comboModalOverlay.style.display !== 'flex') {
-                    comboModalOverlay.style.display = 'flex';
-                    populateComboModal();
-                }
-                comboClickCount = 0;
-            }, 50);
+// Function to update the button label based on current selection
+function updateChallengeButtonLabel() {
+    if (challengeMode === 'normal' && activeChallenges.size === 0) {
+        challengeSelectBtn.textContent = 'Normal';
+    } else if (challengeMode === 'combo' || activeChallenges.size > 1) {
+        // Show count of challenges
+        const names = Array.from(activeChallenges).map(c => challengeDisplayNames[c] || c);
+        if (names.length <= 2) {
+            challengeSelectBtn.textContent = names.join(' + ');
+        } else {
+            challengeSelectBtn.textContent = `${names.length} Challenges`;
         }
+    } else if (activeChallenges.size === 1) {
+        const mode = Array.from(activeChallenges)[0];
+        challengeSelectBtn.textContent = challengeDisplayNames[mode] || mode;
     } else {
-        comboClickCount = 0;
-    }
-});
-
-challengeSelect.addEventListener('change', (e) => {
-    comboChangeOccurred = true;
-    comboClickCount = 0;
-    
-    const value = e.target.value;
-    
-    // Update display to show mode name without parenthesized description
-    updateChallengeSelectDisplay();
-    
-    if (value === 'combo') {
-        // Show combo modal
-        comboModalOverlay.style.display = 'flex';
-        populateComboModal();
-    } else {
-        // Apply single challenge
-        applyChallengeMode(value);
-    }
-    
-    // Update leaderboard to match selected challenge mode
-    const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
-        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = value !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
-    }
-});
-
-// Function to update the selected option display text (remove parentheses)
-function updateChallengeSelectDisplay() {
-    const selectedOption = challengeSelect.options[challengeSelect.selectedIndex];
-    const fullText = selectedOption.getAttribute('data-full-text') || selectedOption.textContent;
-    
-    // Store full text if not already stored
-    if (!selectedOption.getAttribute('data-full-text')) {
-        selectedOption.setAttribute('data-full-text', fullText);
-    }
-    
-    // Remove parenthesized description for display
-    const displayText = fullText.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    selectedOption.textContent = displayText;
-    
-    // Restore full text to all other options
-    for (let i = 0; i < challengeSelect.options.length; i++) {
-        const option = challengeSelect.options[i];
-        if (i !== challengeSelect.selectedIndex) {
-            const savedFullText = option.getAttribute('data-full-text');
-            if (savedFullText) {
-                option.textContent = savedFullText;
-            }
-        }
+        challengeSelectBtn.textContent = challengeDisplayNames[challengeMode] || challengeMode;
     }
 }
 
-// Initialize the display on page load
-updateChallengeSelectDisplay();
+// Button click opens the combo modal
+challengeSelectBtn.addEventListener('click', () => {
+    populateComboModal();
+    comboModalOverlay.style.display = 'flex';
+});
 
 comboApplyBtn.addEventListener('click', () => {
     // Collect selected challenges
@@ -10590,25 +10550,34 @@ comboApplyBtn.addEventListener('click', () => {
     if (comboGremlins.checked) activeChallenges.add('gremlins');
     if (comboLattice.checked) activeChallenges.add('lattice');
     if (comboYesAnd.checked) activeChallenges.add('yesand');
+    if (comboMercurial && comboMercurial.checked) activeChallenges.add('mercurial');
     
-    challengeMode = 'combo';
-    applyChallengeMode('combo');
+    // Determine challenge mode based on selection count
+    if (activeChallenges.size === 0) {
+        challengeMode = 'normal';
+    } else if (activeChallenges.size === 1) {
+        challengeMode = Array.from(activeChallenges)[0];
+    } else {
+        challengeMode = 'combo';
+    }
+    
+    applyChallengeMode(challengeMode);
+    updateChallengeButtonLabel();
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to show challenge mode
+    // Refresh leaderboard to show correct mode
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, 'challenge');
+        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
     
-    console.log('🎯 Combo challenges applied:', Array.from(activeChallenges));
+    console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
 });
 
 comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
-    // Reset dropdown to current mode
-    challengeSelect.value = challengeMode;
     
     // Refresh leaderboard to match current mode
     const leaderboardContent = document.getElementById('leaderboardContent');

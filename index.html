@@ -1665,9 +1665,9 @@
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
-        .challenge-selector select {
+        .challenge-select-btn {
             width: 100%;
-            padding: 8px;
+            padding: 10px 15px;
             font-size: 14px;
             background: rgba(0, 0, 0, 0.6);
             color: white;
@@ -1676,14 +1676,20 @@
             cursor: pointer;
             text-align: center;
             box-sizing: border-box;
+            transition: all 0.2s ease;
         }
-        .challenge-selector select:hover {
+        .challenge-select-btn:hover {
             border-color: rgba(255, 255, 255, 0.5);
             background: rgba(0, 0, 0, 0.7);
         }
-        .challenge-selector select:focus {
+        .challenge-select-btn:focus {
             outline: none;
             border-color: rgba(255, 255, 255, 0.7);
+        }
+        .challenge-select-btn::after {
+            content: ' ▼';
+            font-size: 10px;
+            opacity: 0.7;
         }
         /* Leaderboard Styles */
         .leaderboard-container {
@@ -1704,10 +1710,10 @@
         }
         
         .leaderboard-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
             color: #FFD700;
         }
         
@@ -2100,28 +2106,7 @@
                     <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); white-space: nowrap;">
                         Select Challenge Mode(s)...
                     </div>
-                    <select id="challengeSelectMain">
-                        <option value="normal">Normal</option>
-                        <option value="stranger">Stranger (Upside Down) +7%</option>
-                        <option value="dyslexic">Dyslexic (Reversed Controls) +6%</option>
-                        <option value="phantom">Phantom (Invisible Stack) +7%</option>
-                        <option value="rubber">Rubber & Glue (Bouncing) +5%</option>
-                        <option value="oz">Oz (Grayscale Until Landing) +5%</option>
-                        <option value="thinner">Thinner (Skinny Well) +4%</option>
-                        <option value="thicker">Thicker (Wide Well) +3%</option>
-                        <option value="carrie">Carrie (Blood Rain) +3%</option>
-                        <option value="nokings">No Kings (Poo Rain) +3%</option>
-                        <option value="longago">Long Ago... (Star Wars Perspective) +4%</option>
-                        <option value="comingsoon">Coming Soon... (Inverse Star Wars) +4%</option>
-                        <option value="nervous">Nervous (Vibrating Well) +2%</option>
-                        <option value="sixseven">Six Seven (???) +4%</option>
-                        <option value="gremlins">Gremlins (Chaos Blocks) +6%</option>
-                        <option value="lattice">Lattice (Pre-filled Blocks) +5%</option>
-                        <option value="yesand">Yes, And... (Base Reality+) +5%</option>
-                        <option value="mercurial">Mercurial (Color-Shifting Pieces) +4%</option>
-                        <option value="sorandom">So Random (Mode Switching) +5%</option>
-                        <option value="combo">Combo (Multiple Challenges)</option>
-                    </select>
+                    <button id="challengeSelectBtn" class="challenge-select-btn">Normal</button>
                 </div>
 				
                 <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
