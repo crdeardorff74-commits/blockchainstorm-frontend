@@ -4102,22 +4102,29 @@ function createLiquidDrip(x, y, liquidType, color) {
         }
     }
     
-    if (!foundPool && liquidPools.length < 30) {
-        // Create new pool on the top surface
-        liquidPools.push({
-            blockX: blockX,
-            blockY: topBlockY,
-            x: poolX,
-            y: poolY,
-            volume: 4,
-            color: color,
-            liquidType: liquidType,
-            opacity: 0.9, // 90% opaque
-            dripping: false,
-            dripStreaks: [], // Multiple drip streams
-            lastAddedFrame: frameCount,
-            age: 0
-        });
+    if (!foundPool) {
+        // Determine max pools based on active modes
+        const isCarrieMode = challengeMode === 'carrie' || activeChallenges.has('carrie') || soRandomCurrentMode === 'carrie';
+        const isNoKingsMode = challengeMode === 'nokings' || activeChallenges.has('nokings') || soRandomCurrentMode === 'nokings';
+        const maxPools = (isCarrieMode && isNoKingsMode) ? 60 : 30; // Double max pools when both active
+        
+        if (liquidPools.length < maxPools) {
+            // Create new pool on the top surface
+            liquidPools.push({
+                blockX: blockX,
+                blockY: topBlockY,
+                x: poolX,
+                y: poolY,
+                volume: 4,
+                color: color,
+                liquidType: liquidType,
+                opacity: 0.9, // 90% opaque
+                dripping: false,
+                dripStreaks: [], // Multiple drip streams
+                lastAddedFrame: frameCount,
+                age: 0
+            });
+        }
     }
 }
 
@@ -4363,9 +4370,9 @@ function updateStormParticles() {
         
         // Double spawn rate for liquid modes
         if (isCarrieMode || isNoKingsMode) {
-            spawnChance = 1.6; // Doubled from 0.8
+            spawnChance = 1.6; // Base rate for one liquid mode
             if (isCarrieMode && isNoKingsMode) {
-                spawnChance = 2.4; // Doubled from 1.2
+                spawnChance = 3.2; // TRUE DOUBLE when both modes active (1.6 × 2)
             }
         } else if (gameMode === 'downpour') spawnChance = 2.0; // DOUBLED AGAIN - 2 particles per frame
         else if (gameMode === 'hailstorm') spawnChance = 0.4;
@@ -10451,8 +10458,41 @@ comboThicker.addEventListener('change', (e) => {
     updateComboBonusDisplay();
 });
 
+// Helper function to populate combo modal checkboxes
+function populateComboModal() {
+    comboStranger.checked = activeChallenges.has('stranger');
+    comboDyslexic.checked = activeChallenges.has('dyslexic');
+    comboPhantom.checked = activeChallenges.has('phantom');
+    comboRubber.checked = activeChallenges.has('rubber');
+    comboOz.checked = activeChallenges.has('oz');
+    comboThinner.checked = activeChallenges.has('thinner');
+    comboThicker.checked = activeChallenges.has('thicker');
+    comboNervous.checked = activeChallenges.has('nervous');
+    comboCarrie.checked = activeChallenges.has('carrie');
+    comboNokings.checked = activeChallenges.has('nokings');
+    comboLongAgo.checked = activeChallenges.has('longago');
+    comboComingSoon.checked = activeChallenges.has('comingsoon');
+    comboSixSeven.checked = activeChallenges.has('sixseven');
+    comboGremlins.checked = activeChallenges.has('gremlins');
+    comboLattice.checked = activeChallenges.has('lattice');
+    comboYesAnd.checked = activeChallenges.has('yesand');
+    updateComboBonusDisplay();
+}
+
+// Track state for combo modal reopening
+let comboWasSelectedOnOpen = false;
+let valueChangedDuringOpen = false;
+
+// Use mousedown to reliably detect when dropdown is about to open
+challengeSelect.addEventListener('mousedown', (e) => {
+    // Remember if combo was already selected when dropdown opens
+    comboWasSelectedOnOpen = challengeSelect.value === 'combo';
+    valueChangedDuringOpen = false;
+});
+
 challengeSelect.addEventListener('change', (e) => {
     const value = e.target.value;
+    valueChangedDuringOpen = true;
     
     // Update display to show mode name without parenthesized description
     updateChallengeSelectDisplay();
@@ -10460,25 +10500,7 @@ challengeSelect.addEventListener('change', (e) => {
     if (value === 'combo') {
         // Show combo modal
         comboModalOverlay.style.display = 'flex';
-        // Populate checkboxes with current active challenges
-        comboStranger.checked = activeChallenges.has('stranger');
-        comboDyslexic.checked = activeChallenges.has('dyslexic');
-        comboPhantom.checked = activeChallenges.has('phantom');
-        comboRubber.checked = activeChallenges.has('rubber');
-        comboOz.checked = activeChallenges.has('oz');
-        comboThinner.checked = activeChallenges.has('thinner');
-        comboThicker.checked = activeChallenges.has('thicker');
-        comboNervous.checked = activeChallenges.has('nervous');
-        comboCarrie.checked = activeChallenges.has('carrie');
-        comboNokings.checked = activeChallenges.has('nokings');
-        comboLongAgo.checked = activeChallenges.has('longago');
-        comboComingSoon.checked = activeChallenges.has('comingsoon');
-        comboSixSeven.checked = activeChallenges.has('sixseven');
-        comboGremlins.checked = activeChallenges.has('gremlins');
-        comboLattice.checked = activeChallenges.has('lattice');
-        comboYesAnd.checked = activeChallenges.has('yesand');
-        // Update bonus display
-        updateComboBonusDisplay();
+        populateComboModal();
     } else {
         // Apply single challenge
         applyChallengeMode(value);
@@ -10491,6 +10513,28 @@ challengeSelect.addEventListener('change', (e) => {
         const gameMode = value !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
+});
+
+// When dropdown closes while combo was already selected (no change), show the modal
+challengeSelect.addEventListener('blur', (e) => {
+    // Only show modal if:
+    // 1. Combo was selected when dropdown opened
+    // 2. Value didn't change (user clicked on combo again or closed without selecting)
+    // 3. Modal isn't already showing
+    if (comboWasSelectedOnOpen && 
+        !valueChangedDuringOpen && 
+        challengeSelect.value === 'combo' && 
+        comboModalOverlay.style.display !== 'flex') {
+        // Small delay to ensure dropdown is closed
+        setTimeout(() => {
+            if (comboModalOverlay.style.display !== 'flex') {
+                comboModalOverlay.style.display = 'flex';
+                populateComboModal();
+            }
+        }, 100);
+    }
+    comboWasSelectedOnOpen = false;
+    valueChangedDuringOpen = false;
 });
 
 // Function to update the selected option display text (remove parentheses)
