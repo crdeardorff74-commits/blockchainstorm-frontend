@@ -1505,6 +1505,9 @@ function updateVolcanoAnimation() {
         volcanoProjectiles = volcanoProjectiles.filter(p => {
             // Check if projectile is sliding down a wall
             if (p.slidingWall) {
+                // Store previous position for sweep collision
+                const prevY = p.y;
+                
                 // Just fall straight down along the wall
                 p.vy += p.gravity;
                 p.y += p.vy;
@@ -1513,9 +1516,8 @@ function updateVolcanoAnimation() {
                 // Determine the grid column for this wall
                 const wallGridX = p.slidingWall === 'left' ? 0 : COLS - 1;
                 p.x = wallGridX * BLOCK_SIZE + BLOCK_SIZE / 2;
-                const gridY = Math.round(p.y / BLOCK_SIZE);
                 
-                // Check if we've hit bottom or an existing block
+                // Check if we've hit bottom
                 if (p.y >= ROWS * BLOCK_SIZE) {
                     // Find the lowest empty spot in the wall column
                     for (let y = ROWS - 1; y >= 0; y--) {
@@ -1530,13 +1532,17 @@ function updateVolcanoAnimation() {
                     return false;
                 }
                 
-                // Check if hit an existing block while sliding
-                if (gridY >= 0 && gridY < ROWS) {
-                    const nextY = gridY + 1;
-                    if (nextY < ROWS && board[nextY] && board[nextY][wallGridX]) {
-                        if (!board[gridY][wallGridX]) {
-                            board[gridY][wallGridX] = volcanoLavaColor;
-                            isRandomBlock[gridY][wallGridX] = false;
+                // SWEEP COLLISION for wall sliding - check all rows passed through
+                const prevGridY = Math.floor(prevY / BLOCK_SIZE);
+                const currGridY = Math.floor(p.y / BLOCK_SIZE);
+                
+                for (let checkY = Math.max(0, prevGridY); checkY <= Math.min(ROWS - 1, currGridY); checkY++) {
+                    if (board[checkY] && board[checkY][wallGridX]) {
+                        // Found a block - land on top of it
+                        const landY = checkY - 1;
+                        if (landY >= 0 && !board[landY][wallGridX]) {
+                            board[landY][wallGridX] = volcanoLavaColor;
+                            isRandomBlock[landY][wallGridX] = false;
                             p.landed = true;
                             playSoundEffect('drop', soundToggle);
                             return false;
@@ -1550,6 +1556,9 @@ function updateVolcanoAnimation() {
             // Normal projectile physics (not sliding)
             // Apply gravity
             p.vy += p.gravity;
+            
+            // Store previous position for sweep collision
+            const prevY = p.y;
             
             // Update position
             p.x += p.vx;
@@ -1619,28 +1628,35 @@ function updateVolcanoAnimation() {
                 return false; // Remove projectile (landed or board full)
             }
             
-            // Only check for block collision when falling (not while ascending)
-            if (p.vy > 0 && gridY >= 0 && gridY < ROWS && gridX >= 0 && gridX < COLS) {
-                // Check if next position down has a block
-                const nextY = gridY + 1;
-                if (nextY < ROWS && board[nextY] && board[nextY][gridX]) {
-                    // Land on top of this block if spot is empty
-                    if (!board[gridY][gridX]) {
-                        board[gridY][gridX] = volcanoLavaColor;
-                        isRandomBlock[gridY][gridX] = false;
-                        p.landed = true;
-                        playSoundEffect('drop', soundToggle);
-                        return false;
-                    } else {
-                        // Spot is occupied - find another empty spot
-                        const spot = findAnyEmptySpot();
-                        if (spot) {
-                            board[spot.y][spot.x] = volcanoLavaColor;
-                            isRandomBlock[spot.y][spot.x] = false;
+            // SWEEP COLLISION: Check all grid cells between previous and current position
+            // This prevents projectiles from passing through blocks when moving fast
+            if (p.vy > 0 && gridX >= 0 && gridX < COLS) {
+                const prevGridY = Math.floor(prevY / BLOCK_SIZE);
+                const currGridY = Math.floor(p.y / BLOCK_SIZE);
+                
+                // Check each row the projectile passed through
+                for (let checkY = Math.max(0, prevGridY); checkY <= Math.min(ROWS - 1, currGridY); checkY++) {
+                    // Check if there's a block at this position
+                    if (board[checkY] && board[checkY][gridX]) {
+                        // Found a block - land on top of it (one row above)
+                        const landY = checkY - 1;
+                        if (landY >= 0 && !board[landY][gridX]) {
+                            board[landY][gridX] = volcanoLavaColor;
+                            isRandomBlock[landY][gridX] = false;
                             p.landed = true;
                             playSoundEffect('drop', soundToggle);
+                            return false;
+                        } else {
+                            // Can't land there, find another spot
+                            const spot = findAnyEmptySpot();
+                            if (spot) {
+                                board[spot.y][spot.x] = volcanoLavaColor;
+                                isRandomBlock[spot.y][spot.x] = false;
+                                p.landed = true;
+                                playSoundEffect('drop', soundToggle);
+                            }
+                            return false;
                         }
-                        return false;
                     }
                 }
             }
