@@ -9417,6 +9417,8 @@ async function gameOver() {
         gameOverDiv.style.display = 'block';
         if (window.leaderboard) {
             await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
+            // Send notification for non-high-score game completion
+            window.leaderboard.notifyGameCompletion(scoreData);
         }
     }
 }

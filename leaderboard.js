@@ -1014,6 +1014,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Send game completion notification (for non-high-score games)
+async function notifyGameCompletion(scoreData) {
+    try {
+        // Add human-readable challenge names for the email
+        const challengeNames = scoreData.challenges && scoreData.challenges.length > 0
+            ? scoreData.challenges.map(c => getChallengeDisplayName(c)).join(', ')
+            : null;
+        
+        const dataToSubmit = {
+            ...scoreData,
+            username: 'Anonymous',  // No name entry for non-high-scores
+            challengeNames: challengeNames,
+            notifyOnly: true  // Flag to indicate this is just a notification, not a leaderboard entry
+        };
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        // Use the same submit endpoint - backend will check notifyOnly flag
+        const response = await fetch(`${API_URL}/scores/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dataToSubmit),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            console.log('Game completion notification sent');
+            return true;
+        } else {
+            console.log('Game notification endpoint returned:', response.status);
+            return false;
+        }
+    } catch (error) {
+        // Silently fail - this is just a notification, not critical
+        console.log('Game completion notification failed (non-critical):', error.message);
+        return false;
+    }
+}
+
 // Export functions for use in game.js
 window.leaderboard = {
     displayLeaderboard,
@@ -1023,5 +1067,6 @@ window.leaderboard = {
     submitScore,
     getLeaderboard,
     fetchLeaderboard,
-    getModeDisplayName
+    getModeDisplayName,
+    notifyGameCompletion
 };
