@@ -9403,10 +9403,10 @@ async function gameOver() {
     
     // Check if score makes top 20
     console.log('Checking if score makes top 20...');
-    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode);
+    const isTopTen = window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode) : false;
     console.log('Is top twenty:', isTopTen);
     
-    if (isTopTen) {
+    if (isTopTen && window.leaderboard) {
         // DON'T show game over div - go straight to name prompt
         console.log('Score is top 20! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
@@ -9415,7 +9415,9 @@ async function gameOver() {
         // Score didn't make top 20, show game over div and leaderboard
         console.log('Score did not make top 20, displaying game over and leaderboard');
         gameOverDiv.style.display = 'block';
-        await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
+        if (window.leaderboard) {
+            await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
+        }
     }
 }
 
@@ -9615,7 +9617,9 @@ function update(time = 0) {
 
 function startGame(mode) {
     // Hide leaderboard if it was shown
-    window.leaderboard.hideLeaderboard();
+    if (window.leaderboard && window.leaderboard.hideLeaderboard) {
+        window.leaderboard.hideLeaderboard();
+    }
     
 			gameStartTime = Date.now(); 
     gameMode = mode;
@@ -10132,7 +10136,7 @@ function updateSelectedMode() {
     
     // Update leaderboard to match selected mode if visible
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const challengeSelect = document.getElementById('challengeSelectMain');
         const gameMode = challengeSelect ? (challengeSelect.value !== 'normal' ? 'challenge' : 'normal') : 'normal';
@@ -10448,7 +10452,7 @@ challengeSelect.addEventListener('change', (e) => {
     
     // Update leaderboard to match selected challenge mode
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = value !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
@@ -10510,7 +10514,7 @@ comboApplyBtn.addEventListener('click', () => {
     
     // Refresh leaderboard to show challenge mode
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         window.leaderboard.displayLeaderboard(selectedMode, null, 'challenge');
     }
@@ -10525,7 +10529,7 @@ comboCancelBtn.addEventListener('click', () => {
     
     // Refresh leaderboard to match current mode
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
