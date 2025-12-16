@@ -10480,19 +10480,57 @@ function populateComboModal() {
 }
 
 // Track state for combo modal reopening
-let comboWasSelectedOnOpen = false;
-let valueChangedDuringOpen = false;
+let comboDropdownOpen = false;
+let comboValueChanged = false;
+let comboCloseListener = null;
 
-// Use mousedown to reliably detect when dropdown is about to open
+// When select is clicked and combo is selected, set up listener for dropdown close
 challengeSelect.addEventListener('mousedown', (e) => {
-    // Remember if combo was already selected when dropdown opens
-    comboWasSelectedOnOpen = challengeSelect.value === 'combo';
-    valueChangedDuringOpen = false;
+    // Remove any existing listener
+    if (comboCloseListener) {
+        document.removeEventListener('mousedown', comboCloseListener);
+        comboCloseListener = null;
+    }
+    
+    if (challengeSelect.value === 'combo') {
+        comboDropdownOpen = true;
+        comboValueChanged = false;
+        
+        // After dropdown opens, listen for the NEXT mousedown which will close it
+        setTimeout(() => {
+            comboCloseListener = (clickEvent) => {
+                // Remove self
+                document.removeEventListener('mousedown', comboCloseListener);
+                comboCloseListener = null;
+                
+                // Small delay to let change event fire first
+                setTimeout(() => {
+                    if (comboDropdownOpen && !comboValueChanged && 
+                        challengeSelect.value === 'combo' &&
+                        comboModalOverlay.style.display !== 'flex') {
+                        comboModalOverlay.style.display = 'flex';
+                        populateComboModal();
+                    }
+                    comboDropdownOpen = false;
+                }, 10);
+            };
+            
+            document.addEventListener('mousedown', comboCloseListener);
+        }, 0);
+    }
 });
 
 challengeSelect.addEventListener('change', (e) => {
+    comboValueChanged = true;
+    comboDropdownOpen = false;
+    
+    // Clean up listener
+    if (comboCloseListener) {
+        document.removeEventListener('mousedown', comboCloseListener);
+        comboCloseListener = null;
+    }
+    
     const value = e.target.value;
-    valueChangedDuringOpen = true;
     
     // Update display to show mode name without parenthesized description
     updateChallengeSelectDisplay();
@@ -10513,28 +10551,6 @@ challengeSelect.addEventListener('change', (e) => {
         const gameMode = value !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
-});
-
-// When dropdown closes while combo was already selected (no change), show the modal
-challengeSelect.addEventListener('blur', (e) => {
-    // Only show modal if:
-    // 1. Combo was selected when dropdown opened
-    // 2. Value didn't change (user clicked on combo again or closed without selecting)
-    // 3. Modal isn't already showing
-    if (comboWasSelectedOnOpen && 
-        !valueChangedDuringOpen && 
-        challengeSelect.value === 'combo' && 
-        comboModalOverlay.style.display !== 'flex') {
-        // Small delay to ensure dropdown is closed
-        setTimeout(() => {
-            if (comboModalOverlay.style.display !== 'flex') {
-                comboModalOverlay.style.display = 'flex';
-                populateComboModal();
-            }
-        }, 100);
-    }
-    comboWasSelectedOnOpen = false;
-    valueChangedDuringOpen = false;
 });
 
 // Function to update the selected option display text (remove parentheses)
