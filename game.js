@@ -11029,7 +11029,7 @@ if (startOverlay) {
     }
     
     // Start Game button handler
-    function startGame() {
+    function dismissIntroScreen() {
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
@@ -11059,7 +11059,7 @@ if (startOverlay) {
     if (startGameBtn) {
         startGameBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            startGame();
+            dismissIntroScreen();
         });
     }
 
@@ -11068,7 +11068,7 @@ if (startOverlay) {
         startGameBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            startGame();
+            dismissIntroScreen();
         }, { passive: false });
     }
 }
