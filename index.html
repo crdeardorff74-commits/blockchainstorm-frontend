@@ -1600,7 +1600,7 @@
         .mode-button[data-tooltip]:hover::after {
             content: attr(data-tooltip);
             position: absolute;
-            right: 110%;
+            left: 110%;
             top: 50%;
             transform: translateY(-50%);
             background: #000000;
@@ -1618,18 +1618,18 @@
         .mode-button[data-tooltip]:hover::before {
             content: '';
             position: absolute;
-            right: 100%;
+            left: 100%;
             top: 50%;
             transform: translateY(-50%);
             border: 8px solid transparent;
-            border-left-color: #000000;
+            border-right-color: #000000;
             z-index: 9998;
             pointer-events: none;
         }
         @keyframes tooltipFadeIn {
             from {
                 opacity: 0;
-                transform: translateY(-50%) translateX(-10px);
+                transform: translateY(-50%) translateX(10px);
             }
             to {
                 opacity: 1;
