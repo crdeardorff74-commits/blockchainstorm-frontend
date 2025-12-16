@@ -10479,56 +10479,45 @@ function populateComboModal() {
     updateComboBonusDisplay();
 }
 
-// Track state for combo modal reopening
-let comboDropdownOpen = false;
-let comboValueChanged = false;
-let comboCloseListener = null;
+// Track combo dropdown interactions
+let comboClickCount = 0;
+let comboClickResetTimer = null;
+let comboChangeOccurred = false;
 
-// When select is clicked and combo is selected, set up listener for dropdown close
 challengeSelect.addEventListener('mousedown', (e) => {
-    // Remove any existing listener
-    if (comboCloseListener) {
-        document.removeEventListener('mousedown', comboCloseListener);
-        comboCloseListener = null;
-    }
+    // Reset change flag on new interaction
+    comboChangeOccurred = false;
     
+    // Only track clicks when combo is currently selected
     if (challengeSelect.value === 'combo') {
-        comboDropdownOpen = true;
-        comboValueChanged = false;
+        comboClickCount++;
         
-        // After dropdown opens, listen for the NEXT mousedown which will close it
-        setTimeout(() => {
-            comboCloseListener = (clickEvent) => {
-                // Remove self
-                document.removeEventListener('mousedown', comboCloseListener);
-                comboCloseListener = null;
-                
-                // Small delay to let change event fire first
-                setTimeout(() => {
-                    if (comboDropdownOpen && !comboValueChanged && 
-                        challengeSelect.value === 'combo' &&
-                        comboModalOverlay.style.display !== 'flex') {
-                        comboModalOverlay.style.display = 'flex';
-                        populateComboModal();
-                    }
-                    comboDropdownOpen = false;
-                }, 10);
-            };
-            
-            document.addEventListener('mousedown', comboCloseListener);
-        }, 0);
+        // Reset click count after 2 seconds of no activity
+        if (comboClickResetTimer) clearTimeout(comboClickResetTimer);
+        comboClickResetTimer = setTimeout(() => {
+            comboClickCount = 0;
+        }, 2000);
+        
+        // On second click (closing dropdown), check if we should show modal
+        if (comboClickCount >= 2) {
+            setTimeout(() => {
+                if (!comboChangeOccurred && 
+                    challengeSelect.value === 'combo' &&
+                    comboModalOverlay.style.display !== 'flex') {
+                    comboModalOverlay.style.display = 'flex';
+                    populateComboModal();
+                }
+                comboClickCount = 0;
+            }, 50);
+        }
+    } else {
+        comboClickCount = 0;
     }
 });
 
 challengeSelect.addEventListener('change', (e) => {
-    comboValueChanged = true;
-    comboDropdownOpen = false;
-    
-    // Clean up listener
-    if (comboCloseListener) {
-        document.removeEventListener('mousedown', comboCloseListener);
-        comboCloseListener = null;
-    }
+    comboChangeOccurred = true;
+    comboClickCount = 0;
     
     const value = e.target.value;
     
