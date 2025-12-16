@@ -191,11 +191,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     let html = `
         <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard${modeLabel}</div>
-        <div class="leaderboard-mode-selector">
+        <!-- div class="leaderboard-mode-selector">
             Use <strong>↑↓</strong> arrows to browse difficulties
             <br>
             Press <strong>Enter</strong> to play again
-        </div>
+        </div -->
         <table class="leaderboard-table">
             <thead>
                 <tr>
