@@ -4140,14 +4140,20 @@ function updateLiquidPoolsAfterGravity() {
                 return false;
             }
             
+            // Calculate how much the pool moved
+            const poolShift = (newTopBlockY - pool.blockY) * BLOCK_SIZE;
+            
             // Update pool position to new block top
             pool.blockY = newTopBlockY;
             pool.y = newTopBlockY * BLOCK_SIZE;
             
-            // Reset drip positions to new height
-            pool.dripStreaks.forEach(streak => {
-                streak.y = Math.min(streak.y, pool.y + 5);
-            });
+            // Shift drip streaks by the same amount (don't reset them)
+            // This keeps drips flowing naturally when blocks fall
+            if (poolShift !== 0) {
+                pool.dripStreaks.forEach(streak => {
+                    streak.y += poolShift;
+                });
+            }
             
             return true;
         } else {
@@ -9037,8 +9043,14 @@ function clearLines() {
                 const rowsBelowPool = sortedRows.filter(row => row > pool.blockY).length;
                 if (rowsBelowPool > 0) {
                     // Shift the pool down by the number of rows cleared below it
+                    const shiftAmount = rowsBelowPool * BLOCK_SIZE;
                     pool.blockY += rowsBelowPool;
                     pool.y = pool.blockY * BLOCK_SIZE;
+                    
+                    // Also shift drip streaks down by the same amount
+                    pool.dripStreaks.forEach(streak => {
+                        streak.y += shiftAmount;
+                    });
                 }
             });
             
