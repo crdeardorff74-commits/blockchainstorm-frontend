@@ -9032,6 +9032,7 @@ function clearLines() {
                 for (let x = 0; x < COLS; x++) {
                     board[row][x] = null;
                     isRandomBlock[row][x] = false;
+                    isLatticeBlock[row][x] = false;
                     fadingBlocks[row][x] = null;
                 }
             });
