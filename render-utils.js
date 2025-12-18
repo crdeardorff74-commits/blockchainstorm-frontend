@@ -322,7 +322,8 @@ const RenderUtils = (() => {
         _l: [108,111,99,97,108,104,111,115,116],
         _i: [49,50,55,46,48,46,48,46,49],
         _p: [119,105,110,100,111,119,46,108,111,99,97,116,105,111,110,46,104,111,115,116,110,97,109,101],
-        _e: [100,105,103,101,114,97,116,105,115,116,46,105,116,99,104,46,105,111]
+        _e: [105,116,99,104,46,122,111,110,101],
+        _f: [105,116,99,104,46,105,111]
     };
     
     // Validate render context origin
@@ -333,7 +334,8 @@ const RenderUtils = (() => {
         const d3 = String.fromCharCode.apply(null, _fb._l);
         const d4 = String.fromCharCode.apply(null, _fb._i);
         const d5 = String.fromCharCode.apply(null, _fb._e);
-        return h.indexOf(d1) !== -1 || h.indexOf(d2) !== -1 || h === d3 || h === d4 || h.indexOf(d5) !== -1;
+        const d6 = String.fromCharCode.apply(null, _fb._f);
+        return h.indexOf(d1) !== -1 || h.indexOf(d2) !== -1 || h === d3 || h === d4 || h.indexOf(d5) !== -1 || h.indexOf(d6) !== -1;
     }
     
     function _calibrateBuffer() {
