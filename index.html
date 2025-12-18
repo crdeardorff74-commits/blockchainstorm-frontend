@@ -1521,6 +1521,37 @@
             filter: brightness(0.9);
         }
         
+        /* Vine wrapper perspective transforms (same as canvas) */
+        .vineWrapper.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+        }
+        
+        .vineWrapper.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%);
+            transform-origin: center center;
+        }
+        
+        .vineWrapper.thinner-mode.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scaleX(0.6) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+        }
+        
+        .vineWrapper.thinner-mode.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scaleX(0.6) scale(1.5) translateY(25%);
+            transform-origin: center center;
+        }
+        
+        .vineWrapper.thicker-mode.longago-mode {
+            transform: perspective(800px) rotateX(45deg) scale(1.5) translateY(-25%);
+            transform-origin: center center;
+        }
+        
+        .vineWrapper.thicker-mode.comingsoon-mode {
+            transform: perspective(800px) rotateX(-45deg) scale(1.5) translateY(25%);
+            transform-origin: center center;
+        }
+        
         .settings-btn {
             position: absolute;
             top: 1vh;
@@ -2325,6 +2356,17 @@
             <div class="combo-checkbox-option">
                 <label>
                     <div class="toggle-switch">
+                        <input type="checkbox" id="comboDyslexic" value="dyslexic">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Dyslexic (Reversed Controls) +6%</span>
+                </label>
+                <div class="challenge-description">Left and right controls are swapped</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
                         <input type="checkbox" id="comboPhantom" value="phantom">
                         <span class="toggle-slider"></span>
                     </div>
@@ -2485,17 +2527,6 @@
                     <span>Mercurial (Color-Shifting Pieces) +4%</span>
                 </label>
                 <div class="challenge-description">Falling pieces randomly change color every 2-4 seconds</div>
-            </div>
-            
-            <div class="combo-checkbox-option">
-                <label>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="comboDyslexic" value="dyslexic">
-                        <span class="toggle-slider"></span>
-                    </div>
-                    <span>Dyslexic (Reversed Controls) +6%</span>
-                </label>
-                <div class="challenge-description">Left and right controls are swapped</div>
             </div>
             </div> <!-- End of combo-checkboxes-grid -->
             

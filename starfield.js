@@ -356,13 +356,29 @@ const StarfieldSystem = (function() {
         const overlay = vineOverlays.get(targetElement);
         if (!overlay) return;
         
-        const { canvas: overlayCanvas, ctx: overlayCtx } = overlay;
+        const { canvas: overlayCanvas, ctx: overlayCtx, wrapper } = overlay;
         const extend = 15;
         
-        // Get the VISUAL size of the canvas (what's actually displayed on screen)
-        const rect = targetElement.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
+        // Check for perspective modes on EITHER canvas or wrapper (we transfer them to wrapper)
+        const hasLongAgo = targetElement.classList.contains('longago-mode') || wrapper.classList.contains('longago-mode');
+        const hasComingSoon = targetElement.classList.contains('comingsoon-mode') || wrapper.classList.contains('comingsoon-mode');
+        const hasThinner = targetElement.classList.contains('thinner-mode') || wrapper.classList.contains('thinner-mode');
+        const hasThicker = targetElement.classList.contains('thicker-mode') || wrapper.classList.contains('thicker-mode');
+        
+        // Transfer perspective classes to wrapper (they'll be applied via CSS)
+        wrapper.classList.toggle('longago-mode', hasLongAgo);
+        wrapper.classList.toggle('comingsoon-mode', hasComingSoon);
+        wrapper.classList.toggle('thinner-mode', hasThinner);
+        wrapper.classList.toggle('thicker-mode', hasThicker);
+        
+        // For perspective modes, remove from canvas to avoid double-transform
+        if (hasLongAgo || hasComingSoon) {
+            targetElement.classList.remove('longago-mode', 'comingsoon-mode', 'thinner-mode', 'thicker-mode');
+        }
+        
+        // Get the BASE size of the canvas (before transforms)
+        const width = targetElement.width || targetElement.offsetWidth;
+        const height = targetElement.height || targetElement.offsetHeight;
         
         // Set overlay size
         const overlayWidth = width + extend * 2;
@@ -389,6 +405,20 @@ const StarfieldSystem = (function() {
         if (!overlay) return;
         
         const { canvas: overlayCanvas, wrapper } = overlay;
+        
+        // Restore perspective classes to canvas from wrapper
+        if (wrapper.classList.contains('longago-mode')) {
+            targetElement.classList.add('longago-mode');
+        }
+        if (wrapper.classList.contains('comingsoon-mode')) {
+            targetElement.classList.add('comingsoon-mode');
+        }
+        if (wrapper.classList.contains('thinner-mode')) {
+            targetElement.classList.add('thinner-mode');
+        }
+        if (wrapper.classList.contains('thicker-mode')) {
+            targetElement.classList.add('thicker-mode');
+        }
         
         // Remove overlay canvas
         if (overlayCanvas && overlayCanvas.parentNode) {
