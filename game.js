@@ -892,7 +892,7 @@ function updateCanvasSize() {
                 drawPiece(currentPiece);
             }
         }
-        if (nextPiece) {
+        if (nextPieceQueue.length > 0) {
             drawNextPiece();
         }
     }
@@ -4666,7 +4666,29 @@ let isRandomBlock = []; // Track which blocks are random hailstorm blocks
 let isLatticeBlock = []; // Track which blocks are pre-filled lattice blocks (immune to gravity until absorbed)
 let fadingBlocks = []; // Track blocks that are fading in with their opacity and scale
 let currentPiece = null;
-let nextPiece = null;
+let nextPieceQueue = []; // Queue of next 4 pieces
+const NEXT_PIECE_COUNT = 4; // Number of pieces to show in preview
+
+// Helper function to get next piece from queue (for backwards compatibility)
+function getNextPiece() {
+    return nextPieceQueue.length > 0 ? nextPieceQueue[0] : null;
+}
+
+// Helper function to consume next piece and add new one to queue
+function consumeNextPiece() {
+    const piece = nextPieceQueue.shift();
+    // Add new piece to end of queue
+    nextPieceQueue.push(createPiece());
+    return piece;
+}
+
+// Helper function to initialize the piece queue
+function initPieceQueue() {
+    nextPieceQueue = [];
+    for (let i = 0; i < NEXT_PIECE_COUNT; i++) {
+        nextPieceQueue.push(createPiece());
+    }
+}
 let score = 0;
 let lines = 0;
 let level = 1;
@@ -6407,35 +6429,54 @@ function drawNextPiece() {
     nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
-    if (nextPiece && nextPiece.shape && nextPiece.shape.length > 0 && nextPiece.shape[0]) {
+    // Draw pieces from back to front (furthest first, so closest renders on top)
+    for (let i = nextPieceQueue.length - 1; i >= 0; i--) {
+        const piece = nextPieceQueue[i];
+        if (!piece || !piece.shape || piece.shape.length === 0 || !piece.shape[0]) continue;
+        
+        // Calculate scale based on position in queue (1.0 for first, smaller for others)
+        // Pieces get progressively smaller as they go back
+        const scale = 1.0 - (i * 0.18); // 1.0, 0.82, 0.64, 0.46
+        
+        // Calculate offset - pieces move up and to the right as they go back
+        const offsetX = i * nextCanvas.width * 0.12;  // Shift right
+        const offsetY = -i * nextCanvas.height * 0.10; // Shift up
+        
+        // Calculate opacity - pieces fade as they go back
+        const opacity = 1.0 - (i * 0.15); // 1.0, 0.85, 0.70, 0.55
+        
         // Calculate the actual size of the piece in blocks
-        const pieceWidth = nextPiece.shape[0].length;
-        const pieceHeight = nextPiece.shape.length;
+        const pieceWidth = piece.shape[0].length;
+        const pieceHeight = piece.shape.length;
         
         // For giant pieces (6-7 segments), scale down to fit
-        // Use a larger grid (7x7) for giant pieces to ensure they fit
-        const isGiantPiece = nextPiece.type && nextPiece.type.startsWith('giant');
+        const isGiantPiece = piece.type && piece.type.startsWith('giant');
         const gridSize = isGiantPiece ? 7 : 5;
         
-        // Calculate block size based on canvas size and grid
-        // Make sure block size is an integer to prevent fractional positioning
-        const nextBlockSize = Math.floor(Math.min(nextCanvas.width, nextCanvas.height) / gridSize);
+        // Calculate block size based on canvas size, grid, and perspective scale
+        const baseBlockSize = Math.floor(Math.min(nextCanvas.width, nextCanvas.height) / gridSize);
+        const nextBlockSize = Math.floor(baseBlockSize * scale);
         
         // Calculate the total pixel size of the piece
         const pieceTotalWidth = pieceWidth * nextBlockSize;
         const pieceTotalHeight = pieceHeight * nextBlockSize;
         
         // Calculate pixel offset to center the piece in the canvas
-        const pixelOffsetX = Math.floor((nextCanvas.width - pieceTotalWidth) / 2);
-        const pixelOffsetY = Math.floor((nextCanvas.height - pieceTotalHeight) / 2);
+        // First piece is centered, others offset up and right
+        const baseCenterX = (nextCanvas.width - pieceWidth * baseBlockSize) / 2;
+        const baseCenterY = (nextCanvas.height - pieceHeight * baseBlockSize) / 2;
         
-        // Save context state and translate to center the piece
+        const pixelOffsetX = Math.floor(baseCenterX + offsetX + (pieceWidth * baseBlockSize - pieceTotalWidth) / 2);
+        const pixelOffsetY = Math.floor(baseCenterY + offsetY + (pieceHeight * baseBlockSize - pieceTotalHeight) / 2);
+        
+        // Save context state and translate to position the piece
         nextCtx.save();
+        nextCtx.globalAlpha = opacity;
         nextCtx.translate(pixelOffsetX, pixelOffsetY);
         
-        // Collect all positions for the piece (now at origin since we translated)
+        // Collect all positions for the piece
         const positions = [];
-        nextPiece.shape.forEach((row, y) => {
+        piece.shape.forEach((row, y) => {
             if (row) {
                 row.forEach((value, x) => {
                     if (value) {
@@ -6445,14 +6486,13 @@ function drawNextPiece() {
             }
         });
         
-        // Draw as a single connected shape to prevent segmentation lines
-        drawSolidShape(nextCtx, positions, nextPiece.color, nextBlockSize, false, getFaceOpacity());
+        // Draw as a single connected shape
+        drawSolidShape(nextCtx, positions, piece.color, nextBlockSize, false, getFaceOpacity() * opacity);
         
         // Restore context state
         nextCtx.restore();
     }
     
-    // Draw Stranger mode vines overlay on next piece canvas
     // Restore smoothing state
     nextCtx.imageSmoothingEnabled = wasSmoothing;
 }
@@ -9308,9 +9348,9 @@ function dropPiece() {
         
         clearLines();
         
-        if (nextPiece && nextPiece.shape) {
-            // Spawn the next piece
-            currentPiece = nextPiece;
+        if (nextPieceQueue.length > 0 && nextPieceQueue[0] && nextPieceQueue[0].shape) {
+            // Spawn the next piece from queue
+            currentPiece = nextPieceQueue.shift();
             
             // Mercurial mode: Reset timer for new piece
             mercurialTimer = 0;
@@ -9319,15 +9359,15 @@ function dropPiece() {
             // Check if Six Seven mode should spawn a giant piece
             const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven') || soRandomCurrentMode === 'sixseven';
             if (isSixSevenMode && sixSevenCounter >= sixSevenNextTarget && sixSevenNextSize > 0) {
-                // Create giant piece
-                nextPiece = createGiantPiece(sixSevenNextSize);
+                // Create giant piece and add to end of queue
+                nextPieceQueue.push(createGiantPiece(sixSevenNextSize));
                 // Reset counter and set next target (random 6 or 7 lines)
                 sixSevenCounter = 0;
                 sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
                 sixSevenNextSize = sixSevenNextTarget;
             } else {
-                // Create normal piece
-                nextPiece = createPiece();
+                // Create normal piece and add to end of queue
+                nextPieceQueue.push(createPiece());
             }
             
             drawNextPiece();
@@ -9588,8 +9628,8 @@ function update(time = 0) {
     }
     
     // If current piece is null (bounced away), spawn new piece
-    if (!paused && !currentPiece && nextPiece && bouncingPieces.length > 0) {
-        currentPiece = nextPiece;
+    if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
+        currentPiece = nextPieceQueue.shift();
         
         // Mercurial mode: Reset timer for new piece
         mercurialTimer = 0;
@@ -9598,12 +9638,12 @@ function update(time = 0) {
         // Check if Six Seven mode should spawn a giant piece
         const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven') || soRandomCurrentMode === 'sixseven';
         if (isSixSevenMode && sixSevenCounter >= sixSevenNextTarget && sixSevenNextSize > 0) {
-            nextPiece = createGiantPiece(sixSevenNextSize);
+            nextPieceQueue.push(createGiantPiece(sixSevenNextSize));
             sixSevenCounter = 0;
             sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
             sixSevenNextSize = sixSevenNextTarget;
         } else {
-            nextPiece = createPiece();
+            nextPieceQueue.push(createPiece());
         }
         
         drawNextPiece();
@@ -9827,7 +9867,7 @@ function startGame(mode) {
     
     // Clear any existing pieces before initializing board
     currentPiece = null;
-    nextPiece = null;
+    nextPieceQueue = [];
     
     // CRITICAL: Reset challenge modes to prevent carryover
     console.log('🎮 Starting new game - Before reset:');
@@ -10048,7 +10088,11 @@ function startGame(mode) {
     }
     
     currentPiece = createPiece();
-    nextPiece = createPiece();
+    // Initialize the next piece queue with 4 pieces
+    nextPieceQueue = [];
+    for (let i = 0; i < NEXT_PIECE_COUNT; i++) {
+        nextPieceQueue.push(createPiece());
+    }
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
@@ -10305,7 +10349,7 @@ playAgainBtn.addEventListener('click', () => {
     
     // Clear pieces from previous game
     currentPiece = null;
-    nextPiece = null;
+    nextPieceQueue = [];
     
     // Reset canvas to standard width in case we were in Blizzard/Hurricane
     COLS = 10;
