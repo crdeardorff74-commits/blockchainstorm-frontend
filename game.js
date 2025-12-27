@@ -437,13 +437,13 @@ const GamepadController = {
         // A button or Right Bumper - Rotate clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.A) || 
             this.wasButtonJustPressed(gp, this.buttons.RB)) {
-            rotatePiece(1);
+            rotatePiece();
         }
         
         // B button or Left Bumper - Rotate counter-clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.B) || 
             this.wasButtonJustPressed(gp, this.buttons.LB)) {
-            rotatePiece(-1);
+            rotatePieceCounterClockwise();
         }
         
         // === HARD DROP ===
@@ -914,6 +914,40 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('webkitfullscreenchange', () => {
     setTimeout(updateCanvasSize, 100);
 });
+
+// Fullscreen cursor auto-hide functionality
+let cursorHideTimeout = null;
+const CURSOR_HIDE_DELAY = 2000; // Hide cursor after 2 seconds of inactivity
+
+function showCursor() {
+    document.body.style.cursor = 'auto';
+    if (cursorHideTimeout) {
+        clearTimeout(cursorHideTimeout);
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        cursorHideTimeout = setTimeout(() => {
+            document.body.style.cursor = 'none';
+        }, CURSOR_HIDE_DELAY);
+    }
+}
+
+function handleFullscreenCursor() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        // Entering fullscreen - start cursor hide timer
+        showCursor();
+    } else {
+        // Exiting fullscreen - restore cursor
+        if (cursorHideTimeout) {
+            clearTimeout(cursorHideTimeout);
+            cursorHideTimeout = null;
+        }
+        document.body.style.cursor = 'auto';
+    }
+}
+
+document.addEventListener('fullscreenchange', handleFullscreenCursor);
+document.addEventListener('webkitfullscreenchange', handleFullscreenCursor);
+document.addEventListener('mousemove', showCursor);
 
 const scoreDisplay = document.getElementById('score');
 const linesDisplay = document.getElementById('lines');
@@ -9114,17 +9148,37 @@ function rotatePiece() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
+    
     try {
         const rotated = currentPiece.shape[0].map((_, i) =>
             currentPiece.shape.map(row => row[i]).reverse()
         );
         const previous = currentPiece.shape;
+        const originalX = currentPiece.x;
         currentPiece.shape = rotated;
         
-        if (collides(currentPiece)) {
+        // Wall kick: try original position, then shift left/right up to 2 spaces
+        const kicks = [0, -1, 1, -2, 2];
+        let rotationSuccessful = false;
+        
+        for (const kick of kicks) {
+            currentPiece.x = originalX + kick;
+            if (!collides(currentPiece)) {
+                rotationSuccessful = true;
+                playSoundEffect('rotate', soundToggle);
+                // Reset lock delay if piece was about to lock
+                if (aboutToLock) {
+                    dropCounter = 0;
+                }
+                break;
+            }
+        }
+        
+        if (!rotationSuccessful) {
             currentPiece.shape = previous;
-        } else {
-            playSoundEffect('rotate', soundToggle);
+            currentPiece.x = originalX;
         }
     } catch (error) {
         // Silently fail and keep the current rotation
@@ -9140,6 +9194,9 @@ function rotatePieceCounterClockwise() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
+    
     try {
         // Counter-clockwise is the opposite of clockwise
         // Clockwise: transpose then reverse each row
@@ -9149,12 +9206,29 @@ function rotatePieceCounterClockwise() {
             reversed.map(row => row[i])
         );
         const previous = currentPiece.shape;
+        const originalX = currentPiece.x;
         currentPiece.shape = rotated;
         
-        if (collides(currentPiece)) {
+        // Wall kick: try original position, then shift left/right up to 2 spaces
+        const kicks = [0, -1, 1, -2, 2];
+        let rotationSuccessful = false;
+        
+        for (const kick of kicks) {
+            currentPiece.x = originalX + kick;
+            if (!collides(currentPiece)) {
+                rotationSuccessful = true;
+                playSoundEffect('rotate', soundToggle);
+                // Reset lock delay if piece was about to lock
+                if (aboutToLock) {
+                    dropCounter = 0;
+                }
+                break;
+            }
+        }
+        
+        if (!rotationSuccessful) {
             currentPiece.shape = previous;
-        } else {
-            playSoundEffect('rotate', soundToggle);
+            currentPiece.x = originalX;
         }
     } catch (error) {
         // Silently fail and keep the current rotation
@@ -9165,6 +9239,9 @@ function movePiece(dir) {
     if (!currentPiece) return;
     // Prevent movement during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
+    
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
     
     // Check if controls should be swapped (Stranger XOR Dyslexic)
     const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
@@ -9178,11 +9255,15 @@ function movePiece(dir) {
         currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
+        // Reset lock delay if piece was about to lock
+        if (aboutToLock) {
+            dropCounter = 0;
+        }
     }
 }
 
 function dropPiece() {
-    if (animatingLines || !currentPiece || !currentPiece.shape) return;
+    if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape) return;
     // Prevent dropping during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
@@ -9190,9 +9271,18 @@ function dropPiece() {
     if (collides(currentPiece)) {
         currentPiece.y--;
         
-        // Check if piece is stuck at spawn position (y <= 0)
-        // This means the stack has reached the top
-        if (currentPiece.y <= 0) {
+        // Check if any block of the piece extends beyond the top of the well
+        const extendsAboveTop = currentPiece.shape.some((row, dy) => {
+            return row.some((value, dx) => {
+                if (value) {
+                    const blockY = currentPiece.y + dy;
+                    return blockY < 0;
+                }
+                return false;
+            });
+        });
+        
+        if (extendsAboveTop) {
             gameOver();
             return;
         }
@@ -9256,7 +9346,7 @@ let hardDropPixelY = 0; // Track pixel position for smooth visual animation
 let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
-    if (animatingLines || !currentPiece || hardDropping) return;
+    if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
     // Prevent hard drop during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
@@ -9474,9 +9564,9 @@ function update(time = 0) {
         updateHardDrop();
     }
     
-    // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift
+    // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
     const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift';
-    if (!paused && !animatingLines && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
+    if (!paused && !animatingLines && !gravityAnimating && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
         dropCounter += deltaTime;
         if (dropCounter > dropInterval) {
             dropPiece();
