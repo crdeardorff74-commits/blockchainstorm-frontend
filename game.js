@@ -9626,7 +9626,7 @@ function startGame(mode) {
     console.log('  activeChallenges:', Array.from(activeChallenges));
     
     // Read the selected challenge mode from dropdown BEFORE resetting
-    const selectedChallenge = challengeSelect.value;
+    const selectedChallenge = challengeSelect ? challengeSelect.value : 'normal';
     console.log('  Selected challenge from dropdown:', selectedChallenge);
     
     challengeMode = selectedChallenge; // Set to the selected challenge
@@ -10228,6 +10228,11 @@ const comboNervous = document.getElementById('comboNervous');
 const comboCarrie = document.getElementById('comboCarrie');
 const comboNokings = document.getElementById('comboNokings');
 const comboLongAgo = document.getElementById('comboLongAgo');
+
+// Guard against missing elements (in case HTML is out of sync)
+if (!challengeSelect) {
+    console.error('challengeSelectMain element not found - HTML may be out of sync with JS');
+};
 const comboComingSoon = document.getElementById('comboComingSoon');
 const comboSixSeven = document.getElementById('comboSixSeven');
 const comboGremlins = document.getElementById('comboGremlins');
@@ -10293,39 +10298,48 @@ function updateComboBonusDisplay() {
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
  comboLattice, comboYesAnd].forEach(checkbox => {
-    checkbox.addEventListener('change', updateComboBonusDisplay);
+    if (checkbox) checkbox.addEventListener('change', updateComboBonusDisplay);
 });
 
 // Mutual exclusivity: Long Ago and Coming Soon cannot both be selected
+if (comboLongAgo) {
 comboLongAgo.addEventListener('change', (e) => {
-    if (e.target.checked && comboComingSoon.checked) {
+    if (e.target.checked && comboComingSoon && comboComingSoon.checked) {
         comboComingSoon.checked = false;
     }
     updateComboBonusDisplay();
 });
+}
 
+if (comboComingSoon) {
 comboComingSoon.addEventListener('change', (e) => {
-    if (e.target.checked && comboLongAgo.checked) {
+    if (e.target.checked && comboLongAgo && comboLongAgo.checked) {
         comboLongAgo.checked = false;
     }
     updateComboBonusDisplay();
 });
+}
 
 // Mutual exclusivity: Thinner and Thicker cannot both be selected
+if (comboThinner) {
 comboThinner.addEventListener('change', (e) => {
     if (e.target.checked && comboThicker.checked) {
         comboThicker.checked = false;
     }
     updateComboBonusDisplay();
 });
+}
 
+if (comboThicker) {
 comboThicker.addEventListener('change', (e) => {
     if (e.target.checked && comboThinner.checked) {
         comboThinner.checked = false;
     }
     updateComboBonusDisplay();
 });
+}
 
+if (challengeSelect) {
 challengeSelect.addEventListener('change', (e) => {
     const value = e.target.value;
     
@@ -10367,9 +10381,11 @@ challengeSelect.addEventListener('change', (e) => {
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 });
+}
 
 // Function to update the selected option display text (remove parentheses)
 function updateChallengeSelectDisplay() {
+    if (!challengeSelect) return;
     const selectedOption = challengeSelect.options[challengeSelect.selectedIndex];
     const fullText = selectedOption.getAttribute('data-full-text') || selectedOption.textContent;
     
@@ -10397,29 +10413,30 @@ function updateChallengeSelectDisplay() {
 // Initialize the display on page load
 updateChallengeSelectDisplay();
 
+if (comboApplyBtn) {
 comboApplyBtn.addEventListener('click', () => {
     // Collect selected challenges
     activeChallenges.clear();
-    if (comboStranger.checked) activeChallenges.add('stranger');
-    if (comboDyslexic.checked) activeChallenges.add('dyslexic');
-    if (comboPhantom.checked) activeChallenges.add('phantom');
-    if (comboRubber.checked) activeChallenges.add('rubber');
-    if (comboOz.checked) activeChallenges.add('oz');
-    if (comboThinner.checked) activeChallenges.add('thinner');
-    if (comboThicker.checked) activeChallenges.add('thicker');
-    if (comboNervous.checked) activeChallenges.add('nervous');
-    if (comboCarrie.checked) activeChallenges.add('carrie');
-    if (comboNokings.checked) activeChallenges.add('nokings');
-    if (comboLongAgo.checked) activeChallenges.add('longago');
-    if (comboComingSoon.checked) activeChallenges.add('comingsoon');
-    if (comboSixSeven.checked) activeChallenges.add('sixseven');
-    if (comboGremlins.checked) activeChallenges.add('gremlins');
-    if (comboLattice.checked) activeChallenges.add('lattice');
-    if (comboYesAnd.checked) activeChallenges.add('yesand');
+    if (comboStranger && comboStranger.checked) activeChallenges.add('stranger');
+    if (comboDyslexic && comboDyslexic.checked) activeChallenges.add('dyslexic');
+    if (comboPhantom && comboPhantom.checked) activeChallenges.add('phantom');
+    if (comboRubber && comboRubber.checked) activeChallenges.add('rubber');
+    if (comboOz && comboOz.checked) activeChallenges.add('oz');
+    if (comboThinner && comboThinner.checked) activeChallenges.add('thinner');
+    if (comboThicker && comboThicker.checked) activeChallenges.add('thicker');
+    if (comboNervous && comboNervous.checked) activeChallenges.add('nervous');
+    if (comboCarrie && comboCarrie.checked) activeChallenges.add('carrie');
+    if (comboNokings && comboNokings.checked) activeChallenges.add('nokings');
+    if (comboLongAgo && comboLongAgo.checked) activeChallenges.add('longago');
+    if (comboComingSoon && comboComingSoon.checked) activeChallenges.add('comingsoon');
+    if (comboSixSeven && comboSixSeven.checked) activeChallenges.add('sixseven');
+    if (comboGremlins && comboGremlins.checked) activeChallenges.add('gremlins');
+    if (comboLattice && comboLattice.checked) activeChallenges.add('lattice');
+    if (comboYesAnd && comboYesAnd.checked) activeChallenges.add('yesand');
     
     challengeMode = 'combo';
     applyChallengeMode('combo');
-    comboModalOverlay.style.display = 'none';
+    if (comboModalOverlay) comboModalOverlay.style.display = 'none';
     
     // Refresh leaderboard to show challenge mode
     const leaderboardContent = document.getElementById('leaderboardContent');
@@ -10430,11 +10447,13 @@ comboApplyBtn.addEventListener('click', () => {
     
     console.log('🎯 Combo challenges applied:', Array.from(activeChallenges));
 });
+}
 
+if (comboCancelBtn) {
 comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
     // Reset dropdown to current mode
-    challengeSelect.value = challengeMode;
+    if (challengeSelect) challengeSelect.value = challengeMode;
     
     // Refresh leaderboard to match current mode
     const leaderboardContent = document.getElementById('leaderboardContent');
@@ -10444,13 +10463,16 @@ comboCancelBtn.addEventListener('click', () => {
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 });
+}
 
 // Close combo modal when clicking outside
+if (comboModalOverlay) {
 comboModalOverlay.addEventListener('click', (e) => {
     if (e.target === comboModalOverlay) {
         comboCancelBtn.click();
     }
 });
+}
 
 function applyChallengeMode(mode) {
     // Remove all challenge effects first
