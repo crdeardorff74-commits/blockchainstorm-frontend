@@ -642,7 +642,7 @@
         .rules-section {
             margin-bottom: 10px;
             font-size: clamp(10.56px, 1.37vh, 14.78px);
-            line-height: 1.4;
+            line-height: 1.3;
         }
         .rules-section h3 {
             font-size: clamp(12.67px, 1.58vh, 16.9px);
@@ -2098,18 +2098,18 @@
                 
                 <div class="rules-section">
                     <h3>🎮 Goal</h3>
-                    Stack colored blocks to form "blobs" (connected groups of blocks of a single color). Clear rows to break up blobs and score points!
+                    Stack colored blocks to form <i>blobs</i> (connected groups of blocks of a single color). Clear rows to break up blobs and score points!
                 </div>
                 
                 <div class="rules-section">
                     <h3>✨ Special Events</h3>
-                    <strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points and a lightning strike!
+                    <strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points!
                     <br><br>
                     <strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the ENTIRE blob clears for massive points!
                     <br><br>
                     <strong>🌋 Volcano:</strong> When a blob touching any edge is surrounded by another blob and the edge, it turns to lava, erupting upward and raining down as single blocks. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
                     <br><br>
-                    <strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in ALL blocks from both blobs! Purple border, huge points!
+                    <strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in ALL blocks from both blobs for huge points!
                 </div>
                 
                 <div class="rules-section">
@@ -2120,15 +2120,17 @@
                     <ul>
                         <li>Bigger blobs = exponentially more points!</li>
                     </ul>
+					<br>
                     <strong>Strike:</strong> 2× all points
-                    <br>
+                    <br><br>
                     <strong>Tsunami:</strong> (Size)³ × 200 × Level
-                    <br>
+                    <br><br>
                     <strong>Volcano:</strong>
                     <ul>
                         <li>Inner (lava): (Size)³ × 500 × Level</li>
                         <li>Lava in lines: 2<sup>n</sup> multiplier (n = # of lava segments)</li>
                     </ul>
+					<br>
                     <strong>Black Hole:</strong>
                     <ul>
                         <li>Inner (core): (Size)³ × 800 × Level</li>
