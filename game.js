@@ -915,6 +915,40 @@ document.addEventListener('webkitfullscreenchange', () => {
     setTimeout(updateCanvasSize, 100);
 });
 
+// Fullscreen cursor auto-hide functionality
+let cursorHideTimeout = null;
+const CURSOR_HIDE_DELAY = 2000; // Hide cursor after 2 seconds of inactivity
+
+function showCursor() {
+    document.body.style.cursor = 'auto';
+    if (cursorHideTimeout) {
+        clearTimeout(cursorHideTimeout);
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        cursorHideTimeout = setTimeout(() => {
+            document.body.style.cursor = 'none';
+        }, CURSOR_HIDE_DELAY);
+    }
+}
+
+function handleFullscreenCursor() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        // Entering fullscreen - start cursor hide timer
+        showCursor();
+    } else {
+        // Exiting fullscreen - restore cursor
+        if (cursorHideTimeout) {
+            clearTimeout(cursorHideTimeout);
+            cursorHideTimeout = null;
+        }
+        document.body.style.cursor = 'auto';
+    }
+}
+
+document.addEventListener('fullscreenchange', handleFullscreenCursor);
+document.addEventListener('webkitfullscreenchange', handleFullscreenCursor);
+document.addEventListener('mousemove', showCursor);
+
 const scoreDisplay = document.getElementById('score');
 const linesDisplay = document.getElementById('lines');
 const levelDisplay = document.getElementById('level');
@@ -966,30 +1000,19 @@ const SHAPES = {
 // Extended shapes for Blizzard/Hurricane modes (5-block pieces)
 const EXTENDED_SHAPES = {
     ...SHAPES,
-    I5: [[1,1,1,1,1]],                    // 5-long I piece
-    Plus: [[0,1,0],[1,1,1],[0,1,0]],      // Plus/cross shape
-    W: [[1,0,0],[1,1,0],[0,1,1]],         // W shape
-    U: [[1,0,1],[1,1,1]],                 // U shape
-    P: [[1,1],[1,1],[1,0]],               // P shape (3 high)
-    F: [[0,1,1],[1,1,0],[0,1,0]],         // F shape
-    L5: [[1,0],[1,0],[1,0],[1,1]],        // L pentomino (4 high)
-    N: [[0,1],[1,1],[1,0],[1,0]],         // N shape
-    T5: [[1,1,1],[0,1,0],[0,1,0]],        // T pentomino (tall T)
-    V: [[1,0,0],[1,0,0],[1,1,1]],         // V shape
-    Y: [[0,1],[1,1],[0,1],[0,1]],         // Y shape
-    Z5: [[1,1,0],[0,1,0],[0,1,1]]         // Z pentomino
+    I5: [[1,1,1,1,1]],           // 5-long I piece
+    Plus: [[0,1,0],[1,1,1],[0,1,0]], // Plus/cross shape
+    W: [[1,0,0],[1,1,0],[0,1,1]],   // W shape
+    U: [[1,0,1],[1,1,1]],            // U shape
+    P: [[1,1],[1,1],[1,0]]           // P shape (3 high)
 };
 
-// Blizzard shapes - moderate difficulty pentominoes
+// Blizzard shapes - excludes Plus and W (harder configurations)
 const BLIZZARD_SHAPES = {
     ...SHAPES,
-    I5: [[1,1,1,1,1]],                    // 5-long I piece
-    U: [[1,0,1],[1,1,1]],                 // U shape
-    P: [[1,1],[1,1],[1,0]],               // P shape (3 high)
-    L5: [[1,0],[1,0],[1,0],[1,1]],        // L pentomino (4 high)
-    N: [[0,1],[1,1],[1,0],[1,0]],         // N shape
-    T5: [[1,1,1],[0,1,0],[0,1,0]],        // T pentomino (tall T)
-    V: [[1,0,0],[1,0,0],[1,1,1]]          // V shape
+    I5: [[1,1,1,1,1]],           // 5-long I piece
+    U: [[1,0,1],[1,1,1]],            // U shape
+    P: [[1,1],[1,1],[1,0]]           // P shape (3 high)
 };
 
 const COLORS = [
@@ -1505,9 +1528,6 @@ function updateVolcanoAnimation() {
         volcanoProjectiles = volcanoProjectiles.filter(p => {
             // Check if projectile is sliding down a wall
             if (p.slidingWall) {
-                // Store previous position for sweep collision
-                const prevY = p.y;
-                
                 // Just fall straight down along the wall
                 p.vy += p.gravity;
                 p.y += p.vy;
@@ -1516,8 +1536,9 @@ function updateVolcanoAnimation() {
                 // Determine the grid column for this wall
                 const wallGridX = p.slidingWall === 'left' ? 0 : COLS - 1;
                 p.x = wallGridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+                const gridY = Math.round(p.y / BLOCK_SIZE);
                 
-                // Check if we've hit bottom
+                // Check if we've hit bottom or an existing block
                 if (p.y >= ROWS * BLOCK_SIZE) {
                     // Find the lowest empty spot in the wall column
                     for (let y = ROWS - 1; y >= 0; y--) {
@@ -1532,17 +1553,13 @@ function updateVolcanoAnimation() {
                     return false;
                 }
                 
-                // SWEEP COLLISION for wall sliding - check all rows passed through
-                const prevGridY = Math.floor(prevY / BLOCK_SIZE);
-                const currGridY = Math.floor(p.y / BLOCK_SIZE);
-                
-                for (let checkY = Math.max(0, prevGridY); checkY <= Math.min(ROWS - 1, currGridY); checkY++) {
-                    if (board[checkY] && board[checkY][wallGridX]) {
-                        // Found a block - land on top of it
-                        const landY = checkY - 1;
-                        if (landY >= 0 && !board[landY][wallGridX]) {
-                            board[landY][wallGridX] = volcanoLavaColor;
-                            isRandomBlock[landY][wallGridX] = false;
+                // Check if hit an existing block while sliding
+                if (gridY >= 0 && gridY < ROWS) {
+                    const nextY = gridY + 1;
+                    if (nextY < ROWS && board[nextY] && board[nextY][wallGridX]) {
+                        if (!board[gridY][wallGridX]) {
+                            board[gridY][wallGridX] = volcanoLavaColor;
+                            isRandomBlock[gridY][wallGridX] = false;
                             p.landed = true;
                             playSoundEffect('drop', soundToggle);
                             return false;
@@ -1556,9 +1573,6 @@ function updateVolcanoAnimation() {
             // Normal projectile physics (not sliding)
             // Apply gravity
             p.vy += p.gravity;
-            
-            // Store previous position for sweep collision
-            const prevY = p.y;
             
             // Update position
             p.x += p.vx;
@@ -1628,35 +1642,28 @@ function updateVolcanoAnimation() {
                 return false; // Remove projectile (landed or board full)
             }
             
-            // SWEEP COLLISION: Check all grid cells between previous and current position
-            // This prevents projectiles from passing through blocks when moving fast
-            if (p.vy > 0 && gridX >= 0 && gridX < COLS) {
-                const prevGridY = Math.floor(prevY / BLOCK_SIZE);
-                const currGridY = Math.floor(p.y / BLOCK_SIZE);
-                
-                // Check each row the projectile passed through
-                for (let checkY = Math.max(0, prevGridY); checkY <= Math.min(ROWS - 1, currGridY); checkY++) {
-                    // Check if there's a block at this position
-                    if (board[checkY] && board[checkY][gridX]) {
-                        // Found a block - land on top of it (one row above)
-                        const landY = checkY - 1;
-                        if (landY >= 0 && !board[landY][gridX]) {
-                            board[landY][gridX] = volcanoLavaColor;
-                            isRandomBlock[landY][gridX] = false;
+            // Only check for block collision when falling (not while ascending)
+            if (p.vy > 0 && gridY >= 0 && gridY < ROWS && gridX >= 0 && gridX < COLS) {
+                // Check if next position down has a block
+                const nextY = gridY + 1;
+                if (nextY < ROWS && board[nextY] && board[nextY][gridX]) {
+                    // Land on top of this block if spot is empty
+                    if (!board[gridY][gridX]) {
+                        board[gridY][gridX] = volcanoLavaColor;
+                        isRandomBlock[gridY][gridX] = false;
+                        p.landed = true;
+                        playSoundEffect('drop', soundToggle);
+                        return false;
+                    } else {
+                        // Spot is occupied - find another empty spot
+                        const spot = findAnyEmptySpot();
+                        if (spot) {
+                            board[spot.y][spot.x] = volcanoLavaColor;
+                            isRandomBlock[spot.y][spot.x] = false;
                             p.landed = true;
                             playSoundEffect('drop', soundToggle);
-                            return false;
-                        } else {
-                            // Can't land there, find another spot
-                            const spot = findAnyEmptySpot();
-                            if (spot) {
-                                board[spot.y][spot.x] = volcanoLavaColor;
-                                isRandomBlock[spot.y][spot.x] = false;
-                                p.landed = true;
-                                playSoundEffect('drop', soundToggle);
-                            }
-                            return false;
                         }
+                        return false;
                     }
                 }
             }
@@ -1723,7 +1730,7 @@ function spawnLavaProjectile() {
     }
     
     // Launch velocity - high arcing trajectories with lots of variation
-    const vx = direction * (0.5 + Math.random() * 2.5); // 0.5-3 pixels/frame horizontal (narrower arcs)
+    const vx = direction * (1 + Math.random() * 5); // 1-6 pixels/frame horizontal for wider spread
     const vy = -(11 + Math.random() * 6); // -11 to -17 pixels/frame vertical (reduced from -16 to -26)
     
     volcanoProjectiles.push({
@@ -1905,9 +1912,6 @@ function detectVolcanoes(blobs) {
     for (let i = 0; i < blobs.length; i++) {
         const inner = blobs[i];
         
-        // Skip blobs that are already lava-colored (prevents chain reactions from landed lava)
-        if (inner.color === volcanoLavaColor) continue;
-        
         // Check if ANY block in the blob is touching an edge of the well
         const touchesBottom = inner.positions.some(([x, y]) => y === ROWS - 1);
         const touchesLeft = inner.positions.some(([x, y]) => x === 0);
@@ -1929,6 +1933,11 @@ function detectVolcanoes(blobs) {
             const outer = blobs[j];
             
             if (isBlobEnvelopedForVolcano(inner, outer, edgeType)) {
+                // Check if inner blob is at least 4 blocks in size
+                if (inner.positions.length < 4) {
+                    continue; // Skip small blobs - volcanoes require at least 4 blocks
+                }
+                
                 // Found volcano! Choose random column from inner blob for eruption
                 const innerColumns = [...new Set(inner.positions.map(p => p[0]))];
                 const eruptionColumn = innerColumns[Math.floor(Math.random() * innerColumns.length)];
@@ -4102,29 +4111,22 @@ function createLiquidDrip(x, y, liquidType, color) {
         }
     }
     
-    if (!foundPool) {
-        // Determine max pools based on active modes
-        const isCarrieMode = challengeMode === 'carrie' || activeChallenges.has('carrie') || soRandomCurrentMode === 'carrie';
-        const isNoKingsMode = challengeMode === 'nokings' || activeChallenges.has('nokings') || soRandomCurrentMode === 'nokings';
-        const maxPools = (isCarrieMode && isNoKingsMode) ? 60 : 30; // Double max pools when both active
-        
-        if (liquidPools.length < maxPools) {
-            // Create new pool on the top surface
-            liquidPools.push({
-                blockX: blockX,
-                blockY: topBlockY,
-                x: poolX,
-                y: poolY,
-                volume: 4,
-                color: color,
-                liquidType: liquidType,
-                opacity: 0.9, // 90% opaque
-                dripping: false,
-                dripStreaks: [], // Multiple drip streams
-                lastAddedFrame: frameCount,
-                age: 0
-            });
-        }
+    if (!foundPool && liquidPools.length < 30) {
+        // Create new pool on the top surface
+        liquidPools.push({
+            blockX: blockX,
+            blockY: topBlockY,
+            x: poolX,
+            y: poolY,
+            volume: 4,
+            color: color,
+            liquidType: liquidType,
+            opacity: 0.9, // 90% opaque
+            dripping: false,
+            dripStreaks: [], // Multiple drip streams
+            lastAddedFrame: frameCount,
+            age: 0
+        });
     }
 }
 
@@ -4147,20 +4149,14 @@ function updateLiquidPoolsAfterGravity() {
                 return false;
             }
             
-            // Calculate how much the pool moved
-            const poolShift = (newTopBlockY - pool.blockY) * BLOCK_SIZE;
-            
             // Update pool position to new block top
             pool.blockY = newTopBlockY;
             pool.y = newTopBlockY * BLOCK_SIZE;
             
-            // Shift drip streaks by the same amount (don't reset them)
-            // This keeps drips flowing naturally when blocks fall
-            if (poolShift !== 0) {
-                pool.dripStreaks.forEach(streak => {
-                    streak.y += poolShift;
-                });
-            }
+            // Reset drip positions to new height
+            pool.dripStreaks.forEach(streak => {
+                streak.y = Math.min(streak.y, pool.y + 5);
+            });
             
             return true;
         } else {
@@ -4370,9 +4366,9 @@ function updateStormParticles() {
         
         // Double spawn rate for liquid modes
         if (isCarrieMode || isNoKingsMode) {
-            spawnChance = 1.6; // Base rate for one liquid mode
+            spawnChance = 1.6; // Doubled from 0.8
             if (isCarrieMode && isNoKingsMode) {
-                spawnChance = 3.2; // TRUE DOUBLE when both modes active (1.6 × 2)
+                spawnChance = 2.4; // Doubled from 1.2
             }
         } else if (gameMode === 'downpour') spawnChance = 2.0; // DOUBLED AGAIN - 2 particles per frame
         else if (gameMode === 'hailstorm') spawnChance = 0.4;
@@ -4756,47 +4752,12 @@ let mercurialInterval = 0; // Current interval before next change (2-4 seconds)
 
 // gameRunning is declared in starfield section
 let paused = false; StarfieldSystem.setPaused(false);
-let justPaused = false; // Flag to prevent immediate unpause from tap handler
-
-// Toggle pause state
-function togglePause() {
-    if (!gameRunning) return;
-    
-    const settingsBtn = document.getElementById('settingsBtn');
-    const musicToggle = document.getElementById('musicToggle');
-    const pauseBtn = document.getElementById('pauseBtn');
-    
-    if (paused) {
-        // Unpause
-        paused = false;
-        StarfieldSystem.setPaused(false);
-        if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
-        // Show pause button again (only in tablet mode)
-        if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
-        if (musicToggle && musicToggle.checked) {
-            startMusic(gameMode, musicToggle);
-        }
-    } else {
-        // Pause
-        captureCanvasSnapshot();
-        paused = true;
-        justPaused = true;
-        setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
-        StarfieldSystem.setPaused(true);
-        if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
-        // Hide pause button while paused
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        stopMusic();
-    }
-}
-
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
 let dropInterval = 1000;
 let animatingLines = false;
-let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
 let lineAnimations = [];
 let lightningEffects = [];
 let triggeredTsunamis = new Set(); // Track tsunamis that have already triggered
@@ -4818,29 +4779,15 @@ function randomColor() {
 
 function createPiece() {
     let shapeSet;
-    let type;
-    
-    if (gameMode === 'blizzard' || gameMode === 'hurricane') {
-        // 75% tetrominoes, 25% pentominoes
-        const tetrominoKeys = Object.keys(SHAPES); // Standard 4-block pieces
-        const fullShapeSet = gameMode === 'blizzard' ? BLIZZARD_SHAPES : EXTENDED_SHAPES;
-        const pentominoKeys = Object.keys(fullShapeSet).filter(k => !SHAPES[k]); // Only 5-block pieces
-        
-        if (Math.random() < 0.75) {
-            // Pick a tetromino
-            type = tetrominoKeys[Math.floor(Math.random() * tetrominoKeys.length)];
-            shapeSet = SHAPES;
-        } else {
-            // Pick a pentomino
-            type = pentominoKeys[Math.floor(Math.random() * pentominoKeys.length)];
-            shapeSet = fullShapeSet;
-        }
+    if (gameMode === 'blizzard') {
+        shapeSet = BLIZZARD_SHAPES; // Excludes Plus and W shapes
+    } else if (gameMode === 'hurricane') {
+        shapeSet = EXTENDED_SHAPES; // All 5-block shapes
     } else {
-        shapeSet = SHAPES; // Standard 4-block shapes only
-        const shapes = Object.keys(shapeSet);
-        type = shapes[Math.floor(Math.random() * shapes.length)];
+        shapeSet = SHAPES; // Standard 4-block shapes
     }
-    
+    const shapes = Object.keys(shapeSet);
+    const type = shapes[Math.floor(Math.random() * shapes.length)];
     return {
         shape: shapeSet[type],
         type: type,
@@ -4850,55 +4797,56 @@ function createPiece() {
     };
 }
 
-// Hexomino shapes (6 blocks) - verified block counts
-const HEXOMINO_SHAPES = [
-    { name: 'I6', shape: [[1,1,1,1,1,1]] },                           // 6 in a row
-    { name: 'Rect', shape: [[1,1,1],[1,1,1]] },                       // 2x3 rectangle
-    { name: 'L6', shape: [[1,0,0],[1,0,0],[1,0,0],[1,1,1]] },         // L shape (4 tall)
-    { name: 'J6', shape: [[0,0,1],[0,0,1],[0,0,1],[1,1,1]] },         // J shape (mirror L)
-    { name: 'T6', shape: [[1,1,1,1],[0,1,0,0],[0,1,0,0]] },           // T with wide top
-    { name: 'Plus6', shape: [[0,1,0],[1,1,1],[0,1,0],[0,1,0]] },      // Plus with stem
-    { name: 'Y6', shape: [[0,1],[1,1],[0,1],[0,1],[0,1]] },           // Y shape
-    { name: 'P6', shape: [[1,1],[1,1],[1,0],[1,0]] },                 // P shape tall
-    { name: 'S6', shape: [[0,1,1],[0,1,0],[0,1,0],[1,1,0]] },         // S extended
-    { name: 'C6', shape: [[1,1],[1,0],[1,0],[1,1]] },                 // C/U open shape
-    { name: 'Z6', shape: [[1,1,0,0],[0,1,0,0],[0,1,1,1]] },           // Z extended
-    { name: 'W6', shape: [[1,0,0],[1,1,0],[0,1,1],[0,0,1]] }          // W/stairs shape
-];
-
-// Heptomino shapes (7 blocks) - verified block counts
-const HEPTOMINO_SHAPES = [
-    { name: 'I7', shape: [[1,1,1,1,1,1,1]] },                         // 7 in a row
-    { name: 'L7', shape: [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]] }, // L shape (5 tall)
-    { name: 'J7', shape: [[0,0,1],[0,0,1],[0,0,1],[0,0,1],[1,1,1]] }, // J shape (mirror L)
-    { name: 'T7', shape: [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0]] },     // T with wide top
-    { name: 'Plus7', shape: [[0,1,0],[0,1,0],[1,1,1],[0,1,0],[0,1,0]] }, // Plus symmetric
-    { name: 'Y7', shape: [[0,1],[0,1],[1,1],[0,1],[0,1],[0,1]] },     // Y shape tall
-    { name: 'U7', shape: [[1,0,1],[1,0,1],[1,1,1]] },                 // U shape
-    { name: 'P7', shape: [[1,1],[1,1],[1,0],[1,0],[1,0]] },           // P shape tall
-    { name: 'S7', shape: [[0,0,1,1],[0,0,1,0],[0,1,1,0],[1,1,0,0]] }, // S extended
-    { name: 'W7', shape: [[1,0,0],[1,1,0],[0,1,0],[0,1,1],[0,0,1]] }, // W/stairs
-    { name: 'F7', shape: [[0,1,1],[0,1,0],[1,1,0],[0,1,0],[0,1,0]] }, // F shape
-    { name: 'H7', shape: [[1,0,1],[1,1,1],[1,0,1]] }          // H shape (3 tall)
-];
-
 function createGiantPiece(segmentCount) {
     // Create various configurations of 6-7 segment pieces
     // These will be larger and need to fit centered in the Next Piece window
     const color = randomColor();
-    let shapeData;
+    let shape;
+    const rand = Math.random();
     
     if (segmentCount === 6) {
-        shapeData = HEXOMINO_SHAPES[Math.floor(Math.random() * HEXOMINO_SHAPES.length)];
+        // 6-segment shapes
+        if (rand < 0.2) {
+            // Long I piece (6 blocks in a row)
+            shape = [[1,1,1,1,1,1]];
+        } else if (rand < 0.4) {
+            // 2x3 rectangle
+            shape = [[1,1,1],[1,1,1]];
+        } else if (rand < 0.6) {
+            // L shape (large)
+            shape = [[1,0,0],[1,0,0],[1,1,1]];
+        } else if (rand < 0.8) {
+            // T shape (large)
+            shape = [[1,1,1],[0,1,0],[0,1,0]];
+        } else {
+            // Z shape (large)
+            shape = [[1,1,0],[0,1,0],[0,1,1]];
+        }
     } else {
-        shapeData = HEPTOMINO_SHAPES[Math.floor(Math.random() * HEPTOMINO_SHAPES.length)];
+        // 7-segment shapes
+        if (rand < 0.2) {
+            // Long I piece (7 blocks in a row)
+            shape = [[1,1,1,1,1,1,1]];
+        } else if (rand < 0.4) {
+            // Plus/cross shape
+            shape = [[0,1,0],[1,1,1],[0,1,0],[0,1,0]];
+        } else if (rand < 0.6) {
+            // Large L
+            shape = [[1,0,0],[1,0,0],[1,0,0],[1,1,1]];
+        } else if (rand < 0.8) {
+            // Pyramid
+            shape = [[0,0,1,0,0],[0,1,1,1,0],[1,1,1,1,1]];
+        } else {
+            // Staircase
+            shape = [[1,0,0],[1,1,0],[0,1,1],[0,0,1]];
+        }
     }
     
     return {
-        shape: shapeData.shape,
+        shape: shape,
         type: 'giant' + segmentCount,
         color: color,
-        x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
+        x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
         y: -1
     };
 }
@@ -5611,19 +5559,15 @@ function isBlobEnveloped(innerBlob, outerBlob) {
     const outerSet = new Set(outerBlob.positions.map(p => `${p[0]},${p[1]}`));
     const innerSet = new Set(innerBlob.positions.map(p => `${p[0]},${p[1]}`));
     
-    // For each block in inner blob, check if ALL 8 adjacent positions (including diagonals)
+    // For each block in inner blob, check if ALL 4 adjacent positions
     // are either part of outer blob OR part of inner blob
     // If ANY adjacent is out of bounds OR empty space, it's NOT enveloped
     for (const [x, y] of innerBlob.positions) {
         const adjacents = [
-            [x-1, y],     // left
-            [x+1, y],     // right
-            [x, y-1],     // top
-            [x, y+1],     // bottom
-            [x-1, y-1],   // top-left corner
-            [x+1, y-1],   // top-right corner
-            [x-1, y+1],   // bottom-left corner
-            [x+1, y+1]    // bottom-right corner
+            [x-1, y],   // left
+            [x+1, y],   // right
+            [x, y-1],   // top
+            [x, y+1]    // bottom
         ];
         
         for (const [ax, ay] of adjacents) {
@@ -5646,7 +5590,7 @@ function isBlobEnveloped(innerBlob, outerBlob) {
         }
     }
     
-    // All adjacent cells (including diagonals) are either outer blob or inner blob, 
+    // All adjacent cells are either outer blob or inner blob, 
     // and none touch the walls - it's truly enveloped!
     return true;
 }
@@ -6109,82 +6053,14 @@ function drawBoard() {
         
         console.log(`⚡ Rendering lightning at x=${lightning.x}, segments=${lightning.segments.length}, progress=${progress.toFixed(2)}`);
         
-        const baseAlpha = 1 - progress;
-        
-        // Check if Stranger mode is active for red lightning
-        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-        const glowColor = strangerActive ? '#FF0000' : '#00FFFF';
-        const innerGlowColor = strangerActive ? '#FF8888' : '#88FFFF';
-        const coreColor = '#FFFFFF';
-        
-        // Draw outer glow layers (multiple passes for more intense glow)
+        // Draw main lightning bolt and branches
         ctx.save();
-        
-        // Outermost glow - wide and soft
-        ctx.globalAlpha = baseAlpha * 0.15;
-        ctx.strokeStyle = glowColor;
-        ctx.shadowBlur = 60;
-        ctx.shadowColor = glowColor;
-        ctx.lineWidth = 20;
-        ctx.beginPath();
-        ctx.moveTo(lightning.x, 0);
-        for (let i = 0; i < lightning.segments.length; i++) {
-            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
-        }
-        ctx.stroke();
-        lightning.branches.forEach(branch => {
-            ctx.beginPath();
-            ctx.moveTo(branch.startX, branch.startY);
-            for (let i = 0; i < branch.segments.length; i++) {
-                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
-            }
-            ctx.stroke();
-        });
-        
-        // Middle glow
-        ctx.globalAlpha = baseAlpha * 0.3;
-        ctx.shadowBlur = 35;
-        ctx.lineWidth = 12;
-        ctx.beginPath();
-        ctx.moveTo(lightning.x, 0);
-        for (let i = 0; i < lightning.segments.length; i++) {
-            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
-        }
-        ctx.stroke();
-        lightning.branches.forEach(branch => {
-            ctx.beginPath();
-            ctx.moveTo(branch.startX, branch.startY);
-            for (let i = 0; i < branch.segments.length; i++) {
-                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
-            }
-            ctx.stroke();
-        });
-        
-        // Inner glow
-        ctx.globalAlpha = baseAlpha * 0.5;
-        ctx.strokeStyle = innerGlowColor;
-        ctx.shadowBlur = 20;
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.moveTo(lightning.x, 0);
-        for (let i = 0; i < lightning.segments.length; i++) {
-            ctx.lineTo(lightning.segments[i].x, lightning.segments[i].y);
-        }
-        ctx.stroke();
-        lightning.branches.forEach(branch => {
-            ctx.beginPath();
-            ctx.moveTo(branch.startX, branch.startY);
-            for (let i = 0; i < branch.segments.length; i++) {
-                ctx.lineTo(branch.segments[i].x, branch.segments[i].y);
-            }
-            ctx.stroke();
-        });
-        
-        // Main bolt (bright white core)
-        ctx.globalAlpha = baseAlpha;
-        ctx.strokeStyle = coreColor;
+        ctx.globalAlpha = 1 - progress;
+        ctx.strokeStyle = '#FFFFFF';
         ctx.shadowBlur = 15;
-        ctx.shadowColor = coreColor;
+        ctx.shadowColor = '#00FFFF';
+        
+        // Main bolt (thicker)
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(lightning.x, 0);
@@ -6193,7 +6069,7 @@ function drawBoard() {
         }
         ctx.stroke();
         
-        // Branch bolts (thinner white core)
+        // Branch bolts (thinner)
         ctx.lineWidth = 2;
         lightning.branches.forEach(branch => {
             ctx.beginPath();
@@ -6530,30 +6406,28 @@ function drawHistogram() {
     // Clear canvas with transparent background
     histogramCtx.clearRect(0, 0, width, height);
     
-    // Draw tick marks and labels for SCORE HISTOGRAM on the left (skip in minimalist mode)
-    if (!minimalistMode) {
-        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        histogramCtx.font = '12px Arial';
-        histogramCtx.textAlign = 'left'; // Changed to left-align
-        histogramCtx.lineWidth = 1;
+    // Draw tick marks and labels for SCORE HISTOGRAM on the left
+    histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    histogramCtx.font = '12px Arial';
+    histogramCtx.textAlign = 'left'; // Changed to left-align
+    histogramCtx.lineWidth = 1;
+    
+    const tickCount = 5;
+    for (let i = 0; i <= tickCount; i++) {
+        const value = Math.round((scoreHistogramMaxScale / tickCount) * i);
+        const y = height - padding - (graphHeight / tickCount) * i;
         
-        const tickCount = 5;
-        for (let i = 0; i <= tickCount; i++) {
-            const value = Math.round((scoreHistogramMaxScale / tickCount) * i);
-            const y = height - padding - (graphHeight / tickCount) * i;
+        // Skip drawing tick mark and label for "0"
+        if (value !== 0) {
+            // Tick mark (moved to the right, same 5px length)
+            histogramCtx.beginPath();
+            histogramCtx.moveTo(padding + 1, y);
+            histogramCtx.lineTo(padding + 6, y);
+            histogramCtx.stroke();
             
-            // Skip drawing tick mark and label for "0"
-            if (value !== 0) {
-                // Tick mark (moved to the right, same 5px length)
-                histogramCtx.beginPath();
-                histogramCtx.moveTo(padding + 1, y);
-                histogramCtx.lineTo(padding + 6, y);
-                histogramCtx.stroke();
-                
-                // Label positioned to the right of tick mark (left-aligned now)
-                histogramCtx.fillText(value.toString(), padding + 8, y + 4);
-            }
+            // Label positioned to the right of tick mark (left-aligned now)
+            histogramCtx.fillText(value.toString(), padding + 8, y + 4);
         }
     }
     
@@ -6643,30 +6517,27 @@ function drawHistogram() {
     const barSpacing = barWidth * 0.15;
     const actualBarWidth = barWidth - barSpacing;
     
-    // Draw tick marks and labels on right side for color histogram (skip in minimalist mode)
-    if (!minimalistMode) {
-        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        histogramCtx.font = '12px Arial';
-        histogramCtx.textAlign = 'left';
-        histogramCtx.lineWidth = 1;
+    // Draw tick marks and labels on right side for color histogram
+    histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    histogramCtx.font = '12px Arial';
+    histogramCtx.textAlign = 'left';
+    histogramCtx.lineWidth = 1;
+    
+    for (let i = 0; i <= tickCount; i++) {
+        const value = Math.round((histogramMaxScale / tickCount) * i);
+        const y = height - padding - (graphHeight / tickCount) * i;
         
-        const tickCount = 5;
-        for (let i = 0; i <= tickCount; i++) {
-            const value = Math.round((histogramMaxScale / tickCount) * i);
-            const y = height - padding - (graphHeight / tickCount) * i;
+        // Skip drawing tick mark and label for "0"
+        if (value !== 0) {
+            // Tick mark
+            histogramCtx.beginPath();
+            histogramCtx.moveTo(colorGraphStart + graphWidth, y);
+            histogramCtx.lineTo(colorGraphStart + graphWidth + 5, y);
+            histogramCtx.stroke();
             
-            // Skip drawing tick mark and label for "0"
-            if (value !== 0) {
-                // Tick mark
-                histogramCtx.beginPath();
-                histogramCtx.moveTo(colorGraphStart + graphWidth, y);
-                histogramCtx.lineTo(colorGraphStart + graphWidth + 5, y);
-                histogramCtx.stroke();
-                
-                // Label
-                histogramCtx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
-            }
+            // Label
+            histogramCtx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
         }
     }
     
@@ -7830,18 +7701,14 @@ function checkForSpecialFormations() {
     let blackHoleData = [];
     
     // Check for Volcanoes (blob at bottom completely enveloped by another)
-    // Skip if a volcano is already active to prevent duplicate counting
-    if (!volcanoActive) {
-        const volcanoes = detectVolcanoes(allBlobs);
-        if (volcanoes.length > 0) {
-            foundVolcano = true;
-            volcanoData = volcanoes;
-        }
+    const volcanoes = detectVolcanoes(allBlobs);
+    if (volcanoes.length > 0) {
+        foundVolcano = true;
+        volcanoData = volcanoes;
     }
     
     // Check for Black Holes (one blob enveloping another of different color)
-    // Skip if a black hole is already active to prevent duplicate counting
-    if (!foundVolcano && !blackHoleActive) {
+    if (!foundVolcano) {
         const blackHoles = detectBlackHoles(allBlobs);
         if (blackHoles.length > 0) {
             foundBlackHole = true;
@@ -7850,8 +7717,7 @@ function checkForSpecialFormations() {
     }
     
     // Check for Tsunamis (blobs spanning full width)
-    // Skip if a tsunami is already animating to prevent duplicate counting
-    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating) {
+    if (!foundVolcano && !foundBlackHole) {
         allBlobs.forEach(blob => {
             const minX = Math.min(...blob.positions.map(p => p[0]));
             const maxX = Math.max(...blob.positions.map(p => p[0]));
@@ -8529,15 +8395,20 @@ function applyGravity() {
 function updateFallingBlocks() {
     if (!gravityAnimating || fallingBlocks.length === 0) return;
     
-    // Use consistent gravity (Mercury level = 0.38x Earth) regardless of current planet
-    // This prevents confusing fast cascades on high-gravity planets like the Sun
-    const gravityMultiplier = 0.38; // Mercury/Mars gravity
+    // Get current celestial body's gravity multiplier
+    // Find the planet/sun for the current level
+    let gravityMultiplier = 1.0; // Default to Earth gravity
+    const planets = StarfieldSystem.getPlanets();
+    const currentBody = planets.find(p => p.level === currentGameLevel);
+    if (currentBody && currentBody.gravity !== undefined) {
+        gravityMultiplier = currentBody.gravity;
+    }
     
     // Base gravity and velocity for Earth (gravity = 1.0)
     const baseGravity = 0.45;
     const baseMaxVelocity = 4.5;
     
-    // Scale gravity and terminal velocity by the fixed gravity multiplier
+    // Scale gravity and terminal velocity by the celestial body's gravity
     // BUT enforce a minimum gravity floor so animations don't take forever
     const minGravity = 0.8; // Minimum gravity to keep animations reasonable
     const minMaxVelocity = 8.0; // Minimum max velocity
@@ -8675,15 +8546,6 @@ function clearLines() {
     // Don't clear lines during earthquake - let the earthquake finish first
     if (earthquakeActive) {
         console.log('⏸️ Skipping clearLines - earthquake in progress');
-        return;
-    }
-    
-    // Don't start a new line clear while one is already animating
-    // This prevents race conditions when tornado drops pieces during line clears
-    // Set a flag to check again after the current animation completes
-    if (animatingLines) {
-        console.log('⏸️ Deferring clearLines - line animation in progress');
-        pendingLineCheck = true;
         return;
     }
     
@@ -9032,7 +8894,6 @@ function clearLines() {
                 for (let x = 0; x < COLS; x++) {
                     board[row][x] = null;
                     isRandomBlock[row][x] = false;
-                    isLatticeBlock[row][x] = false;
                     fadingBlocks[row][x] = null;
                 }
             });
@@ -9051,14 +8912,8 @@ function clearLines() {
                 const rowsBelowPool = sortedRows.filter(row => row > pool.blockY).length;
                 if (rowsBelowPool > 0) {
                     // Shift the pool down by the number of rows cleared below it
-                    const shiftAmount = rowsBelowPool * BLOCK_SIZE;
                     pool.blockY += rowsBelowPool;
                     pool.y = pool.blockY * BLOCK_SIZE;
-                    
-                    // Also shift drip streaks down by the same amount
-                    pool.dripStreaks.forEach(streak => {
-                        streak.y += shiftAmount;
-                    });
                 }
             });
             
@@ -9066,15 +8921,6 @@ function clearLines() {
             runTwoPhaseGravity();
 
             animatingLines = false;
-            
-            // Check if another clearLines was requested during the animation
-            // (e.g., tornado dropped a piece that completed a line)
-            if (pendingLineCheck) {
-                pendingLineCheck = false;
-                console.log('🔄 Processing deferred line check');
-                clearLines();
-                return; // Don't spawn weather events if we're doing another clear
-            }
             
             // Check for tornado/earthquake with difficulty-based probability
             // Wait 1 second after lines clear, then check probability
@@ -9335,7 +9181,7 @@ function toggleUIElements(show) {
     const controls = document.querySelector('.controls');
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
-    const titles = document.querySelectorAll('.title');
+    const title = document.querySelector('.title');
     const pauseBtn = document.getElementById('pauseBtn');
     const planetStatsLeft = document.getElementById('planetStatsLeft');
     
@@ -9351,7 +9197,7 @@ function toggleUIElements(show) {
         controls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
-        titles.forEach(title => title.style.display = '');
+        if (title) title.style.display = 'block';
         
         // Hide tablet mode gameplay elements on menu
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -9364,7 +9210,7 @@ function toggleUIElements(show) {
         controls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
-        titles.forEach(title => title.style.display = 'none');
+        if (title) title.style.display = 'none';
         
         // Show tablet mode gameplay elements during game
         if (TabletMode.enabled) {
@@ -9376,7 +9222,6 @@ function toggleUIElements(show) {
 
 async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
-    document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
     playSoundEffect('gameover', soundToggle);
@@ -9425,7 +9270,6 @@ async function gameOver() {
     // Prepare score data for submission
     const scoreData = {
         game: 'blockchainstorm',
-        gameTitle: window.GAME_TITLE || 'BLOCKCHaiNSTOЯM',
         difficulty: gameMode,
         mode: isChallenge ? 'challenge' : 'normal',
         score: score,
@@ -9443,10 +9287,10 @@ async function gameOver() {
     
     // Check if score makes top 20
     console.log('Checking if score makes top 20...');
-    const isTopTen = window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode) : false;
+    const isTopTen = await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode);
     console.log('Is top twenty:', isTopTen);
     
-    if (isTopTen && window.leaderboard) {
+    if (isTopTen) {
         // DON'T show game over div - go straight to name prompt
         console.log('Score is top 20! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
@@ -9455,11 +9299,7 @@ async function gameOver() {
         // Score didn't make top 20, show game over div and leaderboard
         console.log('Score did not make top 20, displaying game over and leaderboard');
         gameOverDiv.style.display = 'block';
-        if (window.leaderboard) {
-            await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
-            // Send notification for non-high-score game completion
-            window.leaderboard.notifyGameCompletion(scoreData);
-        }
+        await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
     }
 }
 
@@ -9659,9 +9499,7 @@ function update(time = 0) {
 
 function startGame(mode) {
     // Hide leaderboard if it was shown
-    if (window.leaderboard && window.leaderboard.hideLeaderboard) {
-        window.leaderboard.hideLeaderboard();
-    }
+    window.leaderboard.hideLeaderboard();
     
 			gameStartTime = Date.now(); 
     gameMode = mode;
@@ -9731,10 +9569,11 @@ function startGame(mode) {
     console.log('  challengeMode:', challengeMode);
     console.log('  activeChallenges:', Array.from(activeChallenges));
     
-    // Challenge mode is already set by the combo modal via applyChallengeMode
-    // The challengeMode and activeChallenges are already correct
-    const selectedChallenge = challengeMode;
-    console.log('  Selected challenge:', selectedChallenge);
+    // Read the selected challenge mode from dropdown BEFORE resetting
+    const selectedChallenge = challengeSelect.value;
+    console.log('  Selected challenge from dropdown:', selectedChallenge);
+    
+    challengeMode = selectedChallenge; // Set to the selected challenge
     
     // Only clear activeChallenges if NOT in combo mode
     // In combo mode, the challenges were already set by the combo modal
@@ -9809,7 +9648,6 @@ function startGame(mode) {
     StarfieldSystem.reset(); // Reset all starfield state (planets, asteroids, journey)
     lineAnimations = [];
     animatingLines = false;
-    pendingLineCheck = false;
     paused = false; StarfieldSystem.setPaused(false);
     hailstormCounter = 0;
     triggeredTsunamis.clear();
@@ -9949,8 +9787,6 @@ function startGame(mode) {
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
-    document.body.classList.add('game-running');
-    document.body.classList.add('game-started');
     gameOverDiv.style.display = 'none';
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
@@ -9984,9 +9820,6 @@ document.addEventListener('keydown', e => {
             e.preventDefault();
             paused = false; StarfieldSystem.setPaused(false);
             settingsBtn.classList.add('hidden-during-play');
-            // Show pause button again (only in tablet mode)
-            const pauseBtn = document.getElementById('pauseBtn');
-            if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
             if (musicToggle.checked) {
                 startMusic(gameMode, musicToggle);
             }
@@ -10001,12 +9834,7 @@ document.addEventListener('keydown', e => {
             captureCanvasSnapshot();
             
             paused = true; StarfieldSystem.setPaused(true);
-            justPaused = true;
-            setTimeout(() => { justPaused = false; }, 300);
             settingsBtn.classList.remove('hidden-during-play');
-            // Hide pause button while paused
-            const pauseBtn = document.getElementById('pauseBtn');
-            if (pauseBtn) pauseBtn.style.display = 'none';
             stopMusic(); // stopMusic() already checks internally if music is playing
             return;
         }
@@ -10036,13 +9864,6 @@ document.addEventListener('keydown', e => {
         if ((e.key === 'u' || e.key === 'U') && developerMode) {
             e.preventDefault();
             StarfieldSystem.triggerUFO();
-            return;
-        }
-        
-        // Backspace key - Trigger lightning (developer mode only)
-        if (e.key === 'Backspace' && developerMode) {
-            e.preventDefault();
-            triggerLightning(300);
             return;
         }
         
@@ -10177,9 +9998,10 @@ function updateSelectedMode() {
     
     // Update leaderboard to match selected mode if visible
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
+        const challengeSelect = document.getElementById('challengeSelectMain');
+        const gameMode = challengeSelect ? (challengeSelect.value !== 'normal' ? 'challenge' : 'normal') : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
     }
 }
@@ -10190,7 +10012,6 @@ updateSelectedMode();
 playAgainBtn.addEventListener('click', () => {
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
-    document.body.classList.remove('game-started');
     toggleUIElements(true); // Show UI elements when returning to menu
     
     // Hide planet stats
@@ -10249,11 +10070,6 @@ settingsBtn.addEventListener('click', () => {
         captureCanvasSnapshot();
         
         paused = true; StarfieldSystem.setPaused(true);
-        justPaused = true;
-        setTimeout(() => { justPaused = false; }, 300);
-        // Hide pause button while settings is open
-        const pauseBtn = document.getElementById('pauseBtn');
-        if (pauseBtn) pauseBtn.style.display = 'none';
         // Don't toggle UI - keep histogram visible
         stopMusic(); // stopMusic() already checks internally if music is playing
     }
@@ -10264,9 +10080,6 @@ settingsCloseBtn.addEventListener('click', () => {
     settingsOverlay.style.display = 'none';
     if (gameRunning && !wasPausedBeforeSettings) {
         paused = false; StarfieldSystem.setPaused(false);
-        // Show pause button again (only in tablet mode)
-        const pauseBtn = document.getElementById('pauseBtn');
-        if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
         // Don't toggle UI - keep histogram visible
         if (musicToggle.checked) {
             startMusic(gameMode, musicToggle);
@@ -10344,7 +10157,7 @@ musicToggle.addEventListener('change', (e) => {
 });
 
 // Challenge mode handlers
-const challengeSelectBtn = document.getElementById('challengeSelectBtn');
+const challengeSelect = document.getElementById('challengeSelectMain');
 const comboModalOverlay = document.getElementById('comboModalOverlay');
 const comboApplyBtn = document.getElementById('comboApplyBtn');
 const comboCancelBtn = document.getElementById('comboCancelBtn');
@@ -10364,7 +10177,6 @@ const comboSixSeven = document.getElementById('comboSixSeven');
 const comboGremlins = document.getElementById('comboGremlins');
 const comboLattice = document.getElementById('comboLattice');
 const comboYesAnd = document.getElementById('comboYesAnd');
-const comboMercurial = document.getElementById('comboMercurial');
 const comboBonusPercent = document.getElementById('comboBonusPercent');
 
 // Function to update combo bonus display
@@ -10379,7 +10191,6 @@ function updateComboBonusDisplay() {
         'oz': 5,           // Grayscale until landing
         'lattice': 5,      // Pre-filled blocks
         'yesand': 5,       // Random extra blocks
-        'mercurial': 4,    // Color-shifting pieces
         'sixseven': 4,     // Occasional giant pieces
         'longago': 4,      // Perspective distortion
         'comingsoon': 4,   // Reverse perspective
@@ -10407,9 +10218,8 @@ function updateComboBonusDisplay() {
         { checkbox: comboSixSeven, type: 'sixseven' },
         { checkbox: comboGremlins, type: 'gremlins' },
         { checkbox: comboLattice, type: 'lattice' },
-        { checkbox: comboYesAnd, type: 'yesand' },
-        { checkbox: comboMercurial, type: 'mercurial' }
-    ].filter(item => item.checkbox); // Filter out null checkboxes
+        { checkbox: comboYesAnd, type: 'yesand' }
+    ];
     
     // Calculate total bonus
     let totalBonus = 0;
@@ -10426,7 +10236,7 @@ function updateComboBonusDisplay() {
 [comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
- comboLattice, comboYesAnd, comboMercurial].filter(cb => cb).forEach(checkbox => {
+ comboLattice, comboYesAnd].forEach(checkbox => {
     checkbox.addEventListener('change', updateComboBonusDisplay);
 });
 
@@ -10460,77 +10270,76 @@ comboThicker.addEventListener('change', (e) => {
     updateComboBonusDisplay();
 });
 
-// Helper function to populate combo modal checkboxes
-function populateComboModal() {
-    comboStranger.checked = activeChallenges.has('stranger');
-    comboDyslexic.checked = activeChallenges.has('dyslexic');
-    comboPhantom.checked = activeChallenges.has('phantom');
-    comboRubber.checked = activeChallenges.has('rubber');
-    comboOz.checked = activeChallenges.has('oz');
-    comboThinner.checked = activeChallenges.has('thinner');
-    comboThicker.checked = activeChallenges.has('thicker');
-    comboNervous.checked = activeChallenges.has('nervous');
-    comboCarrie.checked = activeChallenges.has('carrie');
-    comboNokings.checked = activeChallenges.has('nokings');
-    comboLongAgo.checked = activeChallenges.has('longago');
-    comboComingSoon.checked = activeChallenges.has('comingsoon');
-    comboSixSeven.checked = activeChallenges.has('sixseven');
-    comboGremlins.checked = activeChallenges.has('gremlins');
-    comboLattice.checked = activeChallenges.has('lattice');
-    comboYesAnd.checked = activeChallenges.has('yesand');
-    if (comboMercurial) comboMercurial.checked = activeChallenges.has('mercurial');
-    updateComboBonusDisplay();
-}
-
-// Challenge display names for the button label
-const challengeDisplayNames = {
-    'normal': 'Normal',
-    'stranger': 'Stranger',
-    'dyslexic': 'Dyslexic',
-    'phantom': 'Phantom',
-    'rubber': 'Rubber & Glue',
-    'oz': 'Oz',
-    'thinner': 'Thinner',
-    'thicker': 'Thicker',
-    'carrie': 'Carrie',
-    'nokings': 'No Kings',
-    'longago': 'Long Ago...',
-    'comingsoon': 'Coming Soon...',
-    'nervous': 'Nervous',
-    'sixseven': 'Six Seven',
-    'gremlins': 'Gremlins',
-    'lattice': 'Lattice',
-    'yesand': 'Yes, And...',
-    'mercurial': 'Mercurial',
-    'sorandom': 'So Random',
-    'combo': 'Combo'
-};
-
-// Function to update the button label based on current selection
-function updateChallengeButtonLabel() {
-    if (challengeMode === 'normal' && activeChallenges.size === 0) {
-        challengeSelectBtn.textContent = 'Normal';
-    } else if (challengeMode === 'combo' || activeChallenges.size > 1) {
-        // Show count of challenges
-        const names = Array.from(activeChallenges).map(c => challengeDisplayNames[c] || c);
-        if (names.length <= 2) {
-            challengeSelectBtn.textContent = names.join(' + ');
-        } else {
-            challengeSelectBtn.textContent = `${names.length} Challenges`;
-        }
-    } else if (activeChallenges.size === 1) {
-        const mode = Array.from(activeChallenges)[0];
-        challengeSelectBtn.textContent = challengeDisplayNames[mode] || mode;
+challengeSelect.addEventListener('change', (e) => {
+    const value = e.target.value;
+    
+    // Update display to show mode name without parenthesized description
+    updateChallengeSelectDisplay();
+    
+    if (value === 'combo') {
+        // Show combo modal
+        comboModalOverlay.style.display = 'flex';
+        // Populate checkboxes with current active challenges
+        comboStranger.checked = activeChallenges.has('stranger');
+        comboDyslexic.checked = activeChallenges.has('dyslexic');
+        comboPhantom.checked = activeChallenges.has('phantom');
+        comboRubber.checked = activeChallenges.has('rubber');
+        comboOz.checked = activeChallenges.has('oz');
+        comboThinner.checked = activeChallenges.has('thinner');
+        comboThicker.checked = activeChallenges.has('thicker');
+        comboNervous.checked = activeChallenges.has('nervous');
+        comboCarrie.checked = activeChallenges.has('carrie');
+        comboNokings.checked = activeChallenges.has('nokings');
+        comboLongAgo.checked = activeChallenges.has('longago');
+        comboComingSoon.checked = activeChallenges.has('comingsoon');
+        comboSixSeven.checked = activeChallenges.has('sixseven');
+        comboGremlins.checked = activeChallenges.has('gremlins');
+        comboLattice.checked = activeChallenges.has('lattice');
+        comboYesAnd.checked = activeChallenges.has('yesand');
+        // Update bonus display
+        updateComboBonusDisplay();
     } else {
-        challengeSelectBtn.textContent = challengeDisplayNames[challengeMode] || challengeMode;
+        // Apply single challenge
+        applyChallengeMode(value);
+    }
+    
+    // Update leaderboard to match selected challenge mode
+    const leaderboardContent = document.getElementById('leaderboardContent');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
+        const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+        const gameMode = value !== 'normal' ? 'challenge' : 'normal';
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+    }
+});
+
+// Function to update the selected option display text (remove parentheses)
+function updateChallengeSelectDisplay() {
+    const selectedOption = challengeSelect.options[challengeSelect.selectedIndex];
+    const fullText = selectedOption.getAttribute('data-full-text') || selectedOption.textContent;
+    
+    // Store full text if not already stored
+    if (!selectedOption.getAttribute('data-full-text')) {
+        selectedOption.setAttribute('data-full-text', fullText);
+    }
+    
+    // Remove parenthesized description for display
+    const displayText = fullText.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    selectedOption.textContent = displayText;
+    
+    // Restore full text to all other options
+    for (let i = 0; i < challengeSelect.options.length; i++) {
+        const option = challengeSelect.options[i];
+        if (i !== challengeSelect.selectedIndex) {
+            const savedFullText = option.getAttribute('data-full-text');
+            if (savedFullText) {
+                option.textContent = savedFullText;
+            }
+        }
     }
 }
 
-// Button click opens the combo modal
-challengeSelectBtn.addEventListener('click', () => {
-    populateComboModal();
-    comboModalOverlay.style.display = 'flex';
-});
+// Initialize the display on page load
+updateChallengeSelectDisplay();
 
 comboApplyBtn.addEventListener('click', () => {
     // Collect selected challenges
@@ -10551,38 +10360,29 @@ comboApplyBtn.addEventListener('click', () => {
     if (comboGremlins.checked) activeChallenges.add('gremlins');
     if (comboLattice.checked) activeChallenges.add('lattice');
     if (comboYesAnd.checked) activeChallenges.add('yesand');
-    if (comboMercurial && comboMercurial.checked) activeChallenges.add('mercurial');
     
-    // Determine challenge mode based on selection count
-    if (activeChallenges.size === 0) {
-        challengeMode = 'normal';
-    } else if (activeChallenges.size === 1) {
-        challengeMode = Array.from(activeChallenges)[0];
-    } else {
-        challengeMode = 'combo';
-    }
-    
-    applyChallengeMode(challengeMode);
-    updateChallengeButtonLabel();
+    challengeMode = 'combo';
+    applyChallengeMode('combo');
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to show correct mode
+    // Refresh leaderboard to show challenge mode
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+        window.leaderboard.displayLeaderboard(selectedMode, null, 'challenge');
     }
     
-    console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
+    console.log('🎯 Combo challenges applied:', Array.from(activeChallenges));
 });
 
 comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
+    // Reset dropdown to current mode
+    challengeSelect.value = challengeMode;
     
     // Refresh leaderboard to match current mode
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    if (leaderboardContent && leaderboardContent.style.display !== 'none') {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
         window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
@@ -10772,13 +10572,63 @@ function getNextAnagram() {
 }
 
 function startAnagramTimers() {
-    // Anagram animation disabled - intro screen now uses button-based UI
-    return;
+    // Random wait (6-7 seconds), then fade out "Click anywhere..." and start animation
+    const randomWait = 6000 + Math.random() * 1000; // Random between 6-7 seconds
+    anagramTimers.first = setTimeout(() => {
+        if (!anagramTriggered && !isAnimating) {
+            const clickMessage = document.getElementById('clickMessage');
+            
+            // Fade out "Click anywhere..." (2 seconds)
+            clickMessage.style.transition = 'opacity 2s ease-out';
+            clickMessage.style.opacity = '0';
+            
+            // After fade out completes, start animation with fade in
+            setTimeout(() => {
+                animateToAnagram();
+            }, 2000);
+        }
+    }, randomWait);
 }
 
 function resetToClickAnywhere() {
-    // Anagram animation disabled - intro screen now uses button-based UI
-    return;
+    const clickMessage = document.getElementById('clickMessage');
+    
+    // Remove anagram-active class to disable middle finger cursor
+    clickMessage.classList.remove('anagram-active');
+    
+    // Fade out current anagram (2 seconds)
+    clickMessage.style.transition = 'opacity 2s ease-out';
+    clickMessage.style.opacity = '0';
+    
+    setTimeout(() => {
+        // Reset to "Click anywhere to start..."
+        clickMessage.innerHTML = 'Click anywhere to start...';
+        clickMessage.style.opacity = '0';
+        
+        // Fade in "Click anywhere..." to 50% opacity (2 seconds)
+        setTimeout(() => {
+            clickMessage.style.transition = 'opacity 2s ease-in';
+            clickMessage.style.opacity = '0.5';
+            
+            // After fade in completes (2s), wait random time (6-7s), then fade out and start next anagram
+            setTimeout(() => {
+                const randomWait = 6000 + Math.random() * 1000; // Random between 6-7 seconds
+                setTimeout(() => {
+                    if (!anagramTriggered) {
+                        // Fade out "Click anywhere..." (2 seconds)
+                        clickMessage.style.transition = 'opacity 2s ease-out';
+                        clickMessage.style.opacity = '0';
+                        
+                        // After fade out completes, start animation
+                        setTimeout(() => {
+                            isAnimating = false;
+                            animateToAnagram();
+                        }, 2000);
+                    }
+                }, randomWait);
+            }, 2000); // Wait for fade in to complete first
+        }, 50);
+    }, 2000);
 }
 
 function cancelAnagramTimers() {
@@ -10788,11 +10638,8 @@ function cancelAnagramTimers() {
 }
 
 function animateToAnagram() {
-    // Guard: clickMessage element no longer exists in new UI
-    const clickMessage = document.getElementById('clickMessage');
-    if (!clickMessage) return;
-    
     isAnimating = true;
+    const clickMessage = document.getElementById('clickMessage');
     const originalText = "YOU'RE OKAY, PROMISE...";
     const targetAnagram = getNextAnagram(); // Get next unused anagram
     
@@ -10995,111 +10842,88 @@ function animateToAnagram() {
     }, totalDuration);
 }
 
-// Initialize "Click anywhere..." to 50% opacity (legacy - element may not exist)
+// Initialize "Click anywhere..." to 50% opacity
 const clickMessage = document.getElementById('clickMessage');
-if (clickMessage) {
-    clickMessage.style.opacity = '0.5';
+clickMessage.style.opacity = '0.5';
 
-    // Check if on phone - show different message
-    if (DeviceDetection.isMobile) {
-        clickMessage.innerHTML = 'This game requires a full-size screen.<br><br>Please visit on a tablet or computer.';
-        clickMessage.style.fontSize = '1.5em';
-        clickMessage.style.lineHeight = '1.5';
+// Add click event to clickMessage to open YouTube link (only when anagram is active)
+clickMessage.addEventListener('click', (e) => {
+    // Only open link if anagram is active
+    if (clickMessage.classList.contains('anagram-active')) {
+        e.stopPropagation(); // Prevent the overlay click from firing
+        window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
     }
+});
 
-    // Add click event to clickMessage to open YouTube link (only when anagram is active)
-    clickMessage.addEventListener('click', (e) => {
-        // Only open link if anagram is active
-        if (clickMessage.classList.contains('anagram-active')) {
-            e.stopPropagation(); // Prevent the overlay click from firing
-            window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
-        }
-    });
-}
-
-// Handle mobile devices with intro controls
-if (DeviceDetection.isMobile) {
-    const introControls = document.getElementById('introControls');
-    const dontPanicText = document.getElementById('dontPanicText');
-    if (introControls) {
-        introControls.innerHTML = '<p style="color: white; font-size: 1.2em; text-align: center; padding: 20px;">This game requires a full-size screen.<br><br>Please visit on a tablet or computer.</p>';
-    }
-    if (dontPanicText) {
-        dontPanicText.style.display = 'none';
-    }
-}
-
-// Start timers when page loads (only if not on phone)
-if (!DeviceDetection.isMobile) {
-    startAnagramTimers();
-}
+// Start timers when page loads
+startAnagramTimers();
 
 if (startOverlay) {
-    // Get intro screen elements
-    const startGameBtn = document.getElementById('startGameBtn');
-    const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
-    const introMusicCheckbox = document.getElementById('introMusicCheckbox');
-    const introSoundCheckbox = document.getElementById('introSoundCheckbox');
-    const introLoginBtn = document.getElementById('introLoginBtn');
-    
-    // Sync intro toggles with settings toggles on load
-    if (introMusicCheckbox && musicToggle) {
-        introMusicCheckbox.checked = musicToggle.checked;
-        introMusicCheckbox.addEventListener('change', () => {
-            musicToggle.checked = introMusicCheckbox.checked;
-            musicToggle.dispatchEvent(new Event('change'));
-        });
-    }
-    if (introSoundCheckbox && soundToggle) {
-        introSoundCheckbox.checked = soundToggle.checked;
-        introSoundCheckbox.addEventListener('change', () => {
-            soundToggle.checked = introSoundCheckbox.checked;
-            soundToggle.dispatchEvent(new Event('change'));
-        });
-    }
-    
-    // Check login status and show/hide login button
-    function checkIntroLoginStatus() {
-        // Check if user is logged in via oi_token (from auth.js)
-        const isLoggedIn = !!localStorage.getItem('oi_token');
-        if (introLoginBtn) {
-            introLoginBtn.classList.toggle('hidden', isLoggedIn);
-        }
-    }
-    checkIntroLoginStatus();
-    
-    // Login button handler - use auth.js showLoginModal
-    if (introLoginBtn) {
-        introLoginBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof showLoginModal === 'function') {
-                showLoginModal();
-            } else {
-                // Fallback if auth.js not loaded
-                window.location.href = 'https://official-intelligence.art/?login=1';
-            }
-        });
-    }
-    
-    // Start Game button handler
-    function dismissIntroScreen() {
+    startOverlay.addEventListener('click', () => {
         cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
             audioContext.resume();
         }
-        // Request full-screen mode if toggle is checked
-        if (introFullscreenCheckbox && introFullscreenCheckbox.checked) {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(err => {
-                    // Silently handle fullscreen errors (permissions, etc.)
-                });
-            } else if (elem.webkitRequestFullscreen) { // Safari
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { // IE11
-                elem.msRequestFullscreen();
-            }
+        // Request full-screen mode
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => {
+                // Silently handle fullscreen errors (permissions, etc.)
+            });
+        } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { // IE11
+            elem.msRequestFullscreen();
+        }
+        // Remove overlay
+        startOverlay.style.display = 'none';
+        // Start menu music (only if music is enabled)
+        if (musicToggle.checked) {
+            startMenuMusic(musicToggle);
+        }
+    });
+
+    // Add touchstart for iOS Safari which may not fire click reliably
+    startOverlay.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent double-firing with click
+        cancelAnagramTimers();
+        // Resume audio context (required by browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Request full-screen mode (may not work on iOS but try anyway)
+        const elem = document.documentElement;
+        if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        }
+        // Remove overlay
+        startOverlay.style.display = 'none';
+        // Start menu music (only if music is enabled)
+        if (musicToggle.checked) {
+            startMenuMusic(musicToggle);
+        }
+    }, { passive: false });
+}
+
+// Also allow keyboard to start the game
+document.addEventListener('keydown', (e) => {
+    if (startOverlay && startOverlay.style.display !== 'none') {
+        cancelAnagramTimers();
+        // Resume audio context (required by browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Request full-screen mode
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => {
+                // Silently handle fullscreen errors (permissions, etc.)
+            });
+        } else if (elem.webkitRequestFullscreen) { // Safari
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { // IE11
+            elem.msRequestFullscreen();
         }
         // Remove overlay
         startOverlay.style.display = 'none';
@@ -11108,66 +10932,9 @@ if (startOverlay) {
             startMenuMusic(musicToggle);
         }
     }
-    
-    if (startGameBtn) {
-        startGameBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dismissIntroScreen();
-        });
-    }
-
-    // Add touchstart for iOS Safari for the start button
-    if (startGameBtn) {
-        startGameBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dismissIntroScreen();
-        }, { passive: false });
-    }
-}
-
-// Also allow keyboard to start the game (Enter or Space)
-document.addEventListener('keydown', (e) => {
-    if (startOverlay && startOverlay.style.display !== 'none') {
-        // Only start on Enter or Space key
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            const startGameBtn = document.getElementById('startGameBtn');
-            if (startGameBtn) {
-                startGameBtn.click();
-            }
-        }
-    }
 }, { once: true });
 
 // Initialize high score system
-console.log(`🏆 ${window.GAME_TITLE || 'BLOCKCHaiNSTORM'} High Score System Initialized`);
+console.log('🏆 BLOCKCHaiNSTORM High Score System Initialized');
 console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
 console.log('📊 Leaderboard uses server if available, falls back to local storage');
-
-// Tap anywhere to unpause (for tablet mode)
-let unpauseHandled = false;
-const handleUnpauseTap = (e) => {
-    if (!gameRunning || !paused || justPaused) return;
-    if (unpauseHandled) return;
-    
-    // Don't unpause if clicking on settings button, settings overlay, or pause button
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsOverlay = document.getElementById('settingsOverlay');
-    const pauseBtn = document.getElementById('pauseBtn');
-    
-    if (settingsBtn && settingsBtn.contains(e.target)) return;
-    if (settingsOverlay && settingsOverlay.contains(e.target)) return;
-    if (settingsOverlay && settingsOverlay.style.display === 'flex') return;
-    if (pauseBtn && pauseBtn.contains(e.target)) return;
-    
-    // Prevent double-firing from both touchend and click
-    unpauseHandled = true;
-    setTimeout(() => { unpauseHandled = false; }, 300);
-    
-    // Unpause
-    togglePause();
-};
-
-document.addEventListener('click', handleUnpauseTap);
-document.addEventListener('touchend', handleUnpauseTap);
