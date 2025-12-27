@@ -6454,10 +6454,10 @@ function drawNextPiece() {
         
         // Calculate offset - pieces move up and to the right as they go back
         // Different right shift percentages for each piece position
-        const rightShiftPercents = [0, 0.54, 0.44, 0.38]; // #1 stays put, #2=54%, #3=44%, #4=38%
+        const rightShiftPercents = [0, 0.58, 0.46, 0.42]; // #1 stays put, #2=54%, #3=44%, #4=38%
         const cumulativeRightShift = rightShiftPercents.slice(0, i + 1).reduce((sum, p) => sum + p, 0);
         const offsetX = cumulativeRightShift * visibleWidth;  // Shift right
-        const offsetY = -i * visibleHeight * 0.24; // Shift up
+        const offsetY = -i * visibleHeight * 0.26; // Shift up
         
         // Calculate opacity - pieces fade as they go back
         const opacity = 1.0 - (i * 0.15); // 1.0, 0.85, 0.70, 0.55
