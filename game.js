@@ -10549,7 +10549,7 @@ function updateComboBonusDisplay() {
         'longago': 4,      // Perspective distortion
         'comingsoon': 4,   // Reverse perspective
         'thinner': 4,      // Visual compression
-        'shadowless': 4,   // No shadow guide
+        'shadowless': 3,   // No shadow guide
         'thicker': 3,      // Wider well (easier)
         'carrie': 3,       // Visual distraction
         'nokings': 3,      // Visual distraction
