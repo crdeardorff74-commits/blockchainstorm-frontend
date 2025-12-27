@@ -6453,7 +6453,7 @@ function drawNextPiece() {
         const scale = 1.0 - (i * 0.18); // 1.0, 0.82, 0.64, 0.46
         
         // Calculate offset - pieces move up and to the right as they go back
-        const offsetX = i * visibleWidth * 0.42;  // Shift right
+        const offsetX = i * visibleWidth * 0.48;  // Shift right
         const offsetY = -i * visibleHeight * 0.24; // Shift up
         
         // Calculate opacity - pieces fade as they go back
