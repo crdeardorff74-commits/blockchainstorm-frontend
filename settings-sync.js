@@ -59,7 +59,6 @@ const SettingsSync = {
             'soundToggle', 
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'trainingWheelsToggle',
             'minimalistToggle'
         ];
         
@@ -103,7 +102,6 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle', 
             'cameraOrientationToggle',
-            'trainingWheelsToggle',
             'minimalistToggle'
         ];
         
@@ -262,7 +260,6 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'trainingWheelsToggle',
             'minimalistToggle'
         ];
         
