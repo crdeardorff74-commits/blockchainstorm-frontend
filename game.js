@@ -8960,6 +8960,9 @@ function rotatePiece() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
+    
     try {
         const rotated = currentPiece.shape[0].map((_, i) =>
             currentPiece.shape.map(row => row[i]).reverse()
@@ -8977,6 +8980,10 @@ function rotatePiece() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
+                // Reset lock delay if piece was about to lock
+                if (aboutToLock) {
+                    dropCounter = 0;
+                }
                 break;
             }
         }
@@ -8999,6 +9006,9 @@ function rotatePieceCounterClockwise() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
+    
     try {
         // Counter-clockwise is the opposite of clockwise
         // Clockwise: transpose then reverse each row
@@ -9020,6 +9030,10 @@ function rotatePieceCounterClockwise() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
+                // Reset lock delay if piece was about to lock
+                if (aboutToLock) {
+                    dropCounter = 0;
+                }
                 break;
             }
         }
@@ -9038,6 +9052,9 @@ function movePiece(dir) {
     // Prevent movement during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
+    // Check if piece is about to lock (would collide if moved down)
+    const aboutToLock = collides(currentPiece, 0, 1);
+    
     // Check if controls should be swapped (Stranger XOR Dyslexic)
     const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
     const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
@@ -9050,6 +9067,10 @@ function movePiece(dir) {
         currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
+        // Reset lock delay if piece was about to lock
+        if (aboutToLock) {
+            dropCounter = 0;
+        }
     }
 }
 
