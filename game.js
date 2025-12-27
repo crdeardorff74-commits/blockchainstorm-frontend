@@ -4679,9 +4679,10 @@ const customKeyRepeat = {
     repeatRate: 40        // 40ms between repeats
 };
 
-// Helper function to apply Training Wheels penalty (halves points if active)
+// Shadow (training wheels) is now standard - no penalty
+// Shadowless challenge mode adds 4% bonus instead
 function applyTrainingWheelsPenalty(points) {
-    return trainingWheelsToggle.checked ? Math.floor(points / 2) : points;
+    return points; // No longer applies a penalty
 }
 
 // Helper function to calculate challenge mode multiplier based on difficulty
@@ -4704,6 +4705,7 @@ function getChallengeModeMultiplier() {
             'comingsoon': 0.04,   // 4%
             'thinner': 0.04,      // 4%
             'mercurial': 0.04,    // 4%
+            'shadowless': 0.04,   // 4%
             'thicker': 0.03,      // 3%
             'carrie': 0.03,       // 3%
             'nokings': 0.03,      // 3%
@@ -4732,6 +4734,7 @@ function getChallengeModeMultiplier() {
             'comingsoon': 0.04,
             'thinner': 0.04,
             'mercurial': 0.04,
+            'shadowless': 0.04,
             'thicker': 0.03,
             'carrie': 0.03,
             'nokings': 0.03,
@@ -6883,6 +6886,12 @@ function getShadowYPosition(piece) {
 
 function drawShadowPiece(piece) {
     if (!piece || !piece.shape || piece.shape.length === 0) return;
+    
+    // Check for shadowless challenge mode
+    const isShadowless = challengeMode === 'shadowless' || activeChallenges.has('shadowless');
+    if (isShadowless) return;
+    
+    // Shadow is now standard - only hide if training wheels toggle is off OR shadowless mode
     if (!trainingWheelsToggle.checked) return;
     
     const shadowY = getShadowYPosition(piece);
@@ -10462,6 +10471,7 @@ const comboGremlins = document.getElementById('comboGremlins');
 const comboLattice = document.getElementById('comboLattice');
 const comboYesAnd = document.getElementById('comboYesAnd');
 const comboMercurial = document.getElementById('comboMercurial');
+const comboShadowless = document.getElementById('comboShadowless');
 const comboBonusPercent = document.getElementById('comboBonusPercent');
 
 // Function to update combo bonus display
@@ -10481,6 +10491,7 @@ function updateComboBonusDisplay() {
         'longago': 4,      // Perspective distortion
         'comingsoon': 4,   // Reverse perspective
         'thinner': 4,      // Visual compression
+        'shadowless': 4,   // No shadow guide
         'thicker': 3,      // Wider well (easier)
         'carrie': 3,       // Visual distraction
         'nokings': 3,      // Visual distraction
@@ -10505,7 +10516,8 @@ function updateComboBonusDisplay() {
         { checkbox: comboGremlins, type: 'gremlins' },
         { checkbox: comboLattice, type: 'lattice' },
         { checkbox: comboYesAnd, type: 'yesand' },
-        { checkbox: comboMercurial, type: 'mercurial' }
+        { checkbox: comboMercurial, type: 'mercurial' },
+        { checkbox: comboShadowless, type: 'shadowless' }
     ].filter(item => item.checkbox); // Filter out null checkboxes
     
     // Calculate total bonus
@@ -10523,7 +10535,7 @@ function updateComboBonusDisplay() {
 [comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
- comboLattice, comboYesAnd, comboMercurial].filter(cb => cb).forEach(checkbox => {
+ comboLattice, comboYesAnd, comboMercurial, comboShadowless].filter(cb => cb).forEach(checkbox => {
     checkbox.addEventListener('change', updateComboBonusDisplay);
 });
 
@@ -10576,6 +10588,7 @@ function populateComboModal() {
     comboLattice.checked = activeChallenges.has('lattice');
     comboYesAnd.checked = activeChallenges.has('yesand');
     if (comboMercurial) comboMercurial.checked = activeChallenges.has('mercurial');
+    if (comboShadowless) comboShadowless.checked = activeChallenges.has('shadowless');
     updateComboBonusDisplay();
 }
 
@@ -10649,6 +10662,7 @@ comboApplyBtn.addEventListener('click', () => {
     if (comboLattice.checked) activeChallenges.add('lattice');
     if (comboYesAnd.checked) activeChallenges.add('yesand');
     if (comboMercurial && comboMercurial.checked) activeChallenges.add('mercurial');
+    if (comboShadowless && comboShadowless.checked) activeChallenges.add('shadowless');
     
     // Determine challenge mode based on selection count
     if (activeChallenges.size === 0) {

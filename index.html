@@ -2267,6 +2267,9 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
+                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                    Shows rain/sleet/snow in the background.
+                </div>
             </div>
             
             <div class="settings-option">
@@ -2277,19 +2280,6 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-            </div>
-            
-            <div class="settings-option">
-                <label class="toggle-label">
-                    <span class="toggle-label-text">Training Wheels (shows shadow, -50% points)</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="trainingWheelsToggle">
-                        <span class="toggle-slider"></span>
-                    </div>
-                </label>
-                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
-                    Shows a shadow where pieces will land, but all points earned are cut in half.
-                </div>
             </div>
             
             <div class="settings-option">
@@ -2356,12 +2346,12 @@
             <div class="combo-checkbox-option">
                 <label>
                     <div class="toggle-switch">
-                        <input type="checkbox" id="comboDyslexic" value="dyslexic">
+                        <input type="checkbox" id="comboShadowless" value="shadowless">
                         <span class="toggle-slider"></span>
                     </div>
-                    <span>Dyslexic (Reversed Controls) +6%</span>
+                    <span>Shadowless (No Drop Preview) +4%</span>
                 </label>
-                <div class="challenge-description">Left and right controls are swapped</div>
+                <div class="challenge-description">Hides the shadow showing where pieces will land</div>
             </div>
             
             <div class="combo-checkbox-option">
@@ -2528,6 +2518,18 @@
                 </label>
                 <div class="challenge-description">Falling pieces randomly change color every 2-4 seconds</div>
             </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboDyslexic" value="dyslexic">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span>Dyslexic (Reversed Controls) +6%</span>
+                </label>
+                <div class="challenge-description">Left and right controls are swapped</div>
+            </div>
+			
             </div> <!-- End of combo-checkboxes-grid -->
             
             <div class="combo-buttons">            
