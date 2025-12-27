@@ -9036,9 +9036,18 @@ function dropPiece() {
     if (collides(currentPiece)) {
         currentPiece.y--;
         
-        // Check if piece is stuck at spawn position (y <= 0)
-        // This means the stack has reached the top
-        if (currentPiece.y <= 0) {
+        // Check if any block of the piece extends beyond the top of the well
+        const extendsAboveTop = currentPiece.shape.some((row, dy) => {
+            return row.some((value, dx) => {
+                if (value) {
+                    const blockY = currentPiece.y + dy;
+                    return blockY < 0;
+                }
+                return false;
+            });
+        });
+        
+        if (extendsAboveTop) {
             gameOver();
             return;
         }
