@@ -437,13 +437,13 @@ const GamepadController = {
         // A button or Right Bumper - Rotate clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.A) || 
             this.wasButtonJustPressed(gp, this.buttons.RB)) {
-            rotatePiece(1);
+            rotatePiece();
         }
         
         // B button or Left Bumper - Rotate counter-clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.B) || 
             this.wasButtonJustPressed(gp, this.buttons.LB)) {
-            rotatePiece(-1);
+            rotatePieceCounterClockwise();
         }
         
         // === HARD DROP ===
