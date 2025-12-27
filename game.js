@@ -8965,12 +8965,25 @@ function rotatePiece() {
             currentPiece.shape.map(row => row[i]).reverse()
         );
         const previous = currentPiece.shape;
+        const originalX = currentPiece.x;
         currentPiece.shape = rotated;
         
-        if (collides(currentPiece)) {
+        // Wall kick: try original position, then shift left/right up to 2 spaces
+        const kicks = [0, -1, 1, -2, 2];
+        let rotationSuccessful = false;
+        
+        for (const kick of kicks) {
+            currentPiece.x = originalX + kick;
+            if (!collides(currentPiece)) {
+                rotationSuccessful = true;
+                playSoundEffect('rotate', soundToggle);
+                break;
+            }
+        }
+        
+        if (!rotationSuccessful) {
             currentPiece.shape = previous;
-        } else {
-            playSoundEffect('rotate', soundToggle);
+            currentPiece.x = originalX;
         }
     } catch (error) {
         // Silently fail and keep the current rotation
@@ -8995,12 +9008,25 @@ function rotatePieceCounterClockwise() {
             reversed.map(row => row[i])
         );
         const previous = currentPiece.shape;
+        const originalX = currentPiece.x;
         currentPiece.shape = rotated;
         
-        if (collides(currentPiece)) {
+        // Wall kick: try original position, then shift left/right up to 2 spaces
+        const kicks = [0, -1, 1, -2, 2];
+        let rotationSuccessful = false;
+        
+        for (const kick of kicks) {
+            currentPiece.x = originalX + kick;
+            if (!collides(currentPiece)) {
+                rotationSuccessful = true;
+                playSoundEffect('rotate', soundToggle);
+                break;
+            }
+        }
+        
+        if (!rotationSuccessful) {
             currentPiece.shape = previous;
-        } else {
-            playSoundEffect('rotate', soundToggle);
+            currentPiece.x = originalX;
         }
     } catch (error) {
         // Silently fail and keep the current rotation
