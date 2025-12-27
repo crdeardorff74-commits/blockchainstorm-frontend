@@ -9287,6 +9287,13 @@ function dropPiece() {
             return;
         }
         
+        // Check if piece at current position still overlaps with existing blocks
+        // This can happen if the piece spawned in an invalid position
+        if (collides(currentPiece)) {
+            gameOver();
+            return;
+        }
+        
         playSoundEffect('drop', soundToggle);
         mergePiece();
         
