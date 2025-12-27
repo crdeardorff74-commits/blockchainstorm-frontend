@@ -6441,9 +6441,7 @@ function drawNextPiece() {
     const visibleX = 0;
     const visibleY = nextCanvas.height - visibleHeight;
     
-    // Draw background only in visible area
-    nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    nextCtx.fillRect(visibleX, visibleY, visibleWidth, visibleHeight);
+    // No background fill needed - wrapper provides the background
 
     // Draw pieces from back to front (furthest first, so closest renders on top)
     for (let i = nextPieceQueue.length - 1; i >= 0; i--) {
@@ -6455,8 +6453,8 @@ function drawNextPiece() {
         const scale = 1.0 - (i * 0.18); // 1.0, 0.82, 0.64, 0.46
         
         // Calculate offset - pieces move up and to the right as they go back
-        const offsetX = i * visibleWidth * 0.30;  // Shift right
-        const offsetY = -i * visibleHeight * 0.35; // Shift up
+        const offsetX = i * visibleWidth * 0.38;  // Shift right
+        const offsetY = -i * visibleHeight * 0.28; // Shift up
         
         // Calculate opacity - pieces fade as they go back
         const opacity = 1.0 - (i * 0.15); // 1.0, 0.85, 0.70, 0.55
