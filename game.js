@@ -962,7 +962,7 @@ const planetStatsDiv = document.getElementById('planetStats');
 const planetStatsContent = document.getElementById('planetStatsContent');
 const soundToggle = document.getElementById('soundToggle');
 const musicToggle = document.getElementById('musicToggle');
-const trainingWheelsToggle = document.getElementById('trainingWheelsToggle');
+// trainingWheelsToggle removed - shadow is now standard (use Shadowless challenge for +4% bonus)
 const stormEffectsToggle = document.getElementById('stormEffectsToggle');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsOverlay = document.getElementById('settingsOverlay');
@@ -6887,12 +6887,9 @@ function getShadowYPosition(piece) {
 function drawShadowPiece(piece) {
     if (!piece || !piece.shape || piece.shape.length === 0) return;
     
-    // Check for shadowless challenge mode
+    // Check for shadowless challenge mode - shadow is standard, only hide if shadowless active
     const isShadowless = challengeMode === 'shadowless' || activeChallenges.has('shadowless');
     if (isShadowless) return;
-    
-    // Shadow is now standard - only hide if training wheels toggle is off OR shadowless mode
-    if (!trainingWheelsToggle.checked) return;
     
     const shadowY = getShadowYPosition(piece);
     
