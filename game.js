@@ -9075,7 +9075,7 @@ function movePiece(dir) {
 }
 
 function dropPiece() {
-    if (animatingLines || !currentPiece || !currentPiece.shape) return;
+    if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape) return;
     // Prevent dropping during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
@@ -9158,7 +9158,7 @@ let hardDropPixelY = 0; // Track pixel position for smooth visual animation
 let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
-    if (animatingLines || !currentPiece || hardDropping) return;
+    if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
     // Prevent hard drop during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
@@ -9370,9 +9370,9 @@ function update(time = 0) {
         updateHardDrop();
     }
     
-    // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift
+    // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
     const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift';
-    if (!paused && !animatingLines && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
+    if (!paused && !animatingLines && !gravityAnimating && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
         dropCounter += deltaTime;
         if (dropCounter > dropInterval) {
             dropPiece();
