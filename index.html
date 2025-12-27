@@ -43,6 +43,9 @@
             height: 100%;
             overflow: hidden;
         }
+        html:has(body.game-running), body.game-running {
+            overflow: visible;
+        }
         body {
             margin: 0;
             padding: 0;
@@ -115,7 +118,7 @@
             height: calc(93vh - 7vh);
             box-sizing: border-box;
             width: 100%;
-            overflow: hidden; /* Prevent overflow */
+            overflow: visible; /* Allow next piece queue to extend beyond */
         }
         .game-container {
             display: flex;
@@ -130,6 +133,7 @@
             max-width: 100%; /* Prevent overflow */
             margin: 0 auto;
             box-sizing: border-box;
+            overflow: visible;
         }
         .main-area {
             background: transparent;
@@ -351,6 +355,7 @@
             flex-shrink: 1; /* Allow some shrinking if needed */
             flex-grow: 0; /* Don't grow */
             transition: right 0.3s ease, width 0.3s ease;
+            overflow: visible;
         }
         
         /* Responsive adjustments for smaller screens */
@@ -685,22 +690,32 @@
             margin-top: 0.35vh;
             margin-bottom: 0.3vh;
             flex-shrink: 0;
+            overflow: visible;
+            position: relative;
+            z-index: 100;
         }
         .next-piece .score-label {
             text-align: left;
         }
-        .next-canvas {
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            background: rgba(0, 0, 0, 0.1);
-            margin-top: 3vh; /* Increased from 2.5vh to add more space below "Next Piece" label */
-            margin-bottom: 0.5vh;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 5px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        .next-canvas-wrapper {
             width: 180px;
             height: 180px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            margin-top: 3vh;
+            margin-bottom: 0.5vh;
+            position: relative;
+            overflow: visible;
+        }
+        .next-canvas {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            border: none;
+            background: transparent;
             /* Crisp pixel rendering to prevent lines in fullscreen */
             image-rendering: -moz-crisp-edges;
             image-rendering: -webkit-crisp-edges;
@@ -2176,7 +2191,9 @@
             </div>
             <div class="next-piece" id="nextPieceSection">
                 <div class="score-label">Next Piece</div>
-                <canvas id="nextCanvas" class="next-canvas" style="width: min(100%, 18vh); height: min(100%, 18vh); aspect-ratio: 1; display: block;"></canvas>
+                <div class="next-canvas-wrapper">
+                    <canvas id="nextCanvas" class="next-canvas"></canvas>
+                </div>
             </div>
             
             <!-- Special Events Grid (2 columns) -->

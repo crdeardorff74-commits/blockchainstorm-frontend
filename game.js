@@ -836,13 +836,22 @@ function updateCanvasSize() {
     }
     
     // Update next piece canvas to be responsive
-    // Get the actual displayed size and set internal resolution to match
-    const nextDisplayWidth = nextCanvas.offsetWidth || Math.min(window.innerWidth * 0.2, window.innerHeight * 0.2);
-    const nextDisplayHeight = nextCanvas.offsetHeight || nextDisplayWidth;
+    // Get the actual displayed size
+    const nextDisplayWidth = 180; // Base size
+    const nextDisplayHeight = 180;
     
-    // Set internal resolution to match display size
-    nextCanvas.width = nextDisplayWidth;
-    nextCanvas.height = nextDisplayHeight;
+    // Make canvas larger to accommodate the piece queue extending up and right
+    const nextCanvasScale = 2.5;
+    nextCanvas.width = nextDisplayWidth * nextCanvasScale;
+    nextCanvas.height = nextDisplayHeight * nextCanvasScale;
+    
+    // Position canvas so visible area (lower-left) aligns with original position
+    // Canvas extends up and to the right from there
+    nextCanvas.style.width = (nextDisplayWidth * nextCanvasScale) + 'px';
+    nextCanvas.style.height = (nextDisplayHeight * nextCanvasScale) + 'px';
+    nextCanvas.style.position = 'absolute';
+    nextCanvas.style.bottom = '0';
+    nextCanvas.style.left = '0';
     
     // Update side panel positions based on canvas width
     const rulesPanel = document.querySelector('.rules-panel');
@@ -6425,9 +6434,16 @@ function drawNextPiece() {
     
     // Fully clear the canvas first
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-    // Then draw the transparent background
+    
+    // The visible area is the lower-left portion (original 180x180 size)
+    const visibleWidth = 180;
+    const visibleHeight = 180;
+    const visibleX = 0;
+    const visibleY = nextCanvas.height - visibleHeight;
+    
+    // Draw background only in visible area
     nextCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+    nextCtx.fillRect(visibleX, visibleY, visibleWidth, visibleHeight);
 
     // Draw pieces from back to front (furthest first, so closest renders on top)
     for (let i = nextPieceQueue.length - 1; i >= 0; i--) {
@@ -6439,9 +6455,8 @@ function drawNextPiece() {
         const scale = 1.0 - (i * 0.18); // 1.0, 0.82, 0.64, 0.46
         
         // Calculate offset - pieces move up and to the right as they go back
-        // Spread them out more so they don't overlap
-        const offsetX = i * nextCanvas.width * 0.35;  // Shift right significantly
-        const offsetY = -i * nextCanvas.height * 0.30; // Shift up significantly
+        const offsetX = i * visibleWidth * 0.30;  // Shift right
+        const offsetY = -i * visibleHeight * 0.35; // Shift up
         
         // Calculate opacity - pieces fade as they go back
         const opacity = 1.0 - (i * 0.15); // 1.0, 0.85, 0.70, 0.55
@@ -6454,18 +6469,18 @@ function drawNextPiece() {
         const isGiantPiece = piece.type && piece.type.startsWith('giant');
         const gridSize = isGiantPiece ? 7 : 5;
         
-        // Calculate block size based on canvas size, grid, and perspective scale
-        const baseBlockSize = Math.floor(Math.min(nextCanvas.width, nextCanvas.height) / gridSize);
+        // Calculate block size based on VISIBLE area size, grid, and perspective scale
+        const baseBlockSize = Math.floor(Math.min(visibleWidth, visibleHeight) / gridSize);
         const nextBlockSize = Math.floor(baseBlockSize * scale);
         
         // Calculate the total pixel size of the piece
         const pieceTotalWidth = pieceWidth * nextBlockSize;
         const pieceTotalHeight = pieceHeight * nextBlockSize;
         
-        // Calculate pixel offset to center the piece in the canvas
-        // First piece is centered, others offset up and right
-        const baseCenterX = (nextCanvas.width - pieceWidth * baseBlockSize) / 2;
-        const baseCenterY = (nextCanvas.height - pieceHeight * baseBlockSize) / 2;
+        // Position first piece centered in visible area (lower-left of canvas)
+        // Others offset up and to the right from there
+        const baseCenterX = visibleX + (visibleWidth - pieceWidth * baseBlockSize) / 2;
+        const baseCenterY = visibleY + (visibleHeight - pieceHeight * baseBlockSize) / 2;
         
         const pixelOffsetX = Math.floor(baseCenterX + offsetX + (pieceWidth * baseBlockSize - pieceTotalWidth) / 2);
         const pixelOffsetY = Math.floor(baseCenterY + offsetY + (pieceHeight * baseBlockSize - pieceTotalHeight) / 2);
