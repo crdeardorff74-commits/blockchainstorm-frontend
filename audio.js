@@ -12,6 +12,31 @@ let bassOscillator = null;
 let lfoOscillator = null;
 let kickScheduler = null;
 
+// MP3 gameplay music
+let gameplayMusic = null;
+let gameplayMusicLoaded = false;
+
+// Initialize gameplay music audio element
+function initGameplayMusic() {
+    if (gameplayMusic) return;
+    gameplayMusic = new Audio('Falling_Blocks_Reactor.mp3');
+    gameplayMusic.loop = true;
+    gameplayMusic.volume = 0.5;
+    gameplayMusic.preload = 'auto';
+    
+    gameplayMusic.addEventListener('canplaythrough', () => {
+        gameplayMusicLoaded = true;
+    });
+    
+    gameplayMusic.addEventListener('error', (e) => {
+        console.warn('Could not load gameplay music:', e);
+        gameplayMusicLoaded = false;
+    });
+}
+
+// Call init on load
+initGameplayMusic();
+
 // Menu music state
 let menuMusicPlaying = false;
 let menuOscillators = [];
@@ -125,30 +150,22 @@ function playMelodyNote(freq, duration) {
     osc.stop(audioContext.currentTime + duration);
 }
 
-// Main music controller
+// Main music controller - now uses MP3 for gameplay
 function startMusic(gameMode, musicToggle) {
     if (musicPlaying || !musicToggle.checked) return;
     musicPlaying = true;
     
-    // Choose music based on game mode
-    switch(gameMode) {
-        case 'drizzle':
-            startDrizzleMusic();
-            break;
-        case 'downpour':
-            startDownpourMusic();
-            break;
-        case 'hailstorm':
-            startHailstormMusic();
-            break;
-        case 'blizzard':
-            startBlizzardMusic();
-            break;
-        case 'hurricane':
-            startHurricaneMusic();
-            break;
-        default:
-            startDownpourMusic();
+    // Use MP3 for all gameplay modes
+    if (gameplayMusic && gameplayMusicLoaded) {
+        gameplayMusic.currentTime = 0;
+        gameplayMusic.play().catch(e => {
+            console.warn('Could not play gameplay music:', e);
+        });
+    } else if (gameplayMusic) {
+        // Try to play even if not fully loaded yet
+        gameplayMusic.play().catch(e => {
+            console.warn('Could not play gameplay music:', e);
+        });
     }
 }
 
@@ -768,14 +785,25 @@ function stopMusic() {
     if (!musicPlaying) return;
     musicPlaying = false;
     
+    // Stop MP3 gameplay music
+    if (gameplayMusic) {
+        gameplayMusic.pause();
+        gameplayMusic.currentTime = 0;
+    }
+    
+    // Also stop any legacy synthesized music if running
     if (kickScheduler) {
         clearInterval(kickScheduler);
         kickScheduler = null;
     }
     
     if (bassOscillator) {
-        bassOscillator.bass.stop();
-        bassOscillator.lfo.stop();
+        try {
+            bassOscillator.bass.stop();
+            bassOscillator.lfo.stop();
+        } catch (e) {
+            // Already stopped
+        }
         bassOscillator = null;
     }
 }
