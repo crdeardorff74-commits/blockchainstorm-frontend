@@ -60,7 +60,8 @@ window.testHighScore = async function(testScore = 1000000) {
         tsunamis: 3,
         blackholes: 2,
         volcanoes: 1,
-        duration: 300
+        duration: 300,
+        speedBonus: 1.0
     };
     
     const isTopTen = await checkIfTopTen('drizzle', testScore);
@@ -236,10 +237,14 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
             }
         }
         
-        const rowClasses = [rowClass, hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
+        // Get speed bonus (default to 1.0 for older entries)
+        const speedBonus = entry.speedBonus || 1.0;
+        
+        // All rows can show tooltip (for speed bonus), add data attributes
+        const rowClasses = [rowClass, 'has-tooltip', hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
         
         html += `
-            <tr class="${rowClasses}">
+            <tr class="${rowClasses}" data-challenges="${hasChallenge ? escapeHtml(challengeNames) : ''}" data-speed-bonus="${speedBonus.toFixed(2)}">
                 <td class="rank">${index + 1}</td>
                 <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
@@ -734,6 +739,7 @@ function promptForName(scoreData) {
                 volcanoes: scoreData.volcanoes || 0,
                 blackholes: scoreData.blackholes || 0,
                 challenges: scoreData.challenges || [],
+                speedBonus: scoreData.speedBonus || 1.0,
                 played_at: new Date().toISOString()
             };
             
@@ -988,19 +994,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRow = null;
 
     document.addEventListener('mousemove', (e) => {
-        const row = e.target.closest('tr.has-challenges');
+        const row = e.target.closest('tr.has-tooltip');
         
         if (row) {
             if (row !== currentRow) {
                 currentRow = row;
-                const challengeCell = row.querySelector('[data-challenges]');
-                if (challengeCell) {
-                    const challengeData = challengeCell.getAttribute('data-challenges');
-                    if (challengeData) {
-                        challengeTooltip.textContent = challengeData;
-                        challengeTooltip.style.display = 'block';
-                    }
+                const challengeData = row.getAttribute('data-challenges');
+                const speedBonus = row.getAttribute('data-speed-bonus') || '1.00';
+                
+                // Build tooltip text
+                let tooltipText = '';
+                if (challengeData && challengeData.trim() !== '') {
+                    tooltipText = `${challengeData} | Speed: ${speedBonus}x`;
+                } else {
+                    tooltipText = `Speed: ${speedBonus}x`;
                 }
+                
+                challengeTooltip.textContent = tooltipText;
+                challengeTooltip.style.display = 'block';
             }
             // Update position
             challengeTooltip.style.left = (e.clientX + 15) + 'px';

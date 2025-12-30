@@ -1075,6 +1075,13 @@ let scoreHistogramTarget = 0; // Target height for animation
 let scoreHistogramMaxScale = 1000; // Maximum value on scale (auto-adjusts)
 let scoreHistogramPauseFrames = 0; // Track pause frames at peak for score bar
 
+// Speed Bonus tracking variables
+let speedBonusTotal = 0; // Sum of all individual piece speed bonuses
+let speedBonusPieceCount = 0; // Number of pieces placed
+let speedBonusAverage = 1.0; // Running average (displayed and applied to score)
+let pieceSpawnTime = 0; // Timestamp when current piece spawned
+let speedBonusHistogramBar = 1.0; // Animated display value for histogram
+
 // Storm Particle System
 let stormParticles = [];
 let liquidPools = []; // For Carrie/No Kings modes - pools that accumulate and drip
@@ -2519,6 +2526,32 @@ function spawnTornado() {
 // Calculate drop interval based on number of lines cleared
 function calculateDropInterval(linesCleared) {
     return Math.max(20, 1000 - (linesCleared * 8.1));
+}
+
+// Calculate the maximum time for a piece to drop from top to bottom naturally
+function calculateMaxDropTime() {
+    // Time = number of rows × current drop interval
+    return ROWS * dropInterval;
+}
+
+// Calculate speed bonus for a piece based on how quickly it was placed
+// Returns value between 0.0 (piece reached bottom naturally) and 2.0 (instant placement)
+function calculatePieceSpeedBonus(placementTime) {
+    if (pieceSpawnTime === 0) return 1.0; // Fallback if spawn time wasn't set
+    
+    const elapsedTime = placementTime - pieceSpawnTime;
+    const maxDropTime = calculateMaxDropTime();
+    
+    // Linear interpolation: 2.0 at 0 time, 0.0 at maxDropTime
+    const bonus = Math.max(0, 2.0 - (2.0 * elapsedTime / maxDropTime));
+    return bonus;
+}
+
+// Record speed bonus for a placed piece and update running average
+function recordPieceSpeedBonus(bonus) {
+    speedBonusTotal += bonus;
+    speedBonusPieceCount++;
+    speedBonusAverage = speedBonusTotal / speedBonusPieceCount;
 }
 
 // Developer mode function: Advance to next planet
@@ -4777,13 +4810,16 @@ function getChallengeModeMultiplier() {
     }
 }
 
-// Helper function to apply all score modifiers (Training Wheels penalty + Challenge multiplier)
+// Helper function to apply all score modifiers (Training Wheels penalty + Challenge multiplier + Speed Bonus)
 function applyScoreModifiers(points) {
     // First apply Training Wheels penalty if active
     let modifiedPoints = applyTrainingWheelsPenalty(points);
     
     // Then apply challenge mode multiplier
     modifiedPoints = Math.floor(modifiedPoints * getChallengeModeMultiplier());
+    
+    // Finally apply speed bonus multiplier
+    modifiedPoints = Math.floor(modifiedPoints * speedBonusAverage);
     
     return modifiedPoints;
 }
@@ -6613,7 +6649,13 @@ function drawHistogram() {
     const width = histogramCanvas.width;
     const height = histogramCanvas.height;
     const padding = 40;
-    const graphHeight = height - padding * 2;
+    
+    // Reserve space for speed bonus bar at top
+    const speedBonusBarHeight = 16;
+    const speedBonusGap = 10;
+    const mainHistogramStart = speedBonusBarHeight + speedBonusGap;
+    
+    const graphHeight = height - padding * 2 - mainHistogramStart;
     
     // Reserve space for score histogram on the left
     const scoreBarWidth = 20; // Width for score histogram (narrow to match Bitcoin symbol)
@@ -6623,6 +6665,87 @@ function drawHistogram() {
     
     // Clear canvas with transparent background
     histogramCtx.clearRect(0, 0, width, height);
+    
+    // ========== SPEED BONUS BAR (horizontal at top) ==========
+    // Animate toward current average
+    const animationSpeed = 0.05;
+    speedBonusHistogramBar += (speedBonusAverage - speedBonusHistogramBar) * animationSpeed;
+    
+    const speedBarY = 8;
+    const speedBarMaxWidth = width - padding * 2;
+    const speedBarWidth = (speedBonusHistogramBar / 2.0) * speedBarMaxWidth; // 0-2 scale
+    
+    // Calculate color based on value: Red (0) -> Yellow (1) -> Green (2)
+    let speedColor;
+    if (speedBonusHistogramBar <= 1.0) {
+        // Red to Yellow (0-1)
+        const t = speedBonusHistogramBar;
+        const r = 255;
+        const g = Math.floor(200 * t);
+        const b = 0;
+        speedColor = `rgb(${r}, ${g}, ${b})`;
+    } else {
+        // Yellow to Green (1-2)
+        const t = speedBonusHistogramBar - 1.0;
+        const r = Math.floor(255 * (1 - t));
+        const g = Math.floor(200 + 55 * t);
+        const b = 0;
+        speedColor = `rgb(${r}, ${g}, ${b})`;
+    }
+    
+    // Draw speed bar with 3D bevel
+    const b = 3; // Bevel size
+    const speedX = padding;
+    
+    if (speedBarWidth > 0) {
+        // Main face
+        histogramCtx.save();
+        histogramCtx.globalAlpha = faceOpacity;
+        histogramCtx.fillStyle = speedColor;
+        histogramCtx.fillRect(speedX, speedBarY, speedBarWidth, speedBonusBarHeight);
+        histogramCtx.restore();
+        
+        // Top edge (lighter)
+        const topGrad = histogramCtx.createLinearGradient(speedX, speedBarY, speedX, speedBarY + b);
+        topGrad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+        topGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        histogramCtx.fillStyle = topGrad;
+        histogramCtx.fillRect(speedX, speedBarY, speedBarWidth, b);
+        
+        // Bottom edge (darker)
+        const bottomGrad = histogramCtx.createLinearGradient(speedX, speedBarY + speedBonusBarHeight - b, speedX, speedBarY + speedBonusBarHeight);
+        bottomGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        bottomGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+        histogramCtx.fillStyle = bottomGrad;
+        histogramCtx.fillRect(speedX, speedBarY + speedBonusBarHeight - b, speedBarWidth, b);
+        
+        // Left edge (lighter)
+        const leftGrad = histogramCtx.createLinearGradient(speedX, speedBarY, speedX + b, speedBarY);
+        leftGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        leftGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        histogramCtx.fillStyle = leftGrad;
+        histogramCtx.fillRect(speedX, speedBarY, b, speedBonusBarHeight);
+        
+        // Right edge (darker)
+        const rightGrad = histogramCtx.createLinearGradient(speedX + speedBarWidth - b, speedBarY, speedX + speedBarWidth, speedBarY);
+        rightGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        rightGrad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        histogramCtx.fillStyle = rightGrad;
+        histogramCtx.fillRect(speedX + speedBarWidth - b, speedBarY, b, speedBonusBarHeight);
+    }
+    
+    // Draw "SPEED" label and value
+    histogramCtx.save();
+    histogramCtx.fillStyle = '#FFFFFF';
+    histogramCtx.font = 'bold 11px Arial';
+    histogramCtx.textAlign = 'left';
+    histogramCtx.textBaseline = 'middle';
+    const labelX = speedX + speedBarWidth + 8;
+    const labelY = speedBarY + speedBonusBarHeight / 2;
+    histogramCtx.fillText(`SPEED ${speedBonusHistogramBar.toFixed(2)}x`, labelX, labelY);
+    histogramCtx.restore();
+    
+    // ========== MAIN HISTOGRAM (shifted down) ==========
     
     // Draw tick marks and labels for SCORE HISTOGRAM on the left (skip in minimalist mode)
     if (!minimalistMode) {
@@ -7017,6 +7140,10 @@ function drawShadowPiece(piece) {
 
 function mergePiece() {
     if (!currentPiece || !currentPiece.shape) return;
+    
+    // Record speed bonus for this piece
+    const pieceBonus = calculatePieceSpeedBonus(Date.now());
+    recordPieceSpeedBonus(pieceBonus);
     
     // Check for Rubber & Glue mode (either standalone or in combo)
     const isRubberMode = challengeMode === 'rubber' || activeChallenges.has('rubber') || soRandomCurrentMode === 'rubber';
@@ -9369,6 +9496,9 @@ function dropPiece() {
             // Spawn the next piece from queue
             currentPiece = nextPieceQueue.shift();
             
+            // Record spawn time for speed bonus calculation
+            pieceSpawnTime = Date.now();
+            
             // Mercurial mode: Reset timer for new piece
             mercurialTimer = 0;
             mercurialInterval = 2000 + Math.random() * 2000; // New random interval 2-4 seconds
@@ -9597,7 +9727,8 @@ async function gameOver() {
         volcanoes: volcanoCount || 0,
         duration: Math.floor((Date.now() - gameStartTime) / 1000),
         challengeType: isChallenge ? challengeMode : null, // Track main challenge mode
-        challenges: challengesList // Track all active challenges
+        challenges: challengesList, // Track all active challenges
+        speedBonus: speedBonusAverage // Speed bonus multiplier (0.0 - 2.0)
     };
     
     
@@ -9647,6 +9778,9 @@ function update(time = 0) {
     // If current piece is null (bounced away), spawn new piece
     if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
         currentPiece = nextPieceQueue.shift();
+        
+        // Record spawn time for speed bonus calculation
+        pieceSpawnTime = Date.now();
         
         // Mercurial mode: Reset timer for new piece
         mercurialTimer = 0;
@@ -10050,6 +10184,14 @@ function startGame(mode) {
     stormParticles = []; // Clear storm particles
     splashParticles = []; // Clear splash particles
     liquidPools = []; // Clear blood/poo rain effects
+    
+    // Reset speed bonus tracking
+    speedBonusTotal = 0;
+    speedBonusPieceCount = 0;
+    speedBonusAverage = 1.0;
+    pieceSpawnTime = 0;
+    speedBonusHistogramBar = 1.0;
+    
     updateStats();
     
     // Initialize new Challenge mode variables
@@ -10105,6 +10247,7 @@ function startGame(mode) {
     }
     
     currentPiece = createPiece();
+    pieceSpawnTime = Date.now(); // Record spawn time for speed bonus
     // Initialize the next piece queue with 4 pieces
     nextPieceQueue = [];
     for (let i = 0; i < NEXT_PIECE_COUNT; i++) {
