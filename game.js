@@ -6672,11 +6672,28 @@ function drawHistogram() {
     speedBonusHistogramBar += (speedBonusAverage - speedBonusHistogramBar) * animationSpeed;
     
     const speedBarY = 8;
-    const speedBarMaxWidth = width - padding * 2;
-    const speedBarWidth = (speedBonusHistogramBar / 2.0) * speedBarMaxWidth; // 0-2 scale
+    
+    // Draw "SPEED" label first (before the bar)
+    histogramCtx.save();
+    histogramCtx.fillStyle = '#FFFFFF';
+    histogramCtx.font = 'bold 11px Arial';
+    histogramCtx.textAlign = 'left';
+    histogramCtx.textBaseline = 'middle';
+    const speedLabelX = padding;
+    const speedLabelY = speedBarY + speedBonusBarHeight / 2;
+    histogramCtx.fillText('Speed Bonus', speedLabelX, speedLabelY);
+    const speedLabelWidth = histogramCtx.measureText('Speed Bonus').width + 8;
+    histogramCtx.restore();
+    
+    // Bar starts after the label
+    const speedBarStartX = padding + speedLabelWidth;
+    const speedBarMaxWidth = width - speedBarStartX - padding - 45; // Reserve space for value at end
+    const speedBarActualWidth = Math.max(0, (speedBonusHistogramBar / 2.0) * speedBarMaxWidth); // 0-2 scale
     
     // Calculate color based on value: Red (0) -> Yellow (1) -> Green (2)
     let speedColor;
+    let speedColorLight;
+    let speedColorDark;
     if (speedBonusHistogramBar <= 1.0) {
         // Red to Yellow (0-1)
         const t = speedBonusHistogramBar;
@@ -6684,6 +6701,8 @@ function drawHistogram() {
         const g = Math.floor(200 * t);
         const b = 0;
         speedColor = `rgb(${r}, ${g}, ${b})`;
+        speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
+        speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
     } else {
         // Yellow to Green (1-2)
         const t = speedBonusHistogramBar - 1.0;
@@ -6691,58 +6710,58 @@ function drawHistogram() {
         const g = Math.floor(200 + 55 * t);
         const b = 0;
         speedColor = `rgb(${r}, ${g}, ${b})`;
+        speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
+        speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
     }
     
-    // Draw speed bar with 3D bevel
-    const b = 3; // Bevel size
-    const speedX = padding;
+    // Draw speed bar with beveled edges matching other histogram bars
+    const sb = 4; // Bevel size (matching other bars)
     
-    if (speedBarWidth > 0) {
-        // Main face
+    if (speedBarActualWidth > 0) {
+        // Main face (semi-transparent)
         histogramCtx.save();
         histogramCtx.globalAlpha = faceOpacity;
         histogramCtx.fillStyle = speedColor;
-        histogramCtx.fillRect(speedX, speedBarY, speedBarWidth, speedBonusBarHeight);
+        histogramCtx.fillRect(speedBarStartX, speedBarY, speedBarActualWidth, speedBonusBarHeight);
         histogramCtx.restore();
         
-        // Top edge (lighter)
-        const topGrad = histogramCtx.createLinearGradient(speedX, speedBarY, speedX, speedBarY + b);
-        topGrad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-        topGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        // Top edge (lighter gradient)
+        const topGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY, speedBarStartX, speedBarY + sb);
+        topGrad.addColorStop(0, speedColorLight);
+        topGrad.addColorStop(1, speedColor);
         histogramCtx.fillStyle = topGrad;
-        histogramCtx.fillRect(speedX, speedBarY, speedBarWidth, b);
+        histogramCtx.fillRect(speedBarStartX, speedBarY, speedBarActualWidth, sb);
         
-        // Bottom edge (darker)
-        const bottomGrad = histogramCtx.createLinearGradient(speedX, speedBarY + speedBonusBarHeight - b, speedX, speedBarY + speedBonusBarHeight);
-        bottomGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        bottomGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
-        histogramCtx.fillStyle = bottomGrad;
-        histogramCtx.fillRect(speedX, speedBarY + speedBonusBarHeight - b, speedBarWidth, b);
-        
-        // Left edge (lighter)
-        const leftGrad = histogramCtx.createLinearGradient(speedX, speedBarY, speedX + b, speedBarY);
-        leftGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-        leftGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        // Left edge (lighter gradient)
+        const leftGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY, speedBarStartX + sb, speedBarY);
+        leftGrad.addColorStop(0, speedColorLight);
+        leftGrad.addColorStop(1, speedColor);
         histogramCtx.fillStyle = leftGrad;
-        histogramCtx.fillRect(speedX, speedBarY, b, speedBonusBarHeight);
+        histogramCtx.fillRect(speedBarStartX, speedBarY, sb, speedBonusBarHeight);
         
-        // Right edge (darker)
-        const rightGrad = histogramCtx.createLinearGradient(speedX + speedBarWidth - b, speedBarY, speedX + speedBarWidth, speedBarY);
-        rightGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        rightGrad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        // Bottom edge (darker gradient)
+        const bottomGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY + speedBonusBarHeight - sb, speedBarStartX, speedBarY + speedBonusBarHeight);
+        bottomGrad.addColorStop(0, speedColor);
+        bottomGrad.addColorStop(1, speedColorDark);
+        histogramCtx.fillStyle = bottomGrad;
+        histogramCtx.fillRect(speedBarStartX, speedBarY + speedBonusBarHeight - sb, speedBarActualWidth, sb);
+        
+        // Right edge (darker gradient)
+        const rightGrad = histogramCtx.createLinearGradient(speedBarStartX + speedBarActualWidth - sb, speedBarY, speedBarStartX + speedBarActualWidth, speedBarY);
+        rightGrad.addColorStop(0, speedColor);
+        rightGrad.addColorStop(1, speedColorDark);
         histogramCtx.fillStyle = rightGrad;
-        histogramCtx.fillRect(speedX + speedBarWidth - b, speedBarY, b, speedBonusBarHeight);
+        histogramCtx.fillRect(speedBarStartX + speedBarActualWidth - sb, speedBarY, sb, speedBonusBarHeight);
     }
     
-    // Draw "SPEED" label and value
+    // Draw value at end of bar
     histogramCtx.save();
     histogramCtx.fillStyle = '#FFFFFF';
     histogramCtx.font = 'bold 11px Arial';
     histogramCtx.textAlign = 'left';
     histogramCtx.textBaseline = 'middle';
-    const labelX = speedX + speedBarWidth + 8;
-    const labelY = speedBarY + speedBonusBarHeight / 2;
-    histogramCtx.fillText(`SPEED ${speedBonusHistogramBar.toFixed(2)}x`, labelX, labelY);
+    const valueX = speedBarStartX + speedBarActualWidth + 8;
+    histogramCtx.fillText(`${speedBonusHistogramBar.toFixed(2)}x`, valueX, speedLabelY);
     histogramCtx.restore();
     
     // ========== MAIN HISTOGRAM (shifted down) ==========
@@ -9305,15 +9324,18 @@ function clearLines() {
             setTimeout(() => {
                 if (!gameRunning || paused) return;
                 
-                // Determine probability based on difficulty level
+                // Determine base probability based on difficulty level
                 let eventProbability = 0;
                 switch(gameMode) {
                     case 'drizzle': eventProbability = 0.04; break; // 4%
                     case 'downpour': eventProbability = 0.08; break; // 8%
                     case 'hailstorm': eventProbability = 0.12; break; // 12%
-                    case 'blizzard': eventProbability = 0.16; break; // 16%
-                    case 'hurricane': eventProbability = 0.20; break; // 20%
+                    case 'blizzard': eventProbability = 0.10; break; // 10%
+                    case 'hurricane': eventProbability = 0.14; break; // 14%
                 }
+                
+                // Multiply by player's speed bonus (faster play = more events)
+                eventProbability *= speedBonusAverage;
                 
                 // Check if event should occur
                 if (Math.random() < eventProbability) {

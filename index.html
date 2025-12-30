@@ -636,7 +636,7 @@
         .rules-title {
             font-size: 2.2vh;
             font-weight: bold;
-            margin-bottom: 1.5vh;
+            margin-bottom: 0.5vh;
             text-align: center;
         }
         .rules-section {
@@ -656,6 +656,9 @@
         .rules-section li {
             margin-bottom: 3px;
         }
+		.rules-section div {
+			padding: 0 0 12px;
+		}
         .tsunami-scoring {
             display: inline-block;
             margin-top: 0.5em;
@@ -2098,44 +2101,60 @@
                 
                 <div class="rules-section">
                     <h3>🎮 Goal</h3>
-                    Stack colored blocks to form <i>blobs</i> (connected groups of blocks of a single color). Clear rows to break up blobs and score points!
+                    Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!
+					But watch out for <i>tornadoes</i> and <i>earthquakes</i>!
                 </div>
                 
                 <div class="rules-section">
                     <h3>✨ Special Events</h3>
-                    <strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points!
-                    <br><br>
-                    <strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the ENTIRE blob clears for massive points!
-                    <br><br>
-                    <strong>🌋 Volcano:</strong> When a blob touching any edge is surrounded by another blob and the edge, it turns to lava, erupting upward and raining down as single blocks. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
-                    <br><br>
-                    <strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in ALL blocks from both blobs for huge points!
+                    <div>
+						<strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points!
+                    </div>
+                    <div>
+						<strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the <i>entire</i> blob clears for massive points!
+                    </div>
+                    <div>
+						<strong>🌋 Volcano:</strong> When a blob touching any edge is surrounded by another blob and the edge, it turns to lava, erupting upward and raining down as single blocks. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
+                    </div>
+					<div style="padding: 0">
+						<strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in <i>all</i> blocks from both blobs for huge points!
+					</div>
                 </div>
                 
                 <div class="rules-section">
                     <h3>📊 Scoring</h3>
-                    <strong>Level:</strong> Increases as you clear lines (every 11 lines = +1 level). Higher levels mean faster piece drops and higher score multipliers!
-                    <br><br>
-                    <strong>Normal:</strong> (Blob Size)² × Blocks Cleared × 100 × Level
-                    <ul>
-                        <li>Bigger blobs = exponentially more points!</li>
-                    </ul>
-					<br>
-                    <strong>Strike:</strong> 2× all points
-                    <br><br>
-                    <strong>Tsunami:</strong> (Size)³ × 200 × Level
-                    <br><br>
-                    <strong>Volcano:</strong>
-                    <ul>
-                        <li>Inner (lava): (Size)³ × 500 × Level</li>
-                        <li>Lava in lines: 2<sup>n</sup> multiplier (n = # of lava segments)</li>
-                    </ul>
-					<br>
-                    <strong>Black Hole:</strong>
-                    <ul>
-                        <li>Inner (core): (Size)³ × 800 × Level</li>
-                        <li>Outer (sucked in): (Size)³ × 800 × Level</li>
-                    </ul>
+                    <div>
+						<strong>Level:</strong> Increases as you clear lines (every 11 lines = +1 level). Higher levels mean faster falling pieces and higher score multipliers!
+                    </div>
+                    <div>
+						<strong>Normal:</strong> (Blob Size)² × Blocks Cleared × 100 × Level
+						<ul>
+							<li>Bigger blobs = exponentially more points!</li>
+						</ul>
+					</div>
+                    <div>
+						<strong>Strike:</strong> 2× all points
+                    </div>
+                    <div>
+						<strong>Tsunami:</strong> (Blob Size)³ × 200 × Level
+                    </div>
+					<div>
+						<strong>Volcano:</strong>
+						<ul>
+							<li>Inner (lava): (Blob Size)³ × 500 × Level</li>
+							<li>Lava in lines: 2<sup>n</sup> multiplier (n = # of lava segments)</li>
+						</ul>
+					</div>
+					<div>
+						<strong>Black Hole:</strong>
+						<ul>
+							<li>Inner (core): (Blob Size)³ × 800 × Level</li>
+							<li>Outer (sucked in): (Blob Size)³ × 800 × Level</li>
+						</ul>
+					</div>
+					<div style="padding: 0">
+						<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.  But beware: faster drops also mean more frequent <i>tornadoes</i> and <i>earthquakes</i>!
+					</div>
                 </div>
             </div>
             
