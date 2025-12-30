@@ -4827,6 +4827,10 @@ function applyScoreModifiers(points) {
 // Special event counters for leaderboard
 let strikeCount = 0;
 let tsunamiCount = 0;
+
+// Cascade bonus tracking
+let cascadeLevel = 0; // 0 = initial clear (1x), 1 = first cascade (2x), 2 = second cascade (3x), etc.
+let cascadeBonusDisplay = null; // { text, startTime, duration }
 let blackHoleCount = 0;
 let volcanoCount = 0;
 
@@ -6643,6 +6647,77 @@ function updateHistogram() {
     }
 }
 
+// Draw cascade bonus notification in the upper third of the well
+function drawCascadeBonus() {
+    if (!cascadeBonusDisplay) return;
+    
+    const elapsed = Date.now() - cascadeBonusDisplay.startTime;
+    if (elapsed > cascadeBonusDisplay.duration) {
+        cascadeBonusDisplay = null;
+        return;
+    }
+    
+    // Fade in quickly, hold, then fade out
+    const fadeInTime = 200;
+    const fadeOutTime = 400;
+    const holdTime = cascadeBonusDisplay.duration - fadeInTime - fadeOutTime;
+    
+    let alpha;
+    if (elapsed < fadeInTime) {
+        alpha = elapsed / fadeInTime;
+    } else if (elapsed < fadeInTime + holdTime) {
+        alpha = 1;
+    } else {
+        alpha = 1 - (elapsed - fadeInTime - holdTime) / fadeOutTime;
+    }
+    
+    // Scale animation - pop in effect
+    let scale = 1;
+    if (elapsed < fadeInTime) {
+        scale = 0.5 + 0.6 * (elapsed / fadeInTime); // Start at 0.5, overshoot to 1.1
+        if (scale > 1) scale = 1 + (1.1 - scale) * 0.5; // Bounce back
+    }
+    
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    
+    // Position in upper third of the well
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 6; // Upper third
+    
+    ctx.translate(centerX, centerY);
+    ctx.scale(scale, scale);
+    
+    // Draw glowing text
+    const text = cascadeBonusDisplay.text;
+    ctx.font = 'bold 28px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Glow effect
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillText(text, 0, 0);
+    
+    // Brighter inner text
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(text, 0, 0);
+    
+    ctx.restore();
+}
+
+// Trigger cascade bonus display
+function showCascadeBonus(multiplier) {
+    cascadeBonusDisplay = {
+        text: `CASCADE x${multiplier}`,
+        startTime: Date.now(),
+        duration: 1500
+    };
+    console.log(`🔥 Cascade Bonus x${multiplier}!`);
+}
+
 function drawHistogram() {
     if (!gameRunning || !histogramCanvas || histogramCanvas.style.display === 'none') return;
     
@@ -7159,6 +7234,9 @@ function drawShadowPiece(piece) {
 
 function mergePiece() {
     if (!currentPiece || !currentPiece.shape) return;
+    
+    // Reset cascade level for new piece placement
+    cascadeLevel = 0;
     
     // Record speed bonus for this piece
     const pieceBonus = calculatePieceSpeedBonus(Date.now());
@@ -8828,6 +8906,9 @@ function updateFallingBlocks() {
         // Check for black holes and tsunamis after gravity settles
         checkForSpecialFormations();
         
+        // Increment cascade level for gravity-triggered clears
+        cascadeLevel++;
+        
         // DON'T call applyGravity here - the multi-pass simulation already handled everything!
         // Just check for line clears
         clearLines();
@@ -9128,6 +9209,13 @@ function clearLines() {
         // Apply strike bonus
         if (isStrike) {
             pointsEarned *= 2;
+        }
+        
+        // Apply cascade bonus (cascadeLevel 0 = no bonus, 1 = 2x, 2 = 3x, etc.)
+        if (cascadeLevel > 0) {
+            const cascadeMultiplier = cascadeLevel + 1;
+            pointsEarned *= cascadeMultiplier;
+            showCascadeBonus(cascadeMultiplier);
         }
         
         const scoreIncrease = applyScoreModifiers(pointsEarned * level);
@@ -9495,6 +9583,7 @@ function dropPiece() {
         });
         
         if (extendsAboveTop) {
+            currentPiece = null; // Clear piece to prevent drawing overlap
             gameOver();
             return;
         }
@@ -9502,6 +9591,7 @@ function dropPiece() {
         // Check if piece at current position still overlaps with existing blocks
         // This can happen if the piece spawned in an invalid position
         if (collides(currentPiece)) {
+            currentPiece = null; // Clear piece to prevent drawing overlap
             gameOver();
             return;
         }
@@ -9556,6 +9646,7 @@ function dropPiece() {
                 gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
             }
         } else {
+            currentPiece = null; // Clear piece before game over
             gameOver();
         }
     }
@@ -9912,6 +10003,7 @@ function update(time = 0) {
     drawVolcano(); // Draw volcano lava and projectiles
     drawTornado(); // Draw tornado on top of board
     drawDisintegrationParticles(); // Draw explosion particles on top
+    drawCascadeBonus(); // Draw cascade bonus notification
     drawBouncingPieces(); // Draw bouncing pieces (Rubber & Glue mode)
     if (currentPiece && currentPiece.shape) {
         drawShadowPiece(currentPiece);
@@ -10119,6 +10211,8 @@ function startGame(mode) {
     strikeCount = 0;
     tsunamiCount = 0;
     blackHoleCount = 0;
+    cascadeLevel = 0;
+    cascadeBonusDisplay = null;
     gameStartTime = Date.now(); // Track game duration
     volcanoCount = 0;
     currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey
