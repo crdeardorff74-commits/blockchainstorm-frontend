@@ -6688,9 +6688,12 @@ function drawCascadeBonus() {
     ctx.translate(centerX, centerY);
     ctx.scale(scale, scale);
     
-    // Draw glowing text
+    // Draw glowing text - size increases with multiplier
     const text = cascadeBonusDisplay.text;
-    ctx.font = 'bold 28px "Press Start 2P", monospace';
+    const baseSize = 24;
+    const sizeIncrease = 4 * (cascadeBonusDisplay.multiplier - 2); // x2 = 24px, x3 = 28px, x4 = 32px, etc.
+    const fontSize = baseSize + Math.max(0, sizeIncrease);
+    ctx.font = `bold ${fontSize}px "Press Start 2P", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
@@ -6711,7 +6714,8 @@ function drawCascadeBonus() {
 // Trigger cascade bonus display
 function showCascadeBonus(multiplier) {
     cascadeBonusDisplay = {
-        text: `CASCADE x${multiplier}`,
+        text: `Cascade Bonus x${multiplier}`,
+        multiplier: multiplier,
         startTime: Date.now(),
         duration: 1500
     };
