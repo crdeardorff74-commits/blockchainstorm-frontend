@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -765,6 +765,88 @@ const modeButtons = document.querySelectorAll('.mode-button');
 const gameOverDiv = document.getElementById('gameOver');
 const playAgainBtn = document.getElementById('playAgainBtn');
 
+// End Credits System
+let creditsAnimationId = null;
+let creditsScrollY = 0;
+let creditsContentHeight = 0;
+let creditsMusicTimeoutId = null;
+
+function getCreditsElements() {
+    return {
+        overlay: document.getElementById('creditsOverlay'),
+        scroll: document.getElementById('creditsScroll')
+    };
+}
+
+function startCreditsAnimation() {
+    console.log('startCreditsAnimation called');
+    
+    const { overlay: creditsOverlay, scroll: creditsScroll } = getCreditsElements();
+    console.log('creditsOverlay:', creditsOverlay);
+    console.log('creditsScroll:', creditsScroll);
+    
+    if (!creditsOverlay || !creditsScroll) {
+        console.error('Credits elements not found! creditsOverlay:', creditsOverlay, 'creditsScroll:', creditsScroll);
+        return;
+    }
+    
+    // Get the height of the screen
+    const screenHeight = window.innerHeight;
+    
+    // Show the overlay FIRST so we can measure content height
+    creditsOverlay.style.display = 'block';
+    
+    // Start off-screen initially
+    creditsScrollY = screenHeight;
+    creditsScroll.style.top = creditsScrollY + 'px';
+    
+    // Use requestAnimationFrame to ensure DOM is rendered before measuring
+    requestAnimationFrame(() => {
+        // Now get content height (must be after display:block and render)
+        const creditsContent = creditsScroll.querySelector('.credits-content');
+        creditsContentHeight = creditsContent ? creditsContent.offsetHeight : 0;
+        console.log('Credits content height:', creditsContentHeight, 'Screen height:', screenHeight);
+        
+        if (creditsContentHeight === 0) {
+            console.error('Credits content height is 0! creditsContent:', creditsContent);
+            return;
+        }
+        
+        // Animate the scroll
+        function animateCredits() {
+            creditsScrollY -= 0.5; // Scroll speed (pixels per frame)
+            creditsScroll.style.top = creditsScrollY + 'px';
+            
+            // Stop when all content has scrolled past the top (bottom of content reaches top of screen)
+            if (creditsScrollY + creditsContentHeight > 0) {
+                creditsAnimationId = requestAnimationFrame(animateCredits);
+            } else {
+                // Animation complete - stop but keep overlay visible
+                console.log('Credits animation complete');
+                creditsAnimationId = null;
+            }
+        }
+        
+        creditsAnimationId = requestAnimationFrame(animateCredits);
+    });
+}
+
+function stopCreditsAnimation() {
+    if (creditsAnimationId) {
+        cancelAnimationFrame(creditsAnimationId);
+        creditsAnimationId = null;
+    }
+    const { overlay: creditsOverlay } = getCreditsElements();
+    if (creditsOverlay) {
+        creditsOverlay.style.display = 'none';
+    }
+    // Also cancel pending music start
+    if (creditsMusicTimeoutId) {
+        clearTimeout(creditsMusicTimeoutId);
+        creditsMusicTimeoutId = null;
+    }
+}
+
 // Pre-render blurred snowflakes for performance
 const snowflakeBitmaps = [];
 function createSnowflakeBitmaps() {
@@ -970,7 +1052,7 @@ const finalStatsDisplay = document.getElementById('finalStats');
 const planetStatsDiv = document.getElementById('planetStats');
 const planetStatsContent = document.getElementById('planetStatsContent');
 const soundToggle = document.getElementById('soundToggle');
-const musicToggle = document.getElementById('musicToggle');
+const musicSelect = document.getElementById('musicSelect');
 // trainingWheelsToggle removed - shadow is now standard (use Shadowless challenge for +4% bonus)
 const stormEffectsToggle = document.getElementById('stormEffectsToggle');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -3272,6 +3354,20 @@ function updateEarthquake() {
             // Apply the shift to the board
             applyEarthquakeShift();
             
+            // CRITICAL FIX: After earthquake shift, blocks may have moved into currentPiece's space
+            // Push the piece up until it's no longer colliding
+            if (currentPiece && collides(currentPiece)) {
+                console.log('🌍 Earthquake shifted blocks into current piece location - pushing piece up');
+                let safetyCounter = 0;
+                while (collides(currentPiece) && safetyCounter < 10) {
+                    currentPiece.y--;
+                    safetyCounter++;
+                }
+                if (safetyCounter >= 10) {
+                    console.log('🌍 Could not find safe position for piece after earthquake');
+                }
+            }
+            
             console.log('🌍 Earthquake complete, applying gravity');
             // Check for line clears and apply gravity
             applyGravity();
@@ -4871,7 +4967,7 @@ function togglePause() {
     if (!gameRunning) return;
     
     const settingsBtn = document.getElementById('settingsBtn');
-    const musicToggle = document.getElementById('musicToggle');
+    const musicSelect = document.getElementById('musicSelect');
     const pauseBtn = document.getElementById('pauseBtn');
     
     if (paused) {
@@ -4881,8 +4977,8 @@ function togglePause() {
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
         // Show pause button again (only in tablet mode)
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
-        if (musicToggle && musicToggle.checked) {
-            startMusic(gameMode, musicToggle);
+        if (musicSelect && musicSelect.value !== 'none') {
+            startMusic(gameMode, musicSelect);
         }
     } else {
         // Pause
@@ -8907,6 +9003,20 @@ function updateFallingBlocks() {
         gravityAnimating = false;
         fallingBlocks = [];
         
+        // CRITICAL FIX: After gravity, blocks may have fallen into currentPiece's space
+        // Push the piece up until it's no longer colliding
+        if (currentPiece && collides(currentPiece)) {
+            console.log('🎬 Gravity moved blocks into current piece location - pushing piece up');
+            let safetyCounter = 0;
+            while (collides(currentPiece) && safetyCounter < 10) {
+                currentPiece.y--;
+                safetyCounter++;
+            }
+            if (safetyCounter >= 10) {
+                console.log('🎬 Could not find safe position for piece after gravity');
+            }
+        }
+        
         // Check for black holes and tsunamis after gravity settles
         checkForSpecialFormations();
         
@@ -9587,7 +9697,9 @@ function dropPiece() {
         });
         
         if (extendsAboveTop) {
-            currentPiece = null; // Clear piece to prevent drawing overlap
+            // Merge visible parts of the piece to the board so they remain visible
+            mergePiece();
+            currentPiece = null;
             gameOver();
             return;
         }
@@ -9595,7 +9707,9 @@ function dropPiece() {
         // Check if piece at current position still overlaps with existing blocks
         // This can happen if the piece spawned in an invalid position
         if (collides(currentPiece)) {
-            currentPiece = null; // Clear piece to prevent drawing overlap
+            // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
+            mergePiece();
+            currentPiece = null;
             gameOver();
             return;
         }
@@ -9786,6 +9900,7 @@ async function gameOver() {
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
+    setHasPlayedGame(true); // Switch menu music to End Credits version
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
     
@@ -9855,20 +9970,143 @@ async function gameOver() {
     console.log('Is top twenty:', isTopTen);
     
     if (isTopTen && window.leaderboard) {
-        // DON'T show game over div - go straight to name prompt
+        // DON'T show game over div yet - go to name prompt first
+        // Credits and music will start after score submission via onScoreSubmitted callback
         console.log('Score is top 20! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
-        window.leaderboard.promptForName(scoreData);
+        
+        // Pass callback if leaderboard supports it, also set up fallback detection
+        window.leaderboard.promptForName(scoreData, onScoreSubmitted);
+        
+        // Fallback: Watch for leaderboard popup to close if callback isn't called
+        startLeaderboardCloseDetection();
     } else {
-        // Score didn't make top 20, show game over div and leaderboard
+        // Score didn't make top 20, show game over div, credits, and music immediately
         console.log('Score did not make top 20, displaying game over and leaderboard');
-        gameOverDiv.style.display = 'block';
+        showGameOverScreen();
         if (window.leaderboard) {
             await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
             // Send notification for non-high-score game completion
             window.leaderboard.notifyGameCompletion(scoreData);
         }
     }
+}
+
+// Called after high score submission is complete
+let scoreSubmittedHandled = false;
+
+function onScoreSubmitted() {
+    if (scoreSubmittedHandled) {
+        console.log('onScoreSubmitted already handled, skipping');
+        return;
+    }
+    scoreSubmittedHandled = true;
+    
+    console.log('=== onScoreSubmitted called ===');
+    stopLeaderboardCloseDetection();
+    showGameOverScreen();
+    console.log('=== onScoreSubmitted complete ===');
+}
+
+// Expose globally so leaderboard.js can call it
+window.onScoreSubmitted = onScoreSubmitted;
+
+// Fallback detection for when leaderboard popup closes
+let leaderboardCloseInterval = null;
+let leaderboardCloseObserver = null;
+let leaderboardTimeoutId = null;
+
+function startLeaderboardCloseDetection() {
+    // Stop any existing detection
+    stopLeaderboardCloseDetection();
+    
+    // Method 1: Timeout fallback - show game over after 5 seconds no matter what
+    // (Server usually responds in <1 second, so this is just a safety net)
+    leaderboardTimeoutId = setTimeout(() => {
+        console.log('Leaderboard timeout reached');
+        console.log('gameOverDiv.style.display:', gameOverDiv.style.display);
+        console.log('gameRunning:', gameRunning);
+        
+        // Always call onScoreSubmitted on timeout - even if game over is showing,
+        // we need to start the credits animation
+        if (!gameRunning) {
+            console.log('Calling onScoreSubmitted from timeout');
+            onScoreSubmitted();
+        } else {
+            console.log('Game is running, skipping onScoreSubmitted');
+        }
+    }, 5000); // 5 second timeout
+    
+    // Method 2: Poll for leaderboard overlay disappearing
+    leaderboardCloseInterval = setInterval(() => {
+        const leaderboardOverlay = document.querySelector('.leaderboard-overlay, .name-entry-overlay, [class*="leaderboard"][class*="overlay"]');
+        const namePrompt = document.querySelector('.name-prompt, .score-entry, [class*="name"][class*="prompt"]');
+        
+        // If neither popup is visible and game over screen isn't showing yet
+        if (!leaderboardOverlay && !namePrompt && gameOverDiv.style.display !== 'block') {
+            // Check if we're not in a game (gameRunning would be true if we started a new game)
+            if (!gameRunning && !modeMenu.classList.contains('hidden') === false) {
+                console.log('Leaderboard popup closed (detected via polling)');
+                onScoreSubmitted();
+            }
+        }
+    }, 500);
+    
+    // Method 3: MutationObserver to watch for DOM changes
+    leaderboardCloseObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            for (const node of mutation.removedNodes) {
+                if (node.nodeType === 1) { // Element node
+                    const isLeaderboardPopup = node.classList && (
+                        node.classList.contains('leaderboard-overlay') ||
+                        node.classList.contains('name-entry-overlay') ||
+                        node.classList.contains('name-prompt')
+                    );
+                    if (isLeaderboardPopup && gameOverDiv.style.display !== 'block') {
+                        console.log('Leaderboard popup closed (detected via MutationObserver)');
+                        onScoreSubmitted();
+                        return;
+                    }
+                }
+            }
+        }
+    });
+    
+    leaderboardCloseObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopLeaderboardCloseDetection() {
+    if (leaderboardCloseInterval) {
+        clearInterval(leaderboardCloseInterval);
+        leaderboardCloseInterval = null;
+    }
+    if (leaderboardCloseObserver) {
+        leaderboardCloseObserver.disconnect();
+        leaderboardCloseObserver = null;
+    }
+    if (leaderboardTimeoutId) {
+        clearTimeout(leaderboardTimeoutId);
+        leaderboardTimeoutId = null;
+    }
+}
+
+// Show game over popup, start credits animation, and play end credits music
+function showGameOverScreen() {
+    console.log('showGameOverScreen called');
+    console.log('gameOverDiv:', gameOverDiv);
+    gameOverDiv.style.display = 'block';
+    console.log('About to call startCreditsAnimation');
+    startCreditsAnimation();
+    console.log('startCreditsAnimation returned');
+    
+    // Delay music start by 3 seconds after credits begin
+    creditsMusicTimeoutId = setTimeout(() => {
+        console.log('Starting credits music after 3 second delay');
+        // Stop any existing menu music and restart with end credits
+        stopMenuMusic();
+        startMenuMusic(musicSelect); // This will play End Credits version since hasPlayedGame is true
+        creditsMusicTimeoutId = null;
+    }, 3000);
 }
 
 function update(time = 0) {
@@ -10070,6 +10308,11 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // Stop any running credits animation
+    stopCreditsAnimation();
+    stopLeaderboardCloseDetection();
+    scoreSubmittedHandled = false; // Reset for new game
+    
     // Hide leaderboard if it was shown
     if (window.leaderboard && window.leaderboard.hideLeaderboard) {
         window.leaderboard.hideLeaderboard();
@@ -10083,9 +10326,9 @@ function startGame(mode) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // If in developer mode, turn off music
-    if (developerMode && musicToggle.checked) {
-        musicToggle.checked = false;
-        musicToggle.dispatchEvent(new Event('change'));
+    if (developerMode && musicSelect.value !== 'none') {
+        musicSelect.value = 'none';
+        musicSelect.dispatchEvent(new Event('change'));
         console.log('🔇 Developer Mode: Music disabled');
     }
     
@@ -10382,7 +10625,7 @@ function startGame(mode) {
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
     stopMenuMusic();
-    startMusic(gameMode, musicToggle);
+    startMusic(gameMode, musicSelect);
     update();
 }
 
@@ -10414,8 +10657,8 @@ document.addEventListener('keydown', e => {
             // Show pause button again (only in tablet mode)
             const pauseBtn = document.getElementById('pauseBtn');
             if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
-            if (musicToggle.checked) {
-                startMusic(gameMode, musicToggle);
+            if (musicSelect.value !== 'none') {
+                startMusic(gameMode, musicSelect);
             }
             return;
         }
@@ -10615,6 +10858,8 @@ function updateSelectedMode() {
 updateSelectedMode();
 
 playAgainBtn.addEventListener('click', () => {
+    stopCreditsAnimation();
+    stopLeaderboardCloseDetection();
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
     document.body.classList.remove('game-started');
@@ -10653,7 +10898,7 @@ playAgainBtn.addEventListener('click', () => {
     
     // Don't call drawBoard() here - it draws the semi-transparent background
     // The canvas has already been cleared above, leave it transparent for menu
-    startMenuMusic(musicToggle);
+    startMenuMusic(musicSelect);
     // Select the last played mode
     if (lastPlayedMode) {
         const modeIndex = modeButtonsArray.findIndex(btn => btn.getAttribute('data-mode') === lastPlayedMode);
@@ -10695,8 +10940,8 @@ settingsCloseBtn.addEventListener('click', () => {
         const pauseBtn = document.getElementById('pauseBtn');
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
         // Don't toggle UI - keep histogram visible
-        if (musicToggle.checked) {
-            startMusic(gameMode, musicToggle);
+        if (musicSelect.value !== 'none') {
+            startMusic(gameMode, musicSelect);
         }
     }
 });
@@ -10755,17 +11000,20 @@ function applyMinimalistMode() {
     }
 }
 
-musicToggle.addEventListener('change', (e) => {
-    if (!e.target.checked) {
+musicSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'none') {
         stopMusic();
         stopMenuMusic();
-    } else if (e.target.checked) {
-        // When turning music on, start appropriate music
-        // The start functions already check if music is already playing
+    } else {
+        // When changing music selection, start the selected track
         if (gameRunning) {
-            startMusic(gameMode, musicToggle);
+            stopMusic(); // Stop current track first
+            startMusic(gameMode, musicSelect);
         } else {
-            startMenuMusic(musicToggle);
+            // On menu - stop menu music and play selected track as preview
+            stopMenuMusic();
+            stopMusic();
+            startMusic(null, musicSelect);
         }
     }
 });
@@ -11156,9 +11404,9 @@ if (dontPanicText) {
                 '👤 Developer Mode DEACTIVATED');
             
             // Immediately turn off music if developer mode is activated
-            if (developerMode && musicToggle.checked) {
-                musicToggle.checked = false;
-                musicToggle.dispatchEvent(new Event('change'));
+            if (developerMode && musicSelect.value !== 'none') {
+                musicSelect.value = 'none';
+                musicSelect.dispatchEvent(new Event('change'));
                 console.log('🔇 Developer Mode: Music disabled');
             }
         }
@@ -11470,16 +11718,36 @@ if (startOverlay) {
     // Get intro screen elements
     const startGameBtn = document.getElementById('startGameBtn');
     const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
-    const introMusicCheckbox = document.getElementById('introMusicCheckbox');
+    const introMusicSelect = document.getElementById('introMusicSelect');
     const introSoundCheckbox = document.getElementById('introSoundCheckbox');
     const introLoginBtn = document.getElementById('introLoginBtn');
     
-    // Sync intro toggles with settings toggles on load
-    if (introMusicCheckbox && musicToggle) {
-        introMusicCheckbox.checked = musicToggle.checked;
-        introMusicCheckbox.addEventListener('change', () => {
-            musicToggle.checked = introMusicCheckbox.checked;
-            musicToggle.dispatchEvent(new Event('change'));
+    // Sync intro music select with settings music select on load
+    if (introMusicSelect && musicSelect) {
+        // Sync initial value
+        introMusicSelect.value = musicSelect.value;
+        
+        // When intro select changes, sync to settings and play preview
+        introMusicSelect.addEventListener('change', () => {
+            musicSelect.value = introMusicSelect.value;
+            
+            // Resume audio context if needed (required by browsers)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Stop any currently playing music
+            stopMusic();
+            
+            // Play preview of selected song (if not 'none')
+            if (introMusicSelect.value !== 'none') {
+                startMusic(null, introMusicSelect);
+            }
+        });
+        
+        // When settings select changes, sync back to intro
+        musicSelect.addEventListener('change', () => {
+            introMusicSelect.value = musicSelect.value;
         });
     }
     if (introSoundCheckbox && soundToggle) {
@@ -11535,9 +11803,11 @@ if (startOverlay) {
         }
         // Remove overlay
         startOverlay.style.display = 'none';
+        // Stop any preview music that was playing from intro screen
+        stopMusic();
         // Start menu music (only if music is enabled)
-        if (musicToggle.checked) {
-            startMenuMusic(musicToggle);
+        if (musicSelect.value !== 'none') {
+            startMenuMusic(musicSelect);
         }
     }
     

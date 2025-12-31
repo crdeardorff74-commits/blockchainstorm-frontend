@@ -55,7 +55,6 @@ const SettingsSync = {
         
         // Checkboxes
         const checkboxes = [
-            'musicToggle',
             'soundToggle', 
             'stormEffectsToggle',
             'cameraOrientationToggle',
@@ -66,6 +65,18 @@ const SettingsSync = {
             const elem = document.getElementById(id);
             if (elem) {
                 settings[id] = elem.checked;
+            }
+        });
+        
+        // Select dropdowns
+        const selects = [
+            'musicSelect'
+        ];
+        
+        selects.forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) {
+                settings[id] = elem.value;
             }
         });
         
@@ -98,7 +109,6 @@ const SettingsSync = {
         
         // Apply checkboxes
         const checkboxes = [
-            'musicToggle',
             'soundToggle',
             'stormEffectsToggle', 
             'cameraOrientationToggle',
@@ -111,6 +121,25 @@ const SettingsSync = {
                 elem.checked = settings[id];
                 // Trigger change event so game code responds
                 elem.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        // Apply select dropdowns
+        const selects = [
+            'musicSelect'
+        ];
+        
+        selects.forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem && settings[id] !== undefined) {
+                elem.value = settings[id];
+                // Trigger change event so game code responds
+                elem.dispatchEvent(new Event('change'));
+                // Also sync intro music select if it exists
+                const introSelect = document.getElementById('introMusicSelect');
+                if (introSelect) {
+                    introSelect.value = settings[id];
+                }
             }
         });
         
@@ -256,7 +285,6 @@ const SettingsSync = {
      */
     attachListeners() {
         const checkboxes = [
-            'musicToggle',
             'soundToggle',
             'stormEffectsToggle',
             'cameraOrientationToggle',
@@ -266,6 +294,24 @@ const SettingsSync = {
         let attachedCount = 0;
         
         checkboxes.forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) {
+                elem.addEventListener('change', () => {
+                    console.log(`⚙️ Setting changed: ${id}`);
+                    this.saveSettings();
+                });
+                attachedCount++;
+            } else {
+                console.warn(`⚙️ Element not found: ${id}`);
+            }
+        });
+        
+        // Select dropdowns
+        const selects = [
+            'musicSelect'
+        ];
+        
+        selects.forEach(id => {
             const elem = document.getElementById(id);
             if (elem) {
                 elem.addEventListener('change', () => {

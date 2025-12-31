@@ -44,7 +44,7 @@
             overflow: hidden;
         }
         html:has(body.game-running), body.game-running {
-            overflow: visible;
+            overflow: hidden;
         }
         body {
             margin: 0;
@@ -636,13 +636,13 @@
         .rules-title {
             font-size: 2.2vh;
             font-weight: bold;
-            margin-bottom: 0vh;
+            margin-bottom: 0.5vh;
             text-align: center;
         }
         .rules-section {
             margin-bottom: 10px;
             font-size: clamp(10.56px, 1.37vh, 14.78px);
-            line-height: 1.2;
+            line-height: 1.3;
         }
         .rules-section h3 {
             font-size: clamp(12.67px, 1.58vh, 16.9px);
@@ -766,18 +766,121 @@
         }
         .game-over {
             position: fixed;
-            top: 50%;
+            top: 12%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
             color: white;
-            padding: 30px 50px;
+            padding: 15px 30px;
             border-radius: 10px;
             text-align: center;
-            font-size: 24px;
+            font-size: 20px;
             display: none;
-            min-width: 250px;
-            z-index: 1000;
+            min-width: 200px;
+            z-index: 1001;
+            border: 2px solid rgba(255, 215, 0, 0.5);
+        }
+        
+        /* End Credits Overlay */
+        .credits-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            overflow: hidden;
+            z-index: 998;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .credits-scroll {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+        }
+        
+        .credits-content {
+            padding: 20px;
+        }
+        
+        .credits-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 60px;
+            color: #FFD700;
+        }
+		
+		.credits-ai {
+			color: #FFFAAA;
+		}
+        
+        .credits-section {
+            margin-bottom: 40px;
+        }
+        
+        .credits-row {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .credits-role {
+            width: 170px;
+            text-align: left;
+            color: #aaa;
+        }
+        
+        .credits-name {
+            width: 240px;
+            text-align: left;
+            color: #fff;
+        }
+        
+        .credits-thanks {
+            font-size: 18px;
+            color: #FFD700;
+            margin: 60px 0;
+        }
+        
+        .credits-disclaimer {
+            font-size: 16px;
+            color: #888;
+            margin: 15px 0;
+        }
+        
+        .credits-copyright {
+            font-size: 18px;
+            color: #aaa;
+            margin-top: 60px;
+        }
+        
+        .credits-link {
+            font-size: 16px;
+            color: #4da6ff;
+            margin-top: 15px;
+        }
+        
+        .credits-easter {
+            font-size: 18px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .credits-spacer {
+            height: 80px;
+        }
+        
+        .credits-spacer-large {
+            height: 200px;
+        }
+        
+        .credits-spacer-final {
+            height: 100vh;
         }
         .start-overlay {
             position: fixed;
@@ -842,10 +945,11 @@
             padding: 12px 24px;
             border-radius: 8px;
             border: 2px solid rgba(255, 255, 255, 0.3);
-            min-width: 220px;
+            width: 280px;
             justify-content: space-between;
             cursor: pointer;
             transition: all 0.2s;
+            box-sizing: border-box;
         }
         .intro-toggle:hover {
             background: rgba(50, 80, 140, 0.9);
@@ -858,6 +962,10 @@
         }
         .intro-toggle .toggle-switch {
             flex-shrink: 0;
+        }
+        .intro-toggle select {
+            flex: 1;
+            max-width: 160px;
         }
         .start-game-btn {
             margin-top: 20px;
@@ -2027,10 +2135,20 @@
             </label>
             <label class="intro-toggle">
                 <span class="intro-toggle-label">Music</span>
-                <div class="toggle-switch">
-                    <input type="checkbox" id="introMusicCheckbox" checked>
-                    <span class="toggle-slider"></span>
-                </div>
+                <select id="introMusicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
+                    <option value="shuffle">🎲 Shuffle</option>
+                    <option value="none">🔇 None</option>
+                    <option value="falling_blocks">Falling Blocks Reactor</option>
+                    <option value="cascade">Cascade of Colored Bricks</option>
+                    <option value="wind_fire">Wind & Fire</option>
+                    <option value="wind_fire_soot">Wind & Fire & Soot</option>
+                    <option value="cosmic_reggae">Cosmic Reggae</option>
+                    <option value="cosmic_reggae_reverb">Cosmic Reggae Reverb</option>
+                    <option value="symphonic_fog">Symphonic Fog</option>
+                    <option value="cascade_void_nervous">Cascade into the Void (Nervous)</option>
+                    <option value="cascade_void_intro">TaNTЯiS (Intro)</option>
+                    <option value="cascade_void_credits">Cascade into the Void (Credits)</option>
+                </select>
             </label>
             <label class="intro-toggle">
                 <span class="intro-toggle-label">Sound Effects</span>
@@ -2152,9 +2270,6 @@
 							<li>Outer (sucked in): (Blob Size)³ × 800 × Level</li>
 						</ul>
 					</div>
-					<div>
-						<strong>Cascade Bonus:</strong> Free up a blob that falls into place to clear more lines, and get a bonus multiplier that increases with each consecutive cascading line clear!
-					</div>
 					<div style="padding: 0">
 						<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.  But beware: faster drops also mean more frequent <i>tornadoes</i> and <i>earthquakes</i>!
 					</div>
@@ -2189,17 +2304,80 @@
                 <button class="mode-button" data-mode="hailstorm" data-tooltip="8 colors for maximum challenge">🧊 Hailstorm</button>
                 <button class="mode-button" data-mode="blizzard" data-tooltip="12-wide board with 5-block pieces, 5 colors">❄️ Blizzard</button>
                 <button class="mode-button" data-mode="hurricane" data-tooltip="Ultimate challenge - 12-wide + 5-block pieces, 7 colors">🌀 Hurricane</button>
-                
-                <div class="game-credits">
-                    <div><strong>Game Design:</strong> C. Ryan Deardorff</div>
-                    <div><strong>Programming:</strong> Claude AI (Anthropic)</div>
-                </div>
+
             </div>
             <div class="game-over" id="gameOver">
-                <div style="font-size: 32px; margin-bottom: 20px;">GAME OVER</div>
+                <div style="font-size: 32px; margin-bottom: 10px;">GAME OVER</div>
                 <div id="finalScore"></div>
-                <div id="finalStats" style="margin-top: 20px; font-size: 16px; color: rgba(255,255,255,0.8); white-space: nowrap;"></div>
+                <div id="finalStats" style="margin-top: 10px; font-size: 16px; color: rgba(255,255,255,0.8); white-space: nowrap;"></div>
                 <button id="playAgainBtn">Play Again</button>
+            </div>
+            
+            <!-- End Credits Overlay -->
+            <div class="credits-overlay" id="creditsOverlay">
+                <div class="credits-scroll" id="creditsScroll">
+                    <div class="credits-content">
+                        <div class="credits-title">T<span class="credits-ai">a</span>NTЯ<span class="credits-ai">i</span>S a.k.a. ₿LOCKCH<span class="credits-ai">ai</span>NSTOЯM</div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">Game Design</span>
+                                <span class="credits-name">C. Ryan Deardorff</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">Programming</span>
+                                <span class="credits-name">Claude AI (Anthropic)</span>
+                            </div>
+                            <div class="credits-row">
+                                <span class="credits-role"></span>
+                                <span class="credits-name">C. Ryan Deardorff</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">Music</span>
+                                <span class="credits-name">SUNO AI</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">Lyrics</span>
+                                <span class="credits-name">Claude AI</span>
+                            </div>
+                            <div class="credits-row">
+                                <span class="credits-role"></span>
+                                <span class="credits-name">C. Ryan Deardorff</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-thanks">Special Thanks to Josh Cadotte</div>
+                        
+                        <div class="credits-spacer"></div>
+                        
+                        <div class="credits-disclaimer">No animals were harmed in the making of this game.</div>
+                        <div class="credits-disclaimer">That would be weird, right?</div>
+                        
+                        <div class="credits-spacer"></div>
+                        
+                        <div class="credits-copyright">© 2025 Official Intelligence</div>
+                        <div class="credits-link">https://official-intelligence.art/</div>
+                        
+                        <div class="credits-spacer-large"></div>
+                        
+                        <div class="credits-easter">You're still here?</div>
+                        
+                        <div class="credits-spacer"></div>
+                        
+                        <div class="credits-easter">The game is over.  Play another one!</div>
+                        
+                        <div class="credits-spacer-final"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="side-panel">
@@ -2285,10 +2463,20 @@
             <div class="settings-option">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Music</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="musicToggle" checked>
-                        <span class="toggle-slider"></span>
-                    </div>
+                    <select id="musicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 1.4vh; margin-left: auto; width: 300px;">
+                        <option value="shuffle">🎲 Shuffle</option>
+                        <option value="none">🔇 None</option>
+                        <option value="falling_blocks">Falling Blocks Reactor</option>
+                        <option value="cascade">Cascade of Colored Bricks</option>
+                        <option value="wind_fire">Wind & Fire</option>
+                        <option value="wind_fire_soot">Wind & Fire & Soot</option>
+                        <option value="cosmic_reggae">Cosmic Reggae</option>
+                        <option value="cosmic_reggae_reverb">Cosmic Reggae Reverb</option>
+                        <option value="symphonic_fog">Symphonic Fog</option>
+                        <option value="cascade_void_nervous">Cascade into the Void (Nervous)</option>
+                        <option value="cascade_void_intro">TaNTЯiS (Intro)</option>
+                        <option value="cascade_void_credits">Cascade into the Void (Credits)</option>
+                    </select>
                 </label>
             </div>
             

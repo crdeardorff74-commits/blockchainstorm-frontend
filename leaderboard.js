@@ -829,6 +829,12 @@ function promptForName(scoreData) {
         // Reset submission flag for next game
         isSubmittingScore = false;
         console.log('=== handleSubmit END ===');
+        
+        // Notify game.js that score submission is complete (triggers credits animation)
+        if (typeof window.onScoreSubmitted === 'function') {
+            console.log('Calling window.onScoreSubmitted()');
+            window.onScoreSubmitted();
+        }
     };
     
     newSubmitBtn.addEventListener('click', handleSubmit);

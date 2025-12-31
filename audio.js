@@ -12,34 +12,51 @@ let bassOscillator = null;
 let lfoOscillator = null;
 let kickScheduler = null;
 
-// MP3 gameplay music
-let gameplayMusic = null;
-let gameplayMusicLoaded = false;
-
-// Initialize gameplay music audio element
-function initGameplayMusic() {
-    if (gameplayMusic) return;
-    gameplayMusic = new Audio('Falling_Blocks_Reactor.mp3');
-    gameplayMusic.loop = true;
-    gameplayMusic.volume = 0.5;
-    gameplayMusic.preload = 'auto';
-    
-    gameplayMusic.addEventListener('canplaythrough', () => {
-        gameplayMusicLoaded = true;
-    });
-    
-    gameplayMusic.addEventListener('error', (e) => {
-        console.warn('Could not load gameplay music:', e);
-        gameplayMusicLoaded = false;
-    });
-}
-
-// Call init on load
-initGameplayMusic();
-
 // Menu music state
 let menuMusicPlaying = false;
 let menuOscillators = [];
+let menuMusicElement = null; // MP3 element for menu music
+let hasPlayedGame = false; // Track if a game has been completed
+
+// MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
+const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
+
+const gameplaySongs = [
+    { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling_Blocks_Reactor.mp3' },
+    { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade_Of_Colored_Bricks.mp3' },
+    { id: 'wind_fire', name: 'Wind & Fire', file: MUSIC_BASE_URL + 'Wind___Fire.mp3' },
+    { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind___Fire___Soot.mp3' },
+    { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic_Regae.mp3' },
+    { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic_Regae_Reverb.mp3' },
+    { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic_Fog.mp3' },
+    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' }
+];
+
+// Songs excluded from random selection but available in dropdown
+const menuOnlySongs = [
+    { id: 'cascade_void_intro', name: 'TaNTЯiS (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' },
+    { id: 'cascade_void_credits', name: 'Cascade into the Void (End Credits)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_End_Credits.mp3' }
+];
+
+// All songs combined for dropdown UI
+const allSongs = [...gameplaySongs, ...menuOnlySongs];
+
+let gameplayMusicElements = {};
+let currentPlayingTrack = null;
+let shuffleQueue = []; // Tracks remaining songs for random mode (no repeats until all played)
+
+// Call init on load (function defined below in startMusic section)
+initGameplayMusic();
+
+// Get list of songs for UI (all songs including menu-only)
+function getSongList() {
+    return allSongs.map(s => ({ id: s.id, name: s.name }));
+}
+
+// Mark that a game has been played (call from game.js on game over)
+function setHasPlayedGame(value) {
+    hasPlayedGame = value;
+}
 
 // Helper function to create wobble bass synth
 function createWobbleBass() {
@@ -150,23 +167,89 @@ function playMelodyNote(freq, duration) {
     osc.stop(audioContext.currentTime + duration);
 }
 
-// Main music controller - now uses MP3 for gameplay
-function startMusic(gameMode, musicToggle) {
-    if (musicPlaying || !musicToggle.checked) return;
-    musicPlaying = true;
+// Track current music selection for shuffle mode song-end handling
+let currentMusicSelection = 'shuffle';
+let currentMusicSelectElement = null;
+
+// Main music controller - now uses MP3 tracks based on dropdown selection
+function startMusic(gameMode, musicSelect) {
+    if (musicPlaying) return;
     
-    // Use MP3 for all gameplay modes
-    if (gameplayMusic && gameplayMusicLoaded) {
-        gameplayMusic.currentTime = 0;
-        gameplayMusic.play().catch(e => {
-            console.warn('Could not play gameplay music:', e);
-        });
-    } else if (gameplayMusic) {
-        // Try to play even if not fully loaded yet
-        gameplayMusic.play().catch(e => {
-            console.warn('Could not play gameplay music:', e);
-        });
+    // Store reference to select element for song-end handling
+    currentMusicSelectElement = musicSelect;
+    
+    // Get the selected value from dropdown
+    const selection = musicSelect.value || 'shuffle';
+    currentMusicSelection = selection;
+    
+    // If "none" selected, don't play music
+    if (selection === 'none') return;
+    
+    let trackId;
+    
+    if (selection === 'shuffle') {
+        // Shuffle mode: play all songs before repeating any
+        if (shuffleQueue.length === 0) {
+            // Refill and shuffle the queue
+            shuffleQueue = gameplaySongs.map(s => s.id);
+            // Fisher-Yates shuffle
+            for (let i = shuffleQueue.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffleQueue[i], shuffleQueue[j]] = [shuffleQueue[j], shuffleQueue[i]];
+            }
+            console.log('🎵 Shuffled music queue:', shuffleQueue);
+        }
+        // Pop the next track from the queue
+        trackId = shuffleQueue.pop();
+        console.log('🎵 Playing from shuffle:', trackId, '| Remaining:', shuffleQueue.length);
+    } else {
+        // Use the specifically selected track
+        trackId = selection;
     }
+    
+    const audio = gameplayMusicElements[trackId];
+    if (audio) {
+        musicPlaying = true;
+        currentPlayingTrack = trackId;
+        
+        // In shuffle mode, don't loop - play next song when this one ends
+        audio.loop = (selection !== 'shuffle');
+        
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Music autoplay prevented:', e));
+    }
+}
+
+// Handle song ending in shuffle mode - play next song
+function onSongEnded(event) {
+    const audio = event.target;
+    
+    // Only handle if we're still playing music and in shuffle mode
+    if (!musicPlaying || currentMusicSelection !== 'shuffle') return;
+    
+    console.log('🎵 Song ended in shuffle mode, playing next track');
+    
+    // Stop current track state
+    musicPlaying = false;
+    currentPlayingTrack = null;
+    
+    // Start next track
+    if (currentMusicSelectElement) {
+        startMusic(null, currentMusicSelectElement);
+    }
+}
+
+// Initialize all gameplay music audio elements
+function initGameplayMusic() {
+    allSongs.forEach(song => {
+        const audio = new Audio(song.file);
+        audio.loop = true;
+        audio.volume = 0.5;
+        audio.preload = 'auto';
+        // Add ended event listener for shuffle mode
+        audio.addEventListener('ended', onSongEnded);
+        gameplayMusicElements[song.id] = audio;
+    });
 }
 
 // DRIZZLE MODE - Slowest, chill 80s synth with light bass (100 BPM)
@@ -785,13 +868,18 @@ function stopMusic() {
     if (!musicPlaying) return;
     musicPlaying = false;
     
-    // Stop MP3 gameplay music
-    if (gameplayMusic) {
-        gameplayMusic.pause();
-        gameplayMusic.currentTime = 0;
-    }
+    // Reset shuffle mode state
+    currentMusicSelection = 'none';
     
-    // Also stop any legacy synthesized music if running
+    // Stop MP3 playback
+    if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
+        const audio = gameplayMusicElements[currentPlayingTrack];
+        audio.pause();
+        audio.currentTime = 0;
+    }
+    currentPlayingTrack = null;
+    
+    // Legacy synth cleanup (keep for backwards compatibility)
     if (kickScheduler) {
         clearInterval(kickScheduler);
         kickScheduler = null;
@@ -801,194 +889,57 @@ function stopMusic() {
         try {
             bassOscillator.bass.stop();
             bassOscillator.lfo.stop();
-        } catch (e) {
-            // Already stopped
-        }
+        } catch(e) {}
         bassOscillator = null;
     }
 }
 
 // Atmospheric menu music - Stranger Things inspired synth theme
-function startMenuMusic(musicToggle) {
-    if (menuMusicPlaying || !musicToggle.checked) return;
+function startMenuMusic(musicToggleOrSelect) {
+    if (menuMusicPlaying) return;
+    
+    // Check if music is enabled - handle both checkbox (legacy) and select element
+    let musicEnabled = true;
+    if (musicToggleOrSelect) {
+        if (musicToggleOrSelect.type === 'checkbox') {
+            musicEnabled = musicToggleOrSelect.checked;
+        } else if (musicToggleOrSelect.tagName === 'SELECT') {
+            musicEnabled = musicToggleOrSelect.value !== 'none';
+        }
+    }
+    if (!musicEnabled) return;
+    
     menuMusicPlaying = true;
     
-    // Create the signature arpeggiated synth line
-    function playArpNote(frequency, startTime, duration = 0.15) {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        
-        osc.type = 'sawtooth';
-        osc.frequency.value = frequency;
-        
-        filter.type = 'lowpass';
-        filter.frequency.value = 1200;
-        filter.Q.value = 5;
-        
-        // Quick attack, gradual decay
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.12, startTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-        
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-        
-        return { osc, gain };
+    // Choose track based on whether a game has been played
+    const trackId = hasPlayedGame ? 'cascade_void_credits' : 'cascade_void_intro';
+    
+    // Create audio element if needed
+    if (!menuMusicElement) {
+        menuMusicElement = new Audio();
+        menuMusicElement.loop = true;
+        menuMusicElement.volume = 0.5;
     }
     
-    // Create deep bass drone
-    function createBassDrone() {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        
-        osc.type = 'triangle';
-        osc.frequency.value = 55; // A1
-        
-        filter.type = 'lowpass';
-        filter.frequency.value = 200;
-        filter.Q.value = 2;
-        
-        gain.gain.value = 0;
-        gain.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 1);
-        
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc.start();
-        return { osc, gain, filter };
+    // Set the source based on track selection
+    const song = menuOnlySongs.find(s => s.id === trackId);
+    if (song) {
+        menuMusicElement.src = song.file;
+        menuMusicElement.play().catch(e => console.log('Menu music autoplay prevented:', e));
     }
-    
-    // Create atmospheric pad with slow filter modulation
-    function createAtmosphericPad() {
-        const osc1 = audioContext.createOscillator();
-        const osc2 = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        const lfo = audioContext.createOscillator();
-        const lfoGain = audioContext.createGain();
-        
-        osc1.type = 'sawtooth';
-        osc1.frequency.value = 110; // A2
-        osc2.type = 'sawtooth';
-        osc2.frequency.value = 110.5; // Slightly detuned for thickness
-        
-        filter.type = 'lowpass';
-        filter.frequency.value = 600;
-        filter.Q.value = 8;
-        
-        lfo.frequency.value = 0.2;
-        lfoGain.gain.value = 400;
-        
-        lfo.connect(lfoGain);
-        lfoGain.connect(filter.frequency);
-        
-        gain.gain.value = 0;
-        gain.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 2);
-        
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc1.start();
-        osc2.start();
-        lfo.start();
-        
-        return { osc1, osc2, gain, filter, lfo };
-    }
-    
-    // Stranger Things style arpeggio pattern (minor key)
-    // Using A minor scale with some chromatic passing tones
-    const arpPattern = [
-        [220, 264, 330, 264],      // Am chord (A C E C)
-        [220, 262, 330, 262],      // Am with slight variation
-        [174.61, 220, 262, 220],   // F major (F A C A) 
-        [196, 246.94, 294, 246.94] // G major (G B D B)
-    ];
-    
-    let patternIndex = 0;
-    let noteIndex = 0;
-    const noteInterval = 200; // 200ms between notes (faster than previous)
-    const patternChangeInterval = 3200; // Change pattern every 3.2 seconds
-    
-    // Start bass drone
-    const bassDrone = createBassDrone();
-    menuOscillators.push(bassDrone);
-    
-    // Start atmospheric pad
-    const pad = createAtmosphericPad();
-    menuOscillators.push(pad);
-    
-    // Arpeggio sequencer
-    const arpInterval = setInterval(() => {
-        if (!menuMusicPlaying) {
-            clearInterval(arpInterval);
-            return;
-        }
-        
-        const currentPattern = arpPattern[patternIndex];
-        const freq = currentPattern[noteIndex % currentPattern.length];
-        const now = audioContext.currentTime;
-        
-        playArpNote(freq, now, 0.18);
-        
-        noteIndex++;
-        
-        // Change chord pattern periodically
-        if (noteIndex % 16 === 0) {
-            patternIndex = (patternIndex + 1) % arpPattern.length;
-            
-            // Update bass drone to match root note
-            const rootFreqs = [55, 55, 43.65, 49]; // A1, A1, F1, G1
-            bassDrone.osc.frequency.exponentialRampToValueAtTime(
-                rootFreqs[patternIndex], 
-                now + 0.5
-            );
-        }
-    }, noteInterval);
-    
-    menuOscillators.push({ interval: arpInterval });
-    
-    // Add occasional low synth stabs for tension
-    const stabInterval = setInterval(() => {
-        if (!menuMusicPlaying) {
-            clearInterval(stabInterval);
-            return;
-        }
-        
-        const now = audioContext.currentTime;
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        
-        osc.type = 'square';
-        osc.frequency.value = 27.5; // A0 - very deep
-        
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
-        
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc.start(now);
-        osc.stop(now + 1);
-        
-    }, 8000); // Every 8 seconds
-    
-    menuOscillators.push({ interval: stabInterval });
 }
 
 function stopMenuMusic() {
     if (!menuMusicPlaying) return;
     menuMusicPlaying = false;
     
+    // Stop MP3 playback
+    if (menuMusicElement) {
+        menuMusicElement.pause();
+        menuMusicElement.currentTime = 0;
+    }
+    
+    // Legacy synth cleanup (keep for backwards compatibility)
     menuOscillators.forEach(item => {
         try {
             if (item.interval) {
@@ -1793,6 +1744,9 @@ function playSmallExplosion(soundToggle) {
         playTsunamiWhoosh,
         startTornadoWind,
         stopTornadoWind,
-        playSmallExplosion
+        playSmallExplosion,
+        getSongList,
+        setHasPlayedGame,
+        gameplayMusicElements
     };
 })(); // End IIFE
