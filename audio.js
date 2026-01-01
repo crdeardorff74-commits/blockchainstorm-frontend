@@ -21,6 +21,7 @@ let hasPlayedGame = false; // Track if a game has been completed
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
 
+// Songs for during gameplay (non-Cascade songs)
 const gameplaySongs = [
     { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling_Blocks_Reactor.mp3' },
     { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade_Of_Colored_Bricks.mp3' },
@@ -29,28 +30,74 @@ const gameplaySongs = [
     { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic_Regae.mp3' },
     { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic_Regae_Reverb.mp3' },
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic_Fog.mp3' },
-    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' }
+    { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle_Puddles.mp3' },
+    { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' }
 ];
 
-// Songs excluded from random selection but available in dropdown
+// "Cascade into the Void" variations - only played during end credits
+const creditsSongs = [
+    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' },
+    { id: 'cascade_void_credits', name: 'Cascade into the Void (End Credits)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_End_Credits.mp3' },
+    { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Intense_Mix_.mp3' },
+    { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Bork_Bork_Bork_Mix_.mp3' },
+    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Max_Headroom_Mix_.mp3' },
+    { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Eurobeat_Mix_.mp3' },
+    { id: 'cascade_void_acappella', name: 'Cascade into the Void (A Cappella Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__A_Cappella_Mix_.mp3' },
+    { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Folk_Mix_.mp3' },
+    { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Dance_Mix_.mp3' }
+];
+
+// Intro music only (not in any shuffle)
 const menuOnlySongs = [
-    { id: 'cascade_void_intro', name: 'TaNTЯiS (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' },
-    { id: 'cascade_void_credits', name: 'Cascade into the Void (End Credits)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_End_Credits.mp3' }
+    { id: 'cascade_void_intro', name: 'TaNTЯiS (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' }
 ];
 
-// All songs combined for dropdown UI
-const allSongs = [...gameplaySongs, ...menuOnlySongs];
+// All songs combined for audio element initialization
+const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs];
 
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
-let shuffleQueue = []; // Tracks remaining songs for random mode (no repeats until all played)
+
+// Persistent shuffle queues - initialized once at load, persist across games
+let gameplayShuffleQueue = [];
+let creditsShuffleQueue = [];
+
+// Fisher-Yates shuffle helper
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+// Initialize shuffle queues at load time
+function initShuffleQueues() {
+    gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+    creditsShuffleQueue = shuffleArray(creditsSongs.map(s => s.id));
+    console.log('🎵 Initialized gameplay shuffle queue:', gameplayShuffleQueue);
+    console.log('🎵 Initialized credits shuffle queue:', creditsShuffleQueue);
+}
+
+// Get next song from a shuffle queue (refills when empty)
+function getNextFromQueue(queue, songList, queueName) {
+    if (queue.length === 0) {
+        // Refill and reshuffle
+        const newQueue = shuffleArray(songList.map(s => s.id));
+        queue.push(...newQueue);
+        console.log(`🎵 Refilled ${queueName} queue:`, queue);
+    }
+    return queue.pop();
+}
 
 // Call init on load (function defined below in startMusic section)
 initGameplayMusic();
+initShuffleQueues();
 
-// Get list of songs for UI (all songs including menu-only)
+// Get list of songs for UI (gameplay songs only, not credits variations)
 function getSongList() {
-    return allSongs.map(s => ({ id: s.id, name: s.name }));
+    return gameplaySongs.map(s => ({ id: s.id, name: s.name }));
 }
 
 // Mark that a game has been played (call from game.js on game over)
@@ -188,20 +235,9 @@ function startMusic(gameMode, musicSelect) {
     let trackId;
     
     if (selection === 'shuffle') {
-        // Shuffle mode: play all songs before repeating any
-        if (shuffleQueue.length === 0) {
-            // Refill and shuffle the queue
-            shuffleQueue = gameplaySongs.map(s => s.id);
-            // Fisher-Yates shuffle
-            for (let i = shuffleQueue.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffleQueue[i], shuffleQueue[j]] = [shuffleQueue[j], shuffleQueue[i]];
-            }
-            console.log('🎵 Shuffled music queue:', shuffleQueue);
-        }
-        // Pop the next track from the queue
-        trackId = shuffleQueue.pop();
-        console.log('🎵 Playing from shuffle:', trackId, '| Remaining:', shuffleQueue.length);
+        // Shuffle mode: use persistent queue (no repeats until all played)
+        trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+        console.log('🎵 Playing from shuffle:', trackId, '| Remaining:', gameplayShuffleQueue.length);
     } else {
         // Use the specifically selected track
         trackId = selection;
@@ -918,7 +954,19 @@ function startMenuMusic(musicToggleOrSelect) {
     menuMusicPlaying = true;
     
     // Choose track based on whether a game has been played
-    const trackId = hasPlayedGame ? 'cascade_void_credits' : 'cascade_void_intro';
+    let trackId;
+    let song;
+    
+    if (hasPlayedGame) {
+        // End credits: shuffle through all Cascade variations
+        trackId = getNextFromQueue(creditsShuffleQueue, creditsSongs, 'credits');
+        song = creditsSongs.find(s => s.id === trackId);
+        console.log('🎵 Playing end credits:', trackId, '| Remaining in queue:', creditsShuffleQueue.length);
+    } else {
+        // Intro: play the intro song
+        trackId = 'cascade_void_intro';
+        song = menuOnlySongs.find(s => s.id === trackId);
+    }
     
     // Create audio element if needed
     if (!menuMusicElement) {
@@ -928,7 +976,6 @@ function startMenuMusic(musicToggleOrSelect) {
     }
     
     // Set the source based on track selection
-    const song = menuOnlySongs.find(s => s.id === trackId);
     if (song) {
         menuMusicElement.src = song.file;
         menuMusicElement.play().catch(e => console.log('Menu music autoplay prevented:', e));
