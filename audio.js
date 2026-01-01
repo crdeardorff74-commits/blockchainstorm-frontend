@@ -937,8 +937,13 @@ function stopMusic() {
 }
 
 // Atmospheric menu music - Stranger Things inspired synth theme
+let currentMenuMusicSelect = null; // Store reference for credits song-end handling
+
 function startMenuMusic(musicToggleOrSelect) {
     if (menuMusicPlaying) return;
+    
+    // Store reference for song-end handling
+    currentMenuMusicSelect = musicToggleOrSelect;
     
     // Check if music is enabled - handle both checkbox (legacy) and select element
     let musicEnabled = true;
@@ -971,15 +976,31 @@ function startMenuMusic(musicToggleOrSelect) {
     // Create audio element if needed
     if (!menuMusicElement) {
         menuMusicElement = new Audio();
-        menuMusicElement.loop = true;
         menuMusicElement.volume = 0.5;
+        // Add ended event listener for credits shuffle
+        menuMusicElement.addEventListener('ended', onMenuMusicEnded);
     }
+    
+    // Loop intro music, but not credits (credits will shuffle to next song)
+    menuMusicElement.loop = !hasPlayedGame;
     
     // Set the source based on track selection
     if (song) {
         menuMusicElement.src = song.file;
         menuMusicElement.play().catch(e => console.log('Menu music autoplay prevented:', e));
     }
+}
+
+// Handle credits music ending - play next song from credits queue
+function onMenuMusicEnded() {
+    // Only handle if we're playing credits music (hasPlayedGame is true)
+    if (!menuMusicPlaying || !hasPlayedGame) return;
+    
+    console.log('🎵 Credits song ended, playing next from queue');
+    
+    // Reset state and play next
+    menuMusicPlaying = false;
+    startMenuMusic(currentMenuMusicSelect);
 }
 
 function stopMenuMusic() {
