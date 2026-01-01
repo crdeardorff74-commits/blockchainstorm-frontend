@@ -991,6 +991,7 @@ function updateCanvasSize() {
     // Update vine overlays if in stranger mode
     if (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.isStrangerMode && StarfieldSystem.isStrangerMode()) {
         StarfieldSystem.updateVineOverlayPosition(canvas);
+        StarfieldSystem.updateVineOverlayPosition(nextCanvas);
     }
 }
 
@@ -1251,7 +1252,6 @@ let volcanoColorProgress = 0; // 0 to 1, tracks color transition during warming
 let volcanoOriginalColor = null; // Store original color to transition from
 let volcanoProjectilesSpawned = 0; // Track how many projectiles have been spawned
 let volcanoTargetProjectiles = 0; // How many projectiles to spawn (matches blob size)
-let specialFormationTriggeredThisDrop = false; // Track if a special formation triggered this piece drop
 
 
 // Get pulsing lava color (oscillates between darker and brighter)
@@ -5108,13 +5108,6 @@ function createGiantPiece(segmentCount) {
 }
 
 function createRandomHailBlock() {
-    // Don't create blocks during line clear or gravity animations
-    // This prevents race conditions that can corrupt the board state
-    if (animatingLines || gravityAnimating) {
-        console.log('🎲 Skipping gremlin block spawn - animation in progress');
-        return;
-    }
-    
     // Find the topmost player-placed block (not random blocks)
     let topFilledRow = ROWS - 1;
     for (let y = 0; y < ROWS; y++) {
@@ -5167,11 +5160,6 @@ function removeRandomBlocks() {
 }
 
 function updateGremlinFadingBlocks() {
-    // Don't update during line clear or gravity animations to avoid race conditions
-    if (animatingLines || gravityAnimating) {
-        return;
-    }
-    
     // Update all gremlin fading blocks
     for (let i = gremlinFadingBlocks.length - 1; i >= 0; i--) {
         const gremlin = gremlinFadingBlocks[i];
@@ -5258,6 +5246,7 @@ function switchSoRandomMode() {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
+        StarfieldSystem.createVineOverlay(nextCanvas);
     } else {
         StarfieldSystem.removeVineOverlay();
     }
@@ -8251,8 +8240,7 @@ function updateLineAnimations() {
 
 function checkForSpecialFormations() {
     // Check for special formations immediately after piece placement
-    // Priority: Black Hole > Tsunami > Volcano > Strike
-    // Only the highest priority formation triggers per piece drop
+    // Priority: Volcano > Black Hole > Tsunami
     
     const allBlobs = getAllBlobs();
     let foundVolcano = false;
@@ -8262,9 +8250,19 @@ function checkForSpecialFormations() {
     let tsunamiBlobs = [];
     let blackHoleData = [];
     
-    // Check for Black Holes FIRST (highest priority)
-    // One blob enveloping another of different color
-    if (!blackHoleActive) {
+    // Check for Volcanoes (blob at bottom completely enveloped by another)
+    // Skip if a volcano is already active to prevent duplicate counting
+    if (!volcanoActive) {
+        const volcanoes = detectVolcanoes(allBlobs);
+        if (volcanoes.length > 0) {
+            foundVolcano = true;
+            volcanoData = volcanoes;
+        }
+    }
+    
+    // Check for Black Holes (one blob enveloping another of different color)
+    // Skip if a black hole is already active to prevent duplicate counting
+    if (!foundVolcano && !blackHoleActive) {
         const blackHoles = detectBlackHoles(allBlobs);
         if (blackHoles.length > 0) {
             foundBlackHole = true;
@@ -8272,9 +8270,9 @@ function checkForSpecialFormations() {
         }
     }
     
-    // Check for Tsunamis (second priority)
-    // Blobs spanning full width
-    if (!foundBlackHole && !tsunamiAnimating) {
+    // Check for Tsunamis (blobs spanning full width)
+    // Skip if a tsunami is already animating to prevent duplicate counting
+    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating) {
         allBlobs.forEach(blob => {
             const minX = Math.min(...blob.positions.map(p => p[0]));
             const maxX = Math.max(...blob.positions.map(p => p[0]));
@@ -8286,24 +8284,40 @@ function checkForSpecialFormations() {
         });
     }
     
-    // Check for Volcanoes (third priority)
-    // Blob at bottom completely enveloped by another
-    if (!foundBlackHole && !foundTsunami && !volcanoActive) {
-        const volcanoes = detectVolcanoes(allBlobs);
-        if (volcanoes.length > 0) {
-            foundVolcano = true;
-            volcanoData = volcanoes;
+    // If we found special formations, trigger them immediately
+    // Priority: Volcano > Black Hole > Tsunami
+    if (foundVolcano) {
+        // Trigger volcano animation for the first one
+        const v = volcanoData[0];
+        
+        // Start the volcano warming phase
+        // (Column clearing will happen when warming transitions to eruption)
+        triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
+        volcanoCount++;
+        
+        // Score calculation - VOLCANO SCORING:
+        // Inner lava blob: size³ × 500
+        // Outer surrounding blob: No points (just the trigger)
+        const lavaSize = v.lavaBlob.positions.length;
+        const lavaPoints = lavaSize * lavaSize * lavaSize * 500;
+        
+        const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
+        score += finalVolcanoScore;
+        
+        // Update histogram only for lava blob
+        updateHistogramWithBlob(volcanoLavaColor, lavaSize);
+        scoreHistogramTarget = finalVolcanoScore;
+        if (finalVolcanoScore > scoreHistogramMaxScale) {
+            scoreHistogramMaxScale = Math.ceil(finalVolcanoScore / 1000) * 1000;
         }
-    }
-    
-    // If we found special formations, trigger them
-    // Priority: Black Hole > Tsunami > Volcano
-    if (foundBlackHole) {
+        
+        updateStats();
+        
+    } else if (foundBlackHole) {
             // Trigger black hole animation for the first one
             const bh = blackHoleData[0];
             triggerBlackHole(bh.innerBlob, bh.outerBlob);
             blackHoleCount++;
-            specialFormationTriggeredThisDrop = true; // Block Strike
             
             // Score calculation - BLACK HOLE SCORING:
             // Inner blob (black hole core): size³ × 800
@@ -8328,7 +8342,7 @@ function checkForSpecialFormations() {
             
             updateStats();
             
-    } else if (foundTsunami) {
+        } else if (foundTsunami) {
             // Trigger tsunami animation for the first one
             const blob = tsunamiBlobs[0];
             
@@ -8339,7 +8353,6 @@ function checkForSpecialFormations() {
             // Trigger the actual clearing animation
             triggerTsunamiAnimation(blob);
             tsunamiCount++;
-            specialFormationTriggeredThisDrop = true; // Block Strike
             
             // Score calculation - TSUNAMI SCORING:
             // Points = (blob size)³ × 200
@@ -8356,35 +8369,7 @@ function checkForSpecialFormations() {
             }
             
             updateStats();
-            
-    } else if (foundVolcano) {
-        // Trigger volcano animation for the first one
-        const v = volcanoData[0];
-        
-        // Start the volcano warming phase
-        // (Column clearing will happen when warming transitions to eruption)
-        triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
-        volcanoCount++;
-        specialFormationTriggeredThisDrop = true; // Block Strike
-        
-        // Score calculation - VOLCANO SCORING:
-        // Inner lava blob: size³ × 500
-        // Outer surrounding blob: No points (just the trigger)
-        const lavaSize = v.lavaBlob.positions.length;
-        const lavaPoints = lavaSize * lavaSize * lavaSize * 500;
-        
-        const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
-        score += finalVolcanoScore;
-        
-        // Update histogram only for lava blob
-        updateHistogramWithBlob(volcanoLavaColor, lavaSize);
-        scoreHistogramTarget = finalVolcanoScore;
-        if (finalVolcanoScore > scoreHistogramMaxScale) {
-            scoreHistogramMaxScale = Math.ceil(finalVolcanoScore / 1000) * 1000;
         }
-        
-        updateStats();
-    }
 }
 
 // ============================================================================
@@ -9195,10 +9180,10 @@ function clearLines() {
             }
         });
         
-        const isStrike = completedRows.length >= 4 && !specialFormationTriggeredThisDrop;
+        const isStrike = completedRows.length >= 4;
         
         // Play appropriate sound/effect immediately as animation starts
-        // Priority: Black Hole > Tsunami > Volcano > Strike (already enforced by flag)
+        // Priority: Strike > Black Hole > Tsunami > Normal
         if (isStrike) {
             triggerLightning(300); // Single strike for 4 lines
             strikeCount++;
@@ -9731,9 +9716,6 @@ function dropPiece() {
         
         playSoundEffect('drop', soundToggle);
         mergePiece();
-        
-        // Reset the special formation flag for this piece drop
-        specialFormationTriggeredThisDrop = false;
         
         // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
         checkForSpecialFormations();
@@ -10478,7 +10460,6 @@ function startGame(mode) {
     blackHoleCount = 0;
     cascadeLevel = 0;
     cascadeBonusDisplay = null;
-    specialFormationTriggeredThisDrop = false; // Reset priority flag
     gameStartTime = Date.now(); // Track game duration
     volcanoCount = 0;
     currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey
@@ -10917,7 +10898,12 @@ playAgainBtn.addEventListener('click', () => {
     
     // Don't call drawBoard() here - it draws the semi-transparent background
     // The canvas has already been cleared above, leave it transparent for menu
+    
+    // Reset to intro music mode and restart menu music
+    stopMenuMusic();
+    setHasPlayedGame(false);
     startMenuMusic(musicSelect);
+    
     // Select the last played mode
     if (lastPlayedMode) {
         const modeIndex = modeButtonsArray.findIndex(btn => btn.getAttribute('data-mode') === lastPlayedMode);
@@ -11323,6 +11309,7 @@ function applyChallengeMode(mode) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
+        StarfieldSystem.createVineOverlay(nextCanvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
