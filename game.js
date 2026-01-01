@@ -991,7 +991,6 @@ function updateCanvasSize() {
     // Update vine overlays if in stranger mode
     if (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.isStrangerMode && StarfieldSystem.isStrangerMode()) {
         StarfieldSystem.updateVineOverlayPosition(canvas);
-        StarfieldSystem.updateVineOverlayPosition(nextCanvas);
     }
 }
 
@@ -5108,6 +5107,13 @@ function createGiantPiece(segmentCount) {
 }
 
 function createRandomHailBlock() {
+    // Don't create blocks during line clear or gravity animations
+    // This prevents race conditions that can corrupt the board state
+    if (animatingLines || gravityAnimating) {
+        console.log('🎲 Skipping gremlin block spawn - animation in progress');
+        return;
+    }
+    
     // Find the topmost player-placed block (not random blocks)
     let topFilledRow = ROWS - 1;
     for (let y = 0; y < ROWS; y++) {
@@ -5160,6 +5166,11 @@ function removeRandomBlocks() {
 }
 
 function updateGremlinFadingBlocks() {
+    // Don't update during line clear or gravity animations to avoid race conditions
+    if (animatingLines || gravityAnimating) {
+        return;
+    }
+    
     // Update all gremlin fading blocks
     for (let i = gremlinFadingBlocks.length - 1; i >= 0; i--) {
         const gremlin = gremlinFadingBlocks[i];
@@ -5246,7 +5257,6 @@ function switchSoRandomMode() {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
-        StarfieldSystem.createVineOverlay(nextCanvas);
     } else {
         StarfieldSystem.removeVineOverlay();
     }
@@ -11304,7 +11314,6 @@ function applyChallengeMode(mode) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
         StarfieldSystem.createVineOverlay(canvas);
-        StarfieldSystem.createVineOverlay(nextCanvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
