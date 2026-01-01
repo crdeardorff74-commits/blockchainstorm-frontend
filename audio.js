@@ -208,13 +208,19 @@ function startMusic(gameMode, musicSelect) {
     }
     
     const audio = gameplayMusicElements[trackId];
-    if (audio) {
+    const song = allSongs.find(s => s.id === trackId);
+    
+    if (audio && song) {
         musicPlaying = true;
         currentPlayingTrack = trackId;
         
         // In shuffle mode, don't loop - play next song when this one ends
         audio.loop = (selection !== 'shuffle');
         
+        // Always refresh the source before playing
+        // This ensures GitHub redirect URLs work properly
+        // (Pre-loaded Audio elements sometimes fail with redirecting URLs)
+        audio.src = song.file;
         audio.currentTime = 0;
         audio.play().catch(e => console.log('Music autoplay prevented:', e));
     }
