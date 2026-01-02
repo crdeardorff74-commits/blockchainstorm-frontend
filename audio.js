@@ -61,6 +61,8 @@ let currentPlayingTrack = null;
 // Persistent shuffle queues - initialized once at load, persist across games
 let gameplayShuffleQueue = [];
 let creditsShuffleQueue = [];
+let lastPlayedGameplaySong = null;
+let lastPlayedCreditsSong = null;
 
 // Fisher-Yates shuffle helper
 function shuffleArray(array) {
@@ -80,15 +82,35 @@ function initShuffleQueues() {
     console.log('🎵 Initialized credits shuffle queue:', creditsShuffleQueue);
 }
 
-// Get next song from a shuffle queue (refills when empty)
-function getNextFromQueue(queue, songList, queueName) {
+// Get next song from a shuffle queue (refills when empty, prevents immediate repeats)
+function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     if (queue.length === 0) {
         // Refill and reshuffle
-        const newQueue = shuffleArray(songList.map(s => s.id));
+        let newQueue = shuffleArray(songList.map(s => s.id));
+        
+        // If the last played song is at the end of the new queue (will be popped first),
+        // move it somewhere else to prevent immediate repeat
+        const lastPlayed = queueName === 'gameplay' ? lastPlayedGameplaySong : lastPlayedCreditsSong;
+        if (lastPlayed && newQueue.length > 1 && newQueue[newQueue.length - 1] === lastPlayed) {
+            // Swap it with a random position that's not the last
+            const swapIndex = Math.floor(Math.random() * (newQueue.length - 1));
+            [newQueue[swapIndex], newQueue[newQueue.length - 1]] = [newQueue[newQueue.length - 1], newQueue[swapIndex]];
+            console.log(`🎵 Moved ${lastPlayed} away from top of queue to prevent repeat`);
+        }
+        
         queue.push(...newQueue);
-        console.log(`🎵 Refilled ${queueName} queue:`, queue);
+        console.log(`🎵 Refilled ${queueName} queue:`, [...queue]);
     }
-    return queue.pop();
+    const song = queue.pop();
+    
+    // Track what we just played
+    if (queueName === 'gameplay') {
+        lastPlayedGameplaySong = song;
+    } else {
+        lastPlayedCreditsSong = song;
+    }
+    
+    return song;
 }
 
 // Call init on load (function defined below in startMusic section)
@@ -222,6 +244,9 @@ let currentMusicSelectElement = null;
 function startMusic(gameMode, musicSelect) {
     if (musicPlaying) return;
     
+    // Set flag immediately to prevent race conditions with double-calls
+    musicPlaying = true;
+    
     // Store reference to select element for song-end handling
     currentMusicSelectElement = musicSelect;
     
@@ -230,14 +255,17 @@ function startMusic(gameMode, musicSelect) {
     currentMusicSelection = selection;
     
     // If "none" selected, don't play music
-    if (selection === 'none') return;
+    if (selection === 'none') {
+        musicPlaying = false;
+        return;
+    }
     
     let trackId;
     
     if (selection === 'shuffle') {
         // Shuffle mode: use persistent queue (no repeats until all played)
         trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
-        console.log('🎵 Playing from shuffle:', trackId, '| Remaining:', gameplayShuffleQueue.length);
+        console.log('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
     } else {
         // Use the specifically selected track
         trackId = selection;
@@ -247,7 +275,6 @@ function startMusic(gameMode, musicSelect) {
     const song = allSongs.find(s => s.id === trackId);
     
     if (audio && song) {
-        musicPlaying = true;
         currentPlayingTrack = trackId;
         
         // In shuffle mode, don't loop - play next song when this one ends
@@ -259,6 +286,9 @@ function startMusic(gameMode, musicSelect) {
         audio.src = song.file;
         audio.currentTime = 0;
         audio.play().catch(e => console.log('Music autoplay prevented:', e));
+    } else {
+        // Failed to find audio/song, reset flag
+        musicPlaying = false;
     }
 }
 
