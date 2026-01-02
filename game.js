@@ -6428,12 +6428,12 @@ function triggerTsunami(targetY) {
     // Add golden border effect
     canvas.classList.add('tsunami-active');
     
-    // Multiple lightning strikes for tsunami!
+    // Multiple lightning strikes for tsunami! (visual only - no thunder sound)
     const numStrikes = 5 + Math.floor(Math.random() * 3); // 5-7 strikes
     
     for (let i = 0; i < numStrikes; i++) {
         setTimeout(() => {
-            triggerLightning(targetY + (Math.random() - 0.5) * 100);
+            triggerLightning(targetY + (Math.random() - 0.5) * 100, false); // false = no sound
         }, i * 150); // Stagger the strikes
     }
     
@@ -6446,7 +6446,7 @@ function triggerTsunami(targetY) {
     }, numStrikes * 150 + 1000); // After all strikes plus 1 second
 }
 
-function triggerLightning(targetY) {
+function triggerLightning(targetY, playSound = true) {
     // Find the actual top of the stack (highest row with any blocks)
     let stackTopY = ROWS * BLOCK_SIZE; // Default to bottom if no blocks
     for (let y = 0; y < ROWS; y++) {
@@ -6520,8 +6520,10 @@ function triggerLightning(targetY) {
     lightningEffects.push(lightningObj);
     console.log(`⚡ Lightning object created and added to array. Array length: ${lightningEffects.length}, segments: ${segments.length}, branches: ${branches.length}`);
     
-    // Play dramatic thunder crack
-    playEnhancedThunder(soundToggle);
+    // Play dramatic thunder crack (optional - disabled for tsunami visual-only lightning)
+    if (playSound) {
+        playEnhancedThunder(soundToggle);
+    }
 }
 
 function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0, pixelOffsetY = 0) {

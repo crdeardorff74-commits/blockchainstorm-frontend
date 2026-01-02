@@ -31,6 +31,13 @@ const soundEffectFiles = {
     tsunami: SFX_BASE_URL + 'Tsunami.mp3'
 };
 
+// Per-effect volume levels (0.0 to 1.0)
+const soundEffectVolumes = {
+    strike: 0.7,
+    lineClear: 0.7,
+    tsunami: 0.4  // Quieter for tsunami
+};
+
 // Preloaded sound effect audio elements
 let soundEffectElements = {};
 
@@ -38,7 +45,7 @@ let soundEffectElements = {};
 function initSoundEffects() {
     Object.keys(soundEffectFiles).forEach(id => {
         const audio = new Audio(soundEffectFiles[id]);
-        audio.volume = 0.7;
+        audio.volume = soundEffectVolumes[id] || 0.7;
         audio.preload = 'auto';
         soundEffectElements[id] = audio;
     });
@@ -53,7 +60,7 @@ function playMP3SoundEffect(effectId, soundToggle) {
     if (audio) {
         // Clone the audio to allow overlapping plays
         const clone = audio.cloneNode();
-        clone.volume = audio.volume;
+        clone.volume = soundEffectVolumes[effectId] || 0.7;
         clone.play().catch(e => console.log('Sound effect autoplay prevented:', e));
     }
 }
