@@ -790,6 +790,10 @@ function startCreditsAnimation() {
         return;
     }
     
+    // Hide settings button during end credits
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) settingsBtn.style.display = 'none';
+    
     // Get the height of the screen
     const screenHeight = window.innerHeight;
     
@@ -840,6 +844,9 @@ function stopCreditsAnimation() {
     if (creditsOverlay) {
         creditsOverlay.style.display = 'none';
     }
+    // Show settings button again
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) settingsBtn.style.display = 'block';
     // Also cancel pending music start
     if (creditsMusicTimeoutId) {
         clearTimeout(creditsMusicTimeoutId);
@@ -9591,8 +9598,11 @@ function rotatePiece() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay if piece was about to lock
+                // Reset lock delay if piece was about to lock - give 500ms grace period
                 if (aboutToLock) {
+                    dropCounter = Math.min(0, dropInterval - 500);
+                } else if (dropCounter < 0) {
+                    // Rotated into open space, resume normal drop timing
                     dropCounter = 0;
                 }
                 break;
@@ -9641,8 +9651,11 @@ function rotatePieceCounterClockwise() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay if piece was about to lock
+                // Reset lock delay if piece was about to lock - give 500ms grace period
                 if (aboutToLock) {
+                    dropCounter = Math.min(0, dropInterval - 500);
+                } else if (dropCounter < 0) {
+                    // Rotated into open space, resume normal drop timing
                     dropCounter = 0;
                 }
                 break;
@@ -9678,8 +9691,11 @@ function movePiece(dir) {
         currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
-        // Reset lock delay if piece was about to lock
+        // Reset lock delay if piece was about to lock - give 500ms grace period
         if (aboutToLock) {
+            dropCounter = Math.min(0, dropInterval - 500);
+        } else if (dropCounter < 0) {
+            // Moved into open space, resume normal drop timing
             dropCounter = 0;
         }
     }
