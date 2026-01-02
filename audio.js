@@ -72,7 +72,22 @@ const gameplaySongs = [
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic_Fog.mp3' },
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle_Puddles.mp3' },
     { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' },
-    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' }
+    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' },
+    { id: 'lava_bells', name: 'Lava Bells', file: MUSIC_BASE_URL + 'Lava_Bells.mp3' },
+    { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling_Tide.mp3' },
+    { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling_Dewdrops.mp3' },
+    { id: 'haunted_hailstones', name: 'Haunted Hailstones', file: MUSIC_BASE_URL + 'Haunted_Hailstones.mp3' },
+    { id: 'pity_puddles', name: 'Pity Puddles', file: MUSIC_BASE_URL + 'Pity_Puddles.mp3' },
+    { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three_Ring_Gravity.mp3' },
+    { id: 'falling_forever', name: 'Falling Forever', file: MUSIC_BASE_URL + 'Falling_Forever.mp3' },
+    { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural_Disasters.mp3' },
+    { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes_%26_Pentominoes.mp3' },
+    { id: 'falling_for_you', name: 'Falling for You', file: MUSIC_BASE_URL + 'Falling_for_You.mp3' },
+    { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck_on_the_Grid.mp3' },
+    { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect_Storm.mp3' },
+    { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood_Me.mp3' },
+    { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental_Flow.mp3' },
+    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide_Your_Time.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
