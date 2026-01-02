@@ -21,6 +21,45 @@ let hasPlayedGame = false; // Track if a game has been completed
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
 
+// MP3 sound effects (hosted on GitHub Releases)
+const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
+
+// Sound effect MP3s
+const soundEffectFiles = {
+    strike: SFX_BASE_URL + 'Strike.mp3',
+    lineClear: SFX_BASE_URL + 'LineClear.mp3'
+};
+
+// Preloaded sound effect audio elements
+let soundEffectElements = {};
+
+// Initialize sound effect audio elements
+function initSoundEffects() {
+    Object.keys(soundEffectFiles).forEach(id => {
+        const audio = new Audio(soundEffectFiles[id]);
+        audio.volume = 0.7;
+        audio.preload = 'auto';
+        soundEffectElements[id] = audio;
+    });
+    console.log('🔊 Initialized sound effect MP3s:', Object.keys(soundEffectFiles));
+}
+
+// Play an MP3 sound effect
+function playMP3SoundEffect(effectId, soundToggle) {
+    if (!soundToggle || !soundToggle.checked) return;
+    
+    const audio = soundEffectElements[effectId];
+    if (audio) {
+        // Clone the audio to allow overlapping plays
+        const clone = audio.cloneNode();
+        clone.volume = audio.volume;
+        clone.play().catch(e => console.log('Sound effect autoplay prevented:', e));
+    }
+}
+
+// Initialize sound effects on load
+initSoundEffects();
+
 // Songs for during gameplay (non-Cascade songs)
 const gameplaySongs = [
     { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling_Blocks_Reactor.mp3' },
@@ -1086,66 +1125,12 @@ function playSound(frequency, duration, type = 'sine') {
 }
 
 // Enhanced thunder for tsunami events
-// Dramatic thunder for lightning strikes (the original sustained rumble)
+// Dramatic thunder for lightning strikes - now uses MP3
 function playEnhancedThunder(soundToggle) {
-    if (!soundToggle.checked) return;
+    if (!soundToggle || !soundToggle.checked) return;
     
-    // Create longer, more powerful rumbling thunder
-    const thunder = audioContext.createBufferSource();
-    const thunderGain = audioContext.createGain();
-    const filter = audioContext.createBiquadFilter();
-    
-    // Create a 4 second noise buffer
-    const bufferSize = audioContext.sampleRate * 4.0;
-    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-    const data = buffer.getChannelData(0);
-    
-    for (let i = 0; i < bufferSize; i++) {
-        const progress = i / bufferSize;
-        let envelope;
-        
-        // Start at full volume immediately, sustained rumble
-        if (progress < 0.3) {
-            envelope = 1.0; // Long sustain
-        } else {
-            // Gradual decay
-            envelope = 1.0 - ((progress - 0.3) / 0.7);
-        }
-        
-        // Apply envelope to noise
-        data[i] = (Math.random() * 2 - 1) * envelope;
-    }
-    thunder.buffer = buffer;
-    
-    // Low-pass filter for deep rumble
-    filter.type = 'lowpass';
-    filter.frequency.value = 200;
-    filter.Q.value = 0.7;
-    
-    thunderGain.gain.value = 2.5;
-    
-    thunder.connect(filter);
-    filter.connect(thunderGain);
-    thunderGain.connect(audioContext.destination);
-    
-    thunder.start(audioContext.currentTime);
-    
-    // Multiple cracks throughout
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(2500, 0.04, 'square');
-        playSound(2000, 0.06, 'square');
-    }, 20);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(2200, 0.05, 'square');
-    }, 600);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        playSound(1800, 0.06, 'square');
-    }, 1200);
+    // Use the Strike MP3 sound effect
+    playMP3SoundEffect('strike', soundToggle);
 }
 
 // Wet, whooshy tsunami/wave sound
@@ -1518,42 +1503,8 @@ function playSoundEffect(effect, soundToggle) {
             playSound(150, 0.1);
             break;
         case 'line':
-            // Realistic cash register "cha-ching" sound
-            // Phase 1: Mechanical "CHA" - drawer release mechanism (percussive thunk)
-            playSound(80, 0.12, 'square');  // Deep mechanical thunk
-            setTimeout(() => playSound(95, 0.10, 'square'), 15);
-            
-            // Phase 2: Metal rattle as drawer starts moving
-            setTimeout(() => {
-                playSound(220, 0.08, 'sawtooth');
-                playSound(280, 0.06, 'sawtooth');
-            }, 45);
-            
-            // Phase 3: Bell "CHING!" - the iconic high bell ring
-            setTimeout(() => {
-                // Primary bell tone (fundamental)
-                playSound(2400, 0.18, 'sine');
-                // Bell harmonics for richness
-                playSound(2900, 0.14, 'sine');
-                playSound(3200, 0.10, 'sine');
-            }, 80);
-            
-            // Phase 4: Bell resonance and shimmer
-            setTimeout(() => {
-                playSound(3600, 0.08, 'sine');
-                playSound(2600, 0.06, 'sine');
-            }, 110);
-            
-            // Phase 5: Drawer sliding open (gentle rumble with metallic quality)
-            setTimeout(() => {
-                playSound(150, 0.09, 'sawtooth');
-                playSound(170, 0.07, 'sawtooth');
-            }, 150);
-            
-            // Final mechanical settling
-            setTimeout(() => {
-                playSound(140, 0.05, 'sawtooth');
-            }, 220);
+            // Line clear sound - now uses MP3
+            playMP3SoundEffect('lineClear', soundToggle);
             break;
         case 'gold':
             // Enhanced "cha-ching" for special events (louder, brighter)
@@ -1840,6 +1791,7 @@ function playSmallExplosion(soundToggle) {
         startMenuMusic,
         stopMenuMusic,
         playSoundEffect,
+        playMP3SoundEffect,
         playEnhancedThunder,
         playThunder,
         playVolcanoRumble,
