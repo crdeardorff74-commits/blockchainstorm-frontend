@@ -70,12 +70,12 @@ const gameplaySongs = [
     { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic_Regae_Reverb.mp3' },
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic_Fog.mp3' },
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle_Puddles.mp3' },
-    { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' }
+    { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' },
+    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' }
 ];
 
-// "Cascade into the Void" variations - only played during end credits
+// "Cascade into the Void" variations with lyrics - only played during end credits
 const creditsSongs = [
-    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' },
     { id: 'cascade_void_credits', name: 'Cascade into the Void (End Credits)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_End_Credits.mp3' },
     { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Intense_Mix_.mp3' },
     { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Bork_Bork_Bork_Mix_.mp3' },
