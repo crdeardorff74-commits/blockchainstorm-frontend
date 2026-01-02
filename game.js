@@ -6816,6 +6816,13 @@ function showCascadeBonus(multiplier) {
         duration: 1500
     };
     console.log(`🔥 Cascade Bonus x${multiplier}!`);
+    
+    // Play LineClear sound effect 'multiplier' times in succession
+    for (let i = 0; i < multiplier; i++) {
+        setTimeout(() => {
+            playSoundEffect('line', soundToggle);
+        }, i * 150); // 150ms apart
+    }
 }
 
 function drawHistogram() {
@@ -9726,6 +9733,15 @@ function dropPiece() {
             // Spawn the next piece from queue
             currentPiece = nextPieceQueue.shift();
             
+            // IMMEDIATELY check if the new piece collides with existing blocks
+            // This prevents the piece from being rendered in an overlapping position
+            if (collides(currentPiece)) {
+                // Game over - new piece can't spawn without overlapping
+                currentPiece = null;
+                gameOver();
+                return;
+            }
+            
             // Record spawn time for speed bonus calculation
             pieceSpawnTime = Date.now();
             
@@ -10133,6 +10149,13 @@ function update(time = 0) {
     // If current piece is null (bounced away), spawn new piece
     if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
         currentPiece = nextPieceQueue.shift();
+        
+        // IMMEDIATELY check if the new piece collides with existing blocks
+        if (collides(currentPiece)) {
+            currentPiece = null;
+            gameOver();
+            return;
+        }
         
         // Record spawn time for speed bonus calculation
         pieceSpawnTime = Date.now();
