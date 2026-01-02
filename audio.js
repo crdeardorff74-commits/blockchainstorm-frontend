@@ -27,7 +27,8 @@ const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-f
 // Sound effect MP3s
 const soundEffectFiles = {
     strike: SFX_BASE_URL + 'Strike.mp3',
-    lineClear: SFX_BASE_URL + 'LineClear.mp3'
+    lineClear: SFX_BASE_URL + 'LineClear.mp3',
+    tsunami: SFX_BASE_URL + 'Tsunami.mp3'
 };
 
 // Preloaded sound effect audio elements
@@ -1133,101 +1134,12 @@ function playEnhancedThunder(soundToggle) {
     playMP3SoundEffect('strike', soundToggle);
 }
 
-// Wet, whooshy tsunami/wave sound
+// Wet, whooshy tsunami/wave sound - now uses MP3
 function playTsunamiWhoosh(soundToggle) {
-    if (!soundToggle.checked) return;
+    if (!soundToggle || !soundToggle.checked) return;
     
-    // Create a 3 second whooshing wave sound
-    const whoosh = audioContext.createBufferSource();
-    const whooshGain = audioContext.createGain();
-    const filter = audioContext.createBiquadFilter();
-    const highFilter = audioContext.createBiquadFilter();
-    
-    const duration = 3.0;
-    const bufferSize = audioContext.sampleRate * duration;
-    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-    const data = buffer.getChannelData(0);
-    
-    for (let i = 0; i < bufferSize; i++) {
-        const progress = i / bufferSize;
-        const time = progress * duration;
-        
-        // Wave-like envelope: builds up, crashes, then recedes
-        let envelope;
-        if (time < 0.5) {
-            // Building wave - rising whoosh
-            envelope = Math.pow(time / 0.5, 2) * 0.7;
-        } else if (time < 1.0) {
-            // Wave crash - peak intensity
-            envelope = 0.7 + 0.3 * Math.sin((time - 0.5) * Math.PI);
-        } else if (time < 1.5) {
-            // Impact and splash
-            envelope = 1.0 * Math.exp(-(time - 1.0) * 2);
-        } else {
-            // Water receding - gentle fade with bubbling
-            const recedeProgress = (time - 1.5) / 1.5;
-            envelope = 0.4 * Math.exp(-recedeProgress * 2) * (1 + 0.3 * Math.sin(time * 20));
-        }
-        
-        // Combine noise with some tonal elements for "wetness"
-        const noise = Math.random() * 2 - 1;
-        // Add some low frequency rumble for the wave mass
-        const waveRumble = Math.sin(time * 15 * Math.PI) * 0.2;
-        // Add higher frequency splashing sounds
-        const splash = Math.sin(time * 80 * Math.PI + Math.random() * 0.5) * 0.15;
-        
-        data[i] = (noise * 0.65 + waveRumble + splash) * envelope;
-    }
-    
-    whoosh.buffer = buffer;
-    
-    // Band-pass filtering for watery sound
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(300, audioContext.currentTime);
-    filter.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.5); // Opens up during crash
-    filter.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 1.5); // Closes as wave recedes
-    filter.Q.value = 1.5;
-    
-    // High shelf to add some "spray" brightness
-    highFilter.type = 'highshelf';
-    highFilter.frequency.value = 2000;
-    highFilter.gain.setValueAtTime(-5, audioContext.currentTime);
-    highFilter.gain.linearRampToValueAtTime(3, audioContext.currentTime + 0.8); // Brighten during splash
-    highFilter.gain.linearRampToValueAtTime(-3, audioContext.currentTime + 2.0);
-    
-    whooshGain.gain.setValueAtTime(0.5, audioContext.currentTime);
-    whooshGain.gain.linearRampToValueAtTime(2.5, audioContext.currentTime + 0.8); // Build to crash
-    whooshGain.gain.linearRampToValueAtTime(1.5, audioContext.currentTime + 1.5);
-    whooshGain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + duration);
-    
-    whoosh.connect(filter);
-    filter.connect(highFilter);
-    highFilter.connect(whooshGain);
-    whooshGain.connect(audioContext.destination);
-    
-    whoosh.start(audioContext.currentTime);
-    whoosh.stop(audioContext.currentTime + duration);
-    
-    // Add some discrete water splash sounds
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        // Splash impact
-        playSound(150, 0.15, 'sine');
-        playSound(200, 0.12, 'triangle');
-    }, 800);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        // Secondary splash
-        playSound(180, 0.1, 'sine');
-    }, 1100);
-    
-    setTimeout(() => {
-        if (!soundToggle.checked) return;
-        // Bubbling
-        playSound(400, 0.08, 'sine');
-        playSound(500, 0.06, 'sine');
-    }, 1400);
+    // Use the Tsunami MP3 sound effect
+    playMP3SoundEffect('tsunami', soundToggle);
 }
 
 // Realistic thunder effect
