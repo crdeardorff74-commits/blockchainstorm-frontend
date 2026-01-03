@@ -138,6 +138,126 @@ let lastPlayedCreditsSong = null;
 let recentlyPlayedFamilies = []; // Stores last 4 song families
 const MIN_FAMILY_SEPARATION = 4; // At least 4 other songs between same-family songs
 
+// Track song history for skip backwards functionality
+let songHistory = []; // Songs played in order (most recent at end)
+const MAX_SONG_HISTORY = 20;
+
+// Callback for when song changes (so game.js can update display)
+let onSongChangeCallback = null;
+
+function setOnSongChangeCallback(callback) {
+    onSongChangeCallback = callback;
+}
+
+// Notify listeners that song changed
+function notifySongChange() {
+    if (onSongChangeCallback) {
+        onSongChangeCallback(getCurrentSongInfo());
+    }
+}
+
+// Get current song information
+function getCurrentSongInfo() {
+    if (!currentPlayingTrack) {
+        return null;
+    }
+    
+    const song = allSongs.find(s => s.id === currentPlayingTrack);
+    const audio = gameplayMusicElements[currentPlayingTrack];
+    
+    if (!song || !audio) {
+        return null;
+    }
+    
+    return {
+        id: currentPlayingTrack,
+        name: song.name,
+        duration: audio.duration || 0,
+        currentTime: audio.currentTime || 0,
+        file: song.file
+    };
+}
+
+// Skip to next song (only works in shuffle mode)
+function skipToNextSong() {
+    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
+        console.log('🎵 Skip next: Not in shuffle mode or not playing');
+        return false;
+    }
+    
+    // Stop current track
+    if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
+        const audio = gameplayMusicElements[currentPlayingTrack];
+        audio.pause();
+        audio.currentTime = 0;
+    }
+    
+    // Add current song to history before switching
+    if (currentPlayingTrack) {
+        songHistory.push(currentPlayingTrack);
+        if (songHistory.length > MAX_SONG_HISTORY) {
+            songHistory.shift();
+        }
+    }
+    
+    musicPlaying = false;
+    currentPlayingTrack = null;
+    
+    // Start next track
+    if (currentMusicSelectElement) {
+        startMusic(null, currentMusicSelectElement);
+    }
+    
+    console.log('🎵 Skipped to next song');
+    return true;
+}
+
+// Skip to previous song (only works in shuffle mode)
+function skipToPreviousSong() {
+    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
+        console.log('🎵 Skip prev: Not in shuffle mode or not playing');
+        return false;
+    }
+    
+    if (songHistory.length === 0) {
+        console.log('🎵 Skip prev: No song history');
+        return false;
+    }
+    
+    // Stop current track
+    if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
+        const audio = gameplayMusicElements[currentPlayingTrack];
+        audio.pause();
+        audio.currentTime = 0;
+        
+        // Put current song back at front of queue so it plays next time
+        gameplayShuffleQueue.push(currentPlayingTrack);
+    }
+    
+    // Get previous song from history
+    const prevSongId = songHistory.pop();
+    
+    musicPlaying = false;
+    currentPlayingTrack = null;
+    
+    // Play the previous song directly
+    const audio = gameplayMusicElements[prevSongId];
+    const song = allSongs.find(s => s.id === prevSongId);
+    
+    if (audio && song) {
+        musicPlaying = true;
+        currentPlayingTrack = prevSongId;
+        audio.loop = false;
+        audio.src = song.file;
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Music autoplay prevented:', e));
+        console.log('🎵 Skipped back to:', song.name);
+        notifySongChange();
+    }
+    
+    return true;
+}
+
 // Extract the "family" (base name) of a song - the part before any parentheses
 // e.g., "The Pit (Techno Mix)" -> "The Pit"
 // e.g., "Cascade into the Void (Nervous Mix)" -> "Cascade into the Void"
@@ -409,6 +529,14 @@ function startMusic(gameMode, musicSelect) {
     const song = allSongs.find(s => s.id === trackId);
     
     if (audio && song) {
+        // Add previous song to history before switching
+        if (currentPlayingTrack && currentPlayingTrack !== trackId) {
+            songHistory.push(currentPlayingTrack);
+            if (songHistory.length > MAX_SONG_HISTORY) {
+                songHistory.shift();
+            }
+        }
+        
         currentPlayingTrack = trackId;
         
         // In shuffle mode, don't loop - play next song when this one ends
@@ -420,6 +548,9 @@ function startMusic(gameMode, musicSelect) {
         audio.src = song.file;
         audio.currentTime = 0;
         audio.play().catch(e => console.log('Music autoplay prevented:', e));
+        
+        // Notify listeners of song change
+        notifySongChange();
     } else {
         // Failed to find audio/song, reset flag
         musicPlaying = false;
@@ -1084,6 +1215,9 @@ function stopMusic() {
         audio.currentTime = 0;
     }
     currentPlayingTrack = null;
+    
+    // Notify listeners that music stopped
+    notifySongChange();
     
     // Legacy synth cleanup (keep for backwards compatibility)
     if (kickScheduler) {
@@ -1809,6 +1943,10 @@ function playSmallExplosion(soundToggle) {
         playSmallExplosion,
         getSongList,
         setHasPlayedGame,
-        gameplayMusicElements
+        gameplayMusicElements,
+        skipToNextSong,
+        skipToPreviousSong,
+        getCurrentSongInfo,
+        setOnSongChangeCallback
     };
 })(); // End IIFE

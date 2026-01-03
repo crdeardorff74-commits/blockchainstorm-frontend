@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, getCurrentSongInfo, setOnSongChangeCallback } = window.AudioSystem;
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -1060,6 +1060,84 @@ const planetStatsDiv = document.getElementById('planetStats');
 const planetStatsContent = document.getElementById('planetStatsContent');
 const soundToggle = document.getElementById('soundToggle');
 const musicSelect = document.getElementById('musicSelect');
+
+// Song info display - created dynamically
+let songInfoElement = null;
+
+function createSongInfoElement() {
+    // Find the side panel to add song info to
+    const sidePanel = document.querySelector('.side-panel');
+    if (!sidePanel) return;
+    
+    // Check if element already exists
+    if (document.getElementById('songInfo')) {
+        songInfoElement = document.getElementById('songInfo');
+        return;
+    }
+    
+    // Create song info container
+    songInfoElement = document.createElement('div');
+    songInfoElement.id = 'songInfo';
+    songInfoElement.style.cssText = `
+        margin-top: 15px;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        font-size: 12px;
+        color: #aaa;
+        text-align: center;
+        display: none;
+    `;
+    
+    songInfoElement.innerHTML = `
+        <div style="color: #666; font-size: 10px; margin-bottom: 5px;">♪ NOW PLAYING ♪</div>
+        <div id="songName" style="color: #ddd; font-size: 13px; word-wrap: break-word;"></div>
+        <div id="songDuration" style="color: #888; font-size: 11px; margin-top: 5px;"></div>
+        <div style="color: #555; font-size: 9px; margin-top: 8px;">SHIFT+← / → to skip</div>
+    `;
+    
+    // Find planet stats and insert after it, or append to side panel
+    const planetStats = document.getElementById('planetStats');
+    if (planetStats && planetStats.parentNode === sidePanel) {
+        planetStats.after(songInfoElement);
+    } else {
+        sidePanel.appendChild(songInfoElement);
+    }
+}
+
+function updateSongInfoDisplay(songInfo) {
+    if (!songInfoElement) {
+        createSongInfoElement();
+    }
+    if (!songInfoElement) return;
+    
+    if (!songInfo) {
+        songInfoElement.style.display = 'none';
+        return;
+    }
+    
+    songInfoElement.style.display = 'block';
+    
+    const songNameEl = document.getElementById('songName');
+    const songDurationEl = document.getElementById('songDuration');
+    
+    if (songNameEl) {
+        songNameEl.textContent = songInfo.name;
+    }
+    
+    if (songDurationEl && songInfo.duration > 0) {
+        const minutes = Math.floor(songInfo.duration / 60);
+        const seconds = Math.floor(songInfo.duration % 60);
+        songDurationEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    } else if (songDurationEl) {
+        songDurationEl.textContent = '';
+    }
+}
+
+// Set up the song change callback
+if (typeof setOnSongChangeCallback === 'function') {
+    setOnSongChangeCallback(updateSongInfoDisplay);
+}
 // trainingWheelsToggle removed - shadow is now standard (use Shadowless challenge for +4% bonus)
 const stormEffectsToggle = document.getElementById('stormEffectsToggle');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -10663,7 +10741,18 @@ function startGame(mode) {
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
     stopMenuMusic();
+    
+    // Create song info display element if not exists
+    createSongInfoElement();
+    
     startMusic(gameMode, musicSelect);
+    
+    // Update song display after a short delay (to let audio load)
+    setTimeout(() => {
+        const songInfo = getCurrentSongInfo();
+        if (songInfo) updateSongInfoDisplay(songInfo);
+    }, 100);
+    
     update();
 }
 
@@ -10751,6 +10840,17 @@ document.addEventListener('keydown', e => {
         if (e.key === 'Backspace' && developerMode) {
             e.preventDefault();
             triggerLightning(300);
+            return;
+        }
+        
+        // Music controls: SHIFT+Arrow or CTRL+Arrow to skip songs
+        if ((e.shiftKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            if (e.key === 'ArrowRight') {
+                skipToNextSong();
+            } else if (e.key === 'ArrowLeft') {
+                skipToPreviousSong();
+            }
             return;
         }
         
