@@ -88,20 +88,22 @@ const gameplaySongs = [
     { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three_Ring_Gravity.mp3' },
     { id: 'falling_forever', name: 'Falling Forever', file: MUSIC_BASE_URL + 'Falling_Forever.mp3' },
     { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural_Disasters.mp3' },
-    { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes_%26_Pentominoes.mp3' },
+    { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes_._Pentominoes.mp3' },
     { id: 'falling_for_you', name: 'Falling for You', file: MUSIC_BASE_URL + 'Falling_for_You.mp3' },
     { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck_on_the_Grid.mp3' },
     { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect_Storm.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood_Me.mp3' },
     { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental_Flow.mp3' },
     { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide_Your_Time.mp3' },
-    { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Techno_Mix).mp3' },
-    { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The_Pit_(House_Mix).mp3' },
-    { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Horny_Mix).mp3' },
-    { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Banjo_Mix).mp3' },
+    { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Techno_Mix.mp3' },
+    { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The_Pit_.House_Mix.mp3' },
+    { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Horny_Mix.mp3' },
+    { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Banjo_Mix.mp3' },
     { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing_Skies.mp3' },
     { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow_Burn.mp3' },
-    { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The_Long_Game.mp3' }
+    { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The_Long_Game.mp3' },
+    { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin._Down.mp3' },
+    { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
