@@ -94,7 +94,14 @@ const gameplaySongs = [
     { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect_Storm.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood_Me.mp3' },
     { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental_Flow.mp3' },
-    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide_Your_Time.mp3' }
+    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide_Your_Time.mp3' },
+    { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Techno_Mix).mp3' },
+    { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The_Pit_(House_Mix).mp3' },
+    { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Horny_Mix).mp3' },
+    { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The_Pit_(Banjo_Mix).mp3' },
+    { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing_Skies.mp3' },
+    { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow_Burn.mp3' },
+    { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The_Long_Game.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
@@ -126,6 +133,29 @@ let creditsShuffleQueue = [];
 let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
+// Track recently played song families (base names before parentheses)
+// This prevents variants of the same song from playing too close together
+let recentlyPlayedFamilies = []; // Stores last 4 song families
+const MIN_FAMILY_SEPARATION = 4; // At least 4 other songs between same-family songs
+
+// Extract the "family" (base name) of a song - the part before any parentheses
+// e.g., "The Pit (Techno Mix)" -> "The Pit"
+// e.g., "Cascade into the Void (Nervous Mix)" -> "Cascade into the Void"
+// e.g., "Falling Blocks Reactor" -> "Falling Blocks Reactor"
+function getSongFamily(songName) {
+    const parenIndex = songName.indexOf('(');
+    if (parenIndex > 0) {
+        return songName.substring(0, parenIndex).trim();
+    }
+    return songName;
+}
+
+// Get the song name from an id
+function getSongNameById(songId, songList) {
+    const song = songList.find(s => s.id === songId);
+    return song ? song.name : songId;
+}
+
 // Fisher-Yates shuffle helper
 function shuffleArray(array) {
     const shuffled = [...array];
@@ -144,7 +174,7 @@ function initShuffleQueues() {
     console.log('🎵 Initialized credits shuffle queue:', creditsShuffleQueue);
 }
 
-// Get next song from a shuffle queue (refills when empty, prevents immediate repeats)
+// Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     if (queue.length === 0) {
         // Refill and reshuffle
@@ -163,7 +193,49 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
         queue.push(...newQueue);
         console.log(`🎵 Refilled ${queueName} queue:`, [...queue]);
     }
+    
+    // Find a song that doesn't have a recently played family
+    let selectedIndex = queue.length - 1; // Default to top of queue (will be popped)
+    const candidateSongId = queue[selectedIndex];
+    const candidateName = getSongNameById(candidateSongId, songList);
+    const candidateFamily = getSongFamily(candidateName);
+    
+    // Check if this song's family was recently played
+    if (recentlyPlayedFamilies.includes(candidateFamily)) {
+        console.log(`🎵 "${candidateName}" family "${candidateFamily}" was recently played, looking for alternative...`);
+        
+        // Search through queue for a song with a different family
+        let foundAlternative = false;
+        for (let i = queue.length - 2; i >= 0; i--) {
+            const altSongId = queue[i];
+            const altName = getSongNameById(altSongId, songList);
+            const altFamily = getSongFamily(altName);
+            
+            if (!recentlyPlayedFamilies.includes(altFamily)) {
+                // Found an alternative! Swap it to the top
+                [queue[i], queue[selectedIndex]] = [queue[selectedIndex], queue[i]];
+                console.log(`🎵 Swapped to "${altName}" (family: "${altFamily}") to maintain separation`);
+                foundAlternative = true;
+                break;
+            }
+        }
+        
+        if (!foundAlternative) {
+            console.log(`🎵 No alternative found, playing "${candidateName}" anyway`);
+        }
+    }
+    
     const song = queue.pop();
+    const songName = getSongNameById(song, songList);
+    const songFamily = getSongFamily(songName);
+    
+    // Track the family of what we just played
+    recentlyPlayedFamilies.push(songFamily);
+    // Keep only the last MIN_FAMILY_SEPARATION families
+    if (recentlyPlayedFamilies.length > MIN_FAMILY_SEPARATION) {
+        recentlyPlayedFamilies.shift();
+    }
+    console.log(`🎵 Recently played families:`, [...recentlyPlayedFamilies]);
     
     // Track what we just played
     if (queueName === 'gameplay') {
