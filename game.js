@@ -1274,6 +1274,9 @@ let tornadoOrbitAngle = 0; // Current angle around tornado
 let tornadoLiftHeight = 0; // Current height of blob as it climbs
 let tornadoDropStartY = 0; // Y position when dropping starts
 let tornadoDropVelocity = 0; // Velocity when blob is falling
+let tornadoFinalPositions = null; // Pre-calculated final grid positions for dropped blob
+let tornadoFinalCenterX = null; // Final center X in pixels
+let tornadoFinalCenterY = null; // Final center Y in pixels
 let tornadoFadeProgress = 0; // 0 to 1 for dissipation animation
 let tornadoSnakeVelocity = 0; // Current horizontal velocity
 let tornadoSnakeDirection = 1; // 1 or -1
@@ -2674,6 +2677,9 @@ function spawnTornado() {
     tornadoLiftHeight = 0;
     tornadoDropStartY = 0;
     tornadoDropVelocity = 0;
+    tornadoFinalPositions = null;
+    tornadoFinalCenterX = null;
+    tornadoFinalCenterY = null;
     tornadoFadeProgress = 0;
     
     // Create initial swirling particles
@@ -2968,15 +2974,75 @@ function updateTornado() {
             tornadoOrbitRadius = 0; // Fully broken free
             tornadoDropStartY = tornadoLiftHeight; // Start falling from lift height
             tornadoDropVelocity = 0; // Reset velocity for gravity
+            tornadoFinalPositions = null; // Will be calculated on first dropping update
         }
     } else if (tornadoState === 'dropping') {
         // Blob breaks free from orbit and falls with gravity
-        if (!tornadoDropStartY) {
-            tornadoDropStartY = tornadoLiftHeight;
+        
+        // Pre-calculate exact final positions at start of drop (once only)
+        // This ensures animation matches actual placement
+        if (tornadoPickedBlob && !tornadoFinalPositions) {
+            const dropCol = Math.floor(tornadoX / BLOCK_SIZE);
+            const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
+            const maxX = Math.max(...tornadoPickedBlob.positions.map(p => p[0]));
+            const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
+            
+            // Calculate offset same as dropBlobAt
+            const blobCenterX = Math.floor((minX + maxX) / 2);
+            let offsetX = dropCol - blobCenterX;
+            
+            // Clamp to ensure blob stays within bounds
+            if (minX + offsetX < 0) {
+                offsetX = -minX;
+            }
+            if (maxX + offsetX >= COLS) {
+                offsetX = COLS - 1 - maxX;
+            }
+            
+            // Find lowest valid Y position
+            let finalY = ROWS - 1;
+            for (let testY = ROWS - 1; testY >= 0; testY--) {
+                let canPlace = true;
+                for (const [bx, by] of tornadoPickedBlob.positions) {
+                    const newX = bx + offsetX;
+                    const newY = testY - (maxY - by);
+                    
+                    if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
+                        canPlace = false;
+                        break;
+                    }
+                    if (board[newY][newX] !== null) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                if (canPlace) {
+                    finalY = testY;
+                    break;
+                }
+            }
+            
+            // Store final positions for each block
+            tornadoFinalPositions = tornadoPickedBlob.positions.map(([bx, by]) => ({
+                x: bx + offsetX,
+                y: finalY - (maxY - by)
+            }));
+            
+            // Calculate the center of final positions in pixels for animation target
+            const finalMinX = Math.min(...tornadoFinalPositions.map(p => p.x));
+            const finalMaxX = Math.max(...tornadoFinalPositions.map(p => p.x));
+            const finalMinY = Math.min(...tornadoFinalPositions.map(p => p.y));
+            const finalMaxY = Math.max(...tornadoFinalPositions.map(p => p.y));
+            
+            tornadoFinalCenterX = ((finalMinX + finalMaxX) / 2 + 0.5) * BLOCK_SIZE;
+            tornadoFinalCenterY = ((finalMinY + finalMaxY) / 2 + 0.5) * BLOCK_SIZE;
+            
+            // Snap X to final position immediately (blob falls straight down)
+            tornadoX = tornadoFinalCenterX;
         }
         
         // Fall with acceleration (gravity)
-        tornadoDropVelocity += 0.5; // Gravity acceleration
+        tornadoDropVelocity += 0.5;
         tornadoDropStartY += tornadoDropVelocity;
         
         // Gradually slow rotation as it falls
@@ -2987,61 +3053,29 @@ function updateTornado() {
         tornadoOrbitAngle = 0;
         tornadoOrbitRadius = 0;
         
-        // Find where to land the blob
-        if (tornadoPickedBlob) {
-            const dropCol = Math.floor(tornadoX / BLOCK_SIZE);
-            const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
-            const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
-            
-            // Calculate where the bottom of the blob is in pixels
-            const blobCenterY = (minY + maxY) / 2;
-            const blobBottomPixelY = tornadoDropStartY + (maxY - blobCenterY) * BLOCK_SIZE;
-            
-            // Find the target landing position
-            const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
-            const offsetX = dropCol - minX;
-            
-            // Use dropBlobAt logic to find proper landing row
-            const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - minX + 1;
-            let landingRow = ROWS - 1;
-            
-            // Find lowest valid Y position for the blob
-            for (let testY = ROWS - 1; testY >= 0; testY--) {
-                let canPlace = true;
-                for (const [bx, by] of tornadoPickedBlob.positions) {
-                    const newX = bx + offsetX;
-                    const newY = testY - (maxY - by);
-                    
-                    // Check bounds
-                    if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
-                        canPlace = false;
-                        break;
-                    }
-                    
-                    // Check collision with existing blocks
-                    if (board[newY][newX] !== null) {
-                        canPlace = false;
-                        break;
+        // Check if blob should land
+        if (tornadoPickedBlob && tornadoFinalPositions && tornadoFinalCenterY) {
+            if (tornadoDropStartY >= tornadoFinalCenterY) {
+                // Snap to exact final position
+                tornadoDropStartY = tornadoFinalCenterY;
+                
+                // Place blocks at pre-calculated positions
+                for (let i = 0; i < tornadoPickedBlob.positions.length; i++) {
+                    const finalPos = tornadoFinalPositions[i];
+                    if (finalPos.x >= 0 && finalPos.x < COLS && finalPos.y >= 0 && finalPos.y < ROWS) {
+                        board[finalPos.y][finalPos.x] = tornadoPickedBlob.color;
+                        isRandomBlock[finalPos.y][finalPos.x] = false;
+                        fadingBlocks[finalPos.y][finalPos.x] = null;
                     }
                 }
                 
-                if (canPlace) {
-                    landingRow = testY;
-                    break;
-                }
-            }
-            
-            const targetBottomPixelY = (landingRow + 1) * BLOCK_SIZE;
-            
-            if (blobBottomPixelY >= targetBottomPixelY) {
-                // Landed! Drop the blob
-                dropBlobAt(tornadoPickedBlob, dropCol);
                 playSoundEffect('drop', soundToggle);
-                
-                // Check for line clears after dropping
                 clearLines();
                 
                 tornadoPickedBlob = null;
+                tornadoFinalPositions = null;
+                tornadoFinalCenterX = null;
+                tornadoFinalCenterY = null;
                 tornadoDropVelocity = 0;
                 tornadoState = 'dissipating';
                 tornadoFadeProgress = 0;
@@ -3304,7 +3338,8 @@ function drawTornado() {
         const maxX = Math.max(...tornadoPickedBlob.positions.map(p => p[0]));
         const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
         const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
-        const blobCenterX = (minX + maxX) / 2;
+        // Use floor for X center to match dropBlobAt
+        const blobCenterX = Math.floor((minX + maxX) / 2);
         const blobCenterY = (minY + maxY) / 2;
         
         // Calculate blob position based on state
@@ -3330,8 +3365,8 @@ function drawTornado() {
             
             blobAlpha = orbitZ < 0 ? 0.3 : 1.0;
         } else {
-            // Dropping - falls straight down from lift height
-            blobDrawX = tornadoX;
+            // Dropping - use pre-calculated final X, animate Y
+            blobDrawX = tornadoFinalCenterX || tornadoX;
             blobDrawY = tornadoDropStartY;
             blobAlpha = 1.0;
         }
@@ -3360,14 +3395,31 @@ function drawTornado() {
         // Translate back
         ctx.translate(-centerPixelX, -centerPixelY);
         
-        const positions = tornadoPickedBlob.positions.map(([bx, by]) => {
-            const relX = (bx - blobCenterX);
-            const relY = (by - blobCenterY);
+        // For dropping state, use pre-calculated final positions for perfect alignment
+        let positions;
+        if (tornadoState === 'dropping' && tornadoFinalPositions) {
+            // Calculate offset from final center to current animated position
+            const finalCenterY = tornadoFinalCenterY || blobDrawY;
+            const yOffset = (blobDrawY - finalCenterY) / BLOCK_SIZE;
             
-            const screenX = Math.floor((blobDrawX / BLOCK_SIZE) + relX);
-            const screenY = Math.floor((blobDrawY / BLOCK_SIZE) + relY);
-            return [screenX, screenY];
-        });
+            positions = tornadoFinalPositions.map(pos => [
+                pos.x,
+                pos.y + yOffset
+            ]);
+        } else {
+            // Calculate screen positions for each block
+            const centerGridX = blobDrawX / BLOCK_SIZE;
+            const centerGridY = blobDrawY / BLOCK_SIZE - 0.5;
+            
+            positions = tornadoPickedBlob.positions.map(([bx, by]) => {
+                const relX = bx - blobCenterX;
+                const relY = by - blobCenterY;
+                
+                const screenX = Math.floor(centerGridX + relX);
+                const screenY = Math.floor(centerGridY + relY + 0.5);
+                return [screenX, screenY];
+            });
+        }
         
         drawSolidShape(ctx, positions, tornadoPickedBlob.color, BLOCK_SIZE, false, 0.9);
         
@@ -10604,6 +10656,9 @@ function startGame(mode) {
     tornadoDropTargetX = 0;
     tornadoDropStartY = 0;
     tornadoDropVelocity = 0;
+    tornadoFinalPositions = null;
+    tornadoFinalCenterX = null;
+    tornadoFinalCenterY = null;
     
     // Reset earthquake state
     earthquakeActive = false;
