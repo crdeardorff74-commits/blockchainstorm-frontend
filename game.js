@@ -2999,7 +2999,21 @@ function updateTornado() {
                 offsetX = COLS - 1 - maxX;
             }
             
-            // Find lowest valid Y position
+            // Build a set of positions occupied by the current falling piece
+            const currentPiecePositions = new Set();
+            if (currentPiece && currentPiece.shape) {
+                for (let py = 0; py < currentPiece.shape.length; py++) {
+                    for (let px = 0; px < currentPiece.shape[py].length; px++) {
+                        if (currentPiece.shape[py][px]) {
+                            const pieceX = currentPiece.x + px;
+                            const pieceY = currentPiece.y + py;
+                            currentPiecePositions.add(`${pieceX},${pieceY}`);
+                        }
+                    }
+                }
+            }
+            
+            // Find lowest valid Y position (check both board AND current piece)
             let finalY = ROWS - 1;
             for (let testY = ROWS - 1; testY >= 0; testY--) {
                 let canPlace = true;
@@ -3011,7 +3025,13 @@ function updateTornado() {
                         canPlace = false;
                         break;
                     }
+                    // Check collision with existing blocks on board
                     if (board[newY][newX] !== null) {
+                        canPlace = false;
+                        break;
+                    }
+                    // Check collision with current falling piece
+                    if (currentPiecePositions.has(`${newX},${newY}`)) {
                         canPlace = false;
                         break;
                     }
@@ -3058,6 +3078,77 @@ function updateTornado() {
             if (tornadoDropStartY >= tornadoFinalCenterY) {
                 // Snap to exact final position
                 tornadoDropStartY = tornadoFinalCenterY;
+                
+                // Build a set of positions occupied by the current falling piece
+                const currentPiecePositions = new Set();
+                if (currentPiece && currentPiece.shape) {
+                    for (let py = 0; py < currentPiece.shape.length; py++) {
+                        for (let px = 0; px < currentPiece.shape[py].length; px++) {
+                            if (currentPiece.shape[py][px]) {
+                                const pieceX = currentPiece.x + px;
+                                const pieceY = currentPiece.y + py;
+                                currentPiecePositions.add(`${pieceX},${pieceY}`);
+                            }
+                        }
+                    }
+                }
+                
+                // Check if any final position collides with current piece
+                let collidesWithCurrentPiece = false;
+                for (const finalPos of tornadoFinalPositions) {
+                    if (currentPiecePositions.has(`${finalPos.x},${finalPos.y}`)) {
+                        collidesWithCurrentPiece = true;
+                        break;
+                    }
+                }
+                
+                // If collision with current piece, recalculate to land above it
+                if (collidesWithCurrentPiece) {
+                    console.log('🌪️ Blob would collide with current piece, recalculating...');
+                    
+                    const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
+                    const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
+                    const maxX = Math.max(...tornadoPickedBlob.positions.map(p => p[0]));
+                    const blobCenterX = Math.floor((minX + maxX) / 2);
+                    const dropCol = Math.floor(tornadoX / BLOCK_SIZE);
+                    let offsetX = dropCol - blobCenterX;
+                    
+                    if (minX + offsetX < 0) offsetX = -minX;
+                    if (maxX + offsetX >= COLS) offsetX = COLS - 1 - maxX;
+                    
+                    // Find new valid position avoiding both board and current piece
+                    let finalY = ROWS - 1;
+                    for (let testY = ROWS - 1; testY >= 0; testY--) {
+                        let canPlace = true;
+                        for (const [bx, by] of tornadoPickedBlob.positions) {
+                            const newX = bx + offsetX;
+                            const newY = testY - (maxY - by);
+                            
+                            if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
+                                canPlace = false;
+                                break;
+                            }
+                            if (board[newY][newX] !== null) {
+                                canPlace = false;
+                                break;
+                            }
+                            if (currentPiecePositions.has(`${newX},${newY}`)) {
+                                canPlace = false;
+                                break;
+                            }
+                        }
+                        if (canPlace) {
+                            finalY = testY;
+                            break;
+                        }
+                    }
+                    
+                    // Update final positions
+                    tornadoFinalPositions = tornadoPickedBlob.positions.map(([bx, by]) => ({
+                        x: bx + offsetX,
+                        y: finalY - (maxY - by)
+                    }));
+                }
                 
                 // Place blocks at pre-calculated positions
                 for (let i = 0; i < tornadoPickedBlob.positions.length; i++) {
