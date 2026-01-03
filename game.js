@@ -1195,6 +1195,7 @@ let tornadoOrbitRadius = 0; // Distance from tornado center
 let tornadoOrbitAngle = 0; // Current angle around tornado
 let tornadoLiftHeight = 0; // Current height of blob as it climbs
 let tornadoDropStartY = 0; // Y position when dropping starts
+let tornadoDropVelocity = 0; // Velocity when blob is falling
 let tornadoFadeProgress = 0; // 0 to 1 for dissipation animation
 let tornadoSnakeVelocity = 0; // Current horizontal velocity
 let tornadoSnakeDirection = 1; // 1 or -1
@@ -2594,6 +2595,7 @@ function spawnTornado() {
     tornadoOrbitAngle = 0;
     tornadoLiftHeight = 0;
     tornadoDropStartY = 0;
+    tornadoDropVelocity = 0;
     tornadoFadeProgress = 0;
     
     // Create initial swirling particles
@@ -2833,6 +2835,7 @@ function updateTornado() {
             tornadoOrbitRadius = 30; // Start close
             tornadoLiftHeight = tornadoY; // Start at pickup point
             tornadoVerticalRotation = 0;
+            tornadoOrbitAngle = 0;
         }
         
         const orbitTime = Date.now() - tornadoOrbitStartTime;
@@ -2846,8 +2849,8 @@ function updateTornado() {
         // Gradually expand orbit radius as it climbs
         tornadoOrbitRadius = 30 + liftProgress * 40;
         
-        // Orbit angle increases over time (multiple rotations during climb)
-        tornadoOrbitAngle = (orbitTime / 1000) * Math.PI * 2; // Full rotation per second
+        // Smooth incremental orbit rotation
+        tornadoOrbitAngle += 0.08;
         
         // Spin the blob as it orbits
         tornadoBlobRotation += 0.12;
@@ -2861,6 +2864,7 @@ function updateTornado() {
                              Math.min(...tornadoPickedBlob.positions.map(p => p[0])) + 1;
             const maxDropCol = COLS - blobWidth;
             tornadoDropTargetX = Math.floor(Math.random() * maxDropCol + blobWidth / 2) * BLOCK_SIZE + BLOCK_SIZE / 2;
+            tornadoOrbitStartTime = Date.now();
         }
     } else if (tornadoState === 'carrying') {
         // Blob flung free - moves to drop target while still orbiting (but orbit fades out)
@@ -2871,7 +2875,9 @@ function updateTornado() {
         // Continue orbiting but fade it out
         if (!tornadoOrbitStartTime) tornadoOrbitStartTime = Date.now();
         const carryTime = Date.now() - tornadoOrbitStartTime;
-        tornadoOrbitAngle = (carryTime / 1000) * Math.PI * 2;
+        
+        // Smooth incremental orbit, gradually slowing
+        tornadoOrbitAngle += 0.08 * (tornadoOrbitRadius / 70);
         
         // Gradually reduce orbit radius (blob breaking free)
         tornadoOrbitRadius = Math.max(0, 70 - carryTime / 20);
@@ -2883,18 +2889,21 @@ function updateTornado() {
             tornadoState = 'dropping';
             tornadoOrbitRadius = 0; // Fully broken free
             tornadoDropStartY = tornadoLiftHeight; // Start falling from lift height
+            tornadoDropVelocity = 0; // Reset velocity for gravity
         }
     } else if (tornadoState === 'dropping') {
-        // Blob breaks free from orbit and falls straight down
-        // Start fall from the lift height, not from ground
+        // Blob breaks free from orbit and falls with gravity
         if (!tornadoDropStartY) {
             tornadoDropStartY = tornadoLiftHeight;
         }
         
-        // Fall from lift height
-        tornadoDropStartY += tornadoSpeed * 2;
-        tornadoBlobRotation += 0.15;
-        tornadoVerticalRotation += 0.1; // Spin around vertical axis
+        // Fall with acceleration (gravity)
+        tornadoDropVelocity += 0.5; // Gravity acceleration
+        tornadoDropStartY += tornadoDropVelocity;
+        
+        // Gradually slow rotation as it falls
+        tornadoBlobRotation += Math.max(0.02, 0.15 - tornadoDropVelocity * 0.005);
+        tornadoVerticalRotation += Math.max(0.01, 0.1 - tornadoDropVelocity * 0.003);
         
         // Reset orbit tracking
         tornadoOrbitAngle = 0;
@@ -2903,32 +2912,51 @@ function updateTornado() {
         // Find where to land the blob
         if (tornadoPickedBlob) {
             const dropCol = Math.floor(tornadoX / BLOCK_SIZE);
+            const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
             const minY = Math.min(...tornadoPickedBlob.positions.map(p => p[1]));
-            const currentBlobBottomY = Math.floor(tornadoDropStartY / BLOCK_SIZE) - minY;
             
-            // Check if blob should land
-            let shouldLand = false;
+            // Calculate where the bottom of the blob is in pixels
+            const blobCenterY = (minY + maxY) / 2;
+            const blobBottomPixelY = tornadoDropStartY + (maxY - blobCenterY) * BLOCK_SIZE;
             
-            // Check if hit bottom
-            if (currentBlobBottomY + Math.max(...tornadoPickedBlob.positions.map(p => p[1])) >= ROWS) {
-                shouldLand = true;
-            } else {
-                // Check if blob would collide with existing blocks
+            // Find the target landing position
+            const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
+            const offsetX = dropCol - minX;
+            
+            // Use dropBlobAt logic to find proper landing row
+            const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - minX + 1;
+            let landingRow = ROWS - 1;
+            
+            // Find lowest valid Y position for the blob
+            for (let testY = ROWS - 1; testY >= 0; testY--) {
+                let canPlace = true;
                 for (const [bx, by] of tornadoPickedBlob.positions) {
-                    const testY = currentBlobBottomY + by + 1;
-                    if (testY >= 0 && testY < ROWS) {
-                        const minBlobX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
-                        const testX = dropCol - minBlobX + bx;
-                        if (testX >= 0 && testX < COLS && board[testY][testX]) {
-                            shouldLand = true;
-                            break;
-                        }
+                    const newX = bx + offsetX;
+                    const newY = testY - (maxY - by);
+                    
+                    // Check bounds
+                    if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS) {
+                        canPlace = false;
+                        break;
                     }
+                    
+                    // Check collision with existing blocks
+                    if (board[newY][newX] !== null) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                
+                if (canPlace) {
+                    landingRow = testY;
+                    break;
                 }
             }
             
-            if (shouldLand) {
-                // Drop the blob
+            const targetBottomPixelY = (landingRow + 1) * BLOCK_SIZE;
+            
+            if (blobBottomPixelY >= targetBottomPixelY) {
+                // Landed! Drop the blob
                 dropBlobAt(tornadoPickedBlob, dropCol);
                 playSoundEffect('drop', soundToggle);
                 
@@ -2936,6 +2964,7 @@ function updateTornado() {
                 clearLines();
                 
                 tornadoPickedBlob = null;
+                tornadoDropVelocity = 0;
                 tornadoState = 'dissipating';
                 tornadoFadeProgress = 0;
             }
@@ -3048,91 +3077,62 @@ function drawTornado() {
     
     const height = Math.max(5, tornadoY);
     
-    // Apply dissipation fade - reduce all widths
+    // Apply dissipation fade
     const fadeFactor = tornadoState === 'dissipating' ? (1 - tornadoFadeProgress) : 1.0;
-    const topWidth = 100 * fadeFactor;  // Very wide top connected to clouds
-    const midWidth = 18 * fadeFactor;   // Width after quick taper
-    const bottomWidth = 8 * fadeFactor; // Gradually narrow at bottom
+    const topWidth = 75 * fadeFactor;
+    const bottomWidth = 10 * fadeFactor;
     
-    // Smooth easing function for width taper - creates natural funnel curve
+    // Smooth width function - no noise
     const getWidth = (progress) => {
-        // Use cubic ease-out for smooth, natural taper
-        // Quick taper at top, gradual narrowing toward bottom
-        const eased = 1 - Math.pow(1 - progress, 3);
-        return topWidth - (topWidth - bottomWidth) * eased;
+        const baseEased = 1 - Math.pow(1 - progress, 2.5);
+        return topWidth - (topWidth - bottomWidth) * baseEased;
     };
     
-    // First, draw the base tube shape WITH VERY SUBTLE BENDING
-    // Also fade opacity during dissipation
-    const baseOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress * 0.5) : 0.6;
+    // Calculate bend at a given progress - smooth, gentle curves
+    const getBend = (progress) => {
+        const bend1 = Math.sin(tornadoRotation * 0.4 + progress * Math.PI * 0.5) * 8;
+        const bend2 = Math.sin(tornadoRotation * 0.2 + progress * Math.PI * 0.8) * 4;
+        return bend1 + bend2;
+    };
+    
+    // Draw the main funnel FIRST
+    const baseOpacity = tornadoState === 'dissipating' ? 0.75 * (1 - tornadoFadeProgress * 0.5) : 0.75;
+    
+    // Single smooth funnel shape with gradient
     ctx.globalAlpha = baseOpacity;
     
-    // Brighter, more visible gradient (less shadow-like)
-    const gradient = ctx.createLinearGradient(tornadoX, 0, tornadoX, height);
-    gradient.addColorStop(0, '#9a9890');  // Light gray-tan top
-    gradient.addColorStop(0.5, '#8a8880');  // Medium gray middle
-    gradient.addColorStop(1, '#7a7870');    // Darker gray bottom
+    const gradient = ctx.createLinearGradient(tornadoX - topWidth, 0, tornadoX + topWidth, 0);
+    gradient.addColorStop(0, '#5a5550');
+    gradient.addColorStop(0.3, '#7a7570');
+    gradient.addColorStop(0.5, '#8a8580');
+    gradient.addColorStop(0.7, '#7a7570');
+    gradient.addColorStop(1, '#5a5550');
     
-    // Draw left and right edges of tube with very subtle, slow writhing motion
     ctx.beginPath();
     
-    // Left edge
-    for (let y = 0; y <= height; y += 1) {
+    // Left edge - smooth curve
+    for (let y = 0; y <= height; y += 2) {
         const progress = y / height;
+        const width = getWidth(progress);
+        const bend = getBend(progress);
+        const x = tornadoX - width + bend;
         
-        // Smooth width calculation using cubic ease
-        let width = getWidth(progress);
-        
-        // Smoothly narrow to half width in the last 15% for rounded tip
-        if (progress > 0.85) {
-            const tipProgress = (progress - 0.85) / 0.15;
-            // Use quadratic easing for smoother transition
-            const eased = tipProgress * tipProgress;
-            width = width * (1 - eased * 0.5);
-        }
-        
-        // Add VERY SUBTLE, SLOW writhing/bending
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        
-        const x = tornadoX - width + totalBend;
         if (y === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
     }
     
-    // Round the bottom tip with an arc (at half the normal bottom width)
-    const bottomProgress = 1.0;
-    const arcWidth = getWidth(bottomProgress) * 0.5;
-    const bottomBend1 = Math.sin(tornadoRotation * 0.5 + bottomProgress * Math.PI * 0.8) * 4;
-    const bottomBend2 = Math.sin(tornadoRotation * 0.3 + bottomProgress * Math.PI * 1.2) * 2;
-    const bottomTotalBend = bottomBend1 + bottomBend2;
-    const bottomCenterX = tornadoX + bottomTotalBend;
+    // Smooth bottom - flat elliptical curve (not too rounded)
+    const bottomBend = getBend(1.0);
+    const bw = getWidth(1.0);
+    // Draw a flattened ellipse arc for the bottom
+    ctx.ellipse(tornadoX + bottomBend, height, bw, bw * 0.25, 0, Math.PI, 0, true);
     
-    // Draw arc from left to right at bottom (clockwise for convex curve)
-    ctx.arc(bottomCenterX, height, arcWidth, Math.PI, 0, true);
-    
-    // Right edge (going back up)
-    for (let y = height; y >= 0; y -= 1) {
+    // Right edge - smooth curve
+    for (let y = height; y >= 0; y -= 2) {
         const progress = y / height;
-        
-        // Smooth width calculation using cubic ease
-        let width = getWidth(progress);
-        
-        // Smoothly narrow to half width in the last 15% for rounded tip
-        if (progress > 0.85) {
-            const tipProgress = (progress - 0.85) / 0.15;
-            // Use quadratic easing for smoother transition
-            const eased = tipProgress * tipProgress;
-            width = width * (1 - eased * 0.5);
-        }
-        
-        // Same subtle writhing pattern
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        
-        const x = tornadoX + width + totalBend;
+        const width = getWidth(progress);
+        const bend = getBend(progress);
+        const x = tornadoX + width + bend;
         ctx.lineTo(x, y);
     }
     
@@ -3140,108 +3140,85 @@ function drawTornado() {
     ctx.fillStyle = gradient;
     ctx.fill();
     
-    // Now draw horizontal spiral bands that wrap around the writhing tube
-    const bandOpacity = tornadoState === 'dissipating' ? 0.35 * (1 - tornadoFadeProgress * 0.5) : 0.35;
-    ctx.globalAlpha = bandOpacity;
-    const numBands = 20;
+    // Draw debris cloud AFTER funnel so it covers the bottom
+    // Cloud grows as tornado approaches ground
+    const groundLevel = canvas.height; // Where touchdown happens
+    const cloudStartHeight = groundLevel * 0.15; // Start showing cloud when tornado is 15% down
     
-    for (let band = 0; band < numBands; band++) {
-        const bandProgress = band / numBands;
-        const bandY = bandProgress * height;
-        const progress = bandY / height;
+    if (height > cloudStartHeight) {
+        const debrisCenterX = tornadoX + bottomBend;
+        const debrisBaseY = height;
         
-        // Get width at this height using smooth function
-        const width = getWidth(progress);
+        // Calculate progress from when cloud starts appearing to touchdown
+        // 0 = just started appearing, 1 = touched down
+        const cloudProgress = Math.min(1, (height - cloudStartHeight) / (groundLevel - cloudStartHeight));
         
-        // Calculate center position with subtle bending
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
+        // Size and opacity scale with progress
+        const sizeScale = 0.2 + cloudProgress * 0.8; // Start at 20% size, grow to 100%
+        const opacityScale = 0.1 + cloudProgress * 0.9; // Start at 10% opacity, grow to 100%
         
-        // Horizontal bands with slight wave for 3D effect
-        const rotation = tornadoRotation + progress * Math.PI * 6;
-        const wave = Math.sin(rotation) * width * 0.3;
+        const cloudOpacity = tornadoState === 'dissipating' ? opacityScale * (1 - tornadoFadeProgress) : opacityScale;
+        ctx.globalAlpha = cloudOpacity;
         
-        ctx.beginPath();
-        // Draw ellipse to represent horizontal band wrapping around cylinder
-        for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
-            const x = centerX + Math.cos(angle) * width;
-            const y = bandY + Math.sin(angle) * (width * 0.15) + wave * Math.cos(angle);
+        // Layer multiple organic puffs - more dense at center
+        // Inner layer - dense, bright, covers the tube bottom
+        for (let i = 0; i < 8; i++) {
+            const puffPhase = tornadoRotation * 0.3 + i * 0.8;
+            const puffDist = (8 + Math.sin(puffPhase * 1.5) * 6) * sizeScale;
+            const puffX = debrisCenterX + Math.cos(puffPhase * 1.7 + i) * puffDist;
+            const puffY = debrisBaseY - 2 * sizeScale + Math.sin(puffPhase * 0.9) * 4 * sizeScale;
+            const puffSize = (18 + Math.sin(puffPhase * 0.6) * 5) * sizeScale;
             
-            if (angle === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            const puffGrad = ctx.createRadialGradient(puffX, puffY, 0, puffX, puffY, puffSize);
+            puffGrad.addColorStop(0, 'rgba(150, 143, 135, 0.95)');
+            puffGrad.addColorStop(0.4, 'rgba(135, 128, 120, 0.7)');
+            puffGrad.addColorStop(0.7, 'rgba(120, 113, 105, 0.3)');
+            puffGrad.addColorStop(1, 'rgba(105, 98, 90, 0)');
+            
+            ctx.fillStyle = puffGrad;
+            ctx.beginPath();
+            ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+            ctx.fill();
         }
-        ctx.closePath();
         
-        // Alternate shading for visible bands
-        const brightness = (Math.sin(rotation) + 1) / 2;
-        ctx.strokeStyle = `rgba(60, 60, 58, ${brightness * 0.5})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Middle layer - medium spread
+        for (let i = 0; i < 10; i++) {
+            const puffPhase = tornadoRotation * 0.35 + i * 0.65;
+            const puffDist = (20 + Math.sin(puffPhase * 1.3) * 12) * sizeScale;
+            const puffX = debrisCenterX + Math.cos(puffPhase * 1.9 + i * 0.5) * puffDist;
+            const puffY = debrisBaseY - 3 * sizeScale + Math.sin(puffPhase * 0.7) * 6 * sizeScale;
+            const puffSize = (22 + Math.sin(puffPhase * 0.8) * 7) * sizeScale;
+            
+            const puffGrad = ctx.createRadialGradient(puffX, puffY, 0, puffX, puffY, puffSize);
+            puffGrad.addColorStop(0, 'rgba(140, 133, 125, 0.6)');
+            puffGrad.addColorStop(0.5, 'rgba(125, 118, 110, 0.35)');
+            puffGrad.addColorStop(1, 'rgba(110, 103, 95, 0)');
+            
+            ctx.fillStyle = puffGrad;
+            ctx.beginPath();
+            ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Outer layer - sparse, faint
+        for (let i = 0; i < 6; i++) {
+            const puffPhase = tornadoRotation * 0.25 + i * 1.1;
+            const puffDist = (35 + Math.sin(puffPhase) * 15) * sizeScale;
+            const puffX = debrisCenterX + Math.cos(puffPhase * 2.1 + i) * puffDist;
+            const puffY = debrisBaseY - 5 * sizeScale + Math.sin(puffPhase * 0.6) * 8 * sizeScale;
+            const puffSize = (25 + Math.sin(puffPhase * 0.5) * 8) * sizeScale;
+            
+            const puffGrad = ctx.createRadialGradient(puffX, puffY, 0, puffX, puffY, puffSize);
+            puffGrad.addColorStop(0, 'rgba(130, 123, 115, 0.35)');
+            puffGrad.addColorStop(0.6, 'rgba(115, 108, 100, 0.15)');
+            puffGrad.addColorStop(1, 'rgba(100, 93, 85, 0)');
+            
+            ctx.fillStyle = puffGrad;
+            ctx.beginPath();
+            ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
-    
-    // Add cylindrical shading - darker on left/right edges (following the bend)
-    const shadingOpacity = tornadoState === 'dissipating' ? 0.25 * (1 - tornadoFadeProgress * 0.5) : 0.25;
-    ctx.globalAlpha = shadingOpacity;
-    for (let y = 0; y < height; y += 2) {
-        const progress = y / height;
-        
-        // Use smooth width function
-        const width = getWidth(progress);
-        
-        // Calculate bend at this height
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
-        
-        // Left shadow
-        const leftGrad = ctx.createLinearGradient(centerX - width, y, centerX - width * 0.3, y);
-        leftGrad.addColorStop(0, '#000000');
-        leftGrad.addColorStop(1, 'transparent');
-        ctx.strokeStyle = leftGrad;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX - width, y);
-        ctx.lineTo(centerX - width * 0.3, y);
-        ctx.stroke();
-        
-        // Right shadow
-        const rightGrad = ctx.createLinearGradient(centerX + width * 0.3, y, centerX + width, y);
-        rightGrad.addColorStop(0, 'transparent');
-        rightGrad.addColorStop(1, '#000000');
-        ctx.strokeStyle = rightGrad;
-        ctx.beginPath();
-        ctx.moveTo(centerX + width * 0.3, y);
-        ctx.lineTo(centerX + width, y);
-        ctx.stroke();
-    }
-    
-    // Draw swirling debris particles (following the bend)
-    const particleOpacity = tornadoState === 'dissipating' ? 0.6 * (1 - tornadoFadeProgress) : 0.6;
-    ctx.globalAlpha = particleOpacity;
-    tornadoParticles.forEach(p => {
-        const progress = p.y / height;
-        
-        // Use smooth width function for max radius
-        const maxRadius = getWidth(progress);
-        
-        // Calculate bend at particle height
-        const bend1 = Math.sin(tornadoRotation * 0.5 + progress * Math.PI * 0.8) * 4;
-        const bend2 = Math.sin(tornadoRotation * 0.3 + progress * Math.PI * 1.2) * 2;
-        const totalBend = bend1 + bend2;
-        const centerX = tornadoX + totalBend;
-        
-        const spiralRadius = (p.radius / 50) * maxRadius * 0.8;
-        const x = centerX + Math.cos(p.angle + tornadoRotation * 3) * spiralRadius;
-        const y = p.y;
-        
-        ctx.fillStyle = p.radius > 30 ? '#5a5a58' : '#8a8a80';
-        ctx.beginPath();
-        ctx.arc(x, y, Math.max(1, 2), 0, Math.PI * 2);
-        ctx.fill();
-    });
     
     // Draw carried blob if lifting, carrying, or dropping
     if (tornadoPickedBlob && tornadoState !== 'descending') {
@@ -10546,6 +10523,7 @@ function startGame(mode) {
     tornadoVerticalRotation = 0;
     tornadoDropTargetX = 0;
     tornadoDropStartY = 0;
+    tornadoDropVelocity = 0;
     
     // Reset earthquake state
     earthquakeActive = false;
