@@ -5006,6 +5006,9 @@ let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
 let dropInterval = 1000;
+let lockDelayCounter = 0; // Time spent resting on stack
+let lockDelayActive = false; // Whether piece is currently in lock delay
+const LOCK_DELAY_TIME = 500; // 500ms grace period when piece lands
 let animatingLines = false;
 let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
 let lineAnimations = [];
@@ -9578,9 +9581,6 @@ function rotatePiece() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
-    // Check if piece is about to lock (would collide if moved down)
-    const aboutToLock = collides(currentPiece, 0, 1);
-    
     try {
         const rotated = currentPiece.shape[0].map((_, i) =>
             currentPiece.shape.map(row => row[i]).reverse()
@@ -9598,13 +9598,8 @@ function rotatePiece() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay if piece was about to lock - give 500ms grace period
-                if (aboutToLock) {
-                    dropCounter = Math.min(0, dropInterval - 500);
-                } else if (dropCounter < 0) {
-                    // Rotated into open space, resume normal drop timing
-                    dropCounter = 0;
-                }
+                // Reset lock delay timer on successful rotation
+                lockDelayCounter = 0;
                 break;
             }
         }
@@ -9627,9 +9622,6 @@ function rotatePieceCounterClockwise() {
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
     
-    // Check if piece is about to lock (would collide if moved down)
-    const aboutToLock = collides(currentPiece, 0, 1);
-    
     try {
         // Counter-clockwise is the opposite of clockwise
         // Clockwise: transpose then reverse each row
@@ -9651,13 +9643,8 @@ function rotatePieceCounterClockwise() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay if piece was about to lock - give 500ms grace period
-                if (aboutToLock) {
-                    dropCounter = Math.min(0, dropInterval - 500);
-                } else if (dropCounter < 0) {
-                    // Rotated into open space, resume normal drop timing
-                    dropCounter = 0;
-                }
+                // Reset lock delay timer on successful rotation
+                lockDelayCounter = 0;
                 break;
             }
         }
@@ -9676,9 +9663,6 @@ function movePiece(dir) {
     // Prevent movement during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
-    // Check if piece is about to lock (would collide if moved down)
-    const aboutToLock = collides(currentPiece, 0, 1);
-    
     // Check if controls should be swapped (Stranger XOR Dyslexic)
     const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
     const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
@@ -9691,13 +9675,8 @@ function movePiece(dir) {
         currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
-        // Reset lock delay if piece was about to lock - give 500ms grace period
-        if (aboutToLock) {
-            dropCounter = Math.min(0, dropInterval - 500);
-        } else if (dropCounter < 0) {
-            // Moved into open space, resume normal drop timing
-            dropCounter = 0;
-        }
+        // Reset lock delay timer on successful move
+        lockDelayCounter = 0;
     }
 }
 
@@ -9706,9 +9685,18 @@ function dropPiece() {
     // Prevent dropping during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
+    // Check if piece is already resting (would collide if moved down)
+    const wasAlreadyResting = collides(currentPiece, 0, 1);
+    
     currentPiece.y++;
     if (collides(currentPiece)) {
         currentPiece.y--;
+        
+        // If piece was already resting and lock delay is active, don't lock yet
+        // (let the update loop handle the lock delay timing)
+        if (wasAlreadyResting && lockDelayActive) {
+            return;
+        }
         
         // Check if any block of the piece extends beyond the top of the well
         const extendsAboveTop = currentPiece.shape.some((row, dy) => {
@@ -10157,10 +10145,35 @@ function update(time = 0) {
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
     const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift';
     if (!paused && !animatingLines && !gravityAnimating && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
-        dropCounter += deltaTime;
-        if (dropCounter > dropInterval) {
-            dropPiece();
-            dropCounter = 0;
+        // Check if piece is resting on the stack (would collide if moved down)
+        const isResting = collides(currentPiece, 0, 1);
+        
+        if (isResting) {
+            // Piece is resting - use lock delay system
+            if (!lockDelayActive) {
+                // Just landed - start lock delay
+                lockDelayActive = true;
+                lockDelayCounter = 0;
+            }
+            lockDelayCounter += deltaTime;
+            
+            // Only lock after lock delay time has elapsed
+            if (lockDelayCounter >= LOCK_DELAY_TIME) {
+                dropPiece(); // This will lock the piece since it can't move down
+                dropCounter = 0;
+                lockDelayActive = false;
+                lockDelayCounter = 0;
+            }
+        } else {
+            // Piece is not resting - use normal drop timing
+            lockDelayActive = false;
+            lockDelayCounter = 0;
+            
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                dropPiece();
+                dropCounter = 0;
+            }
         }
     }
     
@@ -10595,6 +10608,10 @@ function startGame(mode) {
     speedBonusAverage = 1.0;
     pieceSpawnTime = 0;
     speedBonusHistogramBar = 1.0;
+    
+    // Reset lock delay state
+    lockDelayCounter = 0;
+    lockDelayActive = false;
     
     updateStats();
     
