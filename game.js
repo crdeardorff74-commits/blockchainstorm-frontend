@@ -10136,10 +10136,12 @@ function update(time = 0) {
             
             // Only lock after lock delay time has elapsed
             if (lockDelayCounter >= LOCK_DELAY_TIME) {
-                dropPiece(); // This will lock the piece since it can't move down
-                dropCounter = 0;
+                // Reset lock delay state BEFORE calling dropPiece
+                // (otherwise dropPiece sees lockDelayActive=true and returns early)
                 lockDelayActive = false;
                 lockDelayCounter = 0;
+                dropPiece(); // This will lock the piece since it can't move down
+                dropCounter = 0;
             }
         } else {
             // Piece is not resting - use normal drop timing
