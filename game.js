@@ -7028,10 +7028,11 @@ function showCascadeBonus(multiplier) {
     console.log(`🔥 Cascade Bonus x${multiplier}!`);
     
     // Play LineClear sound effect 'multiplier' times in succession
+    // Start with a small delay, then space them out for clear distinction
     for (let i = 0; i < multiplier; i++) {
         setTimeout(() => {
             playSoundEffect('line', soundToggle);
-        }, i * 150); // 150ms apart
+        }, 50 + i * 200); // Start at 50ms, then 200ms apart
     }
 }
 
@@ -9420,7 +9421,11 @@ function clearLines() {
                 canvas.classList.remove('tsunami-active');
             }, 1000);
         } else {
-            playSoundEffect('line', soundToggle);
+            // Only play regular line clear sound if this is NOT a cascade
+            // (cascade bonus will play the sound multiple times)
+            if (cascadeLevel === 0) {
+                playSoundEffect('line', soundToggle);
+            }
         }
         
         // Calculate histogram and score updates immediately (before animation completes)
