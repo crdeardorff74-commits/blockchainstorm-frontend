@@ -790,6 +790,17 @@ function startCreditsAnimation() {
         return;
     }
     
+    // Set the game title based on branding
+    const gameTitleDiv = document.getElementById('gameTitle');
+    if (gameTitleDiv) {
+        const isTantris = (window.GAME_TITLE || '').toUpperCase().includes('TANT');
+        if (isTantris) {
+            gameTitleDiv.innerHTML = 'T<span class="credits-ai">a</span>NTЯ<span class="credits-ai">i</span>S';
+        } else {
+            gameTitleDiv.innerHTML = '₿LOCKCH<span class="credits-ai">ai</span>NSTOЯM';
+        }
+    }
+    
     // Hide settings button during end credits
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) settingsBtn.style.display = 'none';
