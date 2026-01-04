@@ -1713,6 +1713,12 @@ function playSoundEffect(effect, soundToggle) {
         case 'tsunami':
             playThunder(soundToggle);
             break;
+        case 'yesand':
+            // Short "pop" sound for Yes, And... limb spawn
+            playSound(600, 0.12, 'sine');
+            setTimeout(() => playSound(800, 0.08, 'sine'), 30);
+            setTimeout(() => playSound(500, 0.05, 'sine'), 60);
+            break;
         case 'rumble':
             // Deep, sustained rumbling sound for volcano warming and earthquake
             // Low frequency oscillating bass with subtle variations

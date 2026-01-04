@@ -5207,6 +5207,7 @@ let lockDelayActive = false; // Whether piece is currently in lock delay
 const LOCK_DELAY_TIME = 500; // 500ms grace period when piece lands
 let animatingLines = false;
 let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
+let yesAndSpawnedLimb = false; // Flag to track if Yes, And... mode spawned a limb (for delayed line check)
 let lineAnimations = [];
 let lightningEffects = [];
 let triggeredTsunamis = new Set(); // Track tsunamis that have already triggered
@@ -7621,7 +7622,9 @@ function mergePiece() {
     // Yes, And... mode: Spawn random limbs after piece lands
     const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand') || soRandomCurrentMode === 'yesand';
     if (isYesAndMode) {
-        spawnYesAndLimbs(currentPiece);
+        yesAndSpawnedLimb = spawnYesAndLimbs(currentPiece);
+    } else {
+        yesAndSpawnedLimb = false;
     }
     
     // Trigger Phantom mode fade (either standalone or in combo)
@@ -7637,6 +7640,7 @@ function mergePiece() {
 
 function spawnYesAndLimbs(piece) {
     // Yes, And... mode: Spawn random limb(s) adjacent to the piece or its blob
+    // Returns true if a limb was spawned, false otherwise
     
     // First, find the blob that this piece is now part of
     const blobs = getAllBlobs();
@@ -7661,7 +7665,7 @@ function spawnYesAndLimbs(piece) {
         }
     }
     
-    if (!targetBlob || targetBlob.positions.length === 0) return;
+    if (!targetBlob || targetBlob.positions.length === 0) return false;
     
     // Find all available spaces adjacent to the blob
     const adjacentSpaces = [];
@@ -7696,7 +7700,7 @@ function spawnYesAndLimbs(piece) {
     // If no adjacent spaces available, do nothing
     if (adjacentSpaces.length === 0) {
         console.log('🎭 Yes, And... found no available spaces for limbs');
-        return;
+        return false;
     }
     
     // Spawn 1 random limb with fade-in animation
@@ -7715,7 +7719,13 @@ function spawnYesAndLimbs(piece) {
         spawnedLimbs.push([limbX, limbY]);
     }
     
+    // Play a "pop" sound for the spawning limb
+    if (spawnedLimbs.length > 0) {
+        playSoundEffect('yesand', soundToggle);
+    }
+    
     console.log(`🎭 Yes, And... spawned ${spawnedLimbs.length} limb(s) at:`, spawnedLimbs);
+    return spawnedLimbs.length > 0;
 }
 
 function wouldTriggerSpecialEvent(piece) {
@@ -9943,10 +9953,19 @@ function dropPiece() {
         playSoundEffect('drop', soundToggle);
         mergePiece();
         
-        // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
-        checkForSpecialFormations();
-        
-        clearLines();
+        // If Yes, And... mode spawned a limb, delay the line check so player can see the limb appear
+        if (yesAndSpawnedLimb) {
+            setTimeout(() => {
+                // Check for Tsunamis and Black Holes AFTER limb is visible
+                checkForSpecialFormations();
+                clearLines();
+                yesAndSpawnedLimb = false;
+            }, 400); // 400ms delay to let the limb fade in
+        } else {
+            // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
+            checkForSpecialFormations();
+            clearLines();
+        }
         
         if (nextPieceQueue.length > 0 && nextPieceQueue[0] && nextPieceQueue[0].shape) {
             // Spawn the next piece from queue
@@ -10736,6 +10755,7 @@ function startGame(mode) {
     lineAnimations = [];
     animatingLines = false;
     pendingLineCheck = false;
+    yesAndSpawnedLimb = false;
     paused = false; StarfieldSystem.setPaused(false);
     hailstormCounter = 0;
     triggeredTsunamis.clear();
