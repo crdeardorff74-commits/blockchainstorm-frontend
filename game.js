@@ -9409,6 +9409,12 @@ function clearLines() {
             // Black hole takes priority - purple/dark effect
             canvas.classList.add('blackhole-active');
             playEnhancedThunder(soundToggle); // Dramatic sound
+            // Play LineClear sound 4 times for black hole
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    playSoundEffect('line', soundToggle);
+                }, 100 + i * 200);
+            }
             setTimeout(() => {
                 canvas.classList.remove('blackhole-active');
             }, 1000);
@@ -9416,6 +9422,12 @@ function clearLines() {
             // Add golden border during tsunami blob clearing
             canvas.classList.add('tsunami-active');
             playSoundEffect('gold', soundToggle);
+            // Play LineClear sound 4 times for tsunami
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    playSoundEffect('line', soundToggle);
+                }, 100 + i * 200);
+            }
             // Remove border after animation
             setTimeout(() => {
                 canvas.classList.remove('tsunami-active');
