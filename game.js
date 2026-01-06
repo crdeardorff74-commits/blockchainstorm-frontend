@@ -2,7 +2,34 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, getCurrentSongInfo, setOnSongChangeCallback } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback } = window.AudioSystem;
+
+// Inject CSS for side panel adjustments to fit song info
+(function injectSidePanelStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .side-panel {
+            overflow: hidden;
+            max-height: 100vh;
+            box-sizing: border-box;
+        }
+        .side-panel .controls {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+        }
+        .side-panel .controls .control-row {
+            margin: 2px 0 !important;
+        }
+        #planetStats {
+            padding: 8px !important;
+            margin-top: 8px !important;
+        }
+        #songInfo {
+            flex-shrink: 0;
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
@@ -1090,21 +1117,24 @@ function createSongInfoElement() {
     songInfoElement = document.createElement('div');
     songInfoElement.id = 'songInfo';
     songInfoElement.style.cssText = `
-        margin-top: 15px;
-        padding: 10px;
+        margin-top: 10px;
+        padding: 8px;
         background: rgba(0, 0, 0, 0.3);
         border-radius: 8px;
-        font-size: 12px;
+        font-size: 11px;
         color: #aaa;
         text-align: center;
         display: none;
     `;
     
     songInfoElement.innerHTML = `
-        <div style="color: #666; font-size: 10px; margin-bottom: 5px;">♪ NOW PLAYING ♪</div>
-        <div id="songName" style="color: #ddd; font-size: 13px; word-wrap: break-word;"></div>
-        <div id="songDuration" style="color: #888; font-size: 11px; margin-top: 5px;"></div>
-        <div style="color: #555; font-size: 9px; margin-top: 8px;">SHIFT+← / → to skip</div>
+        <div style="color: #666; font-size: 9px; margin-bottom: 3px;">♪ NOW PLAYING ♪</div>
+        <div id="songName" style="color: #ddd; font-size: 12px; word-wrap: break-word; line-height: 1.2;"></div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0px; height: 24px; ">
+            <button id="songPrevBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #555; padding: 2px 8px; border-radius: 3px; cursor: default; font-size: 11px; opacity: 0.5;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>
+            <button id="songPauseBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #aaa; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;" title="Pause/Resume music">⏸&#xFE0E;</button>
+            <button id="songNextBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #aaa; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;" title="Next song (SHIFT+→)">⏭&#xFE0E;</button>
+        </div>
     `;
     
     // Find planet stats and insert after it, or append to side panel
@@ -1113,6 +1143,74 @@ function createSongInfoElement() {
         planetStats.after(songInfoElement);
     } else {
         sidePanel.appendChild(songInfoElement);
+    }
+    
+    // Add click handlers for the buttons
+    const prevBtn = document.getElementById('songPrevBtn');
+    const nextBtn = document.getElementById('songNextBtn');
+    const pauseBtn = document.getElementById('songPauseBtn');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (typeof skipToPreviousSong === 'function') {
+                skipToPreviousSong();
+            }
+        });
+        // Hover effect (only when enabled)
+        prevBtn.addEventListener('mouseenter', () => { 
+            if (!prevBtn.disabled) {
+                prevBtn.style.background = 'rgba(255,255,255,0.2)'; 
+                prevBtn.style.color = '#fff'; 
+            }
+        });
+        prevBtn.addEventListener('mouseleave', () => { 
+            if (!prevBtn.disabled) {
+                prevBtn.style.background = 'rgba(255,255,255,0.1)'; 
+                prevBtn.style.color = '#aaa'; 
+            }
+        });
+    }
+    
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            if (typeof toggleMusicPause === 'function') {
+                const isPaused = toggleMusicPause();
+                pauseBtn.textContent = isPaused ? '▶\uFE0E' : '⏸\uFE0E';
+            }
+        });
+        // Hover effect
+        pauseBtn.addEventListener('mouseenter', () => { pauseBtn.style.background = 'rgba(255,255,255,0.2)'; pauseBtn.style.color = '#fff'; });
+        pauseBtn.addEventListener('mouseleave', () => { pauseBtn.style.background = 'rgba(255,255,255,0.1)'; pauseBtn.style.color = '#aaa'; });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (typeof skipToNextSong === 'function') {
+                skipToNextSong();
+            }
+        });
+        // Hover effect
+        nextBtn.addEventListener('mouseenter', () => { nextBtn.style.background = 'rgba(255,255,255,0.2)'; nextBtn.style.color = '#fff'; });
+        nextBtn.addEventListener('mouseleave', () => { nextBtn.style.background = 'rgba(255,255,255,0.1)'; nextBtn.style.color = '#aaa'; });
+    }
+    
+    // Adjust panel content to fit with song info
+    adjustPanelForSongInfo();
+}
+
+function adjustPanelForSongInfo() {
+    // Make controls section more compact to fit song info
+    const controls = document.querySelector('.controls');
+    if (controls) {
+        controls.style.fontSize = '11px';
+        controls.style.lineHeight = '1.3';
+    }
+    
+    // Compact the planet stats if present
+    const planetStats = document.getElementById('planetStats');
+    if (planetStats) {
+        planetStats.style.padding = '8px';
+        planetStats.style.marginTop = '8px';
     }
 }
 
@@ -1131,6 +1229,8 @@ function updateSongInfoDisplay(songInfo) {
     
     const songNameEl = document.getElementById('songName');
     const songDurationEl = document.getElementById('songDuration');
+    const prevBtn = document.getElementById('songPrevBtn');
+    const pauseBtn = document.getElementById('songPauseBtn');
     
     if (songNameEl) {
         songNameEl.textContent = songInfo.name;
@@ -1142,6 +1242,28 @@ function updateSongInfoDisplay(songInfo) {
         songDurationEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     } else if (songDurationEl) {
         songDurationEl.textContent = '';
+    }
+    
+    // Update previous button state based on song history
+    if (prevBtn) {
+        const canGoPrev = typeof hasPreviousSong === 'function' && hasPreviousSong();
+        if (canGoPrev) {
+            prevBtn.disabled = false;
+            prevBtn.style.opacity = '1';
+            prevBtn.style.color = '#aaa';
+            prevBtn.style.cursor = 'pointer';
+        } else {
+            prevBtn.disabled = true;
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.color = '#555';
+            prevBtn.style.cursor = 'default';
+        }
+    }
+    
+    // Update pause button state
+    if (pauseBtn) {
+        const isPaused = typeof isMusicPaused === 'function' && isMusicPaused();
+        pauseBtn.textContent = isPaused ? '▶\uFE0E' : '⏸\uFE0E';
     }
 }
 
@@ -5172,6 +5294,7 @@ function togglePause() {
     const settingsBtn = document.getElementById('settingsBtn');
     const musicSelect = document.getElementById('musicSelect');
     const pauseBtn = document.getElementById('pauseBtn');
+    const songPauseBtn = document.getElementById('songPauseBtn');
     
     if (paused) {
         // Unpause
@@ -5180,8 +5303,14 @@ function togglePause() {
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
         // Show pause button again (only in tablet mode)
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
+        // Resume music if it was playing
         if (musicSelect && musicSelect.value !== 'none') {
-            startMusic(gameMode, musicSelect);
+            if (typeof isMusicPaused === 'function' && isMusicPaused()) {
+                resumeCurrentMusic();
+                if (songPauseBtn) songPauseBtn.textContent = '⏸\uFE0E';
+            } else {
+                startMusic(gameMode, musicSelect);
+            }
         }
     } else {
         // Pause
@@ -5193,7 +5322,13 @@ function togglePause() {
         if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
         // Hide pause button while paused
         if (pauseBtn) pauseBtn.style.display = 'none';
-        stopMusic();
+        // Pause music instead of stopping it
+        if (typeof pauseCurrentMusic === 'function') {
+            pauseCurrentMusic();
+            if (songPauseBtn) songPauseBtn.textContent = '▶\uFE0E';
+        } else {
+            stopMusic();
+        }
     }
 }
 
@@ -10955,6 +11090,16 @@ document.addEventListener('keydown', e => {
         return;
     }
     
+    // Handle P key to pause menu music when not in game
+    if (!gameRunning && (e.key === 'p' || e.key === 'P' || e.key === 'Pause' || e.key === 'Break')) {
+        if (typeof toggleMusicPause === 'function') {
+            const isPaused = toggleMusicPause();
+            const songPauseBtn = document.getElementById('songPauseBtn');
+            if (songPauseBtn) songPauseBtn.textContent = isPaused ? '▶\uFE0E' : '⏸\uFE0E';
+        }
+        return;
+    }
+    
     // GAME CONTROLS - Only when game is running
     if (gameRunning) {
         // If paused, any key (except F11/PageUp/PageDown) unpauses
@@ -10965,8 +11110,15 @@ document.addEventListener('keydown', e => {
             // Show pause button again (only in tablet mode)
             const pauseBtn = document.getElementById('pauseBtn');
             if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
+            // Resume music if it was paused, or start if not
             if (musicSelect.value !== 'none') {
-                startMusic(gameMode, musicSelect);
+                if (typeof isMusicPaused === 'function' && isMusicPaused()) {
+                    resumeCurrentMusic();
+                    const songPauseBtn = document.getElementById('songPauseBtn');
+                    if (songPauseBtn) songPauseBtn.textContent = '⏸\uFE0E';
+                } else {
+                    startMusic(gameMode, musicSelect);
+                }
             }
             return;
         }
@@ -10985,7 +11137,14 @@ document.addEventListener('keydown', e => {
             // Hide pause button while paused
             const pauseBtn = document.getElementById('pauseBtn');
             if (pauseBtn) pauseBtn.style.display = 'none';
-            stopMusic(); // stopMusic() already checks internally if music is playing
+            // Pause music instead of stopping it
+            if (typeof pauseCurrentMusic === 'function') {
+                pauseCurrentMusic();
+                const songPauseBtn = document.getElementById('songPauseBtn');
+                if (songPauseBtn) songPauseBtn.textContent = '▶\uFE0E';
+            } else {
+                stopMusic();
+            }
             return;
         }
         

@@ -142,6 +142,7 @@ const MIN_FAMILY_SEPARATION = 4; // At least 4 other songs between same-family s
 
 // Track song history for skip backwards functionality
 let songHistory = []; // Songs played in order (most recent at end)
+let forwardHistory = []; // Songs to return to when skipping forward after going back
 const MAX_SONG_HISTORY = 20;
 
 // Callback for when song changes (so game.js can update display)
@@ -202,6 +203,28 @@ function skipToNextSong() {
         }
     }
     
+    // Check if we have songs in forward history (user went back, now going forward)
+    if (forwardHistory.length > 0) {
+        const nextSongId = forwardHistory.pop();
+        const audio = gameplayMusicElements[nextSongId];
+        const song = allSongs.find(s => s.id === nextSongId);
+        
+        if (audio && song) {
+            musicPlaying = true;
+            currentPlayingTrack = nextSongId;
+            audio.loop = false;
+            audio.src = song.file;
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log('Music autoplay prevented:', e));
+            console.log('🎵 Returned forward to:', song.name);
+            notifySongChange();
+            return true;
+        }
+    }
+    
+    // Clear forward history when proceeding to new songs
+    forwardHistory = [];
+    
     musicPlaying = false;
     currentPlayingTrack = null;
     
@@ -226,14 +249,14 @@ function skipToPreviousSong() {
         return false;
     }
     
-    // Stop current track
+    // Stop current track and save to forward history
     if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
         const audio = gameplayMusicElements[currentPlayingTrack];
         audio.pause();
         audio.currentTime = 0;
         
-        // Put current song back at front of queue so it plays next time
-        gameplayShuffleQueue.push(currentPlayingTrack);
+        // Save current song to forward history so we can return to it
+        forwardHistory.push(currentPlayingTrack);
     }
     
     // Get previous song from history
@@ -258,6 +281,78 @@ function skipToPreviousSong() {
     }
     
     return true;
+}
+
+// Check if there's a previous song in history
+function hasPreviousSong() {
+    return songHistory.length > 0 && currentMusicSelection === 'shuffle' && musicPlaying;
+}
+
+// Track if music is paused (vs stopped)
+let musicPaused = false;
+
+// Pause current music (gameplay or menu)
+function pauseCurrentMusic() {
+    if (musicPaused) return;
+    
+    // Pause gameplay music if playing
+    if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
+        const audio = gameplayMusicElements[currentPlayingTrack];
+        audio.pause();
+        musicPaused = true;
+        console.log('🎵 Music paused');
+        return true;
+    }
+    
+    // Pause menu music if playing
+    if (menuMusicElement && menuMusicPlaying) {
+        menuMusicElement.pause();
+        musicPaused = true;
+        console.log('🎵 Menu music paused');
+        return true;
+    }
+    
+    return false;
+}
+
+// Resume paused music
+function resumeCurrentMusic() {
+    if (!musicPaused) return;
+    
+    // Resume gameplay music if it was playing
+    if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
+        const audio = gameplayMusicElements[currentPlayingTrack];
+        audio.play().catch(e => console.log('Music resume prevented:', e));
+        musicPaused = false;
+        console.log('🎵 Music resumed');
+        return true;
+    }
+    
+    // Resume menu music if it was playing
+    if (menuMusicElement && menuMusicPlaying) {
+        menuMusicElement.play().catch(e => console.log('Menu music resume prevented:', e));
+        musicPaused = false;
+        console.log('🎵 Menu music resumed');
+        return true;
+    }
+    
+    return false;
+}
+
+// Toggle music pause state
+function toggleMusicPause() {
+    if (musicPaused) {
+        resumeCurrentMusic();
+        return false; // Now playing
+    } else {
+        pauseCurrentMusic();
+        return true; // Now paused
+    }
+}
+
+// Check if music is currently paused
+function isMusicPaused() {
+    return musicPaused;
 }
 
 // Extract the "family" (base name) of a song - the part before any parentheses
@@ -567,6 +662,17 @@ function onSongEnded(event) {
     if (!musicPlaying || currentMusicSelection !== 'shuffle') return;
     
     console.log('🎵 Song ended in shuffle mode, playing next track');
+    
+    // Add current song to history before switching
+    if (currentPlayingTrack) {
+        songHistory.push(currentPlayingTrack);
+        if (songHistory.length > MAX_SONG_HISTORY) {
+            songHistory.shift();
+        }
+    }
+    
+    // Clear forward history since we're progressing naturally
+    forwardHistory = [];
     
     // Stop current track state
     musicPlaying = false;
@@ -1954,6 +2060,11 @@ function playSmallExplosion(soundToggle) {
         gameplayMusicElements,
         skipToNextSong,
         skipToPreviousSong,
+        hasPreviousSong,
+        pauseCurrentMusic,
+        resumeCurrentMusic,
+        toggleMusicPause,
+        isMusicPaused,
         getCurrentSongInfo,
         setOnSongChangeCallback
     };
