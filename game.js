@@ -324,13 +324,15 @@ const GamepadController = {
     repeatDelay: 120, // ms between repeated directional inputs
     lastMoveTime: 0,
     buttonStates: {},
+    menuStickWasUp: false,
+    menuStickWasDown: false,
     
     // Button mappings (Standard Gamepad layout)
     buttons: {
-        A: 0,           // A (Xbox) / Cross (PS) - Rotate clockwise
-        B: 1,           // B (Xbox) / Circle (PS) - Rotate counter-clockwise
-        X: 2,           // X (Xbox) / Square (PS) - (unused)
-        Y: 3,           // Y (Xbox) / Triangle (PS) - Hard drop
+        A: 0,           // A (Xbox) / Cross (PS) - Hard drop
+        B: 1,           // B (Xbox) / Circle (PS) - Rotate clockwise
+        X: 2,           // X (Xbox) / Square (PS) - Rotate counter-clockwise
+        Y: 3,           // Y (Xbox) / Triangle (PS) - Rotate counter-clockwise
         LB: 4,          // Left Bumper - Rotate counter-clockwise
         RB: 5,          // Right Bumper - Rotate clockwise
         LT: 6,          // Left Trigger
@@ -374,6 +376,9 @@ const GamepadController = {
         this.connected = true;
         this.enabled = true;
         
+        // Update controls display to show controller buttons
+        this.updateControlsDisplay();
+        
         // Show notification to player
         this.showNotification('🎮 Controller Connected!', gamepad.id);
     },
@@ -389,6 +394,9 @@ const GamepadController = {
             this.enabled = false;
             this.showNotification('🎮 Controller Disconnected', '');
         }
+        
+        // Update controls display to show keyboard controls
+        this.updateControlsDisplay();
     },
     
     startPolling() {
@@ -414,8 +422,6 @@ const GamepadController = {
     
     update() {
         if (!this.enabled || !this.connected) return;
-        if (!gameRunning || paused) return;
-        if (!currentPiece) return;
         
         try {
             const gamepads = navigator.getGamepads();
@@ -424,6 +430,52 @@ const GamepadController = {
             // Use first connected controller
             const gp = gamepads[0];
             if (!gp) return;
+            
+            // Handle game over state - any button to play again
+            const gameOverElement = document.getElementById('gameOver');
+            const playAgainButton = document.getElementById('playAgainBtn');
+            if (gameOverElement && gameOverElement.style.display === 'block') {
+                if (this.anyButtonJustPressed() && playAgainButton) {
+                    playAgainButton.click();
+                }
+                return; // Don't process other inputs during game over
+            }
+            
+            // Handle mode menu navigation
+            const modeMenuElement = document.getElementById('modeMenu');
+            if (modeMenuElement && !modeMenuElement.classList.contains('hidden')) {
+                const now = Date.now();
+                // D-pad or stick up/down to navigate modes (with repeat delay)
+                const stickUp = gp.axes[1] < -0.5;
+                const stickDown = gp.axes[1] > 0.5;
+                
+                if (now - this.lastMoveTime >= this.repeatDelay) {
+                    if (this.wasButtonJustPressed(gp, this.buttons.D_UP) || (stickUp && !this.menuStickWasUp)) {
+                        this.navigateMenu(-1);
+                        this.lastMoveTime = now;
+                    } else if (this.wasButtonJustPressed(gp, this.buttons.D_DOWN) || (stickDown && !this.menuStickWasDown)) {
+                        this.navigateMenu(1);
+                        this.lastMoveTime = now;
+                    }
+                }
+                this.menuStickWasUp = stickUp;
+                this.menuStickWasDown = stickDown;
+                
+                // A button to select mode
+                if (this.wasButtonJustPressed(gp, this.buttons.A)) {
+                    this.selectCurrentMode();
+                }
+                return; // Don't process gameplay inputs in menu
+            }
+            
+            // Handle pause toggle even when paused
+            if (this.wasButtonJustPressed(gp, this.buttons.START)) {
+                togglePause();
+                return;
+            }
+            
+            if (!gameRunning || paused) return;
+            if (!currentPiece) return;
             
             const now = Date.now();
             
@@ -462,28 +514,23 @@ const GamepadController = {
         }
         
         // === ROTATION ===
-        // A button or Right Bumper - Rotate clockwise
-        if (this.wasButtonJustPressed(gp, this.buttons.A) || 
+        // B button or Right Bumper - Rotate clockwise
+        if (this.wasButtonJustPressed(gp, this.buttons.B) || 
             this.wasButtonJustPressed(gp, this.buttons.RB)) {
             rotatePiece();
         }
         
-        // B button or Left Bumper - Rotate counter-clockwise
-        if (this.wasButtonJustPressed(gp, this.buttons.B) || 
+        // X, Y button or Left Bumper - Rotate counter-clockwise
+        if (this.wasButtonJustPressed(gp, this.buttons.X) || 
+            this.wasButtonJustPressed(gp, this.buttons.Y) ||
             this.wasButtonJustPressed(gp, this.buttons.LB)) {
             rotatePieceCounterClockwise();
         }
         
         // === HARD DROP ===
-        // Y button - Hard drop
-        if (this.wasButtonJustPressed(gp, this.buttons.Y)) {
+        // A button - Hard drop
+        if (this.wasButtonJustPressed(gp, this.buttons.A)) {
             hardDrop();
-        }
-        
-        // === PAUSE ===
-        // Start button - Pause game
-        if (this.wasButtonJustPressed(gp, this.buttons.START)) {
-            togglePause();
         }
         } catch (error) {
             // Silently fail if permissions error or gamepad API blocked
@@ -529,7 +576,7 @@ const GamepadController = {
             <div style="margin-bottom: 5px;">${title}</div>
             ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${subtitle}</div>` : ''}
             <div style="font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: normal;">
-                D-Pad/Stick: Move • A/B: Rotate • Y: Drop • Start: Pause
+                D-Pad: Move • A: Drop • B: Rotate CW • X/Y: Rotate CCW
             </div>
         `;
         
@@ -562,11 +609,129 @@ const GamepadController = {
         if (id.includes('stadia')) return 'Stadia';
         
         return 'Generic';
+    },
+    
+    // Check if any button was just pressed (for menu/game over navigation)
+    anyButtonJustPressed() {
+        if (!this.enabled || !this.connected) return false;
+        
+        try {
+            const gamepads = navigator.getGamepads();
+            if (!gamepads) return false;
+            
+            const gp = gamepads[0];
+            if (!gp) return false;
+            
+            // Check face buttons (A, B, X, Y) and Start
+            const buttonsToCheck = [
+                this.buttons.A, this.buttons.B, this.buttons.X, this.buttons.Y, this.buttons.START
+            ];
+            
+            for (const btn of buttonsToCheck) {
+                if (this.wasButtonJustPressed(gp, btn)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
+    },
+    
+    // Update the controls display based on controller connection
+    updateControlsDisplay() {
+        const keyboardControls = document.querySelector('.controls');
+        let controllerControls = document.getElementById('controllerControls');
+        
+        if (!keyboardControls) return;
+        
+        // Create controller controls if they don't exist
+        if (!controllerControls) {
+            controllerControls = this.createControllerControls();
+            if (keyboardControls.parentNode) {
+                keyboardControls.parentNode.insertBefore(controllerControls, keyboardControls.nextSibling);
+            }
+        }
+        
+        if (this.connected && controllerControls) {
+            keyboardControls.style.display = 'none';
+            controllerControls.style.display = 'block';
+        } else if (keyboardControls) {
+            keyboardControls.style.display = 'block';
+            if (controllerControls) controllerControls.style.display = 'none';
+        }
+    },
+    
+    // Create the controller controls display element
+    createControllerControls() {
+        const div = document.createElement('div');
+        div.id = 'controllerControls';
+        div.className = 'controls';
+        div.style.display = 'none';
+        div.innerHTML = `
+            <strong>🎮 Controller</strong>
+            <div class="control-row">D-Pad: Move</div>
+            <div class="control-row">A: Hard Drop</div>
+            <div class="control-row">B: Rotate CW</div>
+            <div class="control-row">X/Y: Rotate CCW</div>
+            <div class="control-row">Start: Pause</div>
+        `;
+        return div;
+    },
+    
+    // Navigate mode menu
+    navigateMenu(direction) {
+        const modeButtonsNodeList = document.querySelectorAll('.mode-button');
+        if (!modeButtonsNodeList || modeButtonsNodeList.length === 0) return;
+        
+        const buttons = Array.from(modeButtonsNodeList);
+        let currentIndex = buttons.findIndex(btn => btn.classList.contains('selected'));
+        if (currentIndex === -1) currentIndex = 0;
+        
+        let newIndex = currentIndex + direction;
+        if (newIndex < 0) newIndex = buttons.length - 1;
+        if (newIndex >= buttons.length) newIndex = 0;
+        
+        // Update selection visually
+        buttons.forEach((btn, i) => {
+            if (i === newIndex) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+        
+        // Update the global selectedModeIndex if it exists
+        if (typeof selectedModeIndex !== 'undefined') {
+            selectedModeIndex = newIndex;
+        }
+        
+        // Play move sound
+        if (typeof playSoundEffect === 'function') {
+            playSoundEffect('move', true);
+        }
+    },
+    
+    // Select current mode from menu
+    selectCurrentMode() {
+        const selectedButton = document.querySelector('.mode-button.selected');
+        if (selectedButton) {
+            selectedButton.click();
+        }
     }
 };
 
 // Initialize gamepad support
 GamepadController.init();
+
+// Separate gamepad polling for menu/game-over states (when main game loop isn't running)
+(function gamepadMenuPoll() {
+    // Only poll when game is not running (game over screen, menu, etc.)
+    if (!gameRunning) {
+        GamepadController.update();
+    }
+    requestAnimationFrame(gamepadMenuPoll);
+})();
 
 // ============================================
 // TOUCH CONTROLS EVENT HANDLERS
