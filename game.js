@@ -1460,6 +1460,8 @@ function updateSongInfoDisplay(songInfo) {
     
     if (!songInfo) {
         songInfoElement.style.display = 'none';
+        // Reset browser tab title when no song playing
+        document.title = window.GAME_TITLE || 'TaNTЯiS';
         return;
     }
     
@@ -1473,6 +1475,10 @@ function updateSongInfoDisplay(songInfo) {
     if (songNameEl) {
         songNameEl.textContent = songInfo.name;
     }
+    
+    // Update browser tab title with current song
+    const gameTitle = window.GAME_TITLE || 'TaNTЯiS';
+    document.title = `${gameTitle} - ${songInfo.name}`;
     
     if (songDurationEl && songInfo.duration > 0) {
         const minutes = Math.floor(songInfo.duration / 60);
