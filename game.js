@@ -431,6 +431,20 @@ const GamepadController = {
             const gp = gamepads[0];
             if (!gp) return;
             
+            // Handle intro screen - any button to start
+            const startOverlayElement = document.getElementById('startOverlay');
+            const startGameButton = document.getElementById('startGameBtn');
+            // Check if intro is visible using computed style (handles both CSS and inline styles)
+            const introVisible = startOverlayElement && 
+                window.getComputedStyle(startOverlayElement).display !== 'none' &&
+                window.getComputedStyle(startOverlayElement).visibility !== 'hidden';
+            if (introVisible) {
+                if (this.anyButtonJustPressed() && startGameButton) {
+                    startGameButton.click();
+                }
+                return; // Don't process other inputs during intro
+            }
+            
             // Handle game over state - any button to play again
             const gameOverElement = document.getElementById('gameOver');
             const playAgainButton = document.getElementById('playAgainBtn');
