@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -1508,6 +1508,16 @@ function updateSongInfoDisplay(songInfo) {
 // Set up the song change callback
 if (typeof setOnSongChangeCallback === 'function') {
     setOnSongChangeCallback(updateSongInfoDisplay);
+}
+
+// Set up the pause state change callback (for earbud/media key controls)
+if (typeof setOnPauseStateChangeCallback === 'function') {
+    setOnPauseStateChangeCallback((isPaused) => {
+        const pauseBtn = document.getElementById('songPauseBtn');
+        if (pauseBtn) {
+            pauseBtn.textContent = isPaused ? '▶\uFE0E' : '⏸\uFE0E';
+        }
+    });
 }
 // trainingWheelsToggle removed - shadow is now standard (use Shadowless challenge for +4% bonus)
 const stormEffectsToggle = document.getElementById('stormEffectsToggle');

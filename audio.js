@@ -148,8 +148,22 @@ const MAX_SONG_HISTORY = 20;
 // Callback for when song changes (so game.js can update display)
 let onSongChangeCallback = null;
 
+// Callback for when pause state changes (so game.js can update button)
+let onPauseStateChangeCallback = null;
+
 function setOnSongChangeCallback(callback) {
     onSongChangeCallback = callback;
+}
+
+function setOnPauseStateChangeCallback(callback) {
+    onPauseStateChangeCallback = callback;
+}
+
+// Notify listeners that pause state changed
+function notifyPauseStateChange() {
+    if (onPauseStateChangeCallback) {
+        onPauseStateChangeCallback(musicPaused);
+    }
 }
 
 // Notify listeners that song changed
@@ -157,6 +171,9 @@ function notifySongChange() {
     if (onSongChangeCallback) {
         onSongChangeCallback(getCurrentSongInfo());
     }
+    // Update media session metadata for lock screens and media controls
+    updateMediaSessionMetadata();
+    updateMediaSessionState();
 }
 
 // Get current song information
@@ -300,6 +317,8 @@ function pauseCurrentMusic() {
         const audio = gameplayMusicElements[currentPlayingTrack];
         audio.pause();
         musicPaused = true;
+        updateMediaSessionState();
+        notifyPauseStateChange();
         console.log('🎵 Music paused');
         return true;
     }
@@ -308,6 +327,8 @@ function pauseCurrentMusic() {
     if (menuMusicElement && menuMusicPlaying) {
         menuMusicElement.pause();
         musicPaused = true;
+        updateMediaSessionState();
+        notifyPauseStateChange();
         console.log('🎵 Menu music paused');
         return true;
     }
@@ -324,6 +345,8 @@ function resumeCurrentMusic() {
         const audio = gameplayMusicElements[currentPlayingTrack];
         audio.play().catch(e => console.log('Music resume prevented:', e));
         musicPaused = false;
+        updateMediaSessionState();
+        notifyPauseStateChange();
         console.log('🎵 Music resumed');
         return true;
     }
@@ -332,6 +355,8 @@ function resumeCurrentMusic() {
     if (menuMusicElement && menuMusicPlaying) {
         menuMusicElement.play().catch(e => console.log('Menu music resume prevented:', e));
         musicPaused = false;
+        updateMediaSessionState();
+        notifyPauseStateChange();
         console.log('🎵 Menu music resumed');
         return true;
     }
@@ -354,6 +379,88 @@ function toggleMusicPause() {
 function isMusicPaused() {
     return musicPaused;
 }
+
+// Media Session API for hardware media controls (earbuds, keyboards, etc.)
+function setupMediaSession() {
+    if (!('mediaSession' in navigator)) {
+        console.log('🎵 Media Session API not supported');
+        return;
+    }
+    
+    // Set up action handlers for media controls
+    navigator.mediaSession.setActionHandler('play', () => {
+        if (musicPaused) {
+            resumeCurrentMusic();
+            updateMediaSessionState();
+        }
+    });
+    
+    navigator.mediaSession.setActionHandler('pause', () => {
+        if (!musicPaused) {
+            pauseCurrentMusic();
+            updateMediaSessionState();
+        }
+    });
+    
+    // Some devices send 'playpause' toggle instead of separate play/pause
+    try {
+        navigator.mediaSession.setActionHandler('playpause', () => {
+            toggleMusicPause();
+            updateMediaSessionState();
+        });
+    } catch (e) {
+        // playpause not supported on all browsers
+    }
+    
+    // Skip controls
+    try {
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            skipToNextSong();
+        });
+    } catch (e) {
+        // nexttrack not supported
+    }
+    
+    try {
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+            skipToPreviousSong();
+        });
+    } catch (e) {
+        // previoustrack not supported
+    }
+    
+    console.log('🎵 Media Session API initialized - earbud/media key controls enabled');
+}
+
+// Update Media Session metadata with current song info
+function updateMediaSessionMetadata() {
+    if (!('mediaSession' in navigator)) return;
+    
+    const songInfo = getCurrentSongInfo();
+    if (songInfo) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: songInfo.name,
+            artist: 'TaNTЯiS / BLOCKCHaiNSTORM',
+            album: 'Game Soundtrack'
+        });
+    }
+}
+
+// Update Media Session playback state
+function updateMediaSessionState() {
+    if (!('mediaSession' in navigator)) return;
+    
+    if (musicPaused) {
+        navigator.mediaSession.playbackState = 'paused';
+    } else if (musicPlaying || menuMusicPlaying) {
+        navigator.mediaSession.playbackState = 'playing';
+    } else {
+        navigator.mediaSession.playbackState = 'none';
+    }
+}
+
+// Initialize Media Session on load
+setupMediaSession();
 
 // Extract the "family" (base name) of a song - the part before any parentheses
 // e.g., "The Pit (Techno Mix)" -> "The Pit"
@@ -2066,6 +2173,7 @@ function playSmallExplosion(soundToggle) {
         toggleMusicPause,
         isMusicPaused,
         getCurrentSongInfo,
-        setOnSongChangeCallback
+        setOnSongChangeCallback,
+        setOnPauseStateChangeCallback
     };
 })(); // End IIFE
