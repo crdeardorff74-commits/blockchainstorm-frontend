@@ -20,6 +20,29 @@ const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, play
         .side-panel .controls .control-row {
             margin: 2px 0 !important;
         }
+        /* Controller-specific styling */
+        #controllerControls {
+            text-align: center;
+        }
+        #controllerControls .control-row {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+        }
+        #controllerControls .control-key {
+            display: inline-block;
+            text-align: right;
+            width: 110px;
+        }
+        #controllerControls .control-label {
+            display: inline-block;
+            text-align: left;
+            width: 70px;
+        }
+        .controls.hidden-during-play,
+        #controllerControls.hidden-during-play {
+            display: none !important;
+        }
         #planetStats {
             padding: 8px !important;
             margin-top: 8px !important;
@@ -326,22 +349,27 @@ const GamepadController = {
     buttonStates: {},
     menuStickWasUp: false,
     menuStickWasDown: false,
+    // Right stick state tracking for rotation
+    rightStickWasLeft: false,
+    rightStickWasRight: false,
+    rightStickWasUp: false,
+    rightStickWasDown: false,
     
     // Button mappings (Standard Gamepad layout)
     buttons: {
         A: 0,           // A (Xbox) / Cross (PS) - Hard drop
         B: 1,           // B (Xbox) / Circle (PS) - Rotate clockwise
         X: 2,           // X (Xbox) / Square (PS) - Rotate counter-clockwise
-        Y: 3,           // Y (Xbox) / Triangle (PS) - Rotate counter-clockwise
+        Y: 3,           // Y (Xbox) / Triangle (PS) - Rotate clockwise
         LB: 4,          // Left Bumper - Rotate counter-clockwise
         RB: 5,          // Right Bumper - Rotate clockwise
-        LT: 6,          // Left Trigger
-        RT: 7,          // Right Trigger
+        LT: 6,          // Left Trigger - Hard drop
+        RT: 7,          // Right Trigger - Hard drop
         BACK: 8,        // Back/Select - (unused)
         START: 9,       // Start/Options - Pause
         L_STICK: 10,    // Left Stick Click
-        R_STICK: 11,    // Right Stick Click
-        D_UP: 12,       // D-Pad Up
+        R_STICK: 11,    // Right Stick Click - Hard drop
+        D_UP: 12,       // D-Pad Up - Hard drop
         D_DOWN: 13,     // D-Pad Down - Soft drop
         D_LEFT: 14,     // D-Pad Left - Move left
         D_RIGHT: 15     // D-Pad Right - Move right
@@ -528,22 +556,51 @@ const GamepadController = {
         }
         
         // === ROTATION ===
-        // B button or Right Bumper - Rotate clockwise
+        // B, Y button or Right Bumper - Rotate clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.B) || 
+            this.wasButtonJustPressed(gp, this.buttons.Y) ||
             this.wasButtonJustPressed(gp, this.buttons.RB)) {
             rotatePiece();
         }
         
-        // X, Y button or Left Bumper - Rotate counter-clockwise
+        // X button or Left Bumper - Rotate counter-clockwise
         if (this.wasButtonJustPressed(gp, this.buttons.X) || 
-            this.wasButtonJustPressed(gp, this.buttons.Y) ||
             this.wasButtonJustPressed(gp, this.buttons.LB)) {
             rotatePieceCounterClockwise();
         }
         
+        // === RIGHT STICK ROTATION ===
+        // Right stick axes are typically axes[2] (X) and axes[3] (Y)
+        const rightStickLeft = gp.axes[2] < -0.5;
+        const rightStickRight = gp.axes[2] > 0.5;
+        const rightStickUp = gp.axes[3] < -0.5;
+        const rightStickDown = gp.axes[3] > 0.5;
+        
+        // Right stick left or up - Rotate counter-clockwise (on rising edge)
+        if ((rightStickLeft && !this.rightStickWasLeft) || 
+            (rightStickUp && !this.rightStickWasUp)) {
+            rotatePieceCounterClockwise();
+        }
+        
+        // Right stick right or down - Rotate clockwise (on rising edge)
+        if ((rightStickRight && !this.rightStickWasRight) || 
+            (rightStickDown && !this.rightStickWasDown)) {
+            rotatePiece();
+        }
+        
+        // Update right stick state
+        this.rightStickWasLeft = rightStickLeft;
+        this.rightStickWasRight = rightStickRight;
+        this.rightStickWasUp = rightStickUp;
+        this.rightStickWasDown = rightStickDown;
+        
         // === HARD DROP ===
-        // A button - Hard drop
-        if (this.wasButtonJustPressed(gp, this.buttons.A)) {
+        // A button, Right Stick click, D-Pad Up, or Triggers - Hard drop
+        if (this.wasButtonJustPressed(gp, this.buttons.A) ||
+            this.wasButtonJustPressed(gp, this.buttons.R_STICK) ||
+            this.wasButtonJustPressed(gp, this.buttons.D_UP) ||
+            this.wasButtonJustPressed(gp, this.buttons.LT) ||
+            this.wasButtonJustPressed(gp, this.buttons.RT)) {
             hardDrop();
         }
         } catch (error) {
@@ -590,7 +647,7 @@ const GamepadController = {
             <div style="margin-bottom: 5px;">${title}</div>
             ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${subtitle}</div>` : ''}
             <div style="font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: normal;">
-                D-Pad: Move • A: Drop • B: Rotate CW • X/Y: Rotate CCW
+                D-Pad: Move • A/Up/Trigger: Drop • B/Y: CW • X: CCW
             </div>
         `;
         
@@ -654,7 +711,7 @@ const GamepadController = {
     
     // Update the controls display based on controller connection
     updateControlsDisplay() {
-        const keyboardControls = document.querySelector('.controls');
+        const keyboardControls = document.querySelector('.controls:not(#controllerControls)');
         let controllerControls = document.getElementById('controllerControls');
         
         if (!keyboardControls) return;
@@ -667,11 +724,12 @@ const GamepadController = {
             }
         }
         
+        // Toggle which controls are shown (but don't override hidden-during-play)
         if (this.connected && controllerControls) {
             keyboardControls.style.display = 'none';
-            controllerControls.style.display = 'block';
+            controllerControls.style.display = '';  // Let CSS handle it
         } else if (keyboardControls) {
-            keyboardControls.style.display = 'block';
+            keyboardControls.style.display = '';  // Let CSS handle it
             if (controllerControls) controllerControls.style.display = 'none';
         }
     },
@@ -684,11 +742,11 @@ const GamepadController = {
         div.style.display = 'none';
         div.innerHTML = `
             <strong>🎮 Controller</strong>
-            <div class="control-row">D-Pad: Move</div>
-            <div class="control-row">A: Hard Drop</div>
-            <div class="control-row">B: Rotate CW</div>
-            <div class="control-row">X/Y: Rotate CCW</div>
-            <div class="control-row">Start: Pause</div>
+            <div class="control-row"><span class="control-key">D-Pad / L-Stick</span> : <span class="control-label">Move</span></div>
+            <div class="control-row"><span class="control-key">A / Up / LT / RT / RSB</span> : <span class="control-label">Hard Drop</span></div>
+            <div class="control-row"><span class="control-key">B / Y / RB / RS→↓</span> : <span class="control-label">Rotate CW</span></div>
+            <div class="control-row"><span class="control-key">X / LB / RS←↑</span> : <span class="control-label">Rotate CCW</span></div>
+            <div class="control-row"><span class="control-key">Start</span> : <span class="control-label">Pause</span></div>
         `;
         return div;
     },
@@ -10423,6 +10481,7 @@ function toggleUIElements(show) {
     const histogramCanvas = document.getElementById('histogramCanvas');
     const leaderboardContent = document.getElementById('leaderboardContent');
     const controls = document.querySelector('.controls');
+    const controllerControls = document.getElementById('controllerControls');
     const settingsBtn = document.getElementById('settingsBtn');
     const nextPieceSection = document.getElementById('nextPieceSection');
     const titles = document.querySelectorAll('.title');
@@ -10438,7 +10497,8 @@ function toggleUIElements(show) {
         if (!leaderboardVisible) {
             rulesInstructions.style.display = 'block';
         }
-        controls.classList.remove('hidden-during-play');
+        if (controls) controls.classList.remove('hidden-during-play');
+        if (controllerControls) controllerControls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         titles.forEach(title => title.style.display = '');
@@ -10451,7 +10511,8 @@ function toggleUIElements(show) {
         rulesInstructions.style.display = 'none';
         // Also hide leaderboard when game starts
         if (leaderboardContent) leaderboardContent.style.display = 'none';
-        controls.classList.add('hidden-during-play');
+        if (controls) controls.classList.add('hidden-during-play');
+        if (controllerControls) controllerControls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         titles.forEach(title => title.style.display = 'none');
