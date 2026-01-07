@@ -10039,6 +10039,7 @@ function movePiece(dir) {
 }
 
 function dropPiece() {
+    console.log('🎮 dropPiece called, gravityAnimating:', gravityAnimating, 'animatingLines:', animatingLines, 'currentPiece:', !!currentPiece);
     if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape) return;
     // Prevent dropping during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
@@ -10098,20 +10099,28 @@ function dropPiece() {
             }, 400); // 400ms delay to let the limb fade in
         } else {
             // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
+            console.log('🎮 Before checkForSpecialFormations, blackHoleAnimating:', typeof blackHoleAnimating !== 'undefined' ? blackHoleAnimating : 'undefined');
             checkForSpecialFormations();
             clearLines();
         }
         
+        console.log('🎮 About to spawn next piece, queue:', nextPieceQueue.length, 'items');
         if (nextPieceQueue.length > 0 && nextPieceQueue[0] && nextPieceQueue[0].shape) {
             // Spawn the next piece from queue
+            console.log('🎮 Spawning next piece, queue length:', nextPieceQueue.length);
             currentPiece = nextPieceQueue.shift();
             
-            // IMMEDIATELY check if the new piece collides with existing blocks
-            // This prevents the piece from being rendered in an overlapping position
+            // Check if the new piece collides with existing blocks
             if (collides(currentPiece)) {
-                // Game over - new piece can't spawn without overlapping
-                currentPiece = null;
-                gameOver();
+                console.log('🎮 Piece collision detected at spawn position');
+                // Game over - but show the piece briefly first so player sees what happened
+                // Draw one frame with the colliding piece visible
+                draw();
+                // Short delay so player can see the piece, then trigger game over
+                setTimeout(() => {
+                    currentPiece = null;
+                    gameOver();
+                }, 300);
                 return;
             }
             
@@ -10153,6 +10162,10 @@ function dropPiece() {
                 gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
             }
         } else {
+            console.log('🎮 QUEUE CHECK FAILED - triggering game over');
+            console.log('  Queue length:', nextPieceQueue.length);
+            console.log('  Queue[0]:', nextPieceQueue[0]);
+            console.log('  Queue[0].shape:', nextPieceQueue[0]?.shape);
             currentPiece = null; // Clear piece before game over
             gameOver();
         }
@@ -10550,10 +10563,14 @@ function update(time = 0) {
     if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
         currentPiece = nextPieceQueue.shift();
         
-        // IMMEDIATELY check if the new piece collides with existing blocks
+        // Check if the new piece collides with existing blocks
         if (collides(currentPiece)) {
-            currentPiece = null;
-            gameOver();
+            // Game over - but show the piece briefly first so player sees what happened
+            draw();
+            setTimeout(() => {
+                currentPiece = null;
+                gameOver();
+            }, 300);
             return;
         }
         
