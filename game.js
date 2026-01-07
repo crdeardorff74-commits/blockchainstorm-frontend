@@ -34,6 +34,7 @@ const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, play
 // Game state variables (synced with StarfieldSystem)
 let currentGameLevel = 1;
 let gameRunning = false;
+let gameOverPending = false; // True when waiting for game over timeout
 let cameraReversed = false;
 
 // ============================================
@@ -5387,12 +5388,15 @@ function createPiece() {
         type = shapes[Math.floor(Math.random() * shapes.length)];
     }
     
+    const shape = shapeSet[type];
+    const pieceHeight = shape.length;
+    
     return {
-        shape: shapeSet[type],
+        shape: shape,
         type: type,
         color: randomColor(),
-        x: Math.floor(COLS / 2) - Math.floor(shapeSet[type][0].length / 2),
-        y: -1
+        x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
+        y: -pieceHeight  // Spawn completely above the well
     };
 }
 
@@ -5440,12 +5444,14 @@ function createGiantPiece(segmentCount) {
         shapeData = HEPTOMINO_SHAPES[Math.floor(Math.random() * HEPTOMINO_SHAPES.length)];
     }
     
+    const pieceHeight = shapeData.shape.length;
+    
     return {
         shape: shapeData.shape,
         type: 'giant' + segmentCount,
         color: color,
         x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
-        y: -1
+        y: -pieceHeight  // Spawn completely above the well
     };
 }
 
@@ -10039,8 +10045,7 @@ function movePiece(dir) {
 }
 
 function dropPiece() {
-    console.log('🎮 dropPiece called, gravityAnimating:', gravityAnimating, 'animatingLines:', animatingLines, 'currentPiece:', !!currentPiece);
-    if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape) return;
+    if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape || gameOverPending) return;
     // Prevent dropping during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
     
@@ -10077,7 +10082,7 @@ function dropPiece() {
         }
         
         // Check if piece at current position still overlaps with existing blocks
-        // This can happen if the piece spawned in an invalid position
+        // This triggers game over if the piece couldn't escape the spawn collision
         if (collides(currentPiece)) {
             // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
             mergePiece();
@@ -10099,30 +10104,17 @@ function dropPiece() {
             }, 400); // 400ms delay to let the limb fade in
         } else {
             // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
-            console.log('🎮 Before checkForSpecialFormations, blackHoleAnimating:', typeof blackHoleAnimating !== 'undefined' ? blackHoleAnimating : 'undefined');
             checkForSpecialFormations();
             clearLines();
         }
         
-        console.log('🎮 About to spawn next piece, queue:', nextPieceQueue.length, 'items');
         if (nextPieceQueue.length > 0 && nextPieceQueue[0] && nextPieceQueue[0].shape) {
             // Spawn the next piece from queue
-            console.log('🎮 Spawning next piece, queue length:', nextPieceQueue.length);
             currentPiece = nextPieceQueue.shift();
             
-            // Check if the new piece collides with existing blocks
-            if (collides(currentPiece)) {
-                console.log('🎮 Piece collision detected at spawn position');
-                // Game over - but show the piece briefly first so player sees what happened
-                // Draw one frame with the colliding piece visible
-                draw();
-                // Short delay so player can see the piece, then trigger game over
-                setTimeout(() => {
-                    currentPiece = null;
-                    gameOver();
-                }, 300);
-                return;
-            }
+            // Note: We don't check for collision at spawn anymore.
+            // The player should have a chance to move the piece to safety.
+            // Game over only triggers when a piece LOCKS while extending above the playfield.
             
             // Record spawn time for speed bonus calculation
             pieceSpawnTime = Date.now();
@@ -10162,10 +10154,6 @@ function dropPiece() {
                 gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
             }
         } else {
-            console.log('🎮 QUEUE CHECK FAILED - triggering game over');
-            console.log('  Queue length:', nextPieceQueue.length);
-            console.log('  Queue[0]:', nextPieceQueue[0]);
-            console.log('  Queue[0].shape:', nextPieceQueue[0]?.shape);
             currentPiece = null; // Clear piece before game over
             gameOver();
         }
@@ -10299,6 +10287,7 @@ function toggleUIElements(show) {
 
 async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
+    gameOverPending = false; // Reset the pending flag
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
@@ -10512,7 +10501,7 @@ function showGameOverScreen() {
 }
 
 function update(time = 0) {
-    if (!gameRunning) return;
+    if (!gameRunning || gameOverPending) return;
 
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
@@ -10563,16 +10552,9 @@ function update(time = 0) {
     if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
         currentPiece = nextPieceQueue.shift();
         
-        // Check if the new piece collides with existing blocks
-        if (collides(currentPiece)) {
-            // Game over - but show the piece briefly first so player sees what happened
-            draw();
-            setTimeout(() => {
-                currentPiece = null;
-                gameOver();
-            }, 300);
-            return;
-        }
+        // Note: We don't check for collision at spawn anymore.
+        // The player should have a chance to move the piece to safety.
+        // Game over only triggers when a piece LOCKS while extending above the playfield.
         
         // Record spawn time for speed bonus calculation
         pieceSpawnTime = Date.now();
@@ -11068,6 +11050,7 @@ function startGame(mode) {
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
+    gameOverPending = false; // Reset game over pending flag
     document.body.classList.add('game-running');
     document.body.classList.add('game-started');
     gameOverDiv.style.display = 'none';
