@@ -103,7 +103,32 @@ const gameplaySongs = [
     { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow_Burn.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The_Long_Game.mp3' },
     { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin._Down.mp3' },
-    { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' }
+    { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' },
+    { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic_Sneeze.mp3' },
+    { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar_Echoes.mp3' },
+    { id: 'delayed_gravity', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed_Gravity.mp3' },
+    { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking_Among_the_Ruins.mp3' },
+    { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
+    { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber_._Glue.mp3' },
+    { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin_._Tectonic.mp3' },
+    { id: 'untitled', name: 'Untitled', file: MUSIC_BASE_URL + 'Untitled.mp3' },
+    { id: 'lulaby_bye_bye', name: 'Lulaby Bye Bye', file: MUSIC_BASE_URL + 'Lulaby_Bye_Bye.mp3' },
+    { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin_Swell.mp3' },
+    { id: 'gremlins_arcade', name: "Gremlins Arcade", file: MUSIC_BASE_URL + 'Gremlins_Arcade.mp3' },
+    { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight_Mogwai.mp3' },
+    { id: 'hold_it', name: 'Hold It', file: MUSIC_BASE_URL + 'Hold_It.mp3' },
+    { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast_Calls_for_Blocks.mp3' },
+    { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor_Shower.mp3' },
+    { id: 'get_some_tonight', name: 'Get Some Tonight', file: MUSIC_BASE_URL + 'Get_Some_Tonight.mp3' },
+    { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do_You_Want_a_Score.mp3' },
+    { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The_Longer_Game.mp3' },
+    { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block_on_Fire.mp3' },
+    { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural_Selection.mp3' },
+    { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A_Game_of_Falling_Blocks.mp3' },
+    { id: 'what_the_flock', name: 'What the Flock', file: MUSIC_BASE_URL + 'What_the_Flock.mp3' },
+    { id: 'how_long_can_you_wait', name: 'How Long Can You Wait', file: MUSIC_BASE_URL + 'How_Long_Can_You_Wait.mp3' },
+    { id: 'cant_keep_my_mind_off_you', name: "Can't Keep My Mind Off You", file: MUSIC_BASE_URL + 'Can.t_Keep_My_Mind_Off_You.mp3' },
+    { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
