@@ -106,7 +106,7 @@ const gameplaySongs = [
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' },
     { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic_Sneeze.mp3' },
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar_Echoes.mp3' },
-    { id: 'delayed_gravity', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed_Gravity.mp3' },
+    { id: 'delayed_gravitation', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed_Gravitation.mp3' },
     { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking_Among_the_Ruins.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber_._Glue.mp3' },
@@ -128,7 +128,8 @@ const gameplaySongs = [
     { id: 'what_the_flock', name: 'What the Flock', file: MUSIC_BASE_URL + 'What_the_Flock.mp3' },
     { id: 'how_long_can_you_wait', name: 'How Long Can You Wait', file: MUSIC_BASE_URL + 'How_Long_Can_You_Wait.mp3' },
     { id: 'cant_keep_my_mind_off_you', name: "Can't Keep My Mind Off You", file: MUSIC_BASE_URL + 'Can.t_Keep_My_Mind_Off_You.mp3' },
-    { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' }
+    { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' },
+    { id: 'the_far_side_of_the_moooon', name: "The Far Side (of the Moooon)", file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
