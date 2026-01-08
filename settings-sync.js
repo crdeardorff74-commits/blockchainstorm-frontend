@@ -58,7 +58,8 @@ const SettingsSync = {
             'soundToggle', 
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'minimalistToggle'
+            'minimalistToggle',
+            'vibrationToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -93,6 +94,11 @@ const SettingsSync = {
             }
         });
         
+        // Controls configuration
+        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.getBindings) {
+            settings.controlBindings = ControlsConfig.getBindings();
+        }
+        
         return settings;
     },
     
@@ -112,7 +118,8 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle', 
             'cameraOrientationToggle',
-            'minimalistToggle'
+            'minimalistToggle',
+            'vibrationToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -157,6 +164,11 @@ const SettingsSync = {
                 elem.dispatchEvent(new Event('input'));
             }
         });
+        
+        // Apply controls configuration
+        if (settings.controlBindings && typeof ControlsConfig !== 'undefined' && ControlsConfig.applyBindings) {
+            ControlsConfig.applyBindings(settings.controlBindings);
+        }
         
         console.log('⚙️ Settings applied successfully');
     },
@@ -288,7 +300,8 @@ const SettingsSync = {
             'soundToggle',
             'stormEffectsToggle',
             'cameraOrientationToggle',
-            'minimalistToggle'
+            'minimalistToggle',
+            'vibrationToggle'
         ];
         
         let attachedCount = 0;

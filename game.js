@@ -354,6 +354,10 @@ const GamepadController = {
     rightStickWasRight: false,
     rightStickWasUp: false,
     rightStickWasDown: false,
+    // Haptic feedback state
+    vibrationSupported: false,
+    vibrationEnabled: true, // Can be toggled by user
+    activeVibration: null,  // Track ongoing vibration effect
     
     // Button mappings (Standard Gamepad layout)
     buttons: {
@@ -404,6 +408,16 @@ const GamepadController = {
         this.connected = true;
         this.enabled = true;
         
+        // Check for vibration support
+        this.vibrationSupported = !!(gamepad.vibrationActuator || gamepad.hapticActuators);
+        console.log('   Vibration:', this.vibrationSupported ? 'Supported' : 'Not supported');
+        
+        // Show vibration option in settings if supported
+        const vibrationOption = document.getElementById('vibrationOption');
+        if (vibrationOption && this.vibrationSupported) {
+            vibrationOption.style.display = '';
+        }
+        
         // Update controls display to show controller buttons
         this.updateControlsDisplay();
         
@@ -420,7 +434,17 @@ const GamepadController = {
         
         if (!this.connected) {
             this.enabled = false;
+            this.vibrationSupported = false;
             this.showNotification('🎮 Controller Disconnected', '');
+            
+            // Hide vibration option in settings
+            const vibrationOption = document.getElementById('vibrationOption');
+            if (vibrationOption) {
+                vibrationOption.style.display = 'none';
+            }
+            
+            // Stop any ongoing vibration
+            this.stopVibration();
         }
         
         // Update controls display to show keyboard controls
@@ -522,11 +546,12 @@ const GamepadController = {
             const now = Date.now();
             
             // === MOVEMENT (D-Pad or Left Stick) ===
-            const leftPressed = this.isButtonPressed(gp, this.buttons.D_LEFT) || 
+            // Movement also checks configured buttons + analog stick
+            const leftPressed = this.isActionPressed(gp, 'moveLeft') || 
                                gp.axes[0] < -this.deadzone;
-            const rightPressed = this.isButtonPressed(gp, this.buttons.D_RIGHT) || 
+            const rightPressed = this.isActionPressed(gp, 'moveRight') || 
                                 gp.axes[0] > this.deadzone;
-            const downPressed = this.isButtonPressed(gp, this.buttons.D_DOWN) || 
+            const downPressed = this.isActionPressed(gp, 'softDrop') || 
                                gp.axes[1] > this.deadzone;
         
         // Apply movement with repeat delay
@@ -556,20 +581,17 @@ const GamepadController = {
         }
         
         // === ROTATION ===
-        // B, Y button or Right Bumper - Rotate clockwise
-        if (this.wasButtonJustPressed(gp, this.buttons.B) || 
-            this.wasButtonJustPressed(gp, this.buttons.Y) ||
-            this.wasButtonJustPressed(gp, this.buttons.RB)) {
+        // Rotate clockwise (uses configured buttons)
+        if (this.wasActionJustPressed(gp, 'rotateCW')) {
             rotatePiece();
         }
         
-        // X button or Left Bumper - Rotate counter-clockwise
-        if (this.wasButtonJustPressed(gp, this.buttons.X) || 
-            this.wasButtonJustPressed(gp, this.buttons.LB)) {
+        // Rotate counter-clockwise (uses configured buttons)
+        if (this.wasActionJustPressed(gp, 'rotateCCW')) {
             rotatePieceCounterClockwise();
         }
         
-        // === RIGHT STICK ROTATION ===
+        // === RIGHT STICK ROTATION (always available) ===
         // Right stick axes are typically axes[2] (X) and axes[3] (Y)
         const rightStickLeft = gp.axes[2] < -0.5;
         const rightStickRight = gp.axes[2] > 0.5;
@@ -595,12 +617,8 @@ const GamepadController = {
         this.rightStickWasDown = rightStickDown;
         
         // === HARD DROP ===
-        // A button, Right Stick click, D-Pad Up, or Triggers - Hard drop
-        if (this.wasButtonJustPressed(gp, this.buttons.A) ||
-            this.wasButtonJustPressed(gp, this.buttons.R_STICK) ||
-            this.wasButtonJustPressed(gp, this.buttons.D_UP) ||
-            this.wasButtonJustPressed(gp, this.buttons.LT) ||
-            this.wasButtonJustPressed(gp, this.buttons.RT)) {
+        // Uses configured buttons
+        if (this.wasActionJustPressed(gp, 'hardDrop')) {
             hardDrop();
         }
         } catch (error) {
@@ -621,6 +639,54 @@ const GamepadController = {
         
         // Return true only on the rising edge (button just pressed)
         return pressed && !wasPressed;
+    },
+    
+    // Check if any button for an action was just pressed (uses ControlsConfig)
+    wasActionJustPressed(gamepad, action) {
+        let buttons;
+        
+        // Try to get buttons from ControlsConfig
+        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.gamepad && ControlsConfig.gamepad[action]) {
+            buttons = ControlsConfig.gamepad[action];
+        } else {
+            // Fallback to hardcoded defaults
+            const defaults = {
+                moveLeft: [14],
+                moveRight: [15],
+                softDrop: [13],
+                hardDrop: [0, 6, 7, 12, 11],
+                rotateCW: [1, 5, 3],
+                rotateCCW: [2, 4],
+                pause: [9]
+            };
+            buttons = defaults[action] || [];
+        }
+        
+        return buttons.some(btn => this.wasButtonJustPressed(gamepad, btn));
+    },
+    
+    // Check if any button for an action is currently pressed (uses ControlsConfig)
+    isActionPressed(gamepad, action) {
+        let buttons;
+        
+        // Try to get buttons from ControlsConfig
+        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.gamepad && ControlsConfig.gamepad[action]) {
+            buttons = ControlsConfig.gamepad[action];
+        } else {
+            // Fallback to hardcoded defaults
+            const defaults = {
+                moveLeft: [14],
+                moveRight: [15],
+                softDrop: [13],
+                hardDrop: [0, 6, 7, 12, 11],
+                rotateCW: [1, 5, 3],
+                rotateCCW: [2, 4],
+                pause: [9]
+            };
+            buttons = defaults[action] || [];
+        }
+        
+        return buttons.some(btn => this.isButtonPressed(gamepad, btn));
     },
     
     showNotification(title, subtitle) {
@@ -647,7 +713,7 @@ const GamepadController = {
             <div style="margin-bottom: 5px;">${title}</div>
             ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${subtitle}</div>` : ''}
             <div style="font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: normal;">
-                D-Pad: Move • A/Up/Trigger: Drop • B/Y: CW • X: CCW
+                Configure controls in ⚙️ Settings
             </div>
         `;
         
@@ -706,6 +772,166 @@ const GamepadController = {
             return false;
         } catch (error) {
             return false;
+        }
+    },
+    
+    // === HAPTIC FEEDBACK METHODS ===
+    
+    // Trigger a single vibration pulse
+    vibrate(duration = 200, weakMagnitude = 0.5, strongMagnitude = 1.0) {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        try {
+            const gamepads = navigator.getGamepads();
+            if (!gamepads) return;
+            
+            const gp = gamepads[0];
+            if (!gp) return;
+            
+            if (gp.vibrationActuator) {
+                gp.vibrationActuator.playEffect('dual-rumble', {
+                    startDelay: 0,
+                    duration: duration,
+                    weakMagnitude: weakMagnitude,
+                    strongMagnitude: strongMagnitude
+                });
+            } else if (gp.hapticActuators && gp.hapticActuators[0]) {
+                // Fallback for older API
+                gp.hapticActuators[0].pulse(strongMagnitude, duration);
+            }
+        } catch (error) {
+            // Silently fail - vibration is non-critical
+        }
+    },
+    
+    // Start continuous rumble effect (for ongoing events like earthquakes)
+    startContinuousRumble(weakMagnitude = 0.3, strongMagnitude = 0.6) {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        // Clear any existing rumble
+        this.stopVibration();
+        
+        // Pulse every 100ms to create continuous effect
+        this.activeVibration = setInterval(() => {
+            this.vibrate(120, weakMagnitude, strongMagnitude);
+        }, 100);
+    },
+    
+    // Earthquake rumble - strong, irregular vibration
+    startEarthquakeRumble() {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        this.stopVibration();
+        
+        // Irregular rumble pattern for earthquake feel
+        this.activeVibration = setInterval(() => {
+            const intensity = 0.5 + Math.random() * 0.5; // 0.5 to 1.0
+            const weak = 0.3 + Math.random() * 0.4;
+            this.vibrate(150, weak, intensity);
+        }, 120);
+    },
+    
+    // Black hole rumble - pulsing, building intensity
+    startBlackHoleRumble(progress = 0) {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        // Single pulse based on current progress (0-1)
+        // Intensity builds as black hole progresses
+        const baseIntensity = 0.2 + (progress * 0.6);
+        const strongMag = Math.min(1.0, baseIntensity + Math.sin(Date.now() / 200) * 0.2);
+        const weakMag = strongMag * 0.5;
+        
+        this.vibrate(100, weakMag, strongMag);
+    },
+    
+    // Tsunami rumble - wave-like pattern that builds, crashes, then recedes
+    startTsunamiRumble() {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        this.stopVibration();
+        
+        const tsunamiDuration = 2500; // Match game's tsunami duration
+        const startTime = Date.now();
+        
+        // Wave pattern: build up (0-40%), crash/peak (40-60%), recede (60-100%)
+        this.activeVibration = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / tsunamiDuration;
+            
+            if (progress >= 1) {
+                this.stopVibration();
+                return;
+            }
+            
+            let intensity, weakMag;
+            
+            if (progress < 0.4) {
+                // Building wave - intensity rises
+                intensity = 0.2 + (progress / 0.4) * 0.6; // 0.2 → 0.8
+                weakMag = intensity * 0.4;
+            } else if (progress < 0.6) {
+                // Crash/peak - maximum intensity with variation
+                intensity = 0.8 + Math.sin((progress - 0.4) * Math.PI * 10) * 0.2; // 0.6-1.0 oscillating
+                weakMag = 0.5 + Math.random() * 0.3;
+            } else {
+                // Receding - intensity falls
+                const recedeProgress = (progress - 0.6) / 0.4; // 0 → 1
+                intensity = 0.8 - recedeProgress * 0.7; // 0.8 → 0.1
+                weakMag = intensity * 0.3;
+            }
+            
+            this.vibrate(120, weakMag, intensity);
+        }, 100);
+    },
+    
+    // Alternative: Rolling waves pattern (multiple hits)
+    startRollingWavesRumble() {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        this.stopVibration();
+        
+        // Three waves of decreasing intensity
+        const waves = [
+            { delay: 0, intensity: 1.0, duration: 400 },
+            { delay: 600, intensity: 0.7, duration: 350 },
+            { delay: 1100, intensity: 0.5, duration: 300 },
+            { delay: 1500, intensity: 0.3, duration: 250 }
+        ];
+        
+        waves.forEach(wave => {
+            setTimeout(() => {
+                if (this.vibrationEnabled && this.connected) {
+                    this.vibrate(wave.duration, wave.intensity * 0.4, wave.intensity);
+                }
+            }, wave.delay);
+        });
+        
+        // Clear active vibration marker after all waves complete
+        this.activeVibration = setTimeout(() => {
+            this.activeVibration = null;
+        }, 1800);
+    },
+    
+    // Stop any ongoing vibration
+    stopVibration() {
+        if (this.activeVibration) {
+            clearInterval(this.activeVibration);
+            this.activeVibration = null;
+        }
+        
+        // Send a zero-intensity pulse to stop hardware vibration
+        try {
+            const gamepads = navigator.getGamepads();
+            if (gamepads && gamepads[0] && gamepads[0].vibrationActuator) {
+                gamepads[0].vibrationActuator.playEffect('dual-rumble', {
+                    startDelay: 0,
+                    duration: 1,
+                    weakMagnitude: 0,
+                    strongMagnitude: 0
+                });
+            }
+        } catch (error) {
+            // Ignore
         }
     },
     
@@ -1336,6 +1562,19 @@ const planetStatsDiv = document.getElementById('planetStats');
 const planetStatsContent = document.getElementById('planetStatsContent');
 const soundToggle = document.getElementById('soundToggle');
 const musicSelect = document.getElementById('musicSelect');
+const vibrationToggle = document.getElementById('vibrationToggle');
+const vibrationOption = document.getElementById('vibrationOption');
+
+// Set up vibration toggle
+if (vibrationToggle) {
+    vibrationToggle.addEventListener('change', () => {
+        GamepadController.vibrationEnabled = vibrationToggle.checked;
+        // Trigger settings sync save
+        if (typeof SettingsSync !== 'undefined' && SettingsSync.saveSettings) {
+            SettingsSync.saveSettings();
+        }
+    });
+}
 
 // Song info display - created dynamically
 let songInfoElement = null;
@@ -1807,6 +2046,9 @@ function triggerBlackHole(innerBlob, outerBlob) {
     // Add visual effect
     canvas.classList.add('blackhole-active');
     playEnhancedThunder(soundToggle);
+    
+    // Start controller haptic feedback (continuous rumble)
+    GamepadController.startContinuousRumble(0.4, 0.7);
 }
 
 function createDisintegrationExplosion(blob) {
@@ -1943,6 +2185,9 @@ function updateBlackHoleAnimation() {
         blackHoleActive = false;
         blackHoleShakeIntensity = 0;
         canvas.classList.remove('blackhole-active');
+        
+        // Stop controller haptic feedback
+        GamepadController.stopVibration();
         
         console.log('🕳️ Black hole calling applyGravity()');
         // Apply gravity after black hole
@@ -2825,6 +3070,9 @@ function triggerTsunamiAnimation(blob) {
     playSoundEffect('gold', soundToggle);
     const avgY = blob.positions.reduce((s, p) => s + p[1], 0) / blob.positions.length;
     triggerTsunami(avgY * BLOCK_SIZE);
+    
+    // Start controller haptic feedback (wave pattern)
+    GamepadController.startTsunamiRumble();
 }
 
 function updateTsunamiAnimation() {
@@ -2870,6 +3118,9 @@ function updateTsunamiAnimation() {
         tsunamiActive = false;
         tsunamiWobbleIntensity = 0;
         canvas.classList.remove('tsunami-active');
+        
+        // Stop controller haptic feedback (should already be stopped, but ensure cleanup)
+        GamepadController.stopVibration();
         
         // Put pushed blocks back on board at their original positions
         // They will then fall naturally with gravity (potentially reconnecting with other blocks)
@@ -3181,6 +3432,9 @@ function spawnEarthquake() {
     
     // Play continuous rumble sound to indicate earthquake starting
     playEarthquakeRumble(soundToggle);
+    
+    // Start controller haptic feedback
+    GamepadController.startEarthquakeRumble();
 }
 
 function updateTornado() {
@@ -3953,6 +4207,9 @@ function updateEarthquake() {
             
             earthquakeActive = false;
             console.log('🌍 Earthquake finished, earthquakeActive = false');
+            
+            // Stop controller haptic feedback
+            GamepadController.stopVibration();
         }
     }
 }
@@ -10551,6 +10808,9 @@ async function gameOver() {
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
     
+    // Stop any ongoing controller haptic feedback
+    GamepadController.stopVibration();
+    
     // Clear all touch repeat timers
     touchRepeat.timers.forEach((timerObj, element) => {
         if (timerObj.initial) clearTimeout(timerObj.initial);
@@ -11458,54 +11718,76 @@ document.addEventListener('keydown', e => {
             return; // Ignore all browser repeat events
         }
         
-        // Handle game control keys with custom repeat
-        const gameControlKeys = {
-            'ArrowLeft': () => movePiece(-1),
-            'ArrowRight': () => movePiece(1),
-            'ArrowDown': () => dropPiece(),
-            'ArrowUp': () => rotatePiece(),
-            '4': () => movePiece(-1),
-            '6': () => movePiece(1),
-            '2': () => dropPiece(),
-            '5': () => rotatePieceCounterClockwise(),
-            'Clear': () => rotatePieceCounterClockwise(),
-            '8': () => rotatePiece(),
-            '0': () => hardDrop(),
-            'Insert': () => hardDrop()
+        // Build game control keys dynamically from ControlsConfig
+        const gameControlKeys = {};
+        const actionHandlers = {
+            'moveLeft': () => movePiece(-1),
+            'moveRight': () => movePiece(1),
+            'softDrop': () => dropPiece(),
+            'hardDrop': () => hardDrop(),
+            'rotateCW': () => rotatePiece(),
+            'rotateCCW': () => rotatePieceCounterClockwise()
         };
+        
+        // Map configured keys to actions
+        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.keyboard) {
+            for (const [action, keys] of Object.entries(ControlsConfig.keyboard)) {
+                if (actionHandlers[action]) {
+                    keys.forEach(key => {
+                        gameControlKeys[key] = actionHandlers[action];
+                    });
+                }
+            }
+        } else {
+            // Fallback to hardcoded controls if ControlsConfig not available
+            Object.assign(gameControlKeys, {
+                'ArrowLeft': () => movePiece(-1),
+                'ArrowRight': () => movePiece(1),
+                'ArrowDown': () => dropPiece(),
+                'ArrowUp': () => rotatePiece(),
+                '4': () => movePiece(-1),
+                '6': () => movePiece(1),
+                '2': () => dropPiece(),
+                '5': () => rotatePieceCounterClockwise(),
+                'Clear': () => rotatePieceCounterClockwise(),
+                '8': () => rotatePiece(),
+                '0': () => hardDrop(),
+                'Insert': () => hardDrop(),
+                ' ': () => hardDrop()
+            });
+        }
         
         // Check if this is a game control key
         if (gameControlKeys[e.key] && !customKeyRepeat.keys.has(e.key)) {
+            e.preventDefault();
+            
             // Mark key as pressed
             customKeyRepeat.keys.set(e.key, true);
             
             // Execute action immediately on first press
             gameControlKeys[e.key]();
             
-            // Set up initial delay before repeating
-            const initialTimer = setTimeout(() => {
-                // Start repeating at specified rate
-                const repeatTimer = setInterval(() => {
-                    if (customKeyRepeat.keys.has(e.key) && !paused && currentPiece) {
-                        gameControlKeys[e.key]();
-                    } else {
-                        clearInterval(repeatTimer);
-                        customKeyRepeat.timers.delete(e.key);
-                    }
-                }, customKeyRepeat.repeatRate);
-                
-                customKeyRepeat.timers.set(e.key, repeatTimer);
-            }, customKeyRepeat.initialDelay);
+            // Set up initial delay before repeating (except for hard drop)
+            const isHardDrop = typeof ControlsConfig !== 'undefined' && ControlsConfig.keyboard
+                ? ControlsConfig.keyboard.hardDrop.includes(e.key)
+                : (e.key === ' ' || e.key === '0' || e.key === 'Insert');
             
-            customKeyRepeat.timers.set(e.key + '_init', initialTimer);
-        }
-
-        // Handle spacebar separately (no repeat needed for hard drop)
-        if (e.key === ' ') {
-            e.preventDefault();
-            if (!customKeyRepeat.keys.has(' ')) {
-                customKeyRepeat.keys.set(' ', true);
-                hardDrop();
+            if (!isHardDrop) {
+                const initialTimer = setTimeout(() => {
+                    // Start repeating at specified rate
+                    const repeatTimer = setInterval(() => {
+                        if (customKeyRepeat.keys.has(e.key) && !paused && currentPiece) {
+                            gameControlKeys[e.key]();
+                        } else {
+                            clearInterval(repeatTimer);
+                            customKeyRepeat.timers.delete(e.key);
+                        }
+                    }, customKeyRepeat.repeatRate);
+                    
+                    customKeyRepeat.timers.set(e.key, repeatTimer);
+                }, customKeyRepeat.initialDelay);
+                
+                customKeyRepeat.timers.set(e.key + '_init', initialTimer);
             }
         }
 
@@ -11669,6 +11951,10 @@ settingsBtn.addEventListener('click', () => {
         stopMusic(); // stopMusic() already checks internally if music is playing
     }
     settingsOverlay.style.display = 'flex';
+    // Update controls config UI
+    if (typeof ControlsConfig !== 'undefined' && ControlsConfig.updateUI) {
+        ControlsConfig.updateUI();
+    }
 });
 
 settingsCloseBtn.addEventListener('click', () => {

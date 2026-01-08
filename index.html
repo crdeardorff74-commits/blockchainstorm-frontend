@@ -1385,6 +1385,81 @@
             background: rgba(255, 255, 255, 0.5);
         }
         
+        /* Controls Configuration */
+        .controls-config-section {
+            margin-top: 2vh;
+            padding-top: 2vh;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .controls-config-title {
+            font-size: 1.8vh;
+            font-weight: bold;
+            margin-bottom: 1.5vh;
+            color: #00bfff;
+        }
+        .controls-section {
+            margin-bottom: 2vh;
+        }
+        .controls-section-title {
+            font-size: 1.5vh;
+            font-weight: bold;
+            margin-bottom: 1vh;
+            opacity: 0.9;
+        }
+        .control-binding-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8vh;
+            padding: 0.5vh 0;
+        }
+        .control-action-name {
+            font-size: 1.4vh;
+            opacity: 0.9;
+        }
+        .control-binding-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 0.5vh 1vh;
+            border-radius: 4px;
+            font-size: 1.3vh;
+            min-width: 80px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .control-binding-btn:hover {
+            background: rgba(0, 191, 255, 0.3);
+            border-color: #00bfff;
+        }
+        .control-binding-btn.capturing {
+            background: rgba(255, 200, 0, 0.4);
+            border-color: #ffc800;
+            animation: pulse-capture 0.8s ease-in-out infinite;
+        }
+        @keyframes pulse-capture {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .controls-reset-btn {
+            width: 100%;
+            padding: 1vh;
+            margin-top: 1vh;
+            background: rgba(100, 100, 100, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 4px;
+            font-size: 1.4vh;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .controls-reset-btn:hover {
+            background: rgba(255, 100, 100, 0.4);
+            border-color: rgba(255, 100, 100, 0.6);
+        }
+        
         /* Combo challenge modal */
         .combo-modal-overlay {
             position: fixed;
@@ -2718,6 +2793,19 @@
                 </label>
             </div>
             
+            <div class="settings-option" id="vibrationOption" style="display: none;">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Controller Vibration</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="vibrationToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                    Haptic feedback during special events.
+                </div>
+            </div>
+            
             <div class="settings-option">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Background Storm Effects</span>
@@ -2778,6 +2866,14 @@
                 </label>
                 <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
                     Hides UI, transparent well, alternate Sun
+                </div>
+            </div>
+            
+            <!-- Controls Configuration Section -->
+            <div class="controls-config-section">
+                <div class="controls-config-title">🎮 Controls</div>
+                <div id="controlsConfigContainer">
+                    <!-- Populated by controls-config.js -->
                 </div>
             </div>
             
@@ -3081,6 +3177,7 @@
 	<script src="render-utils.js"></script>
 	<script src="audio.js"></script>
 	<script src="starfield.js"></script>
+	<script src="controls-config.js"></script>
 	<script src="game.js"></script>
 	<script src="settings-sync.js"></script>
 
