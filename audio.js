@@ -106,7 +106,7 @@ const gameplaySongs = [
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' },
     { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic_Sneeze.mp3' },
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar_Echoes.mp3' },
-    { id: 'delayed_gravitation', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed_Gravitation.mp3' },
+    { id: 'delayed_gravitation', name: 'Delayed Gravitation', file: MUSIC_BASE_URL + 'Delayed_Gravitation.mp3' },
     { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking_Among_the_Ruins.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber_._Glue.mp3' },
