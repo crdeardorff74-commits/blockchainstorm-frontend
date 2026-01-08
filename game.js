@@ -654,9 +654,9 @@ const GamepadController = {
                 moveLeft: [14],
                 moveRight: [15],
                 softDrop: [13],
-                hardDrop: [0, 6, 7, 12, 11],
-                rotateCW: [1, 5, 3],
-                rotateCCW: [2, 4],
+                hardDrop: [6, 7, 12, 11],
+                rotateCW: [1, 3, 5],
+                rotateCCW: [0, 2, 4],
                 pause: [9]
             };
             buttons = defaults[action] || [];
@@ -678,9 +678,9 @@ const GamepadController = {
                 moveLeft: [14],
                 moveRight: [15],
                 softDrop: [13],
-                hardDrop: [0, 6, 7, 12, 11],
-                rotateCW: [1, 5, 3],
-                rotateCCW: [2, 4],
+                hardDrop: [6, 7, 12, 11],
+                rotateCW: [1, 3, 5],
+                rotateCCW: [0, 2, 4],
                 pause: [9]
             };
             buttons = defaults[action] || [];
@@ -910,6 +910,75 @@ const GamepadController = {
         this.activeVibration = setTimeout(() => {
             this.activeVibration = null;
         }, 1800);
+    },
+    
+    // Line clear vibration - intensity scales with blob score value
+    vibrateLineClear(scoreValue = 0) {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        // Scale intensity logarithmically based on score
+        // 1,000 points = light buzz, 100,000+ = strong thump
+        const logScore = Math.log10(Math.max(scoreValue, 1000)); // 3 to ~6+
+        const normalizedScore = (logScore - 3) / 3; // 0 to 1 (capped at ~1M points)
+        
+        const duration = 60 + Math.min(normalizedScore * 120, 140); // 60ms to 200ms
+        const intensity = 0.3 + Math.min(normalizedScore * 0.7, 0.7); // 0.3 to 1.0
+        const weakMag = intensity * 0.4;
+        
+        this.vibrate(duration, weakMag, Math.min(1.0, intensity));
+    },
+    
+    // Volcano rumble - builds during warming, peaks at eruption
+    startVolcanoRumble() {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        this.stopVibration();
+        
+        const warmingDuration = 3000; // Match game's volcano warming
+        const startTime = Date.now();
+        
+        // Builds from gentle rumble to intense shake
+        this.activeVibration = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / warmingDuration, 1);
+            
+            // Intensity builds over time
+            const intensity = 0.2 + progress * 0.6; // 0.2 → 0.8
+            const weakMag = intensity * 0.4;
+            
+            // Add some variation like magma bubbling
+            const variation = Math.sin(elapsed / 100) * 0.15;
+            
+            this.vibrate(100, weakMag, Math.min(1.0, intensity + variation));
+        }, 80);
+    },
+    
+    // Volcano eruption burst - strong burst when eruption starts
+    vibrateVolcanoEruption() {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        this.stopVibration();
+        
+        // Strong initial burst
+        this.vibrate(300, 0.6, 1.0);
+    },
+    
+    // Tornado touchdown/destruction - sharp impact
+    vibrateTornadoImpact(isDestruction = false) {
+        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
+        
+        if (isDestruction) {
+            // Blob destroyed - sharp crack
+            this.vibrate(100, 0.5, 0.9);
+        } else {
+            // Touchdown bonus - celebratory double pulse
+            this.vibrate(80, 0.4, 0.8);
+            setTimeout(() => {
+                if (this.vibrationEnabled && this.connected) {
+                    this.vibrate(120, 0.5, 1.0);
+                }
+            }, 120);
+        }
     },
     
     // Stop any ongoing vibration
@@ -2280,6 +2349,9 @@ function triggerVolcano(lavaBlob, eruptionColumn, edgeType = 'bottom') {
     
     // Play continuous rumble sound to indicate volcano is warming up
     playVolcanoRumble(soundToggle);
+    
+    // Start controller haptic feedback (building rumble)
+    GamepadController.startVolcanoRumble();
 }
 
 function updateVolcanoAnimation() {
@@ -2304,6 +2376,9 @@ function updateVolcanoAnimation() {
             volcanoPhase = 'erupting';
             volcanoStartTime = Date.now(); // Reset timer for eruption phase
             volcanoVibrateOffset = { x: 0, y: 0 }; // Stop vibrating
+            
+            // Eruption haptic burst
+            GamepadController.vibrateVolcanoEruption();
             
             // Clear the eruption column above lava (but keep lava blob visible)
             const colX = volcanoEruptionColumn;
@@ -3493,6 +3568,7 @@ function updateTornado() {
             updateStats();
             canvas.classList.add('touchdown-active');
             playSoundEffect('gold', soundToggle);
+            GamepadController.vibrateTornadoImpact(false); // Touchdown celebration
             setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
             tornadoActive = false;
             stopTornadoWind(); // Stop the wind sound
@@ -3534,6 +3610,7 @@ function updateTornado() {
                     } else {
                         // Disintegrate it (no points) - create explosion!
                         createDisintegrationExplosion(hitBlob);
+                        GamepadController.vibrateTornadoImpact(true); // Destruction impact
                         
                         hitBlob.positions.forEach(([x, y]) => {
                             board[y][x] = null;
@@ -10227,6 +10304,9 @@ function clearLines() {
         
         const scoreIncrease = applyScoreModifiers(pointsEarned * level);
         score += scoreIncrease;
+        
+        // Haptic feedback based on score earned
+        GamepadController.vibrateLineClear(scoreIncrease);
         
         // Update score histogram immediately
         scoreHistogramTarget = scoreIncrease;

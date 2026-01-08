@@ -19,9 +19,9 @@ const ControlsConfig = (() => {
         moveLeft: [14],      // D-Pad Left
         moveRight: [15],     // D-Pad Right
         softDrop: [13],      // D-Pad Down
-        hardDrop: [0, 6, 7, 12, 11],  // A, LT, RT, D-Up, R-Stick
-        rotateCW: [1, 5, 3], // B, RB, Y
-        rotateCCW: [2, 4],   // X, LB
+        hardDrop: [6, 7, 12, 11],  // LT, RT, D-Up, R-Stick
+        rotateCW: [1, 3, 5], // B, Y, RB
+        rotateCCW: [0, 2, 4],   // A, X, LB
         pause: [9]           // Start
     };
     
@@ -211,27 +211,12 @@ const ControlsConfig = (() => {
         const container = document.getElementById('controlsConfigContainer');
         if (!container) return;
         
-        // Build keyboard controls section
-        let html = '<div class="controls-section"><div class="controls-section-title">⌨️ Keyboard</div>';
+        let html = '';
         
-        for (const [action, keys] of Object.entries(keyboardBindings)) {
-            if (action === 'pause') continue; // Pause is not configurable
-            const keyDisplay = keys.map(k => formatKeyName(k)).join(', ');
-            html += `
-                <div class="control-binding-row">
-                    <span class="control-action-name">${ACTION_NAMES[action]}</span>
-                    <button class="control-binding-btn" data-action="${action}" data-type="keyboard">
-                        ${keyDisplay || 'None'}
-                    </button>
-                </div>
-            `;
-        }
-        
-        html += '</div>';
-        
-        // Build gamepad controls section (only if connected)
+        // Show either gamepad OR keyboard controls, not both
         if (gamepadConnected) {
-            html += '<div class="controls-section"><div class="controls-section-title">🎮 Controller</div>';
+            // Build gamepad controls section (no extra header needed - parent has "Controls" title)
+            html += '<div class="controls-section">';
             
             for (const [action, buttons] of Object.entries(gamepadBindings)) {
                 if (action === 'pause') continue; // Pause is always Start
@@ -241,6 +226,24 @@ const ControlsConfig = (() => {
                         <span class="control-action-name">${ACTION_NAMES[action]}</span>
                         <button class="control-binding-btn" data-action="${action}" data-type="gamepad">
                             ${buttonDisplay || 'None'}
+                        </button>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+        } else {
+            // Build keyboard controls section
+            html += '<div class="controls-section"><div class="controls-section-title">⌨️ Keyboard</div>';
+            
+            for (const [action, keys] of Object.entries(keyboardBindings)) {
+                if (action === 'pause') continue; // Pause is not configurable
+                const keyDisplay = keys.map(k => formatKeyName(k)).join(', ');
+                html += `
+                    <div class="control-binding-row">
+                        <span class="control-action-name">${ACTION_NAMES[action]}</span>
+                        <button class="control-binding-btn" data-action="${action}" data-type="keyboard">
+                            ${keyDisplay || 'None'}
                         </button>
                     </div>
                 `;

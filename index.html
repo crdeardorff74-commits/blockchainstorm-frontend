@@ -1177,35 +1177,63 @@
         }
         .settings-popup {
             background: rgba(30, 60, 120, 0.95);
-            padding: 2vh 2vw;
-            border-radius: 1.5vh;
-            border: 0.3vh solid #fff;
+            padding: 1.5vh 1.5vw;
+            border-radius: 1.2vh;
+            border: 0.25vh solid #fff;
             color: white;
             min-width: 30vw;
             max-width: 90vw;
             max-height: 85vh;
             overflow-y: auto;
             box-shadow: 0 0 3vh rgba(0, 0, 0, 0.8);
-            font-size: 1.6vh;
+            font-size: 1.4vh;
+        }
+        .settings-columns {
+            display: flex;
+            gap: 1.5vw;
+        }
+        .settings-column-left {
+            flex: 1;
+            min-width: 260px;
+        }
+        .settings-column-right {
+            flex: 0 0 auto;
+            min-width: 170px;
+            max-width: 230px;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            padding-left: 1.5vw;
+        }
+        @media (max-width: 800px) {
+            .settings-columns {
+                flex-direction: column;
+            }
+            .settings-column-right {
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.2);
+                padding-left: 0;
+                padding-top: 1.5vh;
+                margin-top: 1vh;
+                max-width: none;
+            }
         }
         .settings-title {
-            font-size: 2.8vh;
+            font-size: 2.4vh;
             font-weight: bold;
-            margin-bottom: 2vh;
+            margin-bottom: 1.3vh;
             text-align: center;
             text-shadow: 0.2vh 0.2vh 0.4vh rgba(0, 0, 0, 0.5);
         }
         .settings-option {
-            margin-bottom: 1.8vh;
-            padding: 1.5vh 1.5vw;
+            margin-bottom: 1vh;
+            padding: 0.9vh 1.1vw;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 0.8vh;
+            border-radius: 0.6vh;
         }
         .settings-option label {
             cursor: pointer;
             display: flex;
             align-items: center;
-            font-size: 1.8vh;
+            font-size: 1.4vh;
         }
         .settings-option input[type="checkbox"] {
             width: 2vh;
@@ -1219,9 +1247,9 @@
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 5.5vh;
-            height: 2.8vh;
-            margin-right: 1.2vw;
+            width: 4.2vh;
+            height: 2.2vh;
+            margin-right: 0.9vw;
             flex-shrink: 0;
         }
         
@@ -1247,10 +1275,10 @@
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 2vh;
-            width: 2vh;
-            left: 0.3vh;
-            bottom: 0.2vh;
+            height: 1.6vh;
+            width: 1.6vh;
+            left: 0.22vh;
+            bottom: 0.18vh;
             background-color: white;
             transition: all 0.3s ease;
             border-radius: 50%;
@@ -1263,7 +1291,7 @@
         }
         
         input:checked + .toggle-slider:before {
-            transform: translateX(2.6vh);
+            transform: translateX(2vh);
         }
         
         .toggle-slider:hover {
@@ -1279,7 +1307,7 @@
             cursor: pointer;
             display: flex;
             align-items: center;
-            font-size: 1.8vh;
+            font-size: 1.4vh;
             justify-content: space-between;
         }
         
@@ -1314,13 +1342,13 @@
         }
         .settings-close-btn {
             width: 100%;
-            margin-top: 1.3vh;
-            padding: 1.2vh 3vw;
-            font-size: 1.8vh;
+            margin-top: 1vh;
+            padding: 0.8vh 1.5vw;
+            font-size: 1.4vh;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 0.8vh;
+            border-radius: 0.6vh;
             cursor: pointer;
             transition: background 0.3s;
         }
@@ -1387,44 +1415,42 @@
         
         /* Controls Configuration */
         .controls-config-section {
-            margin-top: 2vh;
-            padding-top: 2vh;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 0;
         }
         .controls-config-title {
-            font-size: 1.8vh;
+            font-size: 1.4vh;
             font-weight: bold;
-            margin-bottom: 1.5vh;
+            margin-bottom: 1vh;
             color: #00bfff;
         }
         .controls-section {
-            margin-bottom: 2vh;
+            margin-bottom: 1.2vh;
         }
         .controls-section-title {
-            font-size: 1.5vh;
+            font-size: 1.25vh;
             font-weight: bold;
-            margin-bottom: 1vh;
+            margin-bottom: 0.6vh;
             opacity: 0.9;
         }
         .control-binding-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.8vh;
-            padding: 0.5vh 0;
+            margin-bottom: 0.4vh;
+            padding: 0.25vh 0;
         }
         .control-action-name {
-            font-size: 1.4vh;
+            font-size: 1.2vh;
             opacity: 0.9;
         }
         .control-binding-btn {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: #fff;
-            padding: 0.5vh 1vh;
-            border-radius: 4px;
-            font-size: 1.3vh;
-            min-width: 80px;
+            padding: 0.35vh 0.7vh;
+            border-radius: 3px;
+            font-size: 1.1vh;
+            min-width: 65px;
             cursor: pointer;
             transition: all 0.2s ease;
             font-family: inherit;
@@ -1444,13 +1470,13 @@
         }
         .controls-reset-btn {
             width: 100%;
-            padding: 1vh;
-            margin-top: 1vh;
+            padding: 0.6vh;
+            margin-top: 0.7vh;
             background: rgba(100, 100, 100, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
-            border-radius: 4px;
-            font-size: 1.4vh;
+            border-radius: 3px;
+            font-size: 1.1vh;
             cursor: pointer;
             transition: all 0.2s ease;
             font-family: inherit;
@@ -2703,10 +2729,13 @@
         <div class="settings-popup">
             <div class="settings-title">⚙️ Settings</div>
             
+            <div class="settings-columns">
+                <div class="settings-column-left">
+            
             <div class="settings-option">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Music</span>
-                    <select id="musicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 1.4vh; margin-left: auto; width: 300px;">
+                    <select id="musicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 3px 6px; font-size: 1.3vh; margin-left: auto; width: 270px;">
                         <option value="shuffle">🎲 Shuffle</option>
                         <option value="none">🔇 None</option>
                         <option value="falling_blocks">Falling Blocks Reactor</option>
@@ -2801,9 +2830,6 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
-                    Haptic feedback during special events.
-                </div>
             </div>
             
             <div class="settings-option">
@@ -2814,7 +2840,7 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                <div style="font-size: 1.1vh; opacity: 0.75; margin-top: 0.4vh; margin-left: 0.9vh;">
                     Shows rain/sleet/snow in the background.
                 </div>
             </div>
@@ -2827,30 +2853,30 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                <div style="font-size: 1.1vh; opacity: 0.75; margin-top: 0.4vh; margin-left: 0.9vh;">
                     Sun is behind, planets move toward the camera instead of away from it.
                 </div>
             </div>
             
             <div class="settings-option">
-                <label style="display: block; margin-bottom: 1vh;">
+                <label style="display: block; margin-bottom: 0.6vh; font-size: 1.4vh;">
                     Piece Opacity
                 </label>
                 <input type="range" id="opacitySlider" min="0" max="100" step="1" value="42" 
                        style="width: 100%; cursor: pointer;">
-                <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
+                <div style="display: flex; justify-content: space-between; font-size: 1.2vh; margin-top: 0.4vh; opacity: 0.75;">
                     <span>Transparent</span>
                     <span>Opaque</span>
                 </div>
             </div>
             
             <div class="settings-option">
-                <label style="display: block; margin-bottom: 1vh;">
+                <label style="display: block; margin-bottom: 0.6vh; font-size: 1.4vh;">
                     Starfield Speed
                 </label>
                 <input type="range" id="starSpeedSlider" min="0" max="4" step="0.5" value="1" 
                        style="width: 100%; cursor: pointer;">
-                <div style="display: flex; justify-content: space-between; font-size: 1.4vh; margin-top: 0.5vh; opacity: 0.8;">
+                <div style="display: flex; justify-content: space-between; font-size: 1.2vh; margin-top: 0.4vh; opacity: 0.75;">
                     <span>Off/Slow</span>
                     <span>Fast</span>
                 </div>
@@ -2864,11 +2890,14 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 1.2vh; opacity: 0.8; margin-top: 0.5vh; margin-left: 1vh;">
+                <div style="font-size: 1.1vh; opacity: 0.75; margin-top: 0.4vh; margin-left: 0.9vh;">
                     Hides UI, transparent well, alternate Sun
                 </div>
             </div>
             
+                </div><!-- end settings-column-left -->
+                
+                <div class="settings-column-right">
             <!-- Controls Configuration Section -->
             <div class="controls-config-section">
                 <div class="controls-config-title">🎮 Controls</div>
@@ -2876,6 +2905,8 @@
                     <!-- Populated by controls-config.js -->
                 </div>
             </div>
+                </div><!-- end settings-column-right -->
+            </div><!-- end settings-columns -->
             
             <button class="settings-close-btn" id="settingsCloseBtn">Close</button>
         </div>
