@@ -20,9 +20,11 @@ const ControlsConfig = (() => {
         moveRight: [15],     // D-Pad Right
         softDrop: [13],      // D-Pad Down
         hardDrop: [6, 7, 12, 11],  // LT, RT, D-Up, R-Stick
-        rotateCW: [1, 3, 5], // B, Y, RB
-        rotateCCW: [0, 2, 4],   // A, X, LB
-        pause: [9]           // Start
+        rotateCW: [1, 3],    // B, Y
+        rotateCCW: [0, 2],   // A, X
+        pause: [9],          // Start
+        nextSong: [5],       // RB
+        prevSong: [4]        // LB
     };
     
     // Action display names
@@ -32,7 +34,9 @@ const ControlsConfig = (() => {
         softDrop: 'Soft Drop',
         hardDrop: 'Hard Drop',
         rotateCW: 'Rotate CW',
-        rotateCCW: 'Rotate CCW'
+        rotateCCW: 'Rotate CCW',
+        nextSong: 'Next Song',
+        prevSong: 'Prev Song'
     };
     
     // Gamepad button names

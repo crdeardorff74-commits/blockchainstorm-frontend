@@ -591,6 +591,16 @@ const GamepadController = {
             rotatePieceCounterClockwise();
         }
         
+        // === MUSIC CONTROLS ===
+        // Next song (uses configured buttons)
+        if (this.wasActionJustPressed(gp, 'nextSong')) {
+            skipToNextSong();
+        }
+        // Previous song (uses configured buttons)
+        if (this.wasActionJustPressed(gp, 'prevSong')) {
+            skipToPreviousSong();
+        }
+        
         // === RIGHT STICK ROTATION (always available) ===
         // Right stick axes are typically axes[2] (X) and axes[3] (Y)
         const rightStickLeft = gp.axes[2] < -0.5;
@@ -655,9 +665,11 @@ const GamepadController = {
                 moveRight: [15],
                 softDrop: [13],
                 hardDrop: [6, 7, 12, 11],
-                rotateCW: [1, 3, 5],
-                rotateCCW: [0, 2, 4],
-                pause: [9]
+                rotateCW: [1, 3],
+                rotateCCW: [0, 2],
+                pause: [9],
+                nextSong: [5],
+                prevSong: [4]
             };
             buttons = defaults[action] || [];
         }
@@ -679,9 +691,11 @@ const GamepadController = {
                 moveRight: [15],
                 softDrop: [13],
                 hardDrop: [6, 7, 12, 11],
-                rotateCW: [1, 3, 5],
-                rotateCCW: [0, 2, 4],
-                pause: [9]
+                rotateCW: [1, 3],
+                rotateCCW: [0, 2],
+                pause: [9],
+                nextSong: [5],
+                prevSong: [4]
             };
             buttons = defaults[action] || [];
         }
@@ -1038,9 +1052,10 @@ const GamepadController = {
         div.innerHTML = `
             <strong>🎮 Controller</strong>
             <div class="control-row"><span class="control-key">D-Pad / L-Stick</span> : <span class="control-label">Move</span></div>
-            <div class="control-row"><span class="control-key">A / Up / LT / RT / RSB</span> : <span class="control-label">Hard Drop</span></div>
-            <div class="control-row"><span class="control-key">B / Y / RB / RS→↓</span> : <span class="control-label">Rotate CW</span></div>
-            <div class="control-row"><span class="control-key">X / LB / RS←↑</span> : <span class="control-label">Rotate CCW</span></div>
+            <div class="control-row"><span class="control-key">LT / RT / Up / RSB</span> : <span class="control-label">Hard Drop</span></div>
+            <div class="control-row"><span class="control-key">B / Y / RS→↓</span> : <span class="control-label">Rotate CW</span></div>
+            <div class="control-row"><span class="control-key">A / X / RS←↑</span> : <span class="control-label">Rotate CCW</span></div>
+            <div class="control-row"><span class="control-key">RB / LB</span> : <span class="control-label">Next / Prev Song</span></div>
             <div class="control-row"><span class="control-key">Start</span> : <span class="control-label">Pause</span></div>
         `;
         return div;
