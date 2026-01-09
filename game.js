@@ -1678,29 +1678,33 @@ function createSongInfoElement() {
     songInfoElement = document.createElement('div');
     songInfoElement.id = 'songInfo';
     songInfoElement.style.cssText = `
-        margin-top: 10px;
-        padding: 8px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        font-size: 11px;
+        margin-top: 1.2vh;
+        padding: 1vh 0.9vw;
+        background: rgba(26, 26, 46, 0.8);
+        border-radius: 0.6vh;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 1.2vh;
         color: #aaa;
         text-align: center;
         display: none;
     `;
     
     songInfoElement.innerHTML = `
-        <div style="color: #666; font-size: 9px; margin-bottom: 3px;">♪ NOW PLAYING ♪</div>
-        <div id="songName" style="color: #ddd; font-size: 12px; word-wrap: break-word; line-height: 1.2;"></div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0px; height: 24px; ">
-            <button id="songPrevBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #555; padding: 2px 8px; border-radius: 3px; cursor: default; font-size: 11px; opacity: 0.5;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>
-            <button id="songPauseBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #aaa; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;" title="Pause/Resume music">⏸&#xFE0E;</button>
-            <button id="songNextBtn" style="position: relative; top: -6px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #aaa; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;" title="Next song (SHIFT+→)">⏭&#xFE0E;</button>
+        <div style="color: #888; font-size: 1vh; margin-bottom: 0.4vh; text-transform: uppercase; letter-spacing: 0.05vh;">♪ NOW PLAYING ♪</div>
+        <div id="songName" style="color: #e0e0e0; font-size: 1.3vh; word-wrap: break-word; line-height: 1.3;"></div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 0.8vh; padding: 0px; height: 2.6vh; ">
+            <button id="songPrevBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #666; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: default; font-size: 1.2vh; opacity: 0.5;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>
+            <button id="songPauseBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh;" title="Pause/Resume music">⏸&#xFE0E;</button>
+            <button id="songNextBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh;" title="Next song (SHIFT+→)">⏭&#xFE0E;</button>
         </div>
     `;
     
-    // Find planet stats and insert after it, or append to side panel
+    // Find the bottom wrapper and append there, or fall back to planet stats / side panel
+    const bottomWrapper = sidePanel.querySelector('.side-panel-bottom');
     const planetStats = document.getElementById('planetStats');
-    if (planetStats && planetStats.parentNode === sidePanel) {
+    if (bottomWrapper) {
+        bottomWrapper.appendChild(songInfoElement);
+    } else if (planetStats && planetStats.parentNode === sidePanel) {
         planetStats.after(songInfoElement);
     } else {
         sidePanel.appendChild(songInfoElement);

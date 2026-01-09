@@ -1382,44 +1382,44 @@ const StarfieldSystem = (function() {
             
             if (planet.isSun) {
                 html = `
-                    <div style="font-weight: bold; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
+                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
                         ${planet.name}
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: rgba(255,255,255,0.9); font-size: 1.15vh;">
-                        <div><strong>Gravity:</strong> <span style="color: #FFD700; font-weight: bold;">${planet.gravity}×</span> Earth</div>
-                        <div><strong>Day:</strong> ${planet.dayLength}</div>
-                        <div><strong>Temperature:</strong> ${planet.tempMin}°C</div>
-                        <div><strong>Type:</strong> G-type star</div>
-                        <div><strong>Radius:</strong> 696,000 km</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: 1.15vh;">
+                        <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
+                        <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
+                        <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin}°C</div>
+                        <div><strong style="color: #aaa;">Type:</strong> G-type star</div>
+                        <div><strong style="color: #aaa;">Radius:</strong> 696,000 km</div>
                     </div>
-                    <div style="margin-top: 0.55vh; font-style: italic; color: rgba(255,255,255,0.7); font-size: 1.05vh;">
+                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: 1.05vh;">
                         ${planet.funFact}
                     </div>
                 `;
             } else if (planet.isAsteroidBelt) {
                 html = `
-                    <div style="font-weight: bold; font-size: 1.55vh; margin-bottom: 0.7vh; color: #9B9489;">
+                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: #9B9489;">
                         ${planet.name}
                     </div>
-                    <div style="line-height: 1.5; color: rgba(255,255,255,0.9);">
-                        <div style="font-style: italic; color: rgba(255,255,255,0.8); font-size: 1.05vh;">
+                    <div style="line-height: 1.5; color: #ccc;">
+                        <div style="font-style: italic; color: #888; font-size: 1.05vh;">
                             ${planet.funFact}
                         </div>
                     </div>
                 `;
             } else {
                 html = `
-                    <div style="font-weight: bold; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
+                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
                         ${planet.name}
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: rgba(255,255,255,0.9); font-size: 1.15vh;">
-                        <div><strong>Gravity:</strong> <span style="color: #FFD700; font-weight: bold;">${planet.gravity}×</span> Earth</div>
-                        <div><strong>Day:</strong> ${planet.dayLength}</div>
-                        <div><strong>Temperature:</strong> ${planet.tempMin === planet.tempMax ? planet.tempMin : planet.tempMin + ' to ' + planet.tempMax}°C</div>
-                        <div><strong>Year:</strong> ${planet.yearLength}</div>
-                        <div><strong>Moons:</strong> ${planet.moons}</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: 1.15vh;">
+                        <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
+                        <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
+                        <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin === planet.tempMax ? planet.tempMin : planet.tempMin + ' to ' + planet.tempMax}°C</div>
+                        <div><strong style="color: #aaa;">Year:</strong> ${planet.yearLength}</div>
+                        <div><strong style="color: #aaa;">Moons:</strong> ${planet.moons}</div>
                     </div>
-                    <div style="margin-top: 0.55vh; font-style: italic; color: rgba(255,255,255,0.7); font-size: 1.05vh;">
+                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: 1.05vh;">
                         ${planet.funFact}
                     </div>
                 `;
