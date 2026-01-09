@@ -37,7 +37,7 @@ const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, play
         #controllerControls .control-label {
             display: inline-block;
             text-align: left;
-            width: 70px;
+            width: 95px;
         }
         .controls.hidden-during-play,
         #controllerControls.hidden-during-play {
