@@ -1163,7 +1163,6 @@ const StarfieldSystem = (function() {
         ufoCircleTime = 0;
         ufoCircleAngle = 0;
         ufoBeamOpacity = 0;
-        ufoCompletedCircle = false;
         
         const linesDisplay = document.getElementById('lines');
         if (!linesDisplay) {
@@ -1253,9 +1252,8 @@ const StarfieldSystem = (function() {
                     const songInfoEl = document.getElementById('songInfo');
                     if (songInfoEl && songInfoEl.style.display !== 'none') {
                         const songRect = songInfoEl.getBoundingClientRect();
-                        const scaleFactor = 1.1;
-                        ufoSwoopTargetX = (songRect.left + songRect.width / 2) * scaleFactor;
-                        ufoSwoopTargetY = (songRect.top + songRect.height / 2) * scaleFactor;
+                        ufoSwoopTargetX = songRect.left + songRect.width / 2;
+                        ufoSwoopTargetY = songRect.top + songRect.height / 2;
                         console.log('🛸 UFO swooping to music info!');
                     } else {
                         // No music info visible, just exit normally
@@ -1795,6 +1793,7 @@ const StarfieldSystem = (function() {
             asteroidBeltProgress = 0;
             asteroids = [];
             ufoActive = false;
+            ufoCompletedCircle = false;
         },
         
         // Access to planets data (for developer mode)

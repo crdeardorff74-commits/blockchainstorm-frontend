@@ -2421,11 +2421,12 @@
                 </select>
             </label>
             <label class="intro-toggle">
-                <span class="intro-toggle-label">Sound Effects</span>
-                <div class="toggle-switch">
-                    <input type="checkbox" id="introSoundCheckbox" checked>
-                    <span class="toggle-slider"></span>
-                </div>
+                <span class="intro-toggle-label">Skill Level</span>
+                <select id="introSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
+                    <option value="breeze">🌤️ Breeze</option>
+                    <option value="tempest" selected>🌪️ Tempest</option>
+                    <option value="maelstrom">🌀 Maelstrom</option>
+                </select>
             </label>
             <button class="start-game-btn" id="startGameBtn">▶ Start Game</button>
         </div>
@@ -2485,12 +2486,18 @@
         <div class="game-container">
         <div class="rules-panel">
             <div class="rules-instructions">
-                <div class="rules-title">How to Play</div>
+                <div class="rules-title">How to Play
+                    <select id="rulesSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 1.2vh; margin-left: 0.5vw; vertical-align: middle;">
+                        <option value="breeze">Breeze</option>
+                        <option value="tempest" selected>Tempest</option>
+                        <option value="maelstrom">Maelstrom</option>
+                    </select>
+                </div>
                 
                 <div class="rules-section">
                     <h3>🎮 Goal</h3>
-                    Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!
-					But watch out for <i>tornadoes</i> and <i>earthquakes</i>!
+                    <span id="rulesGoalText">Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!
+					But watch out for <i>tornadoes</i> and <i>earthquakes</i>!</span>
                 </div>
                 
                 <div class="rules-section">
@@ -2498,13 +2505,13 @@
                     <div>
 						<strong>⚡ Strike:</strong> Clear 4 rows at once for 2× points!
                     </div>
-                    <div>
+                    <div id="rulesTsunamiSection">
 						<strong>🌊 Tsunami:</strong> Create a blob that spans the full width of the well and the <i>entire</i> blob clears for massive points!
                     </div>
-                    <div>
+                    <div id="rulesVolcanoSection">
 						<strong>🌋 Volcano:</strong> When a blob touching any edge is surrounded by another blob and the edge, it turns to lava, erupting upward and raining down as single blocks. Each lava segment cleared multiplies the line clear by 2<sup>n</sup> (1 segment = 2×, 2 segments = 4×, 3 segments = 8×)!
                     </div>
-					<div style="padding: 0">
+					<div style="padding: 0" id="rulesBlackHoleSection">
 						<strong>🕳️ Black Hole:</strong> When one blob completely envelops another, the inner blob becomes a black hole that sucks in <i>all</i> blocks from both blobs for huge points!
 					</div>
                 </div>
@@ -2523,24 +2530,24 @@
                     <div>
 						<strong>Strike:</strong> 2× all points
                     </div>
-                    <div>
+                    <div id="rulesTsunamiScoring">
 						<strong>Tsunami:</strong> (Blob Size)³ × 200 × Level
                     </div>
-					<div>
+					<div id="rulesVolcanoScoring">
 						<strong>Volcano:</strong>
 						<ul>
 							<li>Inner (lava): (Blob Size)³ × 500 × Level</li>
 							<li>Lava in lines: 2<sup>n</sup> multiplier (n = # of lava segments)</li>
 						</ul>
 					</div>
-					<div>
+					<div id="rulesBlackHoleScoring">
 						<strong>Black Hole:</strong>
 						<ul>
 							<li>Inner (core): (Blob Size)³ × 800 × Level</li>
 							<li>Outer (sucked in): (Blob Size)³ × 800 × Level</li>
 						</ul>
 					</div>
-					<div style="padding: 0">
+					<div style="padding: 0" id="rulesSpeedBonusText">
 						<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.  But beware: faster drops also mean more frequent <i>tornadoes</i> and <i>earthquakes</i>!
 					</div>
                 </div>
@@ -2629,6 +2636,17 @@
                             <div class="credits-row">
                                 <span class="credits-role">"The Pit" Lyrics</span>
                                 <span class="credits-name">Andy Dwyer</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">Obligatory Thanks</span>
+                                <span class="credits-name">Sir Daniel Teater</span>
+                            </div>
+                            <div class="credits-row">
+                                <span class="credits-role"></span>
+                                <span class="credits-name">David Koch</span>
                             </div>
                         </div>
                         
@@ -2938,6 +2956,20 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
+            </div>
+            
+            <div class="settings-option">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #ccc;">
+                    Skill Level
+                </label>
+                <select id="skillLevelSelect" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 14px;">
+                    <option value="breeze">🌤️ Breeze - No disasters</option>
+                    <option value="tempest" selected>🌪️ Tempest - Tsunamis, Black Holes</option>
+                    <option value="maelstrom">🌀 Maelstrom - Full chaos</option>
+                </select>
+                <div style="font-size: 11px; color: #888; margin-top: 4px;">
+                    Changes take effect on next game.
+                </div>
             </div>
             
             <div class="settings-option" id="vibrationOption" style="display: none;">

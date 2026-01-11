@@ -7,6 +7,7 @@ const API_URL = 'https://blockchainstorm.onrender.com/api';
 // State
 let currentLeaderboardMode = null;
 let currentLeaderboardGameMode = 'normal'; // Track if viewing normal or challenge leaderboard
+let currentLeaderboardSkillLevel = 'tempest'; // Track current skill level
 let lastPlayerScore = null;
 let lastScoreData = null;
 let currentUser = null;
@@ -77,15 +78,15 @@ window.testHighScore = async function(testScore = 1000000) {
 };
 
 // Fetch leaderboard for a specific difficulty and mode
-async function fetchLeaderboard(difficulty, mode = 'normal') {
+async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest') {
     try {
-        console.log(`Fetching leaderboard for ${difficulty} (${mode}) from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`);
+        console.log(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`);
         
         // Create abort controller for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
         
-        const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`, {
+        const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`, {
             method: 'GET',
             mode: 'cors',
             cache: 'no-store', // Don't use cached responses
@@ -109,13 +110,13 @@ async function fetchLeaderboard(difficulty, mode = 'normal') {
         } else {
             console.error('Error fetching leaderboard, using local storage fallback:', error);
         }
-        return getLocalLeaderboard(difficulty, mode);
+        return getLocalLeaderboard(difficulty, mode, skillLevel);
     }
 }
 
 // Local storage fallback for leaderboard
-function getLocalLeaderboard(difficulty, mode = 'normal') {
-    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}`;
+function getLocalLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest') {
+    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}_${skillLevel}`;
     const stored = localStorage.getItem(key);
     if (stored) {
         try {
@@ -129,8 +130,8 @@ function getLocalLeaderboard(difficulty, mode = 'normal') {
 }
 
 // Save to local leaderboard
-function saveLocalLeaderboard(difficulty, scores, mode = 'normal') {
-    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}`;
+function saveLocalLeaderboard(difficulty, scores, mode = 'normal', skillLevel = 'tempest') {
+    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}_${skillLevel}`;
     try {
         const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
@@ -140,13 +141,14 @@ function saveLocalLeaderboard(difficulty, scores, mode = 'normal') {
 }
 
 // Display leaderboard in the left panel
-async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal') {
+async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal', skillLevel = 'tempest') {
     const rulesPanel = document.querySelector('.rules-panel');
     const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
     const histogramCanvas = document.getElementById('histogramCanvas');
     
     currentLeaderboardMode = difficulty;
     currentLeaderboardGameMode = mode; // Track current game mode (normal/challenge)
+    currentLeaderboardSkillLevel = skillLevel; // Track current skill level
     
     // Hide instructions and histogram
     if (rulesInstructions) rulesInstructions.style.display = 'none';
@@ -163,6 +165,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     leaderboardContent.style.display = 'block';
     
     const modeLabel = mode === 'challenge' ? ' (Challenge)' : '';
+    const skillLabel = skillLevel === 'maelstrom' ? ' 🌀' : (skillLevel === 'breeze' ? ' 🌤️' : ' 🌪️');
     
     leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
@@ -170,7 +173,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         </div>
     `;
     
-    const scores = await fetchLeaderboard(difficulty, mode);
+    const scores = await fetchLeaderboard(difficulty, mode, skillLevel);
     
     if (!scores) {
         leaderboardContent.innerHTML = `
@@ -184,14 +187,14 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard${modeLabel}</div>
+            <div class="leaderboard-title">${getModeDisplayName(difficulty)}${skillLabel}${modeLabel}</div>
             <div class="leaderboard-loading">No scores yet. Be the first!</div>
         `;
         return;
     }
     
     let html = `
-        <div class="leaderboard-title">${getModeDisplayName(difficulty)} Leaderboard${modeLabel}</div>
+        <div class="leaderboard-title">${getModeDisplayName(difficulty)}${skillLabel}${modeLabel}</div>
         <!-- div class="leaderboard-mode-selector">
             Use <strong>↑↓</strong> arrows to browse difficulties
             <br>
@@ -318,8 +321,8 @@ function getChallengeDisplayName(challenge) {
 }
 
 // Check if score makes top 20
-async function checkIfTopTen(difficulty, score, mode = 'normal') {
-    console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode})`);
+async function checkIfTopTen(difficulty, score, mode = 'normal', skillLevel = 'tempest') {
+    console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode}) skill:${skillLevel}`);
     
     // Don't allow 0 scores on the leaderboard
     if (score <= 0) {
@@ -327,7 +330,7 @@ async function checkIfTopTen(difficulty, score, mode = 'normal') {
         return false;
     }
     
-    const scores = await fetchLeaderboard(difficulty, mode);
+    const scores = await fetchLeaderboard(difficulty, mode, skillLevel);
     
     if (!Array.isArray(scores)) {
         console.log('Scores is not an array:', scores);
@@ -814,7 +817,7 @@ function promptForName(scoreData) {
             await new Promise(resolve => setTimeout(resolve, 300));
             
             // Display leaderboard with player's score highlighted
-            await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode);
+            await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode, scoreData.skillLevel || 'tempest');
             
         } catch (error) {
             console.error('Error during score submission:', error);

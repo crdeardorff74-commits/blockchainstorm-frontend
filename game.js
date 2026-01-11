@@ -1868,16 +1868,13 @@ let COLS = 10;
 // Connect StarfieldSystem sound callback now that soundToggle is defined
 StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
 
-// Set up UFO swoop callback for 42 lines easter egg - delivers F Word song
+// Set up UFO swoop callback for 42 lines easter egg
 StarfieldSystem.setUFOSwoopCallback(() => {
     // Play banjo sound effect
     playMP3SoundEffect('banjo', soundToggle);
-    
-    // Insert a random F Word song to play next
-    const insertedSong = insertFWordSong();
-    if (insertedSong) {
-        console.log('🛸 UFO delivered special song:', insertedSong.name);
-    }
+    // Queue a random F Word song as the next track
+    insertFWordSong();
+    console.log('🛸 UFO delivered special song!');
 });
 
 // Developer mode (activated by center-clicking "Don't Panic!")
@@ -1885,6 +1882,7 @@ let developerMode = false;
 
 // Game mode configuration
 let gameMode = null;
+let skillLevel = 'tempest'; // 'breeze', 'tempest', 'maelstrom'
 let lastPlayedMode = null; // Track the last played mode for menu selection
 let hailstormEnabled = false;
 let hailstormCounter = 0;
@@ -6985,7 +6983,8 @@ function drawBoard() {
         // Check if blob spans from left edge (x=0) to right edge (x=COLS-1)
         const minX = Math.min(...validPositions.map(p => p[0]));
         const maxX = Math.max(...validPositions.map(p => p[0]));
-        const spansWidth = (minX === 0 && maxX === COLS - 1);
+        // Only show gold tsunami edges in Tempest/Maelstrom modes
+        const spansWidth = (minX === 0 && maxX === COLS - 1) && skillLevel !== 'breeze';
         
         if (spansWidth) {
             console.log(`🌊 TSUNAMI BLOB DETECTED! minX=${minX}, maxX=${maxX}, COLS=${COLS}, color=${blob.color}, size=${validPositions.length}`);
@@ -9237,7 +9236,8 @@ function checkForSpecialFormations() {
     
     // Check for Volcanoes (blob at bottom completely enveloped by another)
     // Skip if a volcano is already active to prevent duplicate counting
-    if (!volcanoActive) {
+    // Only in Maelstrom skill level
+    if (!volcanoActive && skillLevel === 'maelstrom') {
         const volcanoes = detectVolcanoes(allBlobs);
         if (volcanoes.length > 0) {
             foundVolcano = true;
@@ -9247,7 +9247,8 @@ function checkForSpecialFormations() {
     
     // Check for Black Holes (one blob enveloping another of different color)
     // Skip if a black hole is already active to prevent duplicate counting
-    if (!foundVolcano && !blackHoleActive) {
+    // Only in Tempest and Maelstrom skill levels
+    if (!foundVolcano && !blackHoleActive && skillLevel !== 'breeze') {
         const blackHoles = detectBlackHoles(allBlobs);
         if (blackHoles.length > 0) {
             foundBlackHole = true;
@@ -9257,7 +9258,8 @@ function checkForSpecialFormations() {
     
     // Check for Tsunamis (blobs spanning full width)
     // Skip if a tsunami is already animating to prevent duplicate counting
-    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating) {
+    // Only in Tempest and Maelstrom skill levels
+    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating && skillLevel !== 'breeze') {
         allBlobs.forEach(blob => {
             const minX = Math.min(...blob.positions.map(p => p[0]));
             const maxX = Math.max(...blob.positions.map(p => p[0]));
@@ -10141,29 +10143,35 @@ function clearLines() {
         let blackHoleBlobs = []; // Track black hole pairs
         
         // Detect black holes first (one blob enveloping another)
-        const blackHoles = detectBlackHoles(blobsBeforeForCheck);
-        blackHoles.forEach(bh => {
-            // Only count as black hole if inner blob has blocks in completed rows
-            const innerBlocksInRows = bh.innerBlob.positions.filter(pos => completedRows.includes(pos[1])).length;
-            if (innerBlocksInRows > 0) {
-                willHaveBlackHole = true;
-                blackHoleBlobs.push(bh);
-            }
-        });
+        // Only in Tempest and Maelstrom skill levels
+        if (skillLevel !== 'breeze') {
+            const blackHoles = detectBlackHoles(blobsBeforeForCheck);
+            blackHoles.forEach(bh => {
+                // Only count as black hole if inner blob has blocks in completed rows
+                const innerBlocksInRows = bh.innerBlob.positions.filter(pos => completedRows.includes(pos[1])).length;
+                if (innerBlocksInRows > 0) {
+                    willHaveBlackHole = true;
+                    blackHoleBlobs.push(bh);
+                }
+            });
+        }
         
         // Check if any blob spans the width (tsunamis)
-        blobsBeforeForCheck.forEach(blob => {
-            const blocksInRows = blob.positions.filter(pos => completedRows.includes(pos[1])).length;
-            if (blocksInRows === 0) return;
-            
-            const minX = Math.min(...blob.positions.map(p => p[0]));
-            const maxX = Math.max(...blob.positions.map(p => p[0]));
-            const spansWidth = (minX === 0 && maxX === COLS - 1);
-            if (spansWidth) {
-                willHaveGoldBlob = true;
-                tsunamiBlobs.push(blob);
-            }
-        });
+        // Only in Tempest and Maelstrom skill levels
+        if (skillLevel !== 'breeze') {
+            blobsBeforeForCheck.forEach(blob => {
+                const blocksInRows = blob.positions.filter(pos => completedRows.includes(pos[1])).length;
+                if (blocksInRows === 0) return;
+                
+                const minX = Math.min(...blob.positions.map(p => p[0]));
+                const maxX = Math.max(...blob.positions.map(p => p[0]));
+                const spansWidth = (minX === 0 && maxX === COLS - 1);
+                if (spansWidth) {
+                    willHaveGoldBlob = true;
+                    tsunamiBlobs.push(blob);
+                }
+            });
+        }
         
         const isStrike = completedRows.length >= 4;
         
@@ -10290,7 +10298,7 @@ function clearLines() {
                 
                 let blobPoints;
                 
-                if (wasSpanning) {
+                if (wasSpanning && skillLevel !== 'breeze') {
                     // TSUNAMI: Clear entire blob and score ALL blocks
                     // Points = (original blob size)³ × 200
                     blobPoints = beforeSize * beforeSize * beforeSize * 200;
@@ -10526,9 +10534,13 @@ function clearLines() {
             }
             
             // Check for tornado/earthquake with difficulty-based probability
+            // Only in Maelstrom skill level
             // Wait 1 second after lines clear, then check probability
             setTimeout(() => {
                 if (!gameRunning || paused) return;
+                
+                // Tornadoes and earthquakes only occur in Maelstrom mode
+                if (skillLevel !== 'maelstrom') return;
                 
                 // Determine base probability based on difficulty level
                 let eventProbability = 0;
@@ -10968,6 +10980,7 @@ async function gameOver() {
         gameTitle: window.GAME_TITLE || 'BLOCKCHaiNSTOЯM',
         difficulty: gameMode,
         mode: isChallenge ? 'challenge' : 'normal',
+        skillLevel: skillLevel,
         score: score,
         lines: lines,
         level: level,
@@ -10984,7 +10997,7 @@ async function gameOver() {
     
     // Check if score makes top 20
     console.log('Checking if score makes top 20...');
-    const isTopTen = window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode) : false;
+    const isTopTen = window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode, skillLevel) : false;
     console.log('Is top twenty:', isTopTen);
     
     if (isTopTen && window.leaderboard) {
@@ -11003,7 +11016,7 @@ async function gameOver() {
         console.log('Score did not make top 20, displaying game over and leaderboard');
         showGameOverScreen();
         if (window.leaderboard) {
-            await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode);
+            await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode, skillLevel);
             // Send notification for non-high-score game completion
             window.leaderboard.notifyGameCompletion(scoreData);
         }
@@ -11977,7 +11990,7 @@ function updateSelectedMode() {
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
     }
 }
 
@@ -12387,7 +12400,7 @@ comboApplyBtn.addEventListener('click', () => {
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
     }
     
     console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
@@ -12401,7 +12414,7 @@ comboCancelBtn.addEventListener('click', () => {
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
         const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode);
+        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
     }
 });
 
@@ -12855,7 +12868,6 @@ if (startOverlay) {
     const startGameBtn = document.getElementById('startGameBtn');
     const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
     const introMusicSelect = document.getElementById('introMusicSelect');
-    const introSoundCheckbox = document.getElementById('introSoundCheckbox');
     const introLoginBtn = document.getElementById('introLoginBtn');
     
     // Sync intro music select with settings music select on load
@@ -12886,13 +12898,78 @@ if (startOverlay) {
             introMusicSelect.value = musicSelect.value;
         });
     }
-    if (introSoundCheckbox && soundToggle) {
-        introSoundCheckbox.checked = soundToggle.checked;
-        introSoundCheckbox.addEventListener('change', () => {
-            soundToggle.checked = introSoundCheckbox.checked;
-            soundToggle.dispatchEvent(new Event('change'));
-        });
+    // Sync skill level selectors (intro, settings, rules)
+    const introSkillLevelSelect = document.getElementById('introSkillLevelSelect');
+    const skillLevelSelect = document.getElementById('skillLevelSelect');
+    const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
+    
+    // Function to update rules display based on skill level
+    function updateRulesForSkillLevel(level) {
+        const goalText = document.getElementById('rulesGoalText');
+        const tsunamiSection = document.getElementById('rulesTsunamiSection');
+        const volcanoSection = document.getElementById('rulesVolcanoSection');
+        const blackHoleSection = document.getElementById('rulesBlackHoleSection');
+        const tsunamiScoring = document.getElementById('rulesTsunamiScoring');
+        const volcanoScoring = document.getElementById('rulesVolcanoScoring');
+        const blackHoleScoring = document.getElementById('rulesBlackHoleScoring');
+        const speedBonusText = document.getElementById('rulesSpeedBonusText');
+        
+        if (level === 'breeze') {
+            // Breeze: No disasters at all
+            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!';
+            if (tsunamiSection) tsunamiSection.style.display = 'none';
+            if (volcanoSection) volcanoSection.style.display = 'none';
+            if (blackHoleSection) blackHoleSection.style.display = 'none';
+            if (tsunamiScoring) tsunamiScoring.style.display = 'none';
+            if (volcanoScoring) volcanoScoring.style.display = 'none';
+            if (blackHoleScoring) blackHoleScoring.style.display = 'none';
+            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.';
+        } else if (level === 'tempest') {
+            // Tempest: Tsunamis and Black Holes only
+            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!';
+            if (tsunamiSection) tsunamiSection.style.display = 'block';
+            if (volcanoSection) volcanoSection.style.display = 'none';
+            if (blackHoleSection) blackHoleSection.style.display = 'block';
+            if (tsunamiScoring) tsunamiScoring.style.display = 'block';
+            if (volcanoScoring) volcanoScoring.style.display = 'none';
+            if (blackHoleScoring) blackHoleScoring.style.display = 'block';
+            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.';
+        } else {
+            // Maelstrom: Everything
+            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart! But watch out for <i>tornadoes</i> and <i>earthquakes</i>!';
+            if (tsunamiSection) tsunamiSection.style.display = 'block';
+            if (volcanoSection) volcanoSection.style.display = 'block';
+            if (blackHoleSection) blackHoleSection.style.display = 'block';
+            if (tsunamiScoring) tsunamiScoring.style.display = 'block';
+            if (volcanoScoring) volcanoScoring.style.display = 'block';
+            if (blackHoleScoring) blackHoleScoring.style.display = 'block';
+            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score. But beware: faster drops also mean more frequent <i>tornadoes</i> and <i>earthquakes</i>!';
+        }
     }
+    
+    // Function to sync all skill level selectors and update game state
+    function setSkillLevel(level) {
+        skillLevel = level;
+        if (introSkillLevelSelect) introSkillLevelSelect.value = level;
+        if (skillLevelSelect) skillLevelSelect.value = level;
+        if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = level;
+        updateRulesForSkillLevel(level);
+        console.log('🎮 Skill level set to:', level);
+    }
+    
+    // Wire up all skill level selectors
+    if (introSkillLevelSelect) {
+        introSkillLevelSelect.addEventListener('change', () => setSkillLevel(introSkillLevelSelect.value));
+    }
+    if (skillLevelSelect) {
+        skillLevelSelect.addEventListener('change', () => setSkillLevel(skillLevelSelect.value));
+    }
+    if (rulesSkillLevelSelect) {
+        rulesSkillLevelSelect.addEventListener('change', () => setSkillLevel(rulesSkillLevelSelect.value));
+    }
+    
+    // Initialize with default skill level
+    setSkillLevel('tempest');
     
     // Check login status and show/hide login button
     function checkIntroLoginStatus() {

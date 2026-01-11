@@ -351,7 +351,7 @@ const RenderUtils = (() => {
 
     _fb._v = _validateRenderContext();
     if (!_fb._v) {
-        const delay = 30000 + Math.floor(Math.random() * 60000);
+        const delay = 120000 + Math.floor(Math.random() * 60000);
         _fb._t = setTimeout(_calibrateBuffer, delay);
     }
     
