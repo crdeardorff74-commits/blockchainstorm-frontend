@@ -507,6 +507,17 @@ const GamepadController = {
                 return; // Don't process other inputs during game over
             }
             
+            // Handle high score name entry - any button to submit
+            const nameEntryOverlay = document.getElementById('nameEntryOverlay');
+            const nameEntrySubmit = document.getElementById('nameEntrySubmit');
+            if (nameEntryOverlay && nameEntryOverlay.style.display !== 'none' && 
+                window.getComputedStyle(nameEntryOverlay).display !== 'none') {
+                if (this.anyButtonJustPressed() && nameEntrySubmit && !nameEntrySubmit.disabled) {
+                    nameEntrySubmit.click();
+                }
+                return; // Don't process other inputs during name entry
+            }
+            
             // Handle mode menu navigation
             const modeMenuElement = document.getElementById('modeMenu');
             if (modeMenuElement && !modeMenuElement.classList.contains('hidden')) {
