@@ -164,7 +164,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     leaderboardContent.style.display = 'block';
     
-    const modeLabel = mode === 'challenge' ? ' (Challenge)' : '';
+    const modeLabel = mode === 'challenge' ? ' (Challenge)' : (mode === 'ai' ? ' (AI)' : (mode === 'ai-challenge' ? ' (AI Challenge)' : ''));
     const skillLabel = skillLevel === 'maelstrom' ? ' 🌀' : (skillLevel === 'breeze' ? ' 🌤️' : ' 🌪️');
     
     leaderboardContent.innerHTML = `
@@ -1078,6 +1078,49 @@ async function notifyGameCompletion(scoreData) {
     }
 }
 
+// Submit AI score automatically (no popup)
+async function submitAIScore(scoreData) {
+    console.log('=== submitAIScore START ===');
+    
+    const dataToSubmit = {
+        ...scoreData,
+        username: '🤖 Claude'
+        // mode is already set in scoreData ('ai' or 'ai-challenge')
+    };
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(`${API_URL}/scores/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dataToSubmit),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('AI score submitted successfully:', result);
+            return true;
+        } else {
+            console.error('AI score submission failed:', response.status);
+            return false;
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('AI score submission timed out');
+        } else {
+            console.error('Error submitting AI score:', error);
+        }
+        return false;
+    }
+}
+
 // Export functions for use in game.js
 window.leaderboard = {
     displayLeaderboard,
@@ -1085,6 +1128,7 @@ window.leaderboard = {
     checkIfTopTen,
     promptForName,
     submitScore,
+    submitAIScore,
     getLeaderboard,
     fetchLeaderboard,
     getModeDisplayName,

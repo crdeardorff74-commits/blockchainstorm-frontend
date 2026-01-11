@@ -10962,7 +10962,7 @@ async function gameOver() {
     // Display special event statistics
     let statsHTML = `Lines: ${lines} | Level: ${level}<br>`;
     if (aiModeEnabled) {
-        statsHTML += '<br><span style="color: #00ffff;">🤖 AI MODE - Score Ineligible</span><br>';
+        statsHTML += '<br><span style="color: #00ffff;">🤖 AI MODE</span><br>';
     }
     if (strikeCount > 0 || tsunamiCount > 0 || volcanoCount > 0 || blackHoleCount > 0) {
         statsHTML += '<br>';
@@ -11016,8 +11016,20 @@ async function gameOver() {
     
     // Check if score makes top 20 (but not in AI mode)
     console.log('Checking if score makes top 20...');
+    
+    // AI Mode: Auto-submit score and go straight to game over screen
+    if (aiModeEnabled && window.leaderboard) {
+        const aiMode = isChallenge ? 'ai-challenge' : 'ai';
+        console.log(`AI Mode: Auto-submitting score as "🤖 Claude" (mode: ${aiMode})`);
+        scoreData.mode = aiMode;
+        await window.leaderboard.submitAIScore(scoreData);
+        showGameOverScreen();
+        await window.leaderboard.displayLeaderboard(gameMode, score, aiMode, skillLevel);
+        return;
+    }
+    
     const isTopTen = !aiModeEnabled && window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode, skillLevel) : false;
-    console.log('Is top twenty:', isTopTen, aiModeEnabled ? '(AI Mode - ineligible)' : '');
+    console.log('Is top twenty:', isTopTen);
     
     if (isTopTen && window.leaderboard) {
         // DON'T show game over div yet - go to name prompt first
