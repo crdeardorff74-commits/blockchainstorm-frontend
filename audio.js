@@ -132,7 +132,23 @@ const gameplaySongs = [
     { id: 'cant_keep_my_mind_off_you', name: "Can't Keep My Mind Off You", file: MUSIC_BASE_URL + 'Can.t_Keep_My_Mind_Off_You.mp3' },
     { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' },
     { id: 'the_far_side_of_the_moooon', name: "The Far Side (of the Moooon)", file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
-    { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' }
+    { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' },
+    { id: 'stacked_like_dolly', name: 'Stacked (Like Dolly)', file: MUSIC_BASE_URL + 'Stacked.Like.Dolly.mp3' },
+    { id: 'stacked_like_loni', name: 'Stacked (Like Loni)', file: MUSIC_BASE_URL + 'Stacked.Like.Loni.mp3' },
+    { id: 'stacked_like_pam', name: 'Stacked (Like Pam)', file: MUSIC_BASE_URL + 'Stacked.Like.Pam.mp3' },
+    { id: 'stacked_like_sofia', name: 'Stacked (Like Sofia)', file: MUSIC_BASE_URL + 'Stacked.Like.Sofia.mp3' },
+    { id: 'tantris_fever', name: 'TaNTЯiS Fever', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.mp3' },
+    { id: 'tantris_fever_80s_eurobeat', name: "TaNTЯiS Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever..80s.Eurobeat.mp3' },
+    { id: 'tantris_fever_80s_hair_band', name: "TaNTЯiS Fever ('80s Hair Band)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever..80s.Hair.Band.mp3' },
+    { id: 'tantris_fever_80s_pop', name: "TaNTЯiS Fever ('80s Pop)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever..80s.Pop.mp3' },
+    { id: 'tantris_fever_90s_alternative', name: "TaNTЯiS Fever ('90s Alternative)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever..90s.Alternative.mp3' },
+    { id: 'tantris_fever_a_capella', name: 'TaNTЯiS Fever (A Capella)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.mp3' },
+    { id: 'tantris_fever_barbershop', name: 'TaNTЯiS Fever (Barbershop Quartet)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Barbershop.Quartet.mp3' },
+    { id: 'tantris_fever_boy_band', name: 'TaNTЯiS Fever (Boy Band)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.mp3' },
+    { id: 'tantris_fever_country', name: 'TaNTЯiS Fever (Country)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Country.mp3' },
+    { id: 'tantris_fever_instrumental_rap', name: 'TaNTЯiS Fever (Instrumental Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.mp3' },
+    { id: 'tantris_fever_piano', name: 'TaNTЯiS Fever (Piano)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.mp3' },
+    { id: 'tantris_fever_rap', name: 'TaNTЯiS Fever (Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
