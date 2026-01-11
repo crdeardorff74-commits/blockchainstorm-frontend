@@ -1435,26 +1435,71 @@
         }
         
         /* Responsive adjustments for small screens */
-        @media (max-height: 600px), (max-width: 600px) {
+        @media (max-height: 800px) {
             .settings-popup {
                 padding: 1.5vh 2vw;
-                font-size: 13px;
-                min-width: 50vw;
             }
             .settings-title {
                 font-size: 18px;
-                margin-bottom: 1.5vh;
+                margin-bottom: 1vh;
             }
             .settings-option {
-                margin-bottom: 0.3vh;
-                padding: 0.8vh 0;
+                margin-bottom: 0.1vh;
+                padding: 0.5vh 0;
             }
-            .settings-option label {
-                font-size: 13px;
+        }
+        @media (max-height: 700px) {
+            .settings-popup {
+                padding: 1vh 1.5vw;
+                font-size: 12px;
+            }
+            .settings-title {
+                font-size: 16px;
+                margin-bottom: 0.8vh;
+            }
+            .settings-option {
+                margin-bottom: 0;
+                padding: 0.4vh 0;
             }
             .settings-close-btn {
-                padding: 8px 16px;
-                font-size: 13px;
+                padding: 6px 14px;
+                font-size: 12px;
+                margin-top: 0.8vh;
+            }
+            .controls-config-title {
+                margin-bottom: 6px;
+            }
+            .settings-desc {
+                display: none; /* Hide descriptions on smaller screens */
+            }
+        }
+        @media (max-height: 600px), (max-width: 600px) {
+            .settings-popup {
+                padding: 0.8vh 1.5vw;
+                font-size: 11px;
+                min-width: 50vw;
+            }
+            .settings-title {
+                font-size: 15px;
+                margin-bottom: 0.5vh;
+            }
+            .settings-option {
+                margin-bottom: 0;
+                padding: 0.3vh 0;
+            }
+            .settings-option label {
+                font-size: 11px;
+            }
+            .settings-close-btn {
+                padding: 5px 12px;
+                font-size: 11px;
+                margin-top: 0.5vh;
+            }
+            .toggle-switch {
+                transform: scale(0.85);
+            }
+            .settings-desc {
+                display: none;
             }
         }
         
@@ -2320,6 +2365,14 @@
         <!-- button class="login-btn" id="introLoginBtn">🔑 Login</button -->
         <div class="start-message" id="dontPanicText">Don't Panic!</div>
         <div class="intro-controls" id="introControls">
+            <label class="intro-toggle">
+                <span class="intro-toggle-label">Skill Level</span>
+                <select id="introSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
+                    <option value="breeze">🌤️ Breeze</option>
+                    <option value="tempest" selected>🌪️ Tempest</option>
+                    <option value="maelstrom">🌀 Maelstrom</option>
+                </select>
+            </label>
             <label class="intro-toggle" id="introFullscreenToggle">
                 <span class="intro-toggle-label">Full Screen</span>
                 <div class="toggle-switch">
@@ -2418,14 +2471,6 @@
                     <option value="cascade_void_acappella">Cascade into the Void (A Cappella)</option>
                     <option value="cascade_void_folk">Cascade into the Void (Folk)</option>
                     <option value="cascade_void_dance">Cascade into the Void (Dance)</option>
-                </select>
-            </label>
-            <label class="intro-toggle">
-                <span class="intro-toggle-label">Skill Level</span>
-                <select id="introSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
-                    <option value="breeze">🌤️ Breeze</option>
-                    <option value="tempest" selected>🌪️ Tempest</option>
-                    <option value="maelstrom">🌀 Maelstrom</option>
                 </select>
             </label>
             <button class="start-game-btn" id="startGameBtn">▶ Start Game</button>
@@ -2641,6 +2686,13 @@
                         
                         <div class="credits-section">
                             <div class="credits-row">
+                                <span class="credits-role">Catering</span>
+                                <span class="credits-name">Your Mom</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
                                 <span class="credits-role">Obligatory Thanks</span>
                                 <span class="credits-name">Sir Daniel Teater</span>
                             </div>
@@ -2650,19 +2702,11 @@
                             </div>
                         </div>
                         
-                        <div class="credits-section">
-                            <div class="credits-row">
-                                <span class="credits-role">Catering</span>
-                                <span class="credits-name">Your Mom</span>
-                            </div>
-                        </div>
-                        
                         <div class="credits-thanks">Special Thanks to Josh Cadotte</div>
                         
                         <div class="credits-spacer"></div>
                         
                         <div class="credits-disclaimer">No animals were harmed in the making of this game.</div>
-                        <div class="credits-disclaimer">That would be weird, right?</div>
                         
                         <div class="credits-spacer"></div>
                         
@@ -2853,6 +2897,20 @@
                 <div class="settings-column-left">
             
             <div class="settings-option">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #ccc;">
+                    Skill Level
+                </label>
+                <select id="skillLevelSelect" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 14px;">
+                    <option value="breeze">🌤️ Breeze - No disasters</option>
+                    <option value="tempest" selected>🌪️ Tempest - Tsunamis, Black Holes</option>
+                    <option value="maelstrom">🌀 Maelstrom - Full chaos</option>
+                </select>
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px;">
+                    Changes take effect on next game.
+                </div>
+            </div>
+            
+            <div class="settings-option">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Music</span>
                     <select id="musicSelect" style="background: #2a2a3a; color: #e0e0e0; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-left: auto; width: 270px;">
@@ -2958,20 +3016,6 @@
                 </label>
             </div>
             
-            <div class="settings-option">
-                <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #ccc;">
-                    Skill Level
-                </label>
-                <select id="skillLevelSelect" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 14px;">
-                    <option value="breeze">🌤️ Breeze - No disasters</option>
-                    <option value="tempest" selected>🌪️ Tempest - Tsunamis, Black Holes</option>
-                    <option value="maelstrom">🌀 Maelstrom - Full chaos</option>
-                </select>
-                <div style="font-size: 11px; color: #888; margin-top: 4px;">
-                    Changes take effect on next game.
-                </div>
-            </div>
-            
             <div class="settings-option" id="vibrationOption" style="display: none;">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Controller Vibration</span>
@@ -2990,21 +3034,8 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
                     Shows rain/sleet/snow in the background.
-                </div>
-            </div>
-            
-            <div class="settings-option">
-                <label class="toggle-label">
-                    <span class="toggle-label-text">Reverse Camera</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="cameraOrientationToggle">
-                        <span class="toggle-slider"></span>
-                    </div>
-                </label>
-                <div style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
-                    Sun is behind, planets move toward the camera instead of away from it.
                 </div>
             </div>
             
@@ -3017,6 +3048,19 @@
                 <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
                     <span>Transparent</span>
                     <span>Opaque</span>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Reverse Camera</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="cameraOrientationToggle">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
+                    Sun is behind, planets move toward the camera instead of away from it.
                 </div>
             </div>
             
@@ -3040,8 +3084,33 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <div style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
                     Hides UI, transparent well, alternate Sun
+                </div>
+            </div>
+            
+            <div class="settings-option" id="aiModeOption">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">🤖 AI Mode</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="aiModeToggle">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
+                    Let Claude play the game automatically
+                </div>
+            </div>
+            
+            <div class="settings-option" id="aiSpeedOption" style="display: none;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #ccc;">
+                    AI Speed
+                </label>
+                <input type="range" id="aiSpeedSlider" min="1" max="10" step="1" value="5" 
+                       style="width: 100%; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
+                    <span>Slow</span>
+                    <span>Fast</span>
                 </div>
             </div>
             
@@ -3359,6 +3428,7 @@
 	<script src="audio.js"></script>
 	<script src="starfield.js"></script>
 	<script src="controls-config.js"></script>
+	<script src="ai-player.js"></script>
 	<script src="game.js"></script>
 	<script src="settings-sync.js"></script>
 

@@ -1873,6 +1873,11 @@ const starSpeedSlider = document.getElementById('starSpeedSlider');
 const minimalistToggle = document.getElementById('minimalistToggle');
 const minimalistOption = document.getElementById('minimalistOption');
 let minimalistMode = false;
+
+// AI Mode
+const aiModeToggle = document.getElementById('aiModeToggle');
+let aiModeEnabled = false;
+const aiSpeedSlider = document.getElementById('aiSpeedSlider');
 let ROWS = 20;
 let COLS = 10;
 
@@ -10956,6 +10961,9 @@ async function gameOver() {
     
     // Display special event statistics
     let statsHTML = `Lines: ${lines} | Level: ${level}<br>`;
+    if (aiModeEnabled) {
+        statsHTML += '<br><span style="color: #00ffff;">🤖 AI MODE - Score Ineligible</span><br>';
+    }
     if (strikeCount > 0 || tsunamiCount > 0 || volcanoCount > 0 || blackHoleCount > 0) {
         statsHTML += '<br>';
         if (strikeCount > 0) statsHTML += `⚡ Strikes: ${strikeCount}<br>`;
@@ -11006,10 +11014,10 @@ async function gameOver() {
     };
     
     
-    // Check if score makes top 20
+    // Check if score makes top 20 (but not in AI mode)
     console.log('Checking if score makes top 20...');
-    const isTopTen = window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode, skillLevel) : false;
-    console.log('Is top twenty:', isTopTen);
+    const isTopTen = !aiModeEnabled && window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode, skillLevel) : false;
+    console.log('Is top twenty:', isTopTen, aiModeEnabled ? '(AI Mode - ineligible)' : '');
     
     if (isTopTen && window.leaderboard) {
         // DON'T show game over div yet - go to name prompt first
@@ -11156,6 +11164,19 @@ function update(time = 0) {
 
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
+    
+    // AI Mode: Let AI control the game
+    if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && typeof AIPlayer !== 'undefined') {
+        AIPlayer.setSkillLevel(skillLevel);
+        const nextPiece = nextPieceQueue.length > 0 ? nextPieceQueue[0] : null;
+        AIPlayer.update(board, currentPiece, nextPiece, COLS, ROWS, {
+            moveLeft: () => movePiece(-1),
+            moveRight: () => movePiece(1),
+            rotate: () => rotatePiece(),
+            hardDrop: () => hardDrop(),
+            softDrop: () => dropPiece()
+        });
+    }
     
     // Update hard drop animation
     if (!paused && hardDropping) {
@@ -11376,6 +11397,20 @@ function update(time = 0) {
         ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
         ctx.restore();
     }
+    
+    // Draw AI mode indicator
+    if (aiModeEnabled && !paused) {
+        ctx.save();
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeText('🤖 AI MODE', canvas.width - 10, 10);
+        ctx.fillText('🤖 AI MODE', canvas.width - 10, 10);
+        ctx.restore();
+    }
 
     gameLoop = requestAnimationFrame(update);
 }
@@ -11385,6 +11420,11 @@ function startGame(mode) {
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
     scoreSubmittedHandled = false; // Reset for new game
+    
+    // Reset AI player state
+    if (typeof AIPlayer !== 'undefined') {
+        AIPlayer.reset();
+    }
     
     // Hide leaderboard if it was shown
     if (window.leaderboard && window.leaderboard.hideLeaderboard) {
@@ -12158,6 +12198,33 @@ function applyMinimalistMode() {
     if (gameRunning) {
         drawBoard();
     }
+}
+
+// AI Mode toggle
+if (aiModeToggle) {
+    aiModeToggle.addEventListener('change', (e) => {
+        aiModeEnabled = e.target.checked;
+        if (typeof AIPlayer !== 'undefined') {
+            AIPlayer.setEnabled(aiModeEnabled);
+        }
+        // Show/hide speed slider
+        const aiSpeedOption = document.getElementById('aiSpeedOption');
+        if (aiSpeedOption) {
+            aiSpeedOption.style.display = e.target.checked ? 'block' : 'none';
+        }
+        console.log('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
+    });
+}
+
+// AI Speed slider
+if (aiSpeedSlider) {
+    aiSpeedSlider.addEventListener('input', (e) => {
+        const speed = parseInt(e.target.value);
+        if (typeof AIPlayer !== 'undefined') {
+            AIPlayer.setSpeed(speed);
+        }
+        console.log('🤖 AI Speed:', speed);
+    });
 }
 
 musicSelect.addEventListener('change', (e) => {
@@ -12961,6 +13028,7 @@ if (startOverlay) {
     // Function to sync all skill level selectors and update game state
     function setSkillLevel(level) {
         skillLevel = level;
+        window.skillLevel = level; // Expose globally for AI
         if (introSkillLevelSelect) introSkillLevelSelect.value = level;
         if (skillLevelSelect) skillLevelSelect.value = level;
         if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = level;
