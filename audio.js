@@ -28,14 +28,16 @@ const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-f
 const soundEffectFiles = {
     strike: SFX_BASE_URL + 'Strike.mp3',
     lineClear: SFX_BASE_URL + 'LineClear.mp3',
-    tsunami: SFX_BASE_URL + 'Tsunami.mp3'
+    tsunami: SFX_BASE_URL + 'Tsunami.mp3',
+    banjo: SFX_BASE_URL + 'Banjo.mp3'
 };
 
 // Per-effect volume levels (0.0 to 1.0)
 const soundEffectVolumes = {
     strike: 0.7,
     lineClear: 0.7,
-    tsunami: 0.4  // Quieter for tsunami
+    tsunami: 0.4,  // Quieter for tsunami
+    banjo: 0.8     // UFO delivery sound
 };
 
 // Preloaded sound effect audio elements
@@ -165,8 +167,19 @@ const menuOnlySongs = [
     { id: 'cascade_void_intro', name: 'TaNTЯiS (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' }
 ];
 
-// All songs combined for audio element initialization
-const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs];
+// Easter egg songs - "F Word" variations (21 versions) - delivered by UFO at 42 lines
+const F_WORD_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
+const fWordSongs = [];
+for (let i = 1; i <= 21; i++) {
+    fWordSongs.push({
+        id: `f_word_${i}`,
+        name: `F Word (Version ${i})`,
+        file: F_WORD_BASE_URL + `F.Word.${i}.mp3`
+    });
+}
+
+// All songs combined for audio element initialization (F Word songs loaded on-demand)
+const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordSongs];
 
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
@@ -186,6 +199,9 @@ const MIN_FAMILY_SEPARATION = 4; // At least 4 other songs between same-family s
 let songHistory = []; // Songs played in order (most recent at end)
 let forwardHistory = []; // Songs to return to when skipping forward after going back
 const MAX_SONG_HISTORY = 20;
+
+// Special song override - inserted by easter eggs (UFO at 42 lines)
+let nextSongOverride = null;
 
 // Callback for when song changes (so game.js can update display)
 let onSongChangeCallback = null;
@@ -345,6 +361,24 @@ function skipToPreviousSong() {
 // Check if there's a previous song in history
 function hasPreviousSong() {
     return songHistory.length > 0 && currentMusicSelection === 'shuffle' && musicPlaying;
+}
+
+// Insert a random F Word song to play next (UFO easter egg at 42 lines)
+function insertFWordSong() {
+    if (fWordSongs.length === 0) {
+        console.log('🛸 No F Word songs available');
+        return null;
+    }
+    
+    // Pick a random F Word song
+    const randomIndex = Math.floor(Math.random() * fWordSongs.length);
+    const selectedSong = fWordSongs[randomIndex];
+    
+    // Set as the next song override
+    nextSongOverride = selectedSong.id;
+    
+    console.log(`🛸 UFO delivered: ${selectedSong.name} (will play next)`);
+    return selectedSong;
 }
 
 // Track if music is paused (vs stopped)
@@ -762,7 +796,12 @@ function startMusic(gameMode, musicSelect) {
     
     let trackId;
     
-    if (selection === 'shuffle') {
+    // Check for song override first (easter eggs insert songs here)
+    if (nextSongOverride && selection === 'shuffle') {
+        trackId = nextSongOverride;
+        nextSongOverride = null; // Clear the override
+        console.log('🎵 Playing override song:', trackId);
+    } else if (selection === 'shuffle') {
         // Shuffle mode: use persistent queue (no repeats until all played)
         trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
         console.log('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
@@ -2216,6 +2255,7 @@ function playSmallExplosion(soundToggle) {
         isMusicPaused,
         getCurrentSongInfo,
         setOnSongChangeCallback,
-        setOnPauseStateChangeCallback
+        setOnPauseStateChangeCallback,
+        insertFWordSong
     };
 })(); // End IIFE

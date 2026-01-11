@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -1867,6 +1867,18 @@ let COLS = 10;
 
 // Connect StarfieldSystem sound callback now that soundToggle is defined
 StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
+
+// Set up UFO swoop callback for 42 lines easter egg - delivers F Word song
+StarfieldSystem.setUFOSwoopCallback(() => {
+    // Play banjo sound effect
+    playMP3SoundEffect('banjo', soundToggle);
+    
+    // Insert a random F Word song to play next
+    const insertedSong = insertFWordSong();
+    if (insertedSong) {
+        console.log('🛸 UFO delivered special song:', insertedSong.name);
+    }
+});
 
 // Developer mode (activated by center-clicking "Don't Panic!")
 let developerMode = false;

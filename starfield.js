@@ -30,6 +30,10 @@ const StarfieldSystem = (function() {
     let ufoSpeed = 4;
     let ufoCircleTime = 0;
     let ufoBeamOpacity = 0;
+    let ufoCompletedCircle = false; // Track if circle completed naturally (not departed early)
+    let ufoSwoopTargetX = 0;
+    let ufoSwoopTargetY = 0;
+    let ufoSwoopCallback = null; // Callback when swoop completes
     
     // Stranger Mode - Upside Down particles (ash/spore flakes)
     let strangerMode = false;
@@ -1159,6 +1163,7 @@ const StarfieldSystem = (function() {
         ufoCircleTime = 0;
         ufoCircleAngle = 0;
         ufoBeamOpacity = 0;
+        ufoCompletedCircle = false;
         
         const linesDisplay = document.getElementById('lines');
         if (!linesDisplay) {
@@ -1239,8 +1244,44 @@ const StarfieldSystem = (function() {
                 ufoBeamOpacity = Math.sin(ufoCircleTime * 0.1) * 0.3 + 0.5;
                 
                 if (ufoCircleAngle > Math.PI * 6) {
-                    ufoPhase = 'exiting';
+                    // Circle completed naturally - swoop to music info instead of exiting
+                    ufoCompletedCircle = true;
+                    ufoPhase = 'swooping';
                     ufoBeamOpacity = 0;
+                    
+                    // Find the songInfo element for swoop target
+                    const songInfoEl = document.getElementById('songInfo');
+                    if (songInfoEl && songInfoEl.style.display !== 'none') {
+                        const songRect = songInfoEl.getBoundingClientRect();
+                        const scaleFactor = 1.1;
+                        ufoSwoopTargetX = (songRect.left + songRect.width / 2) * scaleFactor;
+                        ufoSwoopTargetY = (songRect.top + songRect.height / 2) * scaleFactor;
+                        console.log('🛸 UFO swooping to music info!');
+                    } else {
+                        // No music info visible, just exit normally
+                        ufoPhase = 'exiting';
+                        console.log('🛸 UFO exiting (no music info visible)');
+                    }
+                }
+                break;
+            
+            case 'swooping':
+                // Swoop down to the music info box
+                const swoopDx = ufoSwoopTargetX - ufoX;
+                const swoopDy = ufoSwoopTargetY - ufoY;
+                const swoopDist = Math.sqrt(swoopDx * swoopDx + swoopDy * swoopDy);
+                
+                if (swoopDist > 15) {
+                    // Move toward target at faster speed
+                    ufoX += (swoopDx / swoopDist) * ufoSpeed * 2;
+                    ufoY += (swoopDy / swoopDist) * ufoSpeed * 2;
+                } else {
+                    // Reached the music info - trigger callback and exit
+                    console.log('🛸 UFO reached music info - delivering special song!');
+                    if (ufoSwoopCallback) {
+                        ufoSwoopCallback();
+                    }
+                    ufoPhase = 'exiting';
                 }
                 break;
                 
@@ -1738,6 +1779,7 @@ const StarfieldSystem = (function() {
         updateUFO: updateUFO,
         departUFO: departUFO,
         isUFOActive: () => ufoActive,
+        setUFOSwoopCallback: (callback) => { ufoSwoopCallback = callback; },
         
         // Planet stats functions
         showPlanetStats: showPlanetStats,
