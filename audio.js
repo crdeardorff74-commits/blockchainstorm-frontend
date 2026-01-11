@@ -131,7 +131,8 @@ const gameplaySongs = [
     { id: 'how_long_can_you_wait', name: 'How Long Can You Wait', file: MUSIC_BASE_URL + 'How_Long_Can_You_Wait.mp3' },
     { id: 'cant_keep_my_mind_off_you', name: "Can't Keep My Mind Off You", file: MUSIC_BASE_URL + 'Can.t_Keep_My_Mind_Off_You.mp3' },
     { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' },
-    { id: 'the_far_side_of_the_moooon', name: "The Far Side (of the Moooon)", file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' }
+    { id: 'the_far_side_of_the_moooon', name: "The Far Side (of the Moooon)", file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
+    { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
