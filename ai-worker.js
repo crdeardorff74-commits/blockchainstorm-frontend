@@ -1,70 +1,58 @@
 /**
  * AI Worker for TaNTЯiS / BLOCKCHaiNSTORM
  * Runs placement calculations on a separate thread to avoid UI freezes
+ * 
+ * Two-mode strategy:
+ * 1) Color Building - Build large blobs, set up Tsunamis/Black Holes, avoid clearing lines
+ * 2) Survival - Clear lines and reduce stack height
+ * 
+ * Mode switching based on stack height with hysteresis
  */
-
-// Weights for board evaluation - BALANCED with stronger survival
-const weights = {
-    aggregateHeight: -0.7,      // Moderate-strong height penalty
-    completeLines: 1.0,         // Strong reward for clearing lines
-    holes: -1.4,                // Strong hole penalty
-    bumpiness: -0.25,           // Moderate bumpiness penalty
-    colorBlobBonus: 0.5,        // Good blob bonus
-    tsunamiProgress: 0.7,       // Reward for wide blobs
-    envelopmentProgress: 0.5,   // Reward for surrounding patterns
-    colorAdjacency: 0.35,       // Good reward for same color adjacency
-    queueColorSynergy: 0.35,    // Moderate synergy bonus
-    maxHeightPenalty: -2.5,     // Strong height penalty
-    nearDeathPenalty: -9.0,     // Very severe penalty when near top
-    lineClearUrgency: 3.5,      // Strong bonus for clearing when in danger
-    perfectClear: 5.0
-};
 
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
+let currentMode = 'colorBuilding'; // 'colorBuilding' or 'survival'
+
+// Row thresholds for mode switching (rows from bottom, 1-indexed)
+// Upper = switch to survival, Lower = switch back to color building
+const modeThresholds = {
+    breeze: { upper: 16, lower: 8 },
+    tempest: { upper: 16, lower: 8 },
+    maelstrom: { upper: 14, lower: 7 },
+    hurricane: { upper: 14, lower: 7 }
+};
 
 function cloneBoard(board) {
     return board.map(row => row ? [...row] : new Array(10).fill(null));
 }
 
-function getDangerLevel(board, rows) {
-    let maxHeight = 0;
-    const cols = board[0] ? board[0].length : 10;
-    
-    for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < board.length; y++) {
-            if (board[y] && board[y][x]) {
-                const height = rows - y;
-                if (height > maxHeight) maxHeight = height;
-                break;
-            }
+/**
+ * Get the height of the tallest column (from bottom, 1-indexed)
+ * Row 1 is the bottom row
+ */
+function getStackHeight(board, rows) {
+    for (let y = 0; y < board.length; y++) {
+        if (board[y] && board[y].some(cell => cell !== null)) {
+            return rows - y; // Convert to height from bottom
         }
     }
-    
-    // Danger starts at 38% height, critical at 65%
-    const safeHeight = rows * 0.38;
-    const criticalHeight = rows * 0.65;
-    
-    if (maxHeight <= safeHeight) return 0;
-    if (maxHeight >= criticalHeight) return 1;
-    
-    return (maxHeight - safeHeight) / (criticalHeight - safeHeight);
+    return 0;
 }
 
-function getMaxHeight(board, rows) {
-    let maxHeight = 0;
-    const cols = board[0] ? board[0].length : 10;
+/**
+ * Update mode based on stack height
+ */
+function updateMode(board, rows) {
+    const stackHeight = getStackHeight(board, rows);
+    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
     
-    for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < board.length; y++) {
-            if (board[y] && board[y][x]) {
-                const height = rows - y;
-                if (height > maxHeight) maxHeight = height;
-                break;
-            }
-        }
+    if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
+        currentMode = 'survival';
+    } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
+        currentMode = 'colorBuilding';
     }
-    return maxHeight;
+    
+    return currentMode;
 }
 
 function getAllRotations(shape) {
@@ -170,145 +158,6 @@ function getAllBlobs(board, cols, rows) {
     return blobs;
 }
 
-function getColorBlobScore(blobs) {
-    let score = 0;
-    for (const blob of blobs) {
-        if (blob.size >= 4) {
-            score += blob.size * blob.size * 0.1;
-        }
-    }
-    return score;
-}
-
-function getTsunamiProgress(blobs, cols) {
-    let maxProgress = 0;
-    for (const blob of blobs) {
-        if (blob.size < 4) continue;
-        
-        let minX = cols, maxX = 0;
-        for (const [x, y] of blob.positions) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-        }
-        
-        const width = maxX - minX + 1;
-        const progress = width / cols;
-        
-        let edgeBonus = 0;
-        if (minX === 0) edgeBonus += 0.2;
-        if (maxX === cols - 1) edgeBonus += 0.2;
-        if (minX === 0 && maxX === cols - 1) edgeBonus += 0.5;
-        
-        const totalProgress = progress + edgeBonus;
-        if (totalProgress > maxProgress) maxProgress = totalProgress;
-    }
-    return maxProgress;
-}
-
-function getEnvelopmentProgress(blobs, cols, rows) {
-    if (blobs.length < 2) return 0;
-    
-    let maxProgress = 0;
-    for (let i = 0; i < blobs.length; i++) {
-        for (let j = 0; j < blobs.length; j++) {
-            if (i === j) continue;
-            if (blobs[i].color === blobs[j].color) continue;
-            
-            const inner = blobs[i];
-            const outer = blobs[j];
-            
-            if (inner.size < 4 || outer.size < 4) continue;
-            
-            let adjacentCount = 0;
-            const outerSet = new Set(outer.positions.map(p => `${p[0]},${p[1]}`));
-            
-            for (const [x, y] of inner.positions) {
-                const neighbors = [[x-1,y], [x+1,y], [x,y-1], [x,y+1]];
-                for (const [nx, ny] of neighbors) {
-                    if (outerSet.has(`${nx},${ny}`)) {
-                        adjacentCount++;
-                    }
-                }
-            }
-            
-            const progress = adjacentCount / (inner.size * 2);
-            if (progress > maxProgress) maxProgress = progress;
-        }
-    }
-    return maxProgress;
-}
-
-function getColorAdjacencyBonus(board, shape, x, y, color, cols, rows) {
-    let adjacentSameColor = 0;
-    
-    for (let py = 0; py < shape.length; py++) {
-        for (let px = 0; px < shape[py].length; px++) {
-            if (!shape[py][px]) continue;
-            
-            const boardX = x + px;
-            const boardY = y + py;
-            
-            const neighbors = [
-                [boardX - 1, boardY],
-                [boardX + 1, boardY],
-                [boardX, boardY - 1],
-                [boardX, boardY + 1]
-            ];
-            
-            for (const [nx, ny] of neighbors) {
-                if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
-                const isPartOfPiece = shape.some((row, ppy) => 
-                    row.some((val, ppx) => val && x + ppx === nx && y + ppy === ny)
-                );
-                if (isPartOfPiece) continue;
-                
-                if (board[ny] && board[ny][nx] === color) {
-                    adjacentSameColor++;
-                }
-            }
-        }
-    }
-    return adjacentSameColor;
-}
-
-function getQueueColorCounts() {
-    const colorCounts = {};
-    if (!pieceQueue || pieceQueue.length === 0) return colorCounts;
-    
-    for (const piece of pieceQueue) {
-        if (piece && piece.color) {
-            colorCounts[piece.color] = (colorCounts[piece.color] || 0) + 1;
-        }
-    }
-    return colorCounts;
-}
-
-function getQueueColorSynergy(blobs, placementColor) {
-    if (!pieceQueue || pieceQueue.length === 0) return 0;
-    if (!blobs || blobs.length === 0) return 0;
-    
-    try {
-        const colorCounts = getQueueColorCounts();
-        let synergyScore = 0;
-        
-        const upcomingMatches = colorCounts[placementColor] || 0;
-        synergyScore += upcomingMatches * 0.3;
-        
-        for (const blob of blobs) {
-            if (!blob || !blob.positions || blob.positions.length === 0) continue;
-            
-            const blobUpcoming = colorCounts[blob.color] || 0;
-            if (blobUpcoming > 0 && blob.size > 0) {
-                synergyScore += Math.min(blob.size * blobUpcoming * 0.05, 2.0);
-            }
-        }
-        
-        return synergyScore;
-    } catch (e) {
-        return 0;
-    }
-}
-
 function countCompleteLines(board) {
     let count = 0;
     for (let y = 0; y < board.length; y++) {
@@ -317,20 +166,6 @@ function countCompleteLines(board) {
         }
     }
     return count;
-}
-
-function getAggregateHeight(board) {
-    let totalHeight = 0;
-    const cols = board[0].length;
-    for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < board.length; y++) {
-            if (board[y] && board[y][x]) {
-                totalHeight += board.length - y;
-                break;
-            }
-        }
-    }
-    return totalHeight;
 }
 
 function countHoles(board) {
@@ -371,8 +206,18 @@ function getBumpiness(board) {
     return bumpiness;
 }
 
-function isPerfectClear(board) {
-    return board.every(row => !row || row.every(cell => cell === null));
+function getAggregateHeight(board) {
+    let totalHeight = 0;
+    const cols = board[0].length;
+    for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < board.length; y++) {
+            if (board[y] && board[y][x]) {
+                totalHeight += board.length - y;
+                break;
+            }
+        }
+    }
+    return totalHeight;
 }
 
 function removeCompleteLines(board) {
@@ -384,63 +229,292 @@ function removeCompleteLines(board) {
     return newBoard;
 }
 
-function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
+/**
+ * Get blob width and edge info for Tsunami progress
+ */
+function getBlobWidth(blob, cols) {
+    if (!blob || blob.positions.length === 0) return { width: 0, minX: cols, maxX: 0 };
+    
+    let minX = cols, maxX = 0;
+    for (const [x, y] of blob.positions) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+    }
+    
+    return { width: maxX - minX + 1, minX, maxX };
+}
+
+/**
+ * Check how close a blob is to being a Tsunami (spanning full width)
+ */
+function getTsunamiProgress(blob, cols) {
+    if (!blob || blob.size < 4) return 0;
+    
+    const { width, minX, maxX } = getBlobWidth(blob, cols);
+    const progress = width / cols;
+    
+    // Bonus for touching edges
+    let edgeBonus = 0;
+    if (minX === 0) edgeBonus += 0.15;
+    if (maxX === cols - 1) edgeBonus += 0.15;
+    if (minX === 0 && maxX === cols - 1) return 1.5; // Full width!
+    
+    return progress + edgeBonus;
+}
+
+/**
+ * Check if queue colors could help complete a Tsunami for a blob
+ */
+function canCompleteTsunamiWithQueue(blob, cols) {
+    if (!blob || blob.size < 4) return { canComplete: false, score: 0 };
+    if (!pieceQueue || pieceQueue.length === 0) return { canComplete: false, score: 0 };
+    
+    const { width, minX, maxX } = getBlobWidth(blob, cols);
+    
+    // Already full width
+    if (minX === 0 && maxX === cols - 1) return { canComplete: true, score: 5 };
+    
+    // Count matching colors in queue
+    const matchingPieces = pieceQueue.filter(p => p && p.color === blob.color).length;
+    
+    // Estimate if we can reach full width
+    const gapLeft = minX;
+    const gapRight = cols - 1 - maxX;
+    const totalGap = gapLeft + gapRight;
+    
+    // Each piece has ~4 blocks, estimate coverage potential
+    const potentialCoverage = matchingPieces * 2; // Conservative estimate
+    
+    if (potentialCoverage >= totalGap) {
+        // Higher score if closer to completion
+        const completionScore = (width / cols) * matchingPieces;
+        return { canComplete: true, score: completionScore };
+    }
+    
+    return { canComplete: false, score: matchingPieces * 0.2 };
+}
+
+/**
+ * Check for potential Black Hole setup (blob surrounded by another color)
+ */
+function getBlackHoleProgress(blobs, cols, rows) {
+    if (blobs.length < 2) return { progress: 0, canComplete: false };
+    
+    let maxProgress = 0;
+    let bestCanComplete = false;
+    
+    for (let i = 0; i < blobs.length; i++) {
+        for (let j = 0; j < blobs.length; j++) {
+            if (i === j) continue;
+            if (blobs[i].color === blobs[j].color) continue;
+            
+            const inner = blobs[i];
+            const outer = blobs[j];
+            
+            if (inner.size < 4 || outer.size < 6) continue;
+            
+            // Count how many sides of inner are adjacent to outer
+            let adjacentCount = 0;
+            const outerSet = new Set(outer.positions.map(p => `${p[0]},${p[1]}`));
+            
+            for (const [x, y] of inner.positions) {
+                const neighbors = [[x-1,y], [x+1,y], [x,y-1], [x,y+1]];
+                for (const [nx, ny] of neighbors) {
+                    if (outerSet.has(`${nx},${ny}`)) {
+                        adjacentCount++;
+                    }
+                }
+            }
+            
+            // Progress based on how surrounded the inner blob is
+            const perimeterEstimate = inner.size * 2 + 2;
+            const progress = adjacentCount / perimeterEstimate;
+            
+            // Check if queue could help complete this
+            const outerMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === outer.color).length : 0;
+            const canComplete = progress > 0.5 && outerMatches >= 2;
+            
+            if (progress > maxProgress) {
+                maxProgress = progress;
+                bestCanComplete = canComplete;
+            }
+        }
+    }
+    
+    return { progress: maxProgress, canComplete: bestCanComplete };
+}
+
+/**
+ * Get color adjacency bonus for a placement
+ */
+function getColorAdjacency(board, shape, x, y, color, cols, rows) {
+    let adjacent = 0;
+    
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (!shape[py][px]) continue;
+            
+            const boardX = x + px;
+            const boardY = y + py;
+            
+            const neighbors = [
+                [boardX - 1, boardY],
+                [boardX + 1, boardY],
+                [boardX, boardY - 1],
+                [boardX, boardY + 1]
+            ];
+            
+            for (const [nx, ny] of neighbors) {
+                if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+                
+                // Skip if this neighbor is part of the piece being placed
+                let isPartOfPiece = false;
+                for (let ppy = 0; ppy < shape.length; ppy++) {
+                    for (let ppx = 0; ppx < shape[ppy].length; ppx++) {
+                        if (shape[ppy][ppx] && x + ppx === nx && y + ppy === ny) {
+                            isPartOfPiece = true;
+                            break;
+                        }
+                    }
+                    if (isPartOfPiece) break;
+                }
+                if (isPartOfPiece) continue;
+                
+                if (board[ny] && board[ny][nx] === color) {
+                    adjacent++;
+                }
+            }
+        }
+    }
+    return adjacent;
+}
+
+/**
+ * Count matching colors in the piece queue
+ */
+function getQueueColorCount(color) {
+    if (!pieceQueue || pieceQueue.length === 0) return 0;
+    return pieceQueue.filter(p => p && p.color === color).length;
+}
+
+// ==================== COLOR BUILDING MODE ====================
+
+function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesCleared) {
     const blobs = getAllBlobs(board, cols, rows);
-    const maxHeight = getMaxHeight(board, rows);
-    const dangerLevel = getDangerLevel(board, rows);
+    const stackHeight = getStackHeight(board, rows);
+    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
     
     let score = 0;
     
-    // Height penalty scales with danger
-    const heightPenalty = weights.maxHeightPenalty * maxHeight * (1 + dangerLevel * 2.5);
-    score += heightPenalty;
+    // PENALIZE line clears in color building mode - we want to build, not clear!
+    score -= linesCleared * 5;
     
-    // Near-death penalty (top 5 rows)
-    if (maxHeight >= rows - 5) {
-        score += weights.nearDeathPenalty * (maxHeight - (rows - 5));
-    }
+    // === Check for Tsunami/Black Hole opportunities with queue ===
+    let bestTsunamiScore = 0;
+    let hasTsunamiPath = false;
     
-    // Holes are bad, worse when in danger
-    score += weights.holes * countHoles(board) * (1 + dangerLevel * 1.8);
-    score += weights.bumpiness * getBumpiness(board);
-    score += weights.aggregateHeight * getAggregateHeight(board);
-    
-    // Line clears are valuable, more so when in danger
-    const lineClearBonus = linesCleared * linesCleared * weights.completeLines;
-    const urgencyMultiplier = 1 + (dangerLevel * weights.lineClearUrgency);
-    score += lineClearBonus * urgencyMultiplier;
-    
-    // Safety factor - reduce blob focus as danger increases
-    const safetyFactor = Math.max(0, 1 - (dangerLevel * 1.0));
-    
-    // Consider blob strategies when reasonably safe (safetyFactor > 0.25)
-    if (safetyFactor > 0.25) {
-        score += weights.colorBlobBonus * getColorBlobScore(blobs) * safetyFactor;
-        score += weights.colorAdjacency * getColorAdjacencyBonus(board, shape, x, y, color, cols, rows) * safetyFactor;
-        
-        if (pieceQueue && pieceQueue.length > 0) {
-            const synergy = getQueueColorSynergy(blobs, color);
-            if (typeof synergy === 'number' && !isNaN(synergy)) {
-                score += weights.queueColorSynergy * synergy * safetyFactor;
+    for (const blob of blobs) {
+        if (blob.size >= 4) {
+            const tsunamiResult = canCompleteTsunamiWithQueue(blob, cols);
+            if (tsunamiResult.canComplete) {
+                hasTsunamiPath = true;
+                if (tsunamiResult.score > bestTsunamiScore) {
+                    bestTsunamiScore = tsunamiResult.score;
+                }
             }
-        }
-        
-        // Pursue special formations when safe (dangerLevel < 0.4)
-        if (currentSkillLevel !== 'breeze' && dangerLevel < 0.4) {
-            score += weights.tsunamiProgress * getTsunamiProgress(blobs, cols) * safetyFactor;
-            score += weights.envelopmentProgress * getEnvelopmentProgress(blobs, cols, rows) * safetyFactor;
+            
+            // Reward for tsunami progress on this blob
+            const progress = getTsunamiProgress(blob, cols);
+            score += progress * 2;
         }
     }
     
-    if (isPerfectClear(board)) {
-        score += weights.perfectClear;
+    // Black hole progress
+    const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
+    if (blackHoleResult.canComplete) {
+        score += blackHoleResult.progress * 4;
+    } else {
+        score += blackHoleResult.progress * 1.5;
     }
     
-    if (typeof score !== 'number' || isNaN(score)) {
-        return 0;
+    // If we have a path to Tsunami, give extra bonus for placements that help it
+    if (hasTsunamiPath) {
+        score += bestTsunamiScore * 2;
     }
     
+    // Reward larger blobs (this is how we score points!)
+    for (const blob of blobs) {
+        if (blob.size >= 4) {
+            // Quadratic bonus for blob size
+            score += blob.size * blob.size * 0.1;
+        }
+    }
+    
+    // Color adjacency - reward placing next to same color
+    score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.6;
+    
+    // Bonus for placing colors that have more in queue (can keep building)
+    const queueMatches = getQueueColorCount(color);
+    score += queueMatches * 0.4;
+    
+    // Moderate hole penalty (still bad, but less critical than survival)
+    score -= countHoles(board) * 0.6;
+    
+    // Light bumpiness penalty
+    score -= getBumpiness(board) * 0.1;
+    
+    // Safety check - penalize getting too close to danger zone
+    const headroom = thresholds.upper - stackHeight;
+    if (headroom < 4) {
+        score -= (4 - headroom) * 3; // Increasing penalty as we approach danger
+    }
+    
+    if (typeof score !== 'number' || isNaN(score)) return 0;
     return score;
+}
+
+// ==================== SURVIVAL MODE ====================
+
+function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
+    const stackHeight = getStackHeight(board, rows);
+    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
+    
+    let score = 0;
+    
+    // STRONGLY reward line clears
+    score += linesCleared * linesCleared * 4;
+    
+    // Reward lower stack height
+    score -= stackHeight * 0.8;
+    
+    // Strong hole penalty
+    score -= countHoles(board) * 2.5;
+    
+    // Bumpiness penalty
+    score -= getBumpiness(board) * 0.4;
+    
+    // Aggregate height penalty
+    score -= getAggregateHeight(board) * 0.15;
+    
+    // Still give small bonus for color adjacency (helps future blob building)
+    score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.15;
+    
+    // Urgency bonus - more reward for clearing when stack is high
+    const urgency = Math.max(0, stackHeight - thresholds.lower) / (thresholds.upper - thresholds.lower);
+    score += linesCleared * urgency * 3;
+    
+    if (typeof score !== 'number' || isNaN(score)) return 0;
+    return score;
+}
+
+// ==================== MAIN EVALUATION ====================
+
+function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
+    if (currentMode === 'colorBuilding') {
+        return evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesCleared);
+    } else {
+        return evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared);
+    }
 }
 
 function generatePlacements(board, piece, cols, rows) {
@@ -478,6 +552,9 @@ function generatePlacements(board, piece, cols, rows) {
 }
 
 function findBestPlacement(board, piece, cols, rows, nextPiece) {
+    // Update mode based on current stack height BEFORE evaluating
+    updateMode(board, rows);
+    
     const placements = generatePlacements(board, piece, cols, rows);
     
     if (placements.length === 0) {
@@ -509,7 +586,14 @@ function findBestPlacement(board, piece, cols, rows, nextPiece) {
 
 // Handle messages from main thread
 self.onmessage = function(e) {
-    const { board, piece, queue, cols, rows, skillLevel } = e.data;
+    const { command, board, piece, queue, cols, rows, skillLevel } = e.data;
+    
+    // Handle reset command
+    if (command === 'reset') {
+        currentMode = 'colorBuilding';
+        self.postMessage({ reset: true, mode: currentMode });
+        return;
+    }
     
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
@@ -519,6 +603,6 @@ self.onmessage = function(e) {
     // Use setTimeout to yield to other tasks and reduce priority
     setTimeout(() => {
         const bestPlacement = findBestPlacement(board, piece, cols, rows, nextPiece);
-        self.postMessage({ bestPlacement });
+        self.postMessage({ bestPlacement, mode: currentMode });
     }, 0);
 };

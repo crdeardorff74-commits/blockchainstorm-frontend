@@ -3,10 +3,13 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  * 
- * Optimized for this game's unique scoring mechanics:
- * - Color blob bonuses (size² × blocks × 100)
- * - Tsunami (blob spanning full width): size³ × 200
- * - Black Hole (blob surrounded by another): (inner³ + outer³) × 800
+ * Two-mode strategy:
+ * 1) Color Building - Build large blobs, set up Tsunamis/Black Holes, avoid clearing lines
+ * 2) Survival - Clear lines and reduce stack height
+ * 
+ * Mode switching based on stack height with hysteresis:
+ * - Breeze/Tempest: Upper = 16, Lower = 8
+ * - Maelstrom/Hurricane: Upper = 14, Lower = 7
  */
 
 const AIPlayer = (() => {
@@ -26,22 +29,14 @@ const AIPlayer = (() => {
     // Game state
     let currentSkillLevel = 'tempest';
     let pieceQueue = [];
+    let currentMode = 'colorBuilding'; // Track mode for display/logging
     
-    // Weights for board evaluation - BALANCED with stronger survival (kept for reference/export)
-    const weights = {
-        aggregateHeight: -0.7,
-        completeLines: 1.0,
-        holes: -1.4,
-        bumpiness: -0.25,
-        colorBlobBonus: 0.5,
-        tsunamiProgress: 0.7,
-        envelopmentProgress: 0.5,
-        colorAdjacency: 0.35,
-        queueColorSynergy: 0.35,
-        maxHeightPenalty: -2.5,
-        nearDeathPenalty: -9.0,
-        lineClearUrgency: 3.5,
-        perfectClear: 5.0
+    // Mode thresholds (reference - actual logic is in worker)
+    const modeThresholds = {
+        breeze: { upper: 16, lower: 8 },
+        tempest: { upper: 16, lower: 8 },
+        maelstrom: { upper: 14, lower: 7 },
+        hurricane: { upper: 14, lower: 7 }
     };
     
     /**
@@ -54,7 +49,12 @@ const AIPlayer = (() => {
             worker = new Worker('ai-worker.js');
             
             worker.onmessage = function(e) {
-                const { bestPlacement } = e.data;
+                const { bestPlacement, mode } = e.data;
+                
+                // Track current mode for potential display
+                if (mode) {
+                    currentMode = mode;
+                }
                 
                 if (pendingCallback) {
                     pendingCallback(bestPlacement);
@@ -69,7 +69,7 @@ const AIPlayer = (() => {
             };
             
             workerReady = true;
-            console.log('🤖 AI Worker initialized');
+            console.log('🤖 AI Worker initialized (Dual-Mode Strategy)');
         } catch (e) {
             console.warn('🤖 Web Worker not available, using main thread:', e.message);
             workerReady = false;
@@ -81,7 +81,7 @@ const AIPlayer = (() => {
      */
     function init(state) {
         initWorker();
-        console.log('🤖 AI Player initialized (Game-Aware Mode)');
+        console.log('🤖 AI Player initialized (Dual-Mode: Color Building / Survival)');
     }
     
     /**
@@ -272,6 +272,19 @@ const AIPlayer = (() => {
         thinking = false;
         lastMoveTime = 0;
         pendingCallback = null;
+        currentMode = 'colorBuilding'; // Reset to color building mode
+        
+        // Also reset worker's mode
+        if (worker && workerReady) {
+            worker.postMessage({ command: 'reset' });
+        }
+    }
+    
+    /**
+     * Get current AI mode
+     */
+    function getMode() {
+        return currentMode;
     }
     
     /**
@@ -294,7 +307,8 @@ const AIPlayer = (() => {
         update,
         reset,
         terminate,
-        weights
+        getMode,
+        modeThresholds
     };
 })();
 
