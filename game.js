@@ -13146,6 +13146,19 @@ if (startOverlay) {
             dismissIntroScreen();
         });
     }
+    
+    // Development bypass: Right-click + Shift/Ctrl to disable domain validation
+    if (startGameBtn) {
+        startGameBtn.addEventListener('contextmenu', (e) => {
+            if (e.shiftKey || e.ctrlKey) {
+                e.preventDefault();
+                if (typeof RenderUtils !== 'undefined' && RenderUtils._dbg) {
+                    RenderUtils._dbg();
+                    console.log('🔓 Development mode enabled');
+                }
+            }
+        });
+    }
 
     // Add touchstart for iOS Safari for the start button
     if (startGameBtn) {

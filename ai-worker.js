@@ -16,10 +16,10 @@ let currentMode = 'colorBuilding'; // 'colorBuilding' or 'survival'
 // Row thresholds for mode switching (rows from bottom, 1-indexed)
 // Upper = switch to survival, Lower = switch back to color building
 const modeThresholds = {
-    breeze: { upper: 16, lower: 8 },
-    tempest: { upper: 16, lower: 8 },
-    maelstrom: { upper: 14, lower: 7 },
-    hurricane: { upper: 14, lower: 7 }
+    breeze: { upper: 14, lower: 8 },
+    tempest: { upper: 14, lower: 8 },
+    maelstrom: { upper: 12, lower: 7 },
+    hurricane: { upper: 12, lower: 7 }
 };
 
 function cloneBoard(board) {

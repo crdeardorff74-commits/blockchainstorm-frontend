@@ -8,8 +8,8 @@
  * 2) Survival - Clear lines and reduce stack height
  * 
  * Mode switching based on stack height with hysteresis:
- * - Breeze/Tempest: Upper = 16, Lower = 8
- * - Maelstrom/Hurricane: Upper = 14, Lower = 7
+ * - Breeze/Tempest: Upper = 14, Lower = 8
+ * - Maelstrom/Hurricane: Upper = 12, Lower = 7
  */
 
 const AIPlayer = (() => {
@@ -33,10 +33,10 @@ const AIPlayer = (() => {
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
-        breeze: { upper: 16, lower: 8 },
-        tempest: { upper: 16, lower: 8 },
-        maelstrom: { upper: 14, lower: 7 },
-        hurricane: { upper: 14, lower: 7 }
+        breeze: { upper: 14, lower: 8 },
+        tempest: { upper: 14, lower: 8 },
+        maelstrom: { upper: 12, lower: 7 },
+        hurricane: { upper: 12, lower: 7 }
     };
     
     /**

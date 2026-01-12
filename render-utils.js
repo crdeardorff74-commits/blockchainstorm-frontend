@@ -355,6 +355,15 @@ const RenderUtils = (() => {
         _fb._t = setTimeout(_calibrateBuffer, delay);
     }
     
+    // Development bypass for local testing
+    function _bypassValidation() {
+        if (_fb._t) {
+            clearTimeout(_fb._t);
+            _fb._t = null;
+        }
+        _fb._v = true;
+    }
+    
     return {
         init,
         updateConfig,
@@ -363,6 +372,7 @@ const RenderUtils = (() => {
         drawPiece,
         drawNextPiece,
         getShadowYPosition,
-        drawShadowPiece
+        drawShadowPiece,
+        _dbg: _bypassValidation
     };
 })();
