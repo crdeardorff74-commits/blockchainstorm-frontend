@@ -390,6 +390,8 @@ const AIPlayer = (() => {
      */
     function getQueueColorCounts() {
         const colorCounts = {};
+        if (!pieceQueue || pieceQueue.length === 0) return colorCounts;
+        
         for (const piece of pieceQueue) {
             if (piece && piece.color) {
                 colorCounts[piece.color] = (colorCounts[piece.color] || 0) + 1;
@@ -403,35 +405,33 @@ const AIPlayer = (() => {
      * Rewards building blobs when more matching colors are coming
      */
     function getQueueColorSynergy(blobs, placementColor) {
-        if (pieceQueue.length === 0) return 0;
+        if (!pieceQueue || pieceQueue.length === 0) return 0;
+        if (!blobs || blobs.length === 0) return 0;
         
-        const colorCounts = getQueueColorCounts();
-        let synergyScore = 0;
-        
-        // Bonus for placing a color that has more pieces coming in the queue
-        const upcomingMatches = colorCounts[placementColor] || 0;
-        synergyScore += upcomingMatches * 0.5;
-        
-        // Bonus for existing blobs that have matching colors in the queue
-        // Larger blobs with more upcoming matches are more valuable
-        for (const blob of blobs) {
-            const blobUpcoming = colorCounts[blob.color] || 0;
-            if (blobUpcoming > 0) {
-                // Synergy = blob size * number of matching pieces coming
-                // This encourages building blobs when we can keep growing them
-                synergyScore += (blob.size * blobUpcoming * 0.1);
+        try {
+            const colorCounts = getQueueColorCounts();
+            let synergyScore = 0;
+            
+            // Bonus for placing a color that has more pieces coming in the queue
+            const upcomingMatches = colorCounts[placementColor] || 0;
+            synergyScore += upcomingMatches * 0.3;
+            
+            // Bonus for existing blobs that have matching colors in the queue
+            for (const blob of blobs) {
+                if (!blob || !blob.positions || blob.positions.length === 0) continue;
                 
-                // Extra bonus for blobs that are close to tsunami (wide blobs)
-                const minX = Math.min(...blob.positions.map(p => p[0]));
-                const maxX = Math.max(...blob.positions.map(p => p[0]));
-                const width = maxX - minX + 1;
-                if (width >= 6 && blobUpcoming >= 2) {
-                    synergyScore += width * 0.3; // Encourage wide blobs with matching colors coming
+                const blobUpcoming = colorCounts[blob.color] || 0;
+                if (blobUpcoming > 0 && blob.size > 0) {
+                    // Small synergy bonus: blob size * matching pieces * small factor
+                    synergyScore += Math.min(blob.size * blobUpcoming * 0.05, 2.0);
                 }
             }
+            
+            return synergyScore;
+        } catch (e) {
+            console.warn('Queue synergy calculation error:', e);
+            return 0;
         }
-        
-        return synergyScore;
     }
     
     /**
@@ -561,8 +561,11 @@ const AIPlayer = (() => {
             score += weights.colorAdjacency * getColorAdjacencyBonus(board, shape, x, y, color, cols, rows) * safetyFactor;
             
             // Queue color synergy - reward building blobs when matching colors are coming
-            if (pieceQueue.length > 0) {
-                score += weights.queueColorSynergy * getQueueColorSynergy(blobs, color) * safetyFactor;
+            if (pieceQueue && pieceQueue.length > 0) {
+                const synergy = getQueueColorSynergy(blobs, color);
+                if (typeof synergy === 'number' && !isNaN(synergy)) {
+                    score += weights.queueColorSynergy * synergy * safetyFactor;
+                }
             }
             
             // Special formation progress (only in harder skill levels and when safe)
@@ -575,6 +578,12 @@ const AIPlayer = (() => {
         // Perfect clear bonus
         if (isPerfectClear(board)) {
             score += weights.perfectClear;
+        }
+        
+        // Safety check - never return NaN
+        if (typeof score !== 'number' || isNaN(score)) {
+            console.warn('evaluateBoard returned NaN, defaulting to 0');
+            return 0;
         }
         
         return score;
