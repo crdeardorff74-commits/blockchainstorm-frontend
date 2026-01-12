@@ -2,7 +2,7 @@
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -875,7 +875,7 @@ const GamepadController = {
         
         this.stopVibration();
         
-        const tsunamiDuration = 2500; // Match game's tsunami duration
+        const tsunamiDuration = 2083; // Match game's tsunami duration
         const startTime = Date.now();
         
         // Wave pattern: build up (0-40%), crash/peak (40-60%), recede (60-100%)
@@ -3183,7 +3183,12 @@ function triggerTsunamiAnimation(blob) {
     tsunamiAnimating = true;
     tsunamiStartTime = Date.now();
     tsunamiWobbleIntensity = 6; // pixels of vertical wobble
-    tsunamiDuration = 2500; // Longer duration for surge + collapse
+    tsunamiDuration = 2083; // Longer duration for surge + collapse (120% speed)
+    
+    // Reset AI to prevent it from using stale board state calculations
+    if (typeof AIPlayer !== 'undefined') {
+        AIPlayer.reset();
+    }
     
     // Visual effects
     canvas.classList.add('tsunami-active');
@@ -3208,14 +3213,14 @@ function updateTsunamiAnimation() {
     const surgePhaseEnd = 0.4;
     
     if (progress <= surgePhaseEnd) {
-        // SURGE PHASE: expand upward to 2x height
+        // SURGE PHASE: expand upward to 1.667x height (2/3 of original expansion)
         const surgeProgress = progress / surgePhaseEnd; // 0 to 1
         const easeProgress = 1 - Math.pow(1 - surgeProgress, 2); // Ease out quad
-        tsunamiBlob.currentScale = 1 + easeProgress; // 1.0 to 2.0
+        tsunamiBlob.currentScale = 1 + easeProgress * 0.667; // 1.0 to 1.667
         
         // Calculate push distance for blocks above
         // Blocks need to be pushed by exactly the expansion amount
-        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE;
+        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE * 0.667;
         tsunamiBlob.pushDistance = easeProgress * maxPush;
         
         if (Math.random() < 0.01) { // Log occasionally to avoid spam
@@ -3225,10 +3230,10 @@ function updateTsunamiAnimation() {
         // COLLAPSE PHASE: shrink downward from top to bottom (scale down from bottom anchor)
         const collapseProgress = (progress - surgePhaseEnd) / (1 - surgePhaseEnd); // 0 to 1
         const easeProgress = Math.pow(collapseProgress, 2); // Ease in quad
-        tsunamiBlob.currentScale = 2 - easeProgress * 2; // 2.0 to 0.0
+        tsunamiBlob.currentScale = 1.667 - easeProgress * 1.667; // 1.667 to 0.0
         
         // Blocks fall back smoothly as tsunami collapses
-        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE;
+        const maxPush = tsunamiBlob.originalHeight * BLOCK_SIZE * 0.667;
         tsunamiBlob.pushDistance = maxPush * (1 - easeProgress);
     }
     
@@ -10939,6 +10944,7 @@ function toggleUIElements(show) {
 
 async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
+    setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
@@ -11178,7 +11184,7 @@ function update(time = 0) {
     update.lastTime = time;
     
     // AI Mode: Let AI control the game
-    if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && typeof AIPlayer !== 'undefined') {
+    if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
         AIPlayer.setSkillLevel(skillLevel);
         const nextPiece = nextPieceQueue.length > 0 ? nextPieceQueue[0] : null;
         AIPlayer.update(board, currentPiece, nextPiece, COLS, ROWS, {
@@ -11753,6 +11759,7 @@ function startGame(mode) {
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
+    setGameInProgress(true); // Notify audio system game is in progress
     gameOverPending = false; // Reset game over pending flag
     document.body.classList.add('game-running');
     document.body.classList.add('game-started');

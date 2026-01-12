@@ -17,6 +17,8 @@ let menuMusicPlaying = false;
 let menuOscillators = [];
 let menuMusicElement = null; // MP3 element for menu music
 let hasPlayedGame = false; // Track if a game has been completed
+let gameInProgress = false; // Track if a game is currently running
+let fullSongPlayedOnMenu = false; // Track if a full song has completed on main menu
 
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
@@ -653,6 +655,14 @@ function setHasPlayedGame(value) {
     hasPlayedGame = value;
 }
 
+function setGameInProgress(value) {
+    gameInProgress = value;
+    // Reset the menu song tracking when a game starts
+    if (value) {
+        fullSongPlayedOnMenu = false;
+    }
+}
+
 // Helper function to create wobble bass synth
 function createWobbleBass() {
     // Create wobble bass synth
@@ -860,6 +870,21 @@ function onSongEnded(event) {
     if (!musicPlaying || currentMusicSelection !== 'shuffle') return;
     
     console.log('🎵 Song ended in shuffle mode, playing next track');
+    
+    // Check if we should insert an F Word song (main menu only, not during game or credits)
+    if (!gameInProgress && !hasPlayedGame) {
+        if (fullSongPlayedOnMenu) {
+            // A full song has already played on the menu - 1/4 chance of F Word
+            if (Math.random() < 0.25) {
+                console.log('🎲 F Word song chance triggered on main menu!');
+                insertFWordSong();
+            }
+        } else {
+            // Mark that a full song has now completed on the menu
+            fullSongPlayedOnMenu = true;
+            console.log('🎵 First full song completed on main menu');
+        }
+    }
     
     // Add current song to history before switching
     if (currentPlayingTrack) {
@@ -2255,6 +2280,7 @@ function playSmallExplosion(soundToggle) {
         playSmallExplosion,
         getSongList,
         setHasPlayedGame,
+        setGameInProgress,
         gameplayMusicElements,
         skipToNextSong,
         skipToPreviousSong,
