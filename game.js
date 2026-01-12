@@ -1878,6 +1878,16 @@ let minimalistMode = false;
 const aiModeToggle = document.getElementById('aiModeToggle');
 let aiModeEnabled = false;
 const aiSpeedSlider = document.getElementById('aiSpeedSlider');
+
+// Helper function to determine the correct leaderboard mode based on AI and challenge settings
+function getLeaderboardMode() {
+    const isChallenge = challengeMode !== 'normal';
+    if (aiModeEnabled) {
+        return isChallenge ? 'ai-challenge' : 'ai';
+    }
+    return isChallenge ? 'challenge' : 'normal';
+}
+
 let ROWS = 20;
 let COLS = 10;
 
@@ -11186,8 +11196,8 @@ function update(time = 0) {
     // AI Mode: Let AI control the game
     if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
         AIPlayer.setSkillLevel(skillLevel);
-        const nextPiece = nextPieceQueue.length > 0 ? nextPieceQueue[0] : null;
-        AIPlayer.update(board, currentPiece, nextPiece, COLS, ROWS, {
+        // Pass the full queue so AI can plan ahead based on upcoming colors
+        AIPlayer.update(board, currentPiece, nextPieceQueue, COLS, ROWS, {
             moveLeft: () => movePiece(-1),
             moveRight: () => movePiece(1),
             rotate: () => rotatePiece(),
@@ -12059,8 +12069,7 @@ function updateSelectedMode() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
+        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
     }
 }
 
@@ -12232,6 +12241,13 @@ if (aiModeToggle) {
             aiSpeedOption.style.display = e.target.checked ? 'block' : 'none';
         }
         console.log('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
+        
+        // Refresh leaderboard to show AI or normal leaderboard
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+            const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
+            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        }
     });
 }
 
@@ -12496,8 +12512,7 @@ comboApplyBtn.addEventListener('click', () => {
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
+        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
     }
     
     console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
@@ -12510,8 +12525,7 @@ comboCancelBtn.addEventListener('click', () => {
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        const gameMode = challengeMode !== 'normal' ? 'challenge' : 'normal';
-        window.leaderboard.displayLeaderboard(selectedMode, null, gameMode, skillLevel);
+        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
     }
 });
 

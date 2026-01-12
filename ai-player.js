@@ -29,6 +29,7 @@ const AIPlayer = (() => {
         tsunamiProgress: 1.0,       // Reward for blobs approaching full width
         envelopmentProgress: 0.8,   // Reward for surrounding patterns (black hole setup)
         colorAdjacency: 0.3,        // Reward for placing next to same color
+        queueColorSynergy: 0.6,     // Reward for building blobs when matching colors are in queue
         
         // Survival factors
         maxHeightPenalty: -1.5,     // Penalty based on highest column
@@ -37,6 +38,9 @@ const AIPlayer = (() => {
         
         perfectClear: 5.0           // Huge bonus for clearing entire board
     };
+    
+    // Store the piece queue for lookahead evaluation
+    let pieceQueue = [];
     
     /**
      * Calculate danger level based on stack height (0 = safe, 1 = critical)
@@ -382,6 +386,55 @@ const AIPlayer = (() => {
     }
     
     /**
+     * Analyze the piece queue to count colors
+     */
+    function getQueueColorCounts() {
+        const colorCounts = {};
+        for (const piece of pieceQueue) {
+            if (piece && piece.color) {
+                colorCounts[piece.color] = (colorCounts[piece.color] || 0) + 1;
+            }
+        }
+        return colorCounts;
+    }
+    
+    /**
+     * Calculate synergy bonus based on queue colors and current blobs
+     * Rewards building blobs when more matching colors are coming
+     */
+    function getQueueColorSynergy(blobs, placementColor) {
+        if (pieceQueue.length === 0) return 0;
+        
+        const colorCounts = getQueueColorCounts();
+        let synergyScore = 0;
+        
+        // Bonus for placing a color that has more pieces coming in the queue
+        const upcomingMatches = colorCounts[placementColor] || 0;
+        synergyScore += upcomingMatches * 0.5;
+        
+        // Bonus for existing blobs that have matching colors in the queue
+        // Larger blobs with more upcoming matches are more valuable
+        for (const blob of blobs) {
+            const blobUpcoming = colorCounts[blob.color] || 0;
+            if (blobUpcoming > 0) {
+                // Synergy = blob size * number of matching pieces coming
+                // This encourages building blobs when we can keep growing them
+                synergyScore += (blob.size * blobUpcoming * 0.1);
+                
+                // Extra bonus for blobs that are close to tsunami (wide blobs)
+                const minX = Math.min(...blob.positions.map(p => p[0]));
+                const maxX = Math.max(...blob.positions.map(p => p[0]));
+                const width = maxX - minX + 1;
+                if (width >= 6 && blobUpcoming >= 2) {
+                    synergyScore += width * 0.3; // Encourage wide blobs with matching colors coming
+                }
+            }
+        }
+        
+        return synergyScore;
+    }
+    
+    /**
      * Count complete lines in a board
      */
     function countCompleteLines(board) {
@@ -507,6 +560,11 @@ const AIPlayer = (() => {
             // Color adjacency for current placement
             score += weights.colorAdjacency * getColorAdjacencyBonus(board, shape, x, y, color, cols, rows) * safetyFactor;
             
+            // Queue color synergy - reward building blobs when matching colors are coming
+            if (pieceQueue.length > 0) {
+                score += weights.queueColorSynergy * getQueueColorSynergy(blobs, color) * safetyFactor;
+            }
+            
             // Special formation progress (only in harder skill levels and when safe)
             if (currentSkillLevel !== 'breeze' && dangerLevel < 0.5) {
                 score += weights.tsunamiProgress * getTsunamiProgress(blobs, cols) * safetyFactor;
@@ -630,8 +688,9 @@ const AIPlayer = (() => {
     
     /**
      * Main AI update function - call each frame
+     * nextPieceOrQueue can be either a single piece (legacy) or an array of upcoming pieces
      */
-    function update(board, currentPiece, nextPiece, cols, rows, callbacks) {
+    function update(board, currentPiece, nextPieceOrQueue, cols, rows, callbacks) {
         if (!enabled || !currentPiece) return;
         
         const now = Date.now();
@@ -653,6 +712,16 @@ const AIPlayer = (() => {
             // Update skill level from global if available
             if (typeof window !== 'undefined' && window.skillLevel) {
                 currentSkillLevel = window.skillLevel;
+            }
+            
+            // Handle both legacy single piece and new queue array
+            let nextPiece = null;
+            if (Array.isArray(nextPieceOrQueue)) {
+                pieceQueue = nextPieceOrQueue;
+                nextPiece = nextPieceOrQueue.length > 0 ? nextPieceOrQueue[0] : null;
+            } else {
+                pieceQueue = nextPieceOrQueue ? [nextPieceOrQueue] : [];
+                nextPiece = nextPieceOrQueue;
             }
             
             const bestPlacement = findBestPlacement(board, currentPiece, cols, rows, nextPiece);
@@ -696,6 +765,7 @@ const AIPlayer = (() => {
      */
     function reset() {
         moveQueue = [];
+        pieceQueue = [];
         thinking = false;
         lastMoveTime = 0;
     }
