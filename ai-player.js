@@ -13,8 +13,8 @@ const AIPlayer = (() => {
     let thinking = false;
     let moveQueue = [];
     let lastMoveTime = 0;
-    let moveDelay = 50; // ms between moves (adjustable for speed)
-    let thinkDelay = 100; // ms to "think" before executing
+    let moveDelay = 155; // ms between moves (adjustable for speed, default ~mid speed)
+    let thinkDelay = 210; // ms to "think" before executing (default ~mid speed)
     
     // Weights for board evaluation (tuned for this game's mechanics)
     const weights = {
@@ -131,8 +131,8 @@ const AIPlayer = (() => {
      */
     function setSpeed(speed) {
         const normalizedSpeed = Math.max(1, Math.min(10, speed));
-        moveDelay = 150 - (normalizedSpeed * 14); // 136ms to 10ms
-        thinkDelay = 200 - (normalizedSpeed * 18); // 182ms to 20ms
+        moveDelay = 300 - (normalizedSpeed * 29); // 271ms to 10ms (slow is half previous speed)
+        thinkDelay = 400 - (normalizedSpeed * 38); // 362ms to 20ms
     }
     
     /**
