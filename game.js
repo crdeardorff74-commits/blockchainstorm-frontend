@@ -11197,12 +11197,16 @@ function update(time = 0) {
     if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
         AIPlayer.setSkillLevel(skillLevel);
         // Pass the full queue so AI can plan ahead based on upcoming colors
+        // Also pass earthquake state so AI can hold off during earthquakes
         AIPlayer.update(board, currentPiece, nextPieceQueue, COLS, ROWS, {
             moveLeft: () => movePiece(-1),
             moveRight: () => movePiece(1),
             rotate: () => rotatePiece(),
             hardDrop: () => hardDrop(),
             softDrop: () => dropPiece()
+        }, {
+            earthquakeActive: earthquakeActive,
+            earthquakePhase: earthquakePhase
         });
     }
     
