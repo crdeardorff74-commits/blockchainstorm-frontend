@@ -484,13 +484,9 @@ function findBestPlacement(board, piece, cols, rows, nextPiece) {
         return null;
     }
     
-    // 2-ply lookahead if we have next piece, but optimized
+    // 2-ply lookahead if we have next piece
     if (nextPiece) {
-        // Sort by initial score and only do lookahead on top candidates
-        placements.sort((a, b) => b.score - a.score);
-        const topCandidates = placements.slice(0, Math.min(8, placements.length));
-        
-        for (const placement of topCandidates) {
+        for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
             const clearedBoard = removeCompleteLines(newBoard);
             
@@ -501,11 +497,6 @@ function findBestPlacement(board, piece, cols, rows, nextPiece) {
             } else {
                 placement.combinedScore = placement.score - 100;
             }
-        }
-        
-        // For non-top candidates, combined score is just their score
-        for (let i = 8; i < placements.length; i++) {
-            placements[i].combinedScore = placements[i].score;
         }
         
         return placements.reduce((a, b) => 

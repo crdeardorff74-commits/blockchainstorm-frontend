@@ -45,30 +45,6 @@ const AIPlayer = (() => {
     };
     
     /**
-     * Check if a piece would collide at a given position
-     */
-    function wouldCollide(board, shape, x, y, cols, rows) {
-        for (let py = 0; py < shape.length; py++) {
-            for (let px = 0; px < shape[py].length; px++) {
-                if (!shape[py][px]) continue;
-                
-                const boardX = x + px;
-                const boardY = y + py;
-                
-                // Check boundaries
-                if (boardX < 0 || boardX >= cols) return true;
-                if (boardY >= rows) return true;
-                
-                // Check collision with existing blocks
-                if (boardY >= 0 && board[boardY] && board[boardY][boardX]) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-    
-    /**
      * Initialize the Web Worker
      */
     function initWorker() {
@@ -213,10 +189,9 @@ const AIPlayer = (() => {
             if (now - lastMoveTime >= moveDelay) {
                 const move = moveQueue.shift();
                 
-                // During earthquake, skip drop commands - just position the piece
+                // During earthquake, delay drop commands - position the piece but wait to drop
                 if (duringEarthquake && move === 'drop') {
-                    // Don't drop during earthquake - wait for it to finish
-                    // Put the drop back so we remember to do it later
+                    // Put the drop back so we remember to do it when earthquake ends
                     moveQueue.unshift('drop');
                     return;
                 }
@@ -227,23 +202,9 @@ const AIPlayer = (() => {
             return;
         }
         
-        // During earthquake, don't calculate new placements - just wait
-        // But if we have no moves queued and piece is falling, we should still think
+        // During earthquake with no moves queued, just wait for it to finish
         if (duringEarthquake) {
-            // Check if piece is getting close to the stack (within 3 rows of landing)
-            let testY = currentPiece.y;
-            let distanceToLand = 0;
-            while (!wouldCollide(board, currentPiece.shape, currentPiece.x, testY + 1, cols, rows)) {
-                testY++;
-                distanceToLand++;
-                if (distanceToLand > 5) break; // Don't check too far
-            }
-            
-            // If piece is more than 3 rows from landing, just wait
-            if (distanceToLand > 3) {
-                return;
-            }
-            // Otherwise, continue to calculate best position (but we'll skip the drop)
+            return;
         }
         
         // Don't start thinking if already thinking
