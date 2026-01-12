@@ -27,20 +27,20 @@ const AIPlayer = (() => {
     let currentSkillLevel = 'tempest';
     let pieceQueue = [];
     
-    // Weights for board evaluation - BALANCED (kept for reference/export)
+    // Weights for board evaluation - BALANCED with stronger survival (kept for reference/export)
     const weights = {
-        aggregateHeight: -0.6,
-        completeLines: 0.8,
-        holes: -1.2,
-        bumpiness: -0.2,
-        colorBlobBonus: 0.6,
-        tsunamiProgress: 0.8,
-        envelopmentProgress: 0.6,
-        colorAdjacency: 0.4,
-        queueColorSynergy: 0.4,
-        maxHeightPenalty: -2.0,
-        nearDeathPenalty: -8.0,
-        lineClearUrgency: 3.0,
+        aggregateHeight: -0.7,
+        completeLines: 1.0,
+        holes: -1.4,
+        bumpiness: -0.25,
+        colorBlobBonus: 0.5,
+        tsunamiProgress: 0.7,
+        envelopmentProgress: 0.5,
+        colorAdjacency: 0.35,
+        queueColorSynergy: 0.35,
+        maxHeightPenalty: -2.5,
+        nearDeathPenalty: -9.0,
+        lineClearUrgency: 3.5,
         perfectClear: 5.0
     };
     

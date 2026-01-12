@@ -3,20 +3,20 @@
  * Runs placement calculations on a separate thread to avoid UI freezes
  */
 
-// Weights for board evaluation - BALANCED: survival + blob building
+// Weights for board evaluation - BALANCED with stronger survival
 const weights = {
-    aggregateHeight: -0.6,      // Moderate height penalty
-    completeLines: 0.8,         // Good reward for clearing lines
-    holes: -1.2,                // Strong hole penalty
-    bumpiness: -0.2,            // Moderate bumpiness penalty
-    colorBlobBonus: 0.6,        // Good blob bonus - this is how we score!
-    tsunamiProgress: 0.8,       // Reward for wide blobs
-    envelopmentProgress: 0.6,   // Reward for surrounding patterns
-    colorAdjacency: 0.4,        // Good reward for same color adjacency
-    queueColorSynergy: 0.4,     // Moderate synergy bonus
-    maxHeightPenalty: -2.0,     // Strong but not extreme height penalty
-    nearDeathPenalty: -8.0,     // Severe penalty when near top
-    lineClearUrgency: 3.0,      // Good bonus for clearing when in danger
+    aggregateHeight: -0.7,      // Moderate-strong height penalty
+    completeLines: 1.0,         // Strong reward for clearing lines
+    holes: -1.4,                // Strong hole penalty
+    bumpiness: -0.25,           // Moderate bumpiness penalty
+    colorBlobBonus: 0.5,        // Good blob bonus
+    tsunamiProgress: 0.7,       // Reward for wide blobs
+    envelopmentProgress: 0.5,   // Reward for surrounding patterns
+    colorAdjacency: 0.35,       // Good reward for same color adjacency
+    queueColorSynergy: 0.35,    // Moderate synergy bonus
+    maxHeightPenalty: -2.5,     // Strong height penalty
+    nearDeathPenalty: -9.0,     // Very severe penalty when near top
+    lineClearUrgency: 3.5,      // Strong bonus for clearing when in danger
     perfectClear: 5.0
 };
 
@@ -41,9 +41,9 @@ function getDangerLevel(board, rows) {
         }
     }
     
-    // Danger starts at 40% height, critical at 70%
-    const safeHeight = rows * 0.40;
-    const criticalHeight = rows * 0.70;
+    // Danger starts at 38% height, critical at 65%
+    const safeHeight = rows * 0.38;
+    const criticalHeight = rows * 0.65;
     
     if (maxHeight <= safeHeight) return 0;
     if (maxHeight >= criticalHeight) return 1;
@@ -392,7 +392,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     let score = 0;
     
     // Height penalty scales with danger
-    const heightPenalty = weights.maxHeightPenalty * maxHeight * (1 + dangerLevel * 2);
+    const heightPenalty = weights.maxHeightPenalty * maxHeight * (1 + dangerLevel * 2.5);
     score += heightPenalty;
     
     // Near-death penalty (top 5 rows)
@@ -401,7 +401,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     }
     
     // Holes are bad, worse when in danger
-    score += weights.holes * countHoles(board) * (1 + dangerLevel * 1.5);
+    score += weights.holes * countHoles(board) * (1 + dangerLevel * 1.8);
     score += weights.bumpiness * getBumpiness(board);
     score += weights.aggregateHeight * getAggregateHeight(board);
     
@@ -410,11 +410,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     const urgencyMultiplier = 1 + (dangerLevel * weights.lineClearUrgency);
     score += lineClearBonus * urgencyMultiplier;
     
-    // Safety factor - gradually reduce blob focus as danger increases
-    const safetyFactor = Math.max(0, 1 - (dangerLevel * 0.9));
+    // Safety factor - reduce blob focus as danger increases
+    const safetyFactor = Math.max(0, 1 - (dangerLevel * 1.0));
     
-    // Consider blob strategies when reasonably safe (safetyFactor > 0.2)
-    if (safetyFactor > 0.2) {
+    // Consider blob strategies when reasonably safe (safetyFactor > 0.25)
+    if (safetyFactor > 0.25) {
         score += weights.colorBlobBonus * getColorBlobScore(blobs) * safetyFactor;
         score += weights.colorAdjacency * getColorAdjacencyBonus(board, shape, x, y, color, cols, rows) * safetyFactor;
         
@@ -425,8 +425,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
             }
         }
         
-        // Pursue special formations when safe (dangerLevel < 0.5)
-        if (currentSkillLevel !== 'breeze' && dangerLevel < 0.5) {
+        // Pursue special formations when safe (dangerLevel < 0.4)
+        if (currentSkillLevel !== 'breeze' && dangerLevel < 0.4) {
             score += weights.tsunamiProgress * getTsunamiProgress(blobs, cols) * safetyFactor;
             score += weights.envelopmentProgress * getEnvelopmentProgress(blobs, cols, rows) * safetyFactor;
         }
