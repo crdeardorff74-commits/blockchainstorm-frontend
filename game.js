@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.2 loaded");
+console.log("🎮 Game v3.9 loaded");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;
@@ -7712,11 +7712,22 @@ function initHistogram() {
     scoreHistogramMaxScale = 1000;
     scoreHistogramPauseFrames = 0;
     
-    // Size the canvas to fill the entire panel
+    // Size the canvas to fill the entire panel (accounting for devicePixelRatio)
     const rulesPanel = histogramCanvas.parentElement;
-    // Subtract padding from width (2vh padding on each side = ~4vh total in vw)
-    histogramCanvas.width = rulesPanel.clientWidth - 40; // Account for padding
-    histogramCanvas.height = rulesPanel.clientHeight - 40; // Account for padding
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = rulesPanel.clientWidth - 40;
+    const displayHeight = rulesPanel.clientHeight - 40;
+    
+    // Set actual canvas size for high-DPI
+    histogramCanvas.width = displayWidth * dpr;
+    histogramCanvas.height = displayHeight * dpr;
+    
+    // Scale canvas CSS size
+    histogramCanvas.style.width = displayWidth + 'px';
+    histogramCanvas.style.height = displayHeight + 'px';
+    
+    // Scale context to account for DPI
+    histogramCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 function updateHistogramWithBlob(color, blobSize) {
@@ -7872,8 +7883,10 @@ function showCascadeBonus(multiplier) {
 function drawHistogram() {
     if (!gameRunning || !histogramCanvas || histogramCanvas.style.display === 'none') return;
     
-    const width = histogramCanvas.width;
-    const height = histogramCanvas.height;
+    // Use display dimensions (not canvas.width which is scaled for DPI)
+    const dpr = window.devicePixelRatio || 1;
+    const width = histogramCanvas.width / dpr;
+    const height = histogramCanvas.height / dpr;
     const padding = 40;
     
     // Reserve space for speed bonus bar at top
@@ -7996,38 +8009,52 @@ function drawHistogram() {
     if (!minimalistMode) {
         histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        histogramCtx.font = '12px Arial';
-        histogramCtx.textAlign = 'left'; // Changed to left-align
+        histogramCtx.font = '10px Arial';
+        histogramCtx.textAlign = 'left';
         histogramCtx.lineWidth = 1;
         
         const tickCount = 5;
         for (let i = 0; i <= tickCount; i++) {
-            const value = Math.round((scoreHistogramMaxScale / tickCount) * i);
+            const value = (scoreHistogramMaxScale / tickCount) * i;
             const y = height - padding - (graphHeight / tickCount) * i;
             
             // Skip drawing tick mark and label for "0"
-            if (value !== 0) {
-                // Tick mark (moved to the right, same 5px length)
+            if (value > 0) {
+                // Tick mark (to the right of the score bar)
+                const tickX = padding + scoreBarWidth + 2;
                 histogramCtx.beginPath();
-                histogramCtx.moveTo(padding + 1, y);
-                histogramCtx.lineTo(padding + 6, y);
+                histogramCtx.moveTo(tickX, y);
+                histogramCtx.lineTo(tickX + 5, y);
                 histogramCtx.stroke();
                 
-                // Label positioned to the right of tick mark (left-aligned now)
-                histogramCtx.fillText(value.toString(), padding + 8, y + 4);
+                // Format label as Bitcoin (like main score display)
+                const btcValue = value / 10000000;
+                let labelText;
+                if (btcValue >= 1) {
+                    labelText = '₿' + btcValue.toFixed(2);
+                } else if (btcValue >= 0.01) {
+                    labelText = '₿' + btcValue.toFixed(3);
+                } else {
+                    labelText = '₿' + btcValue.toFixed(4);
+                }
+                
+                // Position label to the right of tick mark
+                histogramCtx.fillText(labelText, tickX + 7, y + 3);
             }
         }
     }
     
     // Draw SCORE HISTOGRAM (Bitcoin bar on the left)
     if (scoreHistogramBar > 0) {
-        const scoreBarHeight = Math.max(8, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
-        const scoreX = padding;
-        const scoreY = height - padding - scoreBarHeight;
-        
         // Draw gold bar
         const goldColor = '#FFD700';
         const b = 4; // Smaller bevel size for narrower bar
+        
+        // Minimum height is 2*b so bevels just meet
+        const minScoreBarHeight = b * 2;
+        const scoreBarHeight = Math.max(minScoreBarHeight, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
+        const scoreX = padding;
+        const scoreY = height - padding - scoreBarHeight;
         
         // Main face
         histogramCtx.save();
@@ -8134,16 +8161,18 @@ function drawHistogram() {
     
     // Draw beveled bars
     colors.forEach((color, index) => {
-        const barHeight = Math.round(Math.max(8, (histogramBars[color] / histogramMaxScale) * graphHeight));
-        // Round positions to prevent blur
-        const x = Math.round(colorGraphStart + index * barWidth + barSpacing / 2);
-        const y = Math.round(height - padding - barHeight);
-        
         // Use exact same drawing logic as game pieces
         const blockSize = Math.round(actualBarWidth);
         // Use a larger bevel for histogram bars to match visual appearance of game pieces
         // Even though bars are narrower, we want bevels to be visible
         const b = Math.max(Math.floor(blockSize * 0.2), 6); // Minimum 6 pixels for visibility
+        
+        // Minimum bar height is 2*b so top and bottom bevels just meet (not overlap)
+        const minBarHeight = b * 2;
+        const barHeight = Math.round(Math.max(minBarHeight, (histogramBars[color] / histogramMaxScale) * graphHeight));
+        // Round positions to prevent blur
+        const x = Math.round(colorGraphStart + index * barWidth + barSpacing / 2);
+        const y = Math.round(height - padding - barHeight);
         
         // Create edge colors (same as game pieces)
         const topColor = adjustBrightness(color, 1.3);
