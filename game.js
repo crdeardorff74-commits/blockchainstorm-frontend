@@ -4985,8 +4985,8 @@ function getAllBlobsFromBoard(boardState, compoundMarkers = null) {
 
 function areInterlocked(blob1, blob2) {
     // Check if blob1 wraps around blob2 (or vice versa) in any shared column
-    // True interlocking means one blob has blocks both above and below the other
-    // in the same column, creating a physical dependency
+    // OR if one blob is directly stacked on the other
+    // True interlocking means physical dependency that requires moving together
     
     console.log(`      🔍 Checking interlocking: ${blob1.color} (${blob1.positions.length} blocks) vs ${blob2.color} (${blob2.positions.length} blocks)`);
     
@@ -5029,10 +5029,22 @@ function areInterlocked(blob1, blob2) {
                 console.log(`    🔗 Interlocked: ${blob2.color} wraps around ${blob1.color} in column ${col}`);
                 return true;
             }
+            
+            // Check if blob1 is stacked directly on blob2 (adjacent rows)
+            if (max1 + 1 === min2) {
+                console.log(`    🔗 Stacked: ${blob1.color} on top of ${blob2.color} in column ${col}`);
+                return true;
+            }
+            
+            // Check if blob2 is stacked directly on blob1 (adjacent rows)
+            if (max2 + 1 === min1) {
+                console.log(`    🔗 Stacked: ${blob2.color} on top of ${blob1.color} in column ${col}`);
+                return true;
+            }
         }
     }
     
-    console.log(`      ❌ Shared columns but no wrapping pattern - not interlocked`);
+    console.log(`      ❌ Shared columns but no wrapping or stacking - not interlocked`);
     return false;
 }
 
@@ -9394,6 +9406,10 @@ function checkForSpecialFormations() {
         if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
             AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn });
         }
+        // Record event for human analysis
+        if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length });
+        }
         
         // Score calculation - VOLCANO SCORING:
         // Inner lava blob: size³ × 500
@@ -9422,6 +9438,10 @@ function checkForSpecialFormations() {
             // Record event for AI analysis
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
+            }
+            // Record event for human analysis
+            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+                GameRecorder.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
             }
             
             // Score calculation - BLACK HOLE SCORING:
@@ -9462,6 +9482,10 @@ function checkForSpecialFormations() {
             // Record event for AI analysis
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
+            }
+            // Record event for human analysis
+            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+                GameRecorder.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
             }
             
             // Score calculation - TSUNAMI SCORING:
@@ -9606,116 +9630,126 @@ function identifyAllBlobs(phantom) {
 
 /**
  * STEP 3: Check for interlocking blobs
- * A blob interlocks with another if there exists a column where:
- * - This blob has blocks in that column
- * - Another blob has blocks BOTH above AND below this blob in that same column
+ * A blob interlocks with another if:
+ * 1. One blob wraps around another in a shared column (blocks both above AND below)
+ * 2. One blob is DIRECTLY STACKED on another (bottom of one touches top of another in same column)
+ * Uses union-find to properly handle transitive relationships (A on B on C = all connected)
  */
 function detectInterlocking(blobs) {
     console.log('\n📋 STEP 3: Detecting interlocking blobs...');
     
-    const compoundGroups = [];
-    const blobInCompound = new Set();
+    // Union-Find data structure for transitive closure
+    const parent = new Map();
+    blobs.forEach(blob => parent.set(blob.id, blob.id));
     
-    for (let i = 0; i < blobs.length; i++) {
-        if (blobInCompound.has(blobs[i].id)) continue;
-        
-        const blobA = blobs[i];
-        const interlocked = [blobA];
-        blobInCompound.add(blobA.id);
-        
-        // Get all columns this blob occupies
-        const columnsA = new Map();
-        blobA.positions.forEach(pos => {
-            if (!columnsA.has(pos.x)) columnsA.set(pos.x, []);
-            columnsA.get(pos.x).push(pos.y);
+    function find(id) {
+        if (parent.get(id) !== id) {
+            parent.set(id, find(parent.get(id))); // Path compression
+        }
+        return parent.get(id);
+    }
+    
+    function union(id1, id2) {
+        const root1 = find(id1);
+        const root2 = find(id2);
+        if (root1 !== root2) {
+            parent.set(root1, root2);
+            return true;
+        }
+        return false;
+    }
+    
+    // Pre-compute column data for each blob
+    const blobColumns = new Map();
+    blobs.forEach(blob => {
+        const columns = new Map();
+        blob.positions.forEach(pos => {
+            if (!columns.has(pos.x)) columns.set(pos.x, []);
+            columns.get(pos.x).push(pos.y);
         });
+        blobColumns.set(blob.id, columns);
+    });
+    
+    // Check all pairs of blobs for interlocking
+    for (let i = 0; i < blobs.length; i++) {
+        const blobA = blobs[i];
+        const columnsA = blobColumns.get(blobA.id);
         
-        // Check each other blob
-        for (let j = 0; j < blobs.length; j++) {
-            if (i === j || blobInCompound.has(blobs[j].id)) continue;
-            
+        for (let j = i + 1; j < blobs.length; j++) {
             const blobB = blobs[j];
+            const columnsB = blobColumns.get(blobB.id);
+            
             let isInterlocked = false;
+            let reason = '';
             
-            // Get all columns blobB occupies
-            const columnsB = new Map();
-            blobB.positions.forEach(pos => {
-                if (!columnsB.has(pos.x)) columnsB.set(pos.x, []);
-                columnsB.get(pos.x).push(pos.y);
-            });
-            
-            // Check BOTH directions for interlocking
-            // Direction 1: Does blobB wrap around blobA?
+            // Check for wrapping (either direction)
             for (let [colX, rowsA] of columnsA) {
+                const rowsB = columnsB.get(colX);
+                if (!rowsB || rowsB.length === 0) continue;
+                
                 const minYA = Math.min(...rowsA);
                 const maxYA = Math.max(...rowsA);
+                const minYB = Math.min(...rowsB);
+                const maxYB = Math.max(...rowsB);
                 
-                // Get blobB's positions in this same column
-                const rowsB = blobB.positions
-                    .filter(pos => pos.x === colX)
-                    .map(pos => pos.y);
-                
-                if (rowsB.length > 0) {
-                    const minYB = Math.min(...rowsB);
-                    const maxYB = Math.max(...rowsB);
-                    
-                    // Check if blobB wraps around blobA in this column
-                    const bWrapsA = minYB < minYA && maxYB > maxYA;
-                    
-                    if (bWrapsA) {
-                        isInterlocked = true;
-                        console.log(`  🔗 Interlocking detected: ${blobB.id} wraps around ${blobA.id} in column ${colX}`);
-                        console.log(`     ${blobA.id} rows: ${minYA}-${maxYA}, ${blobB.id} rows: ${minYB}-${maxYB}`);
-                        break;
-                    }
+                // Check if blobB wraps around blobA
+                if (minYB < minYA && maxYB > maxYA) {
+                    isInterlocked = true;
+                    reason = `${blobB.id} wraps around ${blobA.id} in column ${colX}`;
+                    break;
                 }
-            }
-            
-            // Direction 2: Does blobA wrap around blobB?
-            if (!isInterlocked) {
-                for (let [colX, rowsB] of columnsB) {
-                    const minYB = Math.min(...rowsB);
-                    const maxYB = Math.max(...rowsB);
-                    
-                    // Get blobA's positions in this same column
-                    const rowsA = blobA.positions
-                        .filter(pos => pos.x === colX)
-                        .map(pos => pos.y);
-                    
-                    if (rowsA.length > 0) {
-                        const minYA = Math.min(...rowsA);
-                        const maxYA = Math.max(...rowsA);
-                        
-                        // Check if blobA wraps around blobB in this column
-                        const aWrapsB = minYA < minYB && maxYA > maxYB;
-                        
-                        if (aWrapsB) {
-                            isInterlocked = true;
-                            console.log(`  🔗 Interlocking detected: ${blobA.id} wraps around ${blobB.id} in column ${colX}`);
-                            console.log(`     ${blobA.id} rows: ${minYA}-${maxYA}, ${blobB.id} rows: ${minYB}-${maxYB}`);
-                            break;
-                        }
-                    }
+                
+                // Check if blobA wraps around blobB
+                if (minYA < minYB && maxYA > maxYB) {
+                    isInterlocked = true;
+                    reason = `${blobA.id} wraps around ${blobB.id} in column ${colX}`;
+                    break;
+                }
+                
+                // Check for stacking (A on top of B)
+                if (maxYA + 1 === minYB) {
+                    isInterlocked = true;
+                    reason = `${blobA.id} stacked on ${blobB.id} in column ${colX}`;
+                    break;
+                }
+                
+                // Check for stacking (B on top of A)
+                if (maxYB + 1 === minYA) {
+                    isInterlocked = true;
+                    reason = `${blobB.id} stacked on ${blobA.id} in column ${colX}`;
+                    break;
                 }
             }
             
             if (isInterlocked) {
-                interlocked.push(blobB);
-                blobInCompound.add(blobB.id);
+                union(blobA.id, blobB.id);
+                console.log(`  🔗 Interlocking detected: ${reason}`);
             }
         }
-        
-        if (interlocked.length > 1) {
+    }
+    
+    // Build compound groups from union-find
+    const groups = new Map();
+    blobs.forEach(blob => {
+        const root = find(blob.id);
+        if (!groups.has(root)) groups.set(root, []);
+        groups.get(root).push(blob);
+    });
+    
+    // Filter to only groups with multiple blobs and mark them
+    const compoundGroups = [];
+    groups.forEach((groupBlobs, root) => {
+        if (groupBlobs.length > 1) {
             // Mark all blobs in this group as compound
-            interlocked.forEach(blob => {
+            groupBlobs.forEach(blob => {
                 blob.isCompound = true;
-                blob.compoundWith = interlocked.filter(b => b.id !== blob.id).map(b => b.id);
+                blob.compoundWith = groupBlobs.filter(b => b.id !== blob.id).map(b => b.id);
             });
             
-            compoundGroups.push(interlocked);
-            console.log(`  ✓ Compound group created: ${interlocked.map(b => b.id).join(' + ')}`);
+            compoundGroups.push(groupBlobs);
+            console.log(`  ✓ Compound group created: ${groupBlobs.map(b => b.id).join(' + ')}`);
         }
-    }
+    });
     
     console.log(`  ✓ Found ${compoundGroups.length} compound blob groups`);
     return compoundGroups;
@@ -10396,6 +10430,10 @@ function clearLines() {
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('strike', { count: strikeCount, linesCleared: completedRows.length });
             }
+            // Record event for human analysis
+            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+                GameRecorder.recordEvent('strike', { count: strikeCount, linesCleared: completedRows.length });
+            }
         } else if (willHaveBlackHole) {
             // Black hole takes priority - purple/dark effect
             canvas.classList.add('blackhole-active');
@@ -10570,6 +10608,15 @@ function clearLines() {
         }
         
         lines += completedRows.length;
+        
+        // Record line clear event for human analysis
+        if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            GameRecorder.recordEvent('linesClear', { 
+                linesCleared: completedRows.length, 
+                totalLines: lines,
+                level: level
+            });
+        }
         
         // Check for 42 lines easter egg
         if (lines === 42 && !StarfieldSystem.isUFOActive()) {
@@ -10941,6 +10988,16 @@ function dropPiece() {
         }
         
         playSoundEffect('drop', soundToggle);
+        
+        // Record human move before merging (captures final position)
+        if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            const moveData = {
+                hardDrop: hardDropping,
+                thinkTime: pieceSpawnTime ? Date.now() - pieceSpawnTime : 0
+            };
+            GameRecorder.recordMove(currentPiece, board, moveData);
+        }
+        
         mergePiece();
         
         // If Yes, And... mode spawned a limb, delay the line check so player can see the limb appear
@@ -11168,6 +11225,34 @@ async function gameOver() {
             console.log(`🎬 AI Recording complete: ${recording.decisions.length} decisions recorded`);
             // Auto-download the recording
             AIPlayer.downloadRecording(recording);
+        }
+    }
+    
+    // Stop human recording and submit to server
+    if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+        const finalStats = {
+            score: score,
+            lines: lines,
+            level: level,
+            strikes: strikeCount,
+            tsunamis: tsunamiCount,
+            blackholes: blackHoleCount,
+            volcanoes: volcanoCount,
+            board: board,
+            endCause: 'game_over'
+        };
+        const recording = GameRecorder.stopRecording(finalStats);
+        if (recording && recording.moves && recording.moves.length > 0) {
+            console.log(`📹 Human Recording complete: ${recording.moves.length} moves recorded`);
+            // Get username from auth if logged in
+            const username = (typeof authCurrentUser !== 'undefined' && authCurrentUser) 
+                ? authCurrentUser.username 
+                : 'Anonymous';
+            // Submit to server (async, don't wait)
+            GameRecorder.submitRecording(recording, {
+                username: username,
+                game: 'blockchainstorm'
+            });
         }
     }
     
@@ -11676,6 +11761,19 @@ function startGame(mode) {
         if (aiModeEnabled && AIPlayer.startRecording) {
             AIPlayer.startRecording();
         }
+    }
+    
+    // Start human game recording (when not in AI mode)
+    if (!aiModeEnabled && typeof GameRecorder !== 'undefined') {
+        GameRecorder.startRecording({
+            gameVersion: '3.9',
+            difficulty: mode,
+            skillLevel: skillLevel,
+            mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
+            challenges: challengeMode === 'combo' ? Array.from(activeChallenges) : 
+                        challengeMode !== 'normal' ? [challengeMode] : [],
+            speedBonus: 1.0
+        });
     }
     
     // Hide leaderboard if it was shown
