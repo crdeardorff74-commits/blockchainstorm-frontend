@@ -3,6 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
+console.log("🎮 AI Player v3.2 loaded");
 
 const AIPlayer = (() => {
     // Configuration

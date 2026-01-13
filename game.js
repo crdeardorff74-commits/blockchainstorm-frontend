@@ -1,5 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
+console.log("🎮 Game v3.2 loaded");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;

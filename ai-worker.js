@@ -1,4 +1,8 @@
 // AI Worker v3.2 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.2 loaded");
+
+const AI_VERSION = "3.2";
+
 /**
  * Radically simplified AI for TaNTЯiS
  * 
@@ -23,6 +27,7 @@ let gameRecording = {
 
 function startRecording() {
     gameRecording = {
+        version: AI_VERSION,
         startTime: Date.now(),
         skillLevel: currentSkillLevel,
         decisions: [],
