@@ -1940,14 +1940,10 @@ function createAIModeIndicator() {
 function updateAIModeIndicator() {
     if (!aiModeIndicator) createAIModeIndicator();
     
-    // Show when AI mode is enabled AND game is running (developer mode shows extra detail)
-    if (aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined' && AIPlayer.getMode) {
-        const mode = AIPlayer.getMode();
+    // Show when AI mode is enabled AND game is running
+    if (aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined') {
         const stackHeight = AIPlayer.getStackHeight ? AIPlayer.getStackHeight() : '?';
-        const modeText = mode === 'colorBuilding' ? '🎨 COLOR BUILDING' : '⚠️ SURVIVAL';
-        const modeColor = mode === 'colorBuilding' ? '#00ff00' : '#ff6600';
-        const thresholds = AIPlayer.modeThresholds[skillLevel] || AIPlayer.modeThresholds.tempest;
-        aiModeIndicator.innerHTML = `🤖 AI: <span style="color: ${modeColor}">${modeText}</span><br><span style="font-size: 11px; color: #888;">Height: ${stackHeight} (switch@${thresholds.upper})</span>`;
+        aiModeIndicator.innerHTML = `🤖 AI Playing<br><span style="font-size: 11px; color: #888;">Stack: ${stackHeight}</span>`;
         aiModeIndicator.style.display = 'block';
     } else {
         aiModeIndicator.style.display = 'none';

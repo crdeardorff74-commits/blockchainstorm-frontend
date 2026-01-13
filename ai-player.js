@@ -2,14 +2,6 @@
  * AI Player Module for TaNTЯiS / BLOCKCHaiNSTORM
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
- * 
- * Two-mode strategy:
- * 1) Color Building - Build large blobs, set up Tsunamis/Black Holes, avoid clearing lines
- * 2) Survival - Clear lines and reduce stack height
- * 
- * Mode switching based on stack height with hysteresis:
- * - Breeze/Tempest: Upper = 14, Lower = 8
- * - Maelstrom/Hurricane: Upper = 12, Lower = 7
  */
 
 const AIPlayer = (() => {
@@ -161,16 +153,9 @@ const AIPlayer = (() => {
                     console.log('🤖 AI Worker confirmed ready');
                 }
                 
-                const { bestPlacement, mode, reset, stackHeight } = e.data;
+                const { bestPlacement, reset, stackHeight } = e.data;
                 
-                console.log(`🤖 AI received from worker: mode=${mode}, stackHeight=${stackHeight}`);
-                
-                // Track current mode for potential display
-                if (mode) {
-                    currentMode = mode;
-                }
-                
-                // Track stack height for debugging
+                // Track stack height for display
                 if (typeof stackHeight === 'number') {
                     currentStackHeight = stackHeight;
                 }
@@ -188,7 +173,7 @@ const AIPlayer = (() => {
                 clearTimeout(initTimeout);
             };
             
-            console.log('🤖 AI Worker initializing (Dual-Mode Strategy)...');
+            console.log('🤖 AI Worker initializing...');
         } catch (e) {
             console.warn('🤖 Web Worker not available, using inline fallback:', e.message);
             workerReady = false;
@@ -200,7 +185,7 @@ const AIPlayer = (() => {
      */
     function init(state) {
         initWorker();
-        console.log('🤖 AI Player initialized (Dual-Mode: Color Building / Survival)');
+        console.log('🤖 AI Player initialized');
     }
     
     /**
