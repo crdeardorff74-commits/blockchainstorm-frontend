@@ -4984,9 +4984,8 @@ function getAllBlobsFromBoard(boardState, compoundMarkers = null) {
 }
 
 function areInterlocked(blob1, blob2) {
-    // Check if blob1 wraps around blob2 (or vice versa) in any shared column
-    // True interlocking means one blob has blocks both above and below the other
-    // in the same column, creating a physical dependency
+    // Check if blob1 and blob2 share any column where their Y ranges overlap
+    // This indicates physical dependency that requires moving together
     
     console.log(`      🔍 Checking interlocking: ${blob1.color} (${blob1.positions.length} blocks) vs ${blob2.color} (${blob2.positions.length} blocks)`);
     
@@ -5017,22 +5016,16 @@ function areInterlocked(blob1, blob2) {
             
             console.log(`      📊 Column ${col}: blob1 Y-range [${min1}-${max1}], blob2 Y-range [${min2}-${max2}]`);
             
-            // Check if blob1 wraps around blob2 in this column
-            // (blob1 has blocks both above and below blob2)
-            if (min1 < min2 && max1 > max2) {
-                console.log(`    🔗 Interlocked: ${blob1.color} wraps around ${blob2.color} in column ${col}`);
-                return true;
-            }
-            
-            // Check if blob2 wraps around blob1 in this column
-            if (min2 < min1 && max2 > max1) {
-                console.log(`    🔗 Interlocked: ${blob2.color} wraps around ${blob1.color} in column ${col}`);
+            // Check if Y ranges overlap (share at least one row)
+            const overlap = Math.min(max1, max2) - Math.max(min1, min2);
+            if (overlap >= 0) {
+                console.log(`    🔗 Interlocked: Y ranges overlap by ${overlap + 1} rows in column ${col}`);
                 return true;
             }
         }
     }
     
-    console.log(`      ❌ Shared columns but no wrapping pattern - not interlocked`);
+    console.log(`      ❌ Shared columns but no Y overlap - not interlocked`);
     return false;
 }
 
@@ -9619,115 +9612,122 @@ function identifyAllBlobs(phantom) {
 /**
  * STEP 3: Check for interlocking blobs
  * A blob interlocks with another if there exists a column where:
- * - This blob has blocks in that column
- * - Another blob has blocks BOTH above AND below this blob in that same column
+ * - Both blobs have blocks in that column, AND
+ * - Their Y ranges OVERLAP (not just touch, but actually share vertical space)
+ * This prevents blobs from falling through each other during multi-pass gravity
  */
 function detectInterlocking(blobs) {
     console.log('\n📋 STEP 3: Detecting interlocking blobs...');
     
-    const compoundGroups = [];
-    const blobInCompound = new Set();
+    // Use Union-Find for transitive closure
+    const parent = new Map();
+    blobs.forEach(blob => parent.set(blob.id, blob.id));
     
-    for (let i = 0; i < blobs.length; i++) {
-        if (blobInCompound.has(blobs[i].id)) continue;
-        
-        const blobA = blobs[i];
-        const interlocked = [blobA];
-        blobInCompound.add(blobA.id);
-        
-        // Get all columns this blob occupies
-        const columnsA = new Map();
-        blobA.positions.forEach(pos => {
-            if (!columnsA.has(pos.x)) columnsA.set(pos.x, []);
-            columnsA.get(pos.x).push(pos.y);
+    function find(id) {
+        if (parent.get(id) !== id) {
+            parent.set(id, find(parent.get(id)));
+        }
+        return parent.get(id);
+    }
+    
+    function union(id1, id2) {
+        const root1 = find(id1);
+        const root2 = find(id2);
+        if (root1 !== root2) {
+            parent.set(root1, root2);
+            return true;
+        }
+        return false;
+    }
+    
+    // Pre-compute column data for each blob
+    const blobColumns = new Map();
+    blobs.forEach(blob => {
+        const columns = new Map();
+        blob.positions.forEach(pos => {
+            if (!columns.has(pos.x)) columns.set(pos.x, []);
+            columns.get(pos.x).push(pos.y);
         });
+        blobColumns.set(blob.id, columns);
+    });
+    
+    // Check all pairs of blobs for interlocking
+    for (let i = 0; i < blobs.length; i++) {
+        const blobA = blobs[i];
+        const columnsA = blobColumns.get(blobA.id);
         
-        // Check each other blob
-        for (let j = 0; j < blobs.length; j++) {
-            if (i === j || blobInCompound.has(blobs[j].id)) continue;
-            
+        for (let j = i + 1; j < blobs.length; j++) {
             const blobB = blobs[j];
+            const columnsB = blobColumns.get(blobB.id);
+            
             let isInterlocked = false;
+            let reason = '';
             
-            // Get all columns blobB occupies
-            const columnsB = new Map();
-            blobB.positions.forEach(pos => {
-                if (!columnsB.has(pos.x)) columnsB.set(pos.x, []);
-                columnsB.get(pos.x).push(pos.y);
-            });
-            
-            // Check BOTH directions for interlocking
-            // Direction 1: Does blobB wrap around blobA?
+            // Check each column that blobA occupies
             for (let [colX, rowsA] of columnsA) {
+                const rowsB = columnsB.get(colX);
+                if (!rowsB || rowsB.length === 0) continue;
+                
                 const minYA = Math.min(...rowsA);
                 const maxYA = Math.max(...rowsA);
+                const minYB = Math.min(...rowsB);
+                const maxYB = Math.max(...rowsB);
                 
-                // Get blobB's positions in this same column
-                const rowsB = blobB.positions
-                    .filter(pos => pos.x === colX)
-                    .map(pos => pos.y);
-                
-                if (rowsB.length > 0) {
-                    const minYB = Math.min(...rowsB);
-                    const maxYB = Math.max(...rowsB);
-                    
-                    // Check if blobB wraps around blobA in this column
-                    const bWrapsA = minYB < minYA && maxYB > maxYA;
-                    
-                    if (bWrapsA) {
-                        isInterlocked = true;
-                        console.log(`  🔗 Interlocking detected: ${blobB.id} wraps around ${blobA.id} in column ${colX}`);
-                        console.log(`     ${blobA.id} rows: ${minYA}-${maxYA}, ${blobB.id} rows: ${minYB}-${maxYB}`);
-                        break;
-                    }
+                // Check if blobB wraps around blobA (strict containment)
+                if (minYB < minYA && maxYB > maxYA) {
+                    isInterlocked = true;
+                    reason = `${blobB.id} wraps around ${blobA.id} in column ${colX}`;
+                    break;
                 }
-            }
-            
-            // Direction 2: Does blobA wrap around blobB?
-            if (!isInterlocked) {
-                for (let [colX, rowsB] of columnsB) {
-                    const minYB = Math.min(...rowsB);
-                    const maxYB = Math.max(...rowsB);
-                    
-                    // Get blobA's positions in this same column
-                    const rowsA = blobA.positions
-                        .filter(pos => pos.x === colX)
-                        .map(pos => pos.y);
-                    
-                    if (rowsA.length > 0) {
-                        const minYA = Math.min(...rowsA);
-                        const maxYA = Math.max(...rowsA);
-                        
-                        // Check if blobA wraps around blobB in this column
-                        const aWrapsB = minYA < minYB && maxYA > maxYB;
-                        
-                        if (aWrapsB) {
-                            isInterlocked = true;
-                            console.log(`  🔗 Interlocking detected: ${blobA.id} wraps around ${blobB.id} in column ${colX}`);
-                            console.log(`     ${blobA.id} rows: ${minYA}-${maxYA}, ${blobB.id} rows: ${minYB}-${maxYB}`);
-                            break;
-                        }
-                    }
+                
+                // Check if blobA wraps around blobB (strict containment)
+                if (minYA < minYB && maxYA > maxYB) {
+                    isInterlocked = true;
+                    reason = `${blobA.id} wraps around ${blobB.id} in column ${colX}`;
+                    break;
+                }
+                
+                // NEW: Check if Y ranges OVERLAP (not just touch)
+                // Two ranges [minA, maxA] and [minB, maxB] overlap if:
+                // minA <= maxB AND minB <= maxA
+                // But we want STRICT overlap (at least one row in common), not just touching
+                const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
+                if (overlap >= 0) {
+                    // They share at least one row in this column
+                    isInterlocked = true;
+                    reason = `${blobA.id} and ${blobB.id} overlap in column ${colX} (Y ranges [${minYA}-${maxYA}] and [${minYB}-${maxYB}])`;
+                    break;
                 }
             }
             
             if (isInterlocked) {
-                interlocked.push(blobB);
-                blobInCompound.add(blobB.id);
+                union(blobA.id, blobB.id);
+                console.log(`  🔗 Interlocking detected: ${reason}`);
             }
         }
-        
-        if (interlocked.length > 1) {
-            // Mark all blobs in this group as compound
-            interlocked.forEach(blob => {
+    }
+    
+    // Build compound groups from union-find
+    const groups = new Map();
+    blobs.forEach(blob => {
+        const root = find(blob.id);
+        if (!groups.has(root)) groups.set(root, []);
+        groups.get(root).push(blob);
+    });
+    
+    // Filter to only groups with multiple blobs and mark them
+    const compoundGroups = [];
+    groups.forEach((groupBlobs, root) => {
+        if (groupBlobs.length > 1) {
+            groupBlobs.forEach(blob => {
                 blob.isCompound = true;
-                blob.compoundWith = interlocked.filter(b => b.id !== blob.id).map(b => b.id);
+                blob.compoundWith = groupBlobs.filter(b => b.id !== blob.id).map(b => b.id);
             });
             
-            compoundGroups.push(interlocked);
-            console.log(`  ✓ Compound group created: ${interlocked.map(b => b.id).join(' + ')}`);
+            compoundGroups.push(groupBlobs);
+            console.log(`  ✓ Compound group created: ${groupBlobs.map(b => b.id).join(' + ')}`);
         }
-    }
+    });
     
     console.log(`  ✓ Found ${compoundGroups.length} compound blob groups`);
     return compoundGroups;
