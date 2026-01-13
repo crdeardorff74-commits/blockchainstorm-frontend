@@ -1,7 +1,7 @@
-// AI Worker v3.2 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.2 loaded");
+// AI Worker v3.3 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.3 loaded");
 
-const AI_VERSION = "3.2";
+const AI_VERSION = "3.3";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -576,3 +576,6 @@ self.onmessage = function(e) {
         self.postMessage({ bestPlacement, stackHeight });
     }, 0);
 };
+
+// Send ready message immediately when worker loads
+self.postMessage({ ready: true, version: AI_VERSION });
