@@ -1,7 +1,7 @@
-// AI Worker v3.7 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.7 loaded");
+// AI Worker v3.9 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.9 loaded");
 
-const AI_VERSION = "3.7";
+const AI_VERSION = "3.9";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -320,6 +320,37 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const bumpiness = getBumpiness(board);
     const colHeights = getColumnHeights(board, cols, rows);
     const blobs = getAllBlobs(board, cols, rows);
+    
+    // ====== LINE CLEARS - BONUS SCALES WITH DANGER ======
+    // Count rows that would be cleared by this placement
+    let completeRows = 0;
+    for (let row = 0; row < rows; row++) {
+        let complete = true;
+        for (let col = 0; col < cols; col++) {
+            if (!board[row][col]) {
+                complete = false;
+                break;
+            }
+        }
+        if (complete) completeRows++;
+    }
+    
+    // Line clears only valuable when stack is getting dangerous
+    if (completeRows > 0) {
+        if (stackHeight >= 18) {
+            // Critical - desperately need to clear
+            score += completeRows * 80;
+            if (completeRows >= 2) score += 50;
+        } else if (stackHeight >= 16) {
+            // Dangerous - strongly prefer clears
+            score += completeRows * 50;
+            if (completeRows >= 2) score += 30;
+        } else if (stackHeight >= 14) {
+            // Getting risky - modest bonus
+            score += completeRows * 20;
+        }
+        // Below 14: no bonus - prefer building blobs for tsunamis
+    }
     
     // ====== SURVIVAL PRIORITIES (always matter) ======
     
