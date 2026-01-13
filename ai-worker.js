@@ -859,58 +859,70 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     let score = 0;
     
     // === TSUNAMI PRIORITY MODE ===
-    // When we have a large blob close to spanning the width, prioritize completing it
-    if (bestTsunamiBlob && bestTsunamiBlob.gap <= 3) {
+    // When we have a large blob VERY close to spanning the width (gap <= 2)
+    // Only activate when we're really close to completing
+    if (bestTsunamiBlob && bestTsunamiBlob.gap <= 2) {
         const blob = bestTsunamiBlob;
         
         // Check if this piece color matches the blob
-        if (color === blob.color) {
-            // This piece can extend the blob!
-            // Give massive bonus for placing it to extend toward the gap
-            
-            // Check which side needs extension
+        const colorMatches = (color === blob.color);
+        
+        if (colorMatches) {
+            // This piece CAN extend the blob - check if placement does so
             const needsLeft = blob.minX > 0;
             const needsRight = blob.maxX < cols - 1;
             
-            // Calculate if this placement extends the blob in the right direction
             let extensionBonus = 0;
             const pieceMinX = x;
             const pieceMaxX = x + shape[0].length - 1;
             
             if (needsLeft && pieceMinX < blob.minX) {
-                // This could extend left!
                 extensionBonus += (blob.minX - pieceMinX) * 30;
             }
             if (needsRight && pieceMaxX > blob.maxX) {
-                // This could extend right!
                 extensionBonus += (pieceMaxX - blob.maxX) * 30;
             }
             
-            // Also check if piece is adjacent to the blob (can connect)
+            // Check if piece actually connects to the blob
             const adjacentToBlob = isAdjacentToBlob(board, shape, x, y, blob.color, cols, rows);
             if (adjacentToBlob && extensionBonus > 0) {
-                extensionBonus += 50; // Big bonus for actually connecting
+                extensionBonus += 50;
             }
             
             score += extensionBonus;
+            
+            // Progress bonus for matching color pieces
+            const progressBonus = (10 - blob.gap) * 8 + blob.size * 0.5;
+            score += progressBonus;
+            
+            // Reduced penalties for pieces actively helping tsunami
+            score -= countHoles(board) * 0.8;
+            score -= getBumpiness(board) * 0.15;
+            score -= stackHeight * 0.3;
+            
+        } else {
+            // Non-matching color - can't help tsunami, place carefully!
+            // Use stricter evaluation to avoid creating holes
+            score -= countHoles(board) * 2.0;  // Strong hole penalty
+            score -= getBumpiness(board) * 0.4;
+            score -= countWells(board) * 0.6;
+            score -= stackHeight * 0.5;
+            
+            // Small bonus for keeping board flat (helps future tsunami pieces land)
+            score += linesCleared * linesCleared * 3;
+            
+            // Still give some credit for the tsunami opportunity existing
+            score += (10 - blob.gap) * 2;
         }
         
-        // Always reward progress toward tsunami, regardless of color
-        const progressBonus = (10 - blob.gap) * 8 + blob.size * 0.5;
-        score += progressBonus;
-        
-        // Reduced stack penalty when close to tsunami - completing it will save us!
-        score -= stackHeight * 0.3;
-        
-        // Only apply danger penalties if we're REALLY close to death
+        // Death penalties apply to all pieces
         if (stackHeight >= 19) {
             score -= 500;
         } else if (stackHeight >= 18) {
             score -= 100;
+        } else if (stackHeight >= 16) {
+            score -= 30;
         }
-        
-        // Moderate line clear bonus
-        score += linesCleared * linesCleared * 2;
         
     } else {
         // === NORMAL MODE (no tsunami close) ===
@@ -939,14 +951,24 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
                 // Reward blob width progress
                 const { width } = getBlobWidth(blob, cols);
                 score += width * 0.5;
+                
+                // Extra bonus for wide blobs (potential tsunamis)
+                if (width >= 7) {
+                    score += (width - 6) * 3; // +3 for width 7, +6 for 8, +9 for 9
+                }
             }
         }
         
-        // Stack management
+        // If there's a promising blob (gap 3), give bonus for matching color placements
+        if (bestTsunamiBlob && bestTsunamiBlob.gap === 3 && color === bestTsunamiBlob.color) {
+            score += 10; // Encourage building toward tsunami
+        }
+        
+        // Stack management - holes are very bad!
         score -= stackHeight * 0.5;
-        score -= countHoles(board) * 1.5;
-        score -= getBumpiness(board) * 0.3;
-        score -= countWells(board) * 0.5;
+        score -= countHoles(board) * 2.5;
+        score -= getBumpiness(board) * 0.4;
+        score -= countWells(board) * 0.6;
         
         // Danger penalties
         if (stackHeight >= 19) {
