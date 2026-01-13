@@ -1,7 +1,7 @@
-// AI Worker v3.6 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.6 loaded");
+// AI Worker v3.7 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.7 loaded");
 
-const AI_VERSION = "3.6";
+const AI_VERSION = "3.7";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -323,9 +323,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== SURVIVAL PRIORITIES (always matter) ======
     
-    // 1. Holes are bad but S/Z pieces inherently create them
-    // Balance: high enough to avoid unnecessary holes, low enough to not cripple S/Z play
-    score -= holes * 20;
+    // 1. Holes are bad but blob gravity can fill them via cascades
+    score -= holes * 10;
     
     // 2. Height penalty - keep stack low
     score -= stackHeight * 1.0;
