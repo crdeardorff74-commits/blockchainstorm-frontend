@@ -9994,6 +9994,12 @@ function startGravityAnimation(animations) {
  * MAIN GRAVITY FUNCTION - REPLACES runTwoPhaseGravity()
  */
 function runTwoPhaseGravity() {
+    // CRITICAL: Prevent concurrent gravity operations
+    if (gravityAnimating) {
+        console.log('⚠️ runTwoPhaseGravity called while gravity already animating - aborting');
+        return;
+    }
+    
     console.log('\n');
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🚀 GRAVITY SYSTEM V2 - COMPLETE REWRITE');
@@ -10069,7 +10075,28 @@ function runTwoPhaseGravity() {
 }
 
 function applyGravity() {
-    // This function is called by tsunamis, black holes, and volcanoes
+    // CRITICAL: Prevent concurrent gravity operations
+    // Multiple systems can call applyGravity (tsunamis, black holes, tornadoes, gremlins, etc.)
+    // If gravity is already running, defer this call until it completes
+    if (gravityAnimating) {
+        console.log('⏸️ applyGravity deferred - gravity already animating');
+        // Schedule a retry after current gravity completes
+        setTimeout(() => {
+            if (!gravityAnimating && !animatingLines) {
+                console.log('🔄 Running deferred applyGravity');
+                runTwoPhaseGravity();
+            }
+        }, 100);
+        return;
+    }
+    
+    if (animatingLines) {
+        console.log('⏸️ applyGravity deferred - lines animating');
+        // Don't schedule retry - clearLines will call gravity when it completes
+        return;
+    }
+    
+    // This function is called by tsunamis, black holes, volcanoes, gremlins, etc.
     // It now uses the shared two-phase gravity system
     runTwoPhaseGravity();
 }
