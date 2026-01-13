@@ -421,15 +421,32 @@ function getTsunamiProgress(blob, cols) {
     if (!blob || blob.size < 4) return 0;
     
     const { width, minX, maxX } = getBlobWidth(blob, cols);
+    
+    // Full width = tsunami!
+    if (minX === 0 && maxX === cols - 1) return 10; // Massive bonus
+    
+    // Near-complete tsunamis get exponentially higher bonuses
     const progress = width / cols;
     
     // Bonus for touching edges
     let edgeBonus = 0;
-    if (minX === 0) edgeBonus += 0.15;
-    if (maxX === cols - 1) edgeBonus += 0.15;
-    if (minX === 0 && maxX === cols - 1) return 1.5; // Full width!
+    if (minX === 0) edgeBonus += 0.5;
+    if (maxX === cols - 1) edgeBonus += 0.5;
     
-    return progress + edgeBonus;
+    // Exponential bonus for near-completion (width 8+ is very valuable)
+    let nearCompletionBonus = 0;
+    if (width >= 9) {
+        nearCompletionBonus = 5; // Only need 1 column!
+    } else if (width >= 8) {
+        nearCompletionBonus = 2; // Need 2 columns
+    } else if (width >= 7) {
+        nearCompletionBonus = 1;
+    }
+    
+    // Size matters too - bigger blobs = more points when completed
+    const sizeBonus = blob.size >= 20 ? 2 : (blob.size >= 10 ? 1 : 0);
+    
+    return progress + edgeBonus + nearCompletionBonus + sizeBonus;
 }
 
 /**
@@ -441,27 +458,40 @@ function canCompleteTsunamiWithQueue(blob, cols) {
     
     const { width, minX, maxX } = getBlobWidth(blob, cols);
     
-    // Already full width
-    if (minX === 0 && maxX === cols - 1) return { canComplete: true, score: 5 };
+    // Already full width - immediate tsunami!
+    if (minX === 0 && maxX === cols - 1) return { canComplete: true, score: 20 };
     
     // Count matching colors in queue
     const matchingPieces = pieceQueue.filter(p => p && p.color === blob.color).length;
     
-    // Estimate if we can reach full width
+    // Calculate gaps on each side
     const gapLeft = minX;
     const gapRight = cols - 1 - maxX;
     const totalGap = gapLeft + gapRight;
     
-    // Each piece has ~4 blocks, estimate coverage potential
-    const potentialCoverage = matchingPieces * 2; // Conservative estimate
+    // Each piece has ~4 blocks, but only some will extend the blob
+    // Be more generous in estimation
+    const potentialCoverage = matchingPieces * 3;
     
-    if (potentialCoverage >= totalGap) {
-        // Higher score if closer to completion
-        const completionScore = (width / cols) * matchingPieces;
+    if (potentialCoverage >= totalGap || totalGap <= 2) {
+        // Can likely complete! Score based on how close we are
+        let completionScore = 5; // Base score for completable tsunami
+        
+        // Bonus for being very close (only 1-2 columns needed)
+        if (totalGap === 1) completionScore += 10;
+        else if (totalGap === 2) completionScore += 5;
+        
+        // Bonus for blob size (bigger = more points when cleared)
+        completionScore += Math.min(blob.size / 5, 4);
+        
+        // Bonus for matching pieces in queue
+        completionScore += matchingPieces * 2;
+        
         return { canComplete: true, score: completionScore };
     }
     
-    return { canComplete: false, score: matchingPieces * 0.2 };
+    // Not immediately completable but still valuable progress
+    return { canComplete: false, score: matchingPieces * 0.5 + (width / cols) };
 }
 
 /**
@@ -574,6 +604,20 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     const stackHeight = getStackHeight(board, rows);
     const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
     
+    // FIRST: Check if this placement completes a tsunami!
+    // This should override almost all other considerations
+    for (const blob of blobs) {
+        if (blob.size >= 10) { // Minimum size for tsunami
+            const { minX, maxX } = getBlobWidth(blob, cols);
+            if (minX === 0 && maxX === cols - 1) {
+                // TSUNAMI! Give massive bonus based on blob size
+                // Tsunami scoring is size³ × 200, so a 20-block tsunami = 8000 × 200 = 1.6M base
+                const tsunamiBonus = 100 + blob.size * 5;
+                return tsunamiBonus; // Return immediately with high score
+            }
+        }
+    }
+    
     let score = 0;
     
     // Calculate how safe we are (0 = at threshold, 1 = very safe)
@@ -597,6 +641,7 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     // === Check for Tsunami/Black Hole opportunities with queue ===
     let bestTsunamiScore = 0;
     let hasTsunamiPath = false;
+    let nearTsunamiBonus = 0;
     
     for (const blob of blobs) {
         if (blob.size >= 4) {
@@ -610,9 +655,19 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
             
             // Reward for tsunami progress on this blob
             const progress = getTsunamiProgress(blob, cols);
-            score += progress * 2;
+            score += progress * 3; // Increased multiplier
+            
+            // Extra bonus for near-completion (width 8 or 9)
+            const { width } = getBlobWidth(blob, cols);
+            if (width >= 9 && blob.size >= 15) {
+                nearTsunamiBonus = Math.max(nearTsunamiBonus, 30);
+            } else if (width >= 8 && blob.size >= 12) {
+                nearTsunamiBonus = Math.max(nearTsunamiBonus, 15);
+            }
         }
     }
+    
+    score += nearTsunamiBonus;
     
     // Black hole progress
     const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
@@ -678,11 +733,25 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
     const stackHeight = getStackHeight(board, rows);
     const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
     
+    // FIRST: Check if this placement completes a tsunami!
+    // Even in survival, completing a tsunami is a big win (clears lots of blocks)
+    for (const blob of blobs) {
+        if (blob.size >= 10) {
+            const { minX, maxX } = getBlobWidth(blob, cols);
+            if (minX === 0 && maxX === cols - 1) {
+                // TSUNAMI! This will clear a lot of blocks and save us
+                const tsunamiBonus = 80 + blob.size * 4;
+                return tsunamiBonus;
+            }
+        }
+    }
+    
     let score = 0;
     
-    // === FIRST: Check for Tsunami opportunity - this overrides normal survival logic ===
-    // If we can complete a Tsunami with the queue, prioritize it heavily!
+    // === Check for near-Tsunami opportunities ===
     let bestTsunamiScore = 0;
+    let nearTsunamiBonus = 0;
+    
     for (const blob of blobs) {
         if (blob.size >= 4) {
             const tsunamiResult = canCompleteTsunamiWithQueue(blob, cols);
@@ -690,20 +759,29 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
                 bestTsunamiScore = tsunamiResult.score;
             }
             
-            // Also check current tsunami progress
+            // Check for near-completion
+            const { width } = getBlobWidth(blob, cols);
             const progress = getTsunamiProgress(blob, cols);
+            
+            if (width >= 9 && blob.size >= 15) {
+                nearTsunamiBonus = Math.max(nearTsunamiBonus, 25);
+            } else if (width >= 8 && blob.size >= 12) {
+                nearTsunamiBonus = Math.max(nearTsunamiBonus, 12);
+            }
+            
             if (progress >= 1.0) {
-                // Very close to tsunami - big bonus even in survival
                 score += progress * 5;
             }
         }
     }
     
-    // If there's a clear path to Tsunami, give significant bonus for color building
+    // If there's a clear path to Tsunami, prioritize it even in survival
     if (bestTsunamiScore > 0) {
-        score += bestTsunamiScore * 4;
+        score += bestTsunamiScore * 3;
         score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.5;
     }
+    
+    score += nearTsunamiBonus;
     
     // === Normal survival logic ===
     
