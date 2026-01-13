@@ -1,4 +1,4 @@
-// AI Worker v3.1 - Simplified single evaluation (2026-01-13)
+// AI Worker v3.2 - Simplified single evaluation (2026-01-13)
 /**
  * Radically simplified AI for TaNTЯiS
  * 
