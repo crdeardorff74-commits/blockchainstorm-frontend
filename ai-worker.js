@@ -1,19 +1,17 @@
-// AI Worker v2.4 - No line clear simulation (trusts game gravity) (2026-01-13)
+// AI Worker v3.1 - Simplified single evaluation (2026-01-13)
 /**
- * AI Worker for TaNTЯiS / BLOCKCHaiNSTORM
- * Runs placement calculations on a separate thread to avoid UI freezes
+ * Radically simplified AI for TaNTЯiS
  * 
- * Two-mode strategy:
- * 1) Color Building - Build large blobs, set up Tsunamis/Black Holes, avoid clearing lines
- * 2) Survival - Clear lines and reduce stack height
- * 
- * Mode switching based on stack height with hysteresis
+ * Single evaluation function with clear priorities:
+ * 1. Don't create holes (devastating)
+ * 2. Keep stack low
+ * 3. Keep surface flat
+ * 4. Build same-color blobs
+ * 5. Extend wide blobs toward edges (tsunamis)
  */
 
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
-let currentMode = 'colorBuilding'; // 'colorBuilding' or 'survival'
-let lastStackHeight = 0; // Track stack height for debugging
 
 // ==================== GAME RECORDING ====================
 let gameRecording = {
@@ -33,13 +31,10 @@ function startRecording() {
     };
 }
 
-function recordDecision(board, piece, placements, chosen, mode, stackHeight) {
-    // Only record top 5 and bottom 2 placements to keep size manageable
+function recordDecision(board, piece, placements, chosen, stackHeight) {
     const sortedPlacements = [...placements].sort((a, b) => b.score - a.score);
     const topPlacements = sortedPlacements.slice(0, 5);
-    const bottomPlacements = sortedPlacements.slice(-2);
     
-    // Compress board to just occupied cells for smaller file size
     const compressedBoard = [];
     for (let y = 0; y < board.length; y++) {
         for (let x = 0; x < board[y].length; x++) {
@@ -50,27 +45,26 @@ function recordDecision(board, piece, placements, chosen, mode, stackHeight) {
     }
     
     gameRecording.decisions.push({
-        t: Date.now() - gameRecording.startTime, // Time offset
-        mode,
-        stackHeight,
-        piece: { shape: piece.shape, color: piece.color },
+        time: Date.now() - gameRecording.startTime,
         board: compressedBoard,
-        top: topPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
-        bottom: bottomPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
-        chosen: { x: chosen.x, y: chosen.y, r: chosen.rotationIndex, s: Math.round(chosen.score * 100) / 100 }
+        piece: { color: piece.color },
+        stackHeight,
+        top: topPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: p.score })),
+        chosen: { x: chosen.x, y: chosen.y, r: chosen.rotationIndex, s: chosen.score }
     });
 }
 
 function recordEvent(type, data) {
-    gameRecording.events.push({
-        t: Date.now() - (gameRecording.startTime || Date.now()),
-        type,
-        ...data
-    });
+    if (gameRecording.startTime) {
+        gameRecording.events.push({
+            time: Date.now() - gameRecording.startTime,
+            type,
+            ...data
+        });
+    }
 }
 
 function finalizeRecording(board, cause) {
-    // Compress final board state
     const compressedBoard = [];
     for (let y = 0; y < board.length; y++) {
         for (let x = 0; x < board[y].length; x++) {
@@ -83,10 +77,8 @@ function finalizeRecording(board, cause) {
     gameRecording.finalState = {
         board: compressedBoard,
         cause,
-        stackHeight: lastStackHeight,
-        mode: currentMode,
-        totalDecisions: gameRecording.decisions.length,
-        duration: Date.now() - gameRecording.startTime
+        duration: Date.now() - gameRecording.startTime,
+        totalDecisions: gameRecording.decisions.length
     };
     
     return gameRecording;
@@ -96,188 +88,28 @@ function getRecording() {
     return gameRecording;
 }
 
-// Row thresholds for mode switching (rows from bottom, 1-indexed)
-// Upper = switch to survival, Lower = switch back to color building
-const modeThresholds = {
-    breeze: { upper: 12, lower: 6 },
-    tempest: { upper: 12, lower: 6 },
-    maelstrom: { upper: 10, lower: 5 },
-    hurricane: { upper: 10, lower: 5 }
-};
+// ==================== UTILITY FUNCTIONS ====================
 
-function cloneBoard(board) {
-    return board.map(row => row ? [...row] : new Array(10).fill(null));
-}
-
-/**
- * Get the height of the tallest column (from bottom, 1-indexed)
- * Row 1 is the bottom row
- */
 function getStackHeight(board, rows) {
-    if (!board || board.length === 0) {
-        console.log('🔍 getStackHeight: board is empty or null');
-        return 0;
-    }
-    
-    // Find the topmost row that has any blocks
-    for (let y = 0; y < board.length; y++) {
-        const row = board[y];
-        if (row && Array.isArray(row)) {
-            for (let x = 0; x < row.length; x++) {
-                if (row[x] !== null && row[x] !== undefined) {
-                    // Found a block - height is from this row to bottom
-                    const height = board.length - y;
-                    console.log(`🔍 getStackHeight: Found block at y=${y}, height=${height}, rows=${rows}, board.length=${board.length}`);
-                    return height;
-                }
-            }
-        }
-    }
-    console.log('🔍 getStackHeight: No blocks found, returning 0');
-    return 0;
-}
-
-/**
- * Update mode based on stack height
- */
-function updateMode(board, rows) {
-    const stackHeight = getStackHeight(board, rows);
-    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
-    
-    // Store for debugging
-    lastStackHeight = stackHeight;
-    
-    if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
-        currentMode = 'survival';
-    } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
-        currentMode = 'colorBuilding';
-    }
-    
-    return currentMode;
-}
-
-function getAllRotations(shape) {
-    const rotations = [shape];
-    let current = shape;
-    
-    for (let i = 0; i < 3; i++) {
-        const rotated = current[0].map((_, colIndex) =>
-            current.map(row => row[colIndex]).reverse()
-        );
-        
-        const isDuplicate = rotations.some(existing =>
-            existing.length === rotated.length &&
-            existing.every((row, y) =>
-                row.length === rotated[y].length &&
-                row.every((val, x) => val === rotated[y][x])
-            )
-        );
-        
-        if (!isDuplicate) {
-            rotations.push(rotated);
-        }
-        current = rotated;
-    }
-    
-    return rotations;
-}
-
-function isValidPosition(board, shape, x, y, cols, rows) {
-    for (let py = 0; py < shape.length; py++) {
-        for (let px = 0; px < shape[py].length; px++) {
-            if (!shape[py][px]) continue;
-            
-            const boardX = x + px;
-            const boardY = y + py;
-            
-            if (boardX < 0 || boardX >= cols) return false;
-            if (boardY >= rows) return false;
-            if (boardY >= 0 && board[boardY] && board[boardY][boardX]) return false;
-        }
-    }
-    return true;
-}
-
-function placePiece(board, shape, x, y, color) {
-    const newBoard = cloneBoard(board);
-    for (let py = 0; py < shape.length; py++) {
-        for (let px = 0; px < shape[py].length; px++) {
-            if (shape[py][px]) {
-                const boardY = y + py;
-                const boardX = x + px;
-                if (boardY >= 0 && boardY < newBoard.length && boardX >= 0 && boardX < newBoard[0].length) {
-                    newBoard[boardY][boardX] = color;
-                }
-            }
-        }
-    }
-    return newBoard;
-}
-
-function dropPiece(board, shape, x, cols, rows) {
-    let y = -shape.length;
-    while (isValidPosition(board, shape, x, y + 1, cols, rows)) {
-        y++;
-    }
-    return y;
-}
-
-function getAllBlobs(board, cols, rows) {
-    const visited = new Set();
-    const blobs = [];
-    
     for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-            const key = `${x},${y}`;
-            if (visited.has(key)) continue;
-            if (!board[y] || !board[y][x]) continue;
-            
-            const color = board[y][x];
-            const blob = { color, positions: [], size: 0 };
-            const queue = [[x, y]];
-            
-            while (queue.length > 0) {
-                const [cx, cy] = queue.shift();
-                const ckey = `${cx},${cy}`;
-                if (visited.has(ckey)) continue;
-                if (cx < 0 || cx >= cols || cy < 0 || cy >= rows) continue;
-                if (!board[cy] || board[cy][cx] !== color) continue;
-                
-                visited.add(ckey);
-                blob.positions.push([cx, cy]);
-                blob.size++;
-                
-                queue.push([cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]);
-            }
-            
-            if (blob.size > 0) {
-                blobs.push(blob);
-            }
+        if (board[y] && board[y].some(cell => cell !== null)) {
+            return rows - y;
         }
     }
-    
-    return blobs;
-}
-
-function countCompleteLines(board) {
-    let count = 0;
-    for (let y = 0; y < board.length; y++) {
-        if (board[y] && board[y].every(cell => cell !== null)) {
-            count++;
-        }
-    }
-    return count;
+    return 0;
 }
 
 function countHoles(board) {
     let holes = 0;
-    const cols = board[0].length;
+    const rows = board.length;
+    const cols = board[0] ? board[0].length : 10;
+    
     for (let x = 0; x < cols; x++) {
-        let blockFound = false;
-        for (let y = 0; y < board.length; y++) {
+        let foundBlock = false;
+        for (let y = 0; y < rows; y++) {
             if (board[y] && board[y][x]) {
-                blockFound = true;
-            } else if (blockFound && board[y]) {
+                foundBlock = true;
+            } else if (foundBlock) {
                 holes++;
             }
         }
@@ -286,14 +118,15 @@ function countHoles(board) {
 }
 
 function getBumpiness(board) {
-    const cols = board[0].length;
-    const heights = [];
+    const rows = board.length;
+    const cols = board[0] ? board[0].length : 10;
     
+    const heights = [];
     for (let x = 0; x < cols; x++) {
         let height = 0;
-        for (let y = 0; y < board.length; y++) {
+        for (let y = 0; y < rows; y++) {
             if (board[y] && board[y][x]) {
-                height = board.length - y;
+                height = rows - y;
                 break;
             }
         }
@@ -307,17 +140,8 @@ function getBumpiness(board) {
     return bumpiness;
 }
 
-/**
- * Count deep wells (single-column gaps that are hard to fill)
- * A well is a column significantly lower than both neighbors
- * Also detects "canyon" patterns where a column is empty while neighbors are full deep down
- */
-function countWells(board) {
-    const rows = board.length;
-    const cols = board[0].length;
+function getColumnHeights(board, cols, rows) {
     const heights = [];
-    
-    // Get column heights (from top)
     for (let x = 0; x < cols; x++) {
         let height = 0;
         for (let y = 0; y < rows; y++) {
@@ -328,290 +152,10 @@ function countWells(board) {
         }
         heights.push(height);
     }
-    
-    let wellScore = 0;
-    
-    for (let x = 0; x < cols; x++) {
-        const leftHeight = x > 0 ? heights[x - 1] : 999;
-        const rightHeight = x < cols - 1 ? heights[x + 1] : 999;
-        const currentHeight = heights[x];
-        
-        // Basic well: current column is lower than both neighbors
-        const wellDepth = Math.min(leftHeight, rightHeight) - currentHeight;
-        if (wellDepth > 0) {
-            // Penalize deeper wells MUCH more heavily (cubic for deep wells)
-            if (wellDepth >= 4) {
-                wellScore += wellDepth * wellDepth * wellDepth * 0.5; // Cubic for deep
-            } else {
-                wellScore += wellDepth * wellDepth; // Quadratic for shallow
-            }
-        }
-        
-        // Also check for "canyon" - column is empty while surrounded by blocks
-        // Count how many cells in this column are empty while having blocks on both sides
-        let canyonDepth = 0;
-        for (let y = 0; y < rows; y++) {
-            const isEmpty = !board[y] || !board[y][x];
-            const hasLeftNeighbor = x > 0 && board[y] && board[y][x - 1];
-            const hasRightNeighbor = x < cols - 1 && board[y] && board[y][x + 1];
-            
-            if (isEmpty && hasLeftNeighbor && hasRightNeighbor) {
-                canyonDepth++;
-            }
-        }
-        
-        // Canyon penalty (very hard to fill narrow gaps with blocks on both sides)
-        if (canyonDepth >= 2) {
-            wellScore += canyonDepth * canyonDepth * 2;
-        }
-    }
-    
-    return wellScore;
+    return heights;
 }
 
-/**
- * Get horizontal spread bonus for blobs (reward wide blobs over tall narrow ones)
- */
-function getBlobSpreadBonus(blobs, cols) {
-    let spreadBonus = 0;
-    
-    for (const blob of blobs) {
-        if (blob.size < 4) continue;
-        
-        const { width, minX, maxX } = getBlobWidth(blob, cols);
-        
-        // Calculate blob height
-        let minY = Infinity, maxY = -Infinity;
-        for (const [x, y] of blob.positions) {
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-        }
-        const height = maxY - minY + 1;
-        
-        // Reward width-to-height ratio (wider is better for tsunamis)
-        if (height > 0) {
-            const ratio = width / height;
-            spreadBonus += ratio * blob.size * 0.1;
-        }
-        
-        // Extra bonus for blobs touching edges (good tsunami setup)
-        if (minX === 0 || maxX === cols - 1) {
-            spreadBonus += blob.size * 0.05;
-        }
-    }
-    
-    return spreadBonus;
-}
-
-function getAggregateHeight(board) {
-    let totalHeight = 0;
-    const cols = board[0].length;
-    for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < board.length; y++) {
-            if (board[y] && board[y][x]) {
-                totalHeight += board.length - y;
-                break;
-            }
-        }
-    }
-    return totalHeight;
-}
-
-function removeCompleteLines(board) {
-    const newBoard = board.filter(row => !row || !row.every(cell => cell !== null));
-    const linesRemoved = board.length - newBoard.length;
-    for (let i = 0; i < linesRemoved; i++) {
-        newBoard.unshift(new Array(board[0].length).fill(null));
-    }
-    return newBoard;
-}
-
-/**
- * Get blob width and edge info for Tsunami progress
- */
-function getBlobWidth(blob, cols) {
-    if (!blob || blob.positions.length === 0) return { width: 0, minX: cols, maxX: 0 };
-    
-    let minX = cols, maxX = 0;
-    for (const [x, y] of blob.positions) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-    }
-    
-    return { width: maxX - minX + 1, minX, maxX };
-}
-
-/**
- * Check how close a blob is to being a Tsunami (spanning full width)
- */
-function getTsunamiProgress(blob, cols) {
-    if (!blob || blob.size < 4) return 0;
-    
-    const { width, minX, maxX } = getBlobWidth(blob, cols);
-    
-    // Full width = tsunami!
-    if (minX === 0 && maxX === cols - 1) return 10; // Massive bonus
-    
-    // Near-complete tsunamis get exponentially higher bonuses
-    const progress = width / cols;
-    
-    // Bonus for touching edges
-    let edgeBonus = 0;
-    if (minX === 0) edgeBonus += 0.5;
-    if (maxX === cols - 1) edgeBonus += 0.5;
-    
-    // Exponential bonus for near-completion (width 8+ is very valuable)
-    let nearCompletionBonus = 0;
-    if (width >= 9) {
-        nearCompletionBonus = 5; // Only need 1 column!
-    } else if (width >= 8) {
-        nearCompletionBonus = 2; // Need 2 columns
-    } else if (width >= 7) {
-        nearCompletionBonus = 1;
-    }
-    
-    // Size matters too - bigger blobs = more points when completed
-    const sizeBonus = blob.size >= 20 ? 2 : (blob.size >= 10 ? 1 : 0);
-    
-    return progress + edgeBonus + nearCompletionBonus + sizeBonus;
-}
-
-/**
- * Check if queue colors could help complete a Tsunami for a blob
- */
-function canCompleteTsunamiWithQueue(blob, cols) {
-    if (!blob || blob.size < 4) return { canComplete: false, score: 0 };
-    if (!pieceQueue || pieceQueue.length === 0) return { canComplete: false, score: 0 };
-    
-    const { width, minX, maxX } = getBlobWidth(blob, cols);
-    
-    // Already full width - immediate tsunami!
-    if (minX === 0 && maxX === cols - 1) return { canComplete: true, score: 20 };
-    
-    // Count matching colors in queue
-    const matchingPieces = pieceQueue.filter(p => p && p.color === blob.color).length;
-    
-    // Calculate gaps on each side
-    const gapLeft = minX;
-    const gapRight = cols - 1 - maxX;
-    const totalGap = gapLeft + gapRight;
-    
-    // Each piece has ~4 blocks, but only some will extend the blob
-    // Be more generous in estimation
-    const potentialCoverage = matchingPieces * 3;
-    
-    if (potentialCoverage >= totalGap || totalGap <= 2) {
-        // Can likely complete! Score based on how close we are
-        let completionScore = 5; // Base score for completable tsunami
-        
-        // Bonus for being very close (only 1-2 columns needed)
-        if (totalGap === 1) completionScore += 10;
-        else if (totalGap === 2) completionScore += 5;
-        
-        // Bonus for blob size (bigger = more points when cleared)
-        completionScore += Math.min(blob.size / 5, 4);
-        
-        // Bonus for matching pieces in queue
-        completionScore += matchingPieces * 2;
-        
-        return { canComplete: true, score: completionScore };
-    }
-    
-    // Not immediately completable but still valuable progress
-    return { canComplete: false, score: matchingPieces * 0.5 + (width / cols) };
-}
-
-/**
- * Check for potential Black Hole setup (blob surrounded by another color)
- * Returns progress toward completion and whether queue can help complete it
- */
-function getBlackHoleProgress(blobs, cols, rows) {
-    if (blobs.length < 2) return { progress: 0, canComplete: false, bonus: 0 };
-    
-    let maxProgress = 0;
-    let bestCanComplete = false;
-    let bestBonus = 0;
-    
-    for (let i = 0; i < blobs.length; i++) {
-        for (let j = 0; j < blobs.length; j++) {
-            if (i === j) continue;
-            if (blobs[i].color === blobs[j].color) continue;
-            
-            const inner = blobs[i];
-            const outer = blobs[j];
-            
-            // Inner blob needs to be decent size for points, outer needs to be bigger
-            if (inner.size < 4 || outer.size < 8) continue;
-            
-            // Count how many sides of inner are adjacent to outer
-            let adjacentCount = 0;
-            const outerSet = new Set(outer.positions.map(p => `${p[0]},${p[1]}`));
-            
-            // Also track which sides of inner are NOT adjacent (gaps to fill)
-            let gapCount = 0;
-            
-            for (const [x, y] of inner.positions) {
-                const neighbors = [[x-1,y], [x+1,y], [x,y-1], [x,y+1]];
-                for (const [nx, ny] of neighbors) {
-                    // Skip if neighbor is part of inner blob
-                    if (inner.positions.some(p => p[0] === nx && p[1] === ny)) continue;
-                    
-                    if (outerSet.has(`${nx},${ny}`)) {
-                        adjacentCount++;
-                    } else if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-                        gapCount++;
-                    }
-                }
-            }
-            
-            // Progress based on how surrounded the inner blob is
-            const totalPerimeter = adjacentCount + gapCount;
-            if (totalPerimeter === 0) continue;
-            
-            const progress = adjacentCount / totalPerimeter;
-            
-            // Check queue for both inner and outer colors
-            const outerInQueue = pieceQueue ? pieceQueue.filter(p => p && p.color === outer.color).length : 0;
-            const innerInQueue = pieceQueue ? pieceQueue.filter(p => p && p.color === inner.color).length : 0;
-            
-            // Can complete if:
-            // - Already >60% surrounded, OR
-            // - >40% surrounded with 2+ outer colors in queue
-            const canComplete = progress > 0.6 || (progress > 0.4 && outerInQueue >= 2);
-            
-            // Calculate bonus based on:
-            // - Progress toward completion
-            // - Size of blobs (bigger = more points)
-            // - Queue support
-            let bonus = progress * 5;
-            
-            if (canComplete) {
-                // Bigger bonus when completion is likely
-                bonus += 10;
-                bonus += outerInQueue * 3;
-                bonus += (inner.size + outer.size) * 0.2;
-            }
-            
-            // Extra bonus if inner blob could grow (we have inner colors in queue)
-            // Growing inner blob before triggering = more points!
-            if (progress < 0.8 && innerInQueue >= 1) {
-                bonus += innerInQueue * 2;
-            }
-            
-            if (progress > maxProgress || (progress === maxProgress && bonus > bestBonus)) {
-                maxProgress = progress;
-                bestCanComplete = canComplete;
-                bestBonus = bonus;
-            }
-        }
-    }
-    
-    return { progress: maxProgress, canComplete: bestCanComplete, bonus: bestBonus };
-}
-
-/**
- * Get color adjacency bonus for a placement
- */
+// Count same-color neighbors for the placed piece
 function getColorAdjacency(board, shape, x, y, color, cols, rows) {
     let adjacent = 0;
     
@@ -654,706 +198,258 @@ function getColorAdjacency(board, shape, x, y, color, cols, rows) {
     return adjacent;
 }
 
-/**
- * Count matching colors in the piece queue
- */
-function getQueueColorCount(color) {
-    if (!pieceQueue || pieceQueue.length === 0) return 0;
-    return pieceQueue.filter(p => p && p.color === color).length;
-}
-
-// ==================== COLOR BUILDING MODE ====================
-
-function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesCleared) {
-    const blobs = getAllBlobs(board, cols, rows);
-    const stackHeight = getStackHeight(board, rows);
-    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
+// Find all connected blobs
+function getAllBlobs(board, cols, rows) {
+    const visited = Array(rows).fill(null).map(() => Array(cols).fill(false));
+    const blobs = [];
     
-    // FIRST: Check if this placement completes a tsunami!
-    // This should override almost all other considerations
-    for (const blob of blobs) {
-        if (blob.size >= 10) { // Minimum size for tsunami
-            const { minX, maxX } = getBlobWidth(blob, cols);
-            if (minX === 0 && maxX === cols - 1) {
-                // TSUNAMI! Give massive bonus based on blob size
-                // Tsunami scoring is size³ × 200, so a 20-block tsunami = 8000 × 200 = 1.6M base
-                const tsunamiBonus = 100 + blob.size * 5;
-                return tsunamiBonus; // Return immediately with high score
+    function floodFill(startX, startY, color) {
+        const positions = [];
+        const stack = [[startX, startY]];
+        
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
+            
+            if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+            if (visited[y][x]) continue;
+            if (!board[y] || board[y][x] !== color) continue;
+            
+            visited[y][x] = true;
+            positions.push([x, y]);
+            
+            stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
+        }
+        
+        return positions;
+    }
+    
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (board[y] && board[y][x] && !visited[y][x]) {
+                const color = board[y][x];
+                const positions = floodFill(x, y, color);
+                if (positions.length > 0) {
+                    blobs.push({ color, positions, size: positions.length });
+                }
             }
         }
     }
     
+    return blobs;
+}
+
+// Get blob width info
+function getBlobWidth(blob, cols) {
+    if (!blob || blob.positions.length === 0) return { width: 0, minX: cols, maxX: 0 };
+    
+    let minX = cols, maxX = 0;
+    for (const [x, y] of blob.positions) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+    }
+    
+    return { width: maxX - minX + 1, minX, maxX };
+}
+
+// ==================== PLACEMENT HELPERS ====================
+
+function dropPiece(board, shape, x, cols, rows) {
+    let y = 0;
+    while (isValidPosition(board, shape, x, y + 1, cols, rows)) {
+        y++;
+    }
+    return y;
+}
+
+function isValidPosition(board, shape, x, y, cols, rows) {
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (!shape[py][px]) continue;
+            
+            const boardX = x + px;
+            const boardY = y + py;
+            
+            if (boardX < 0 || boardX >= cols) return false;
+            if (boardY >= rows) return false;
+            if (boardY >= 0 && board[boardY] && board[boardY][boardX]) return false;
+        }
+    }
+    return true;
+}
+
+function placePiece(board, shape, x, y, color) {
+    const newBoard = board.map(row => row ? [...row] : new Array(board[0].length).fill(null));
+    
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const boardY = y + py;
+                const boardX = x + px;
+                if (boardY >= 0 && boardY < newBoard.length) {
+                    newBoard[boardY][boardX] = color;
+                }
+            }
+        }
+    }
+    
+    return newBoard;
+}
+
+function countCompleteLines(board) {
+    let count = 0;
+    for (const row of board) {
+        if (row && row.every(cell => cell !== null)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// ==================== SINGLE EVALUATION FUNCTION ====================
+
+function evaluateBoard(board, shape, x, y, color, cols, rows) {
     let score = 0;
     
-    // Calculate how safe we are (0 = at threshold, 1 = very safe)
-    const headroom = thresholds.upper - stackHeight;
-    const safetyRatio = Math.max(0, Math.min(1, headroom / thresholds.upper));
-    
-    // Line clear handling - context dependent:
-    // When safe (low stack): penalize clears to build blobs
-    // When stack is high: reward clears to stay alive
-    if (headroom > 8) {
-        // Very safe - penalize line clears to focus on blob building
-        score -= linesCleared * 3;
-    } else if (headroom > 4) {
-        // Getting higher - neutral on line clears
-        // Don't penalize or reward
-    } else {
-        // Approaching danger - reward line clears
-        score += linesCleared * 2;
-    }
-    
-    // === Check for Tsunami/Black Hole opportunities with queue ===
-    let bestTsunamiScore = 0;
-    let hasTsunamiPath = false;
-    let nearTsunamiBonus = 0;
-    let bestTsunamiBlob = null;
-    
-    for (const blob of blobs) {
-        if (blob.size >= 4) {
-            const tsunamiResult = canCompleteTsunamiWithQueue(blob, cols);
-            if (tsunamiResult.canComplete) {
-                hasTsunamiPath = true;
-                if (tsunamiResult.score > bestTsunamiScore) {
-                    bestTsunamiScore = tsunamiResult.score;
-                }
-            }
-            
-            // Reward for tsunami progress on this blob
-            const progress = getTsunamiProgress(blob, cols);
-            score += progress * 3; // Increased multiplier
-            
-            // Track best tsunami candidate for extension bonus
-            const { width, minX, maxX } = getBlobWidth(blob, cols);
-            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            
-            if (blob.size >= 12 && width >= 6 && gap <= 4) {
-                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
-                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
-                }
-            }
-            
-            // Extra bonus for near-completion (width 8 or 9)
-            if (width >= 9 && blob.size >= 15) {
-                nearTsunamiBonus = Math.max(nearTsunamiBonus, 30);
-            } else if (width >= 8 && blob.size >= 12) {
-                nearTsunamiBonus = Math.max(nearTsunamiBonus, 15);
-            }
-        }
-    }
-    
-    score += nearTsunamiBonus;
-    
-    // TSUNAMI EXTENSION BONUS - reward placing pieces toward the gap!
-    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
-        const pieceMinX = x;
-        const pieceMaxX = x + shape[0].length - 1;
-        
-        // Check if piece connects to the blob
-        let connectsToBlob = false;
-        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
-            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
-            if (adj > 0) {
-                connectsToBlob = true;
-            }
-        }
-        
-        if (connectsToBlob) {
-            // Count matching colors in queue for boost
-            const queueMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === bestTsunamiBlob.color).length : 0;
-            const queueBoost = queueMatches >= 2 ? 1.5 : 1.0;
-            
-            const gapMultiplier = (5 - bestTsunamiBlob.gap) * 15 * queueBoost;
-            
-            let extensionBonus = 0;
-            
-            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-                extensionBonus += gapMultiplier;
-                if (pieceMinX === 0) extensionBonus += 40;
-            }
-            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-                extensionBonus += gapMultiplier;
-                if (pieceMaxX === cols - 1) extensionBonus += 40;
-            }
-            
-            // Gap=1 completion bonus
-            if (bestTsunamiBlob.gap === 1) {
-                if (bestTsunamiBlob.minX > 0 && pieceMinX === 0) extensionBonus += 150;
-                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX === cols - 1) extensionBonus += 150;
-            }
-            
-            score += extensionBonus;
-        }
-    }
-    
-    // Black hole progress - use the calculated bonus
-    const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
-    score += blackHoleResult.bonus;
-    
-    // If we have a path to Tsunami, give extra bonus for placements that help it
-    if (hasTsunamiPath) {
-        score += bestTsunamiScore * 2;
-    }
-    
-    // Reward larger blobs (this is how we score points!)
-    for (const blob of blobs) {
-        if (blob.size >= 4) {
-            // Quadratic bonus for blob size
-            score += blob.size * blob.size * 0.1;
-        }
-    }
-    
-    // Reward horizontal blob spread (wider blobs are better for tsunamis)
-    score += getBlobSpreadBonus(blobs, cols);
-    
-    // Color adjacency - reward placing next to same color
-    score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.6;
-    
-    // Bonus for placing colors that have more in queue (can keep building)
-    const queueMatches = getQueueColorCount(color);
-    score += queueMatches * 0.4;
-    
-    // Hole penalty - increases as stack gets higher (holes become more dangerous)
-    const holePenaltyMultiplier = 0.8 + (1 - safetyRatio) * 1.5; // 0.8 to 2.3
-    score -= countHoles(board) * holePenaltyMultiplier;
-    
-    // Bumpiness penalty - increases as stack gets higher
-    const bumpinessPenaltyMultiplier = 0.3 + (1 - safetyRatio) * 0.4; // 0.3 to 0.7
-    score -= getBumpiness(board) * bumpinessPenaltyMultiplier;
-    
-    // Well penalty - strongly discourage single-column gaps, especially when stack is high
-    const wellPenaltyMultiplier = 0.5 + (1 - safetyRatio) * 1.0; // 0.5 to 1.5
-    score -= countWells(board) * wellPenaltyMultiplier;
-    
-    // Graduated danger penalty - kicks in earlier and scales smoothly
-    if (headroom < 8) {
-        // Penalty that increases as we approach danger
-        const dangerLevel = (8 - headroom) / 8; // 0 to 1
-        score -= dangerLevel * dangerLevel * 15; // 0 to 15 points penalty
-    }
-    
-    // Stack height penalty - always have some awareness of height
-    score -= stackHeight * 0.2;
-    
-    if (typeof score !== 'number' || isNaN(score)) return 0;
-    return score;
-}
-
-// ==================== SURVIVAL MODE ====================
-
-function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
-    const blobs = getAllBlobs(board, cols, rows);
-    const stackHeight = getStackHeight(board, rows);
-    const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
-    
-    // FIRST: Check if this placement completes a tsunami!
-    // Even in survival, completing a tsunami is a big win (clears lots of blocks)
-    for (const blob of blobs) {
-        if (blob.size >= 10) {
-            const { minX, maxX } = getBlobWidth(blob, cols);
-            if (minX === 0 && maxX === cols - 1) {
-                // TSUNAMI! This will clear a lot of blocks and save us
-                const tsunamiBonus = 80 + blob.size * 4;
-                return tsunamiBonus;
-            }
-        }
-    }
-    
-    let score = 0;
-    
-    // === Check for near-Tsunami opportunities ===
-    let bestTsunamiScore = 0;
-    let nearTsunamiBonus = 0;
-    let bestTsunamiBlob = null;
-    
-    for (const blob of blobs) {
-        if (blob.size >= 4) {
-            const tsunamiResult = canCompleteTsunamiWithQueue(blob, cols);
-            if (tsunamiResult.canComplete && tsunamiResult.score > bestTsunamiScore) {
-                bestTsunamiScore = tsunamiResult.score;
-            }
-            
-            // Check for near-completion
-            const { width, minX, maxX } = getBlobWidth(blob, cols);
-            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            const progress = getTsunamiProgress(blob, cols);
-            
-            // Track best tsunami candidate for extension bonus
-            if (blob.size >= 12 && width >= 6 && gap <= 4) {
-                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
-                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
-                }
-            }
-            
-            if (width >= 9 && blob.size >= 15) {
-                nearTsunamiBonus = Math.max(nearTsunamiBonus, 25);
-            } else if (width >= 8 && blob.size >= 12) {
-                nearTsunamiBonus = Math.max(nearTsunamiBonus, 12);
-            }
-            
-            if (progress >= 1.0) {
-                score += progress * 5;
-            }
-        }
-    }
-    
-    // TSUNAMI EXTENSION BONUS - critical for actually completing tsunamis!
-    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
-        const pieceMinX = x;
-        const pieceMaxX = x + shape[0].length - 1;
-        
-        // Check if piece connects to the blob
-        let connectsToBlob = false;
-        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
-            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
-            if (adj > 0) {
-                connectsToBlob = true;
-            }
-        }
-        
-        if (connectsToBlob) {
-            // In survival, completing a tsunami is EXTREMELY valuable - it clears lots of blocks!
-            const gapMultiplier = (5 - bestTsunamiBlob.gap) * 20; // gap=1: 80, gap=2: 60, gap=3: 40, gap=4: 20
-            
-            let extensionBonus = 0;
-            
-            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-                extensionBonus += gapMultiplier;
-                if (pieceMinX === 0) extensionBonus += 50;
-            }
-            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-                extensionBonus += gapMultiplier;
-                if (pieceMaxX === cols - 1) extensionBonus += 50;
-            }
-            
-            // Gap=1 completion is HUGE in survival - this clears massive amounts
-            if (bestTsunamiBlob.gap === 1) {
-                if (bestTsunamiBlob.minX > 0 && pieceMinX === 0) extensionBonus += 200;
-                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX === cols - 1) extensionBonus += 200;
-            }
-            
-            score += extensionBonus;
-        }
-    }
-    
-    // If there's a clear path to Tsunami, prioritize it even in survival
-    if (bestTsunamiScore > 0) {
-        score += bestTsunamiScore * 3;
-        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.5;
-    }
-    
-    score += nearTsunamiBonus;
-    
-    // === Normal survival logic ===
-    
-    // STRONGLY reward line clears
-    score += linesCleared * linesCleared * 4;
-    
-    // Reward lower stack height
-    score -= stackHeight * 0.8;
-    
-    // CRITICAL: Massive penalty for placements that would end the game or get very close
-    // The board has 20 rows, pieces spawn at top - if stack is 18+, we're in extreme danger
-    if (stackHeight >= 19) {
-        score -= 1000; // Near-certain death
-    } else if (stackHeight >= 18) {
-        score -= 200; // Extreme danger
-    } else if (stackHeight >= 17) {
-        score -= 50; // High danger
-    }
-    
-    // Strong hole penalty
-    score -= countHoles(board) * 2.5;
-    
-    // Bumpiness penalty
-    score -= getBumpiness(board) * 0.4;
-    
-    // Well penalty - avoid single-column gaps
-    score -= countWells(board) * 0.5;
-    
-    // Aggregate height penalty
-    score -= getAggregateHeight(board) * 0.15;
-    
-    // Still give small bonus for color adjacency (helps future blob building)
-    if (bestTsunamiScore === 0) {
-        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.15;
-    }
-    
-    // Urgency bonus - more reward for clearing when stack is high
-    const urgency = Math.max(0, stackHeight - thresholds.lower) / (thresholds.upper - thresholds.lower);
-    score += linesCleared * urgency * 3;
-    
-    if (typeof score !== 'number' || isNaN(score)) return 0;
-    return score;
-}
-
-// ==================== UNIFIED EVALUATION ====================
-// SURVIVAL FIRST: Never compromise basic board health for color bonuses
-
-function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
-    const blobs = getAllBlobs(board, cols, rows);
-    const stackHeight = getStackHeight(board, rows);
     const holes = countHoles(board);
-    const wells = countWells(board);
+    const stackHeight = getStackHeight(board, rows);
     const bumpiness = getBumpiness(board);
+    const colHeights = getColumnHeights(board, cols, rows);
+    const blobs = getAllBlobs(board, cols, rows);
     
-    let score = 0;
+    // ====== SURVIVAL PRIORITIES (always matter) ======
     
-    // ========================================
-    // PHASE 1: SURVIVAL (always applies, non-negotiable)
-    // ========================================
+    // 1. Holes are devastating - each hole makes the game harder
+    score -= holes * 15;
     
-    // Holes are DEVASTATING - each hole makes line clears harder
-    score -= holes * 10;
+    // 2. Height penalty - keep stack low
+    score -= stackHeight * 1.0;
     
-    // Deep wells/canyons are almost as bad as holes
-    score -= wells * 3;
-    
-    // Height penalty - keep the stack low
-    score -= stackHeight * 0.8;
-    
-    // Bumpiness makes it hard to clear lines
+    // 3. Bumpiness - flat surface is easier to manage
     score -= bumpiness * 0.5;
     
-    // LINE CLEARS: Context-dependent handling
-    // We know how many lines WILL be cleared but don't simulate the result
-    // The game handles blob gravity correctly after we place the piece
-    const headroom = 20 - stackHeight;
-    if (headroom > 10) {
-        // Very safe (stack <= 9) - penalize line clears to focus on blob building
-        score -= linesCleared * linesCleared * 3;
-    } else if (headroom > 6) {
-        // Moderately safe (stack 10-13) - slight penalty for clearing
-        score -= linesCleared * 2;
-    } else if (headroom > 3) {
-        // Getting dangerous (stack 14-16) - small reward for clearing
-        score += linesCleared * linesCleared * 2;
-    } else {
-        // Critical danger (stack 17+) - big reward for clearing
-        score += linesCleared * linesCleared * 8;
+    // 4. Avoid bowl shapes - penalize if edges are much shorter than middle
+    const edgeAvg = (colHeights[0] + colHeights[cols - 1]) / 2;
+    const middleAvg = (colHeights[4] + colHeights[5]) / 2;
+    if (middleAvg > edgeAvg + 4) {
+        score -= (middleAvg - edgeAvg - 4) * 3;
     }
     
-    // COMPACTNESS BONUS: Small reward for touching existing blocks
-    // Reduced from 1.5 to 0.5 to prevent middle-stacking
-    const touchingExisting = countTouchingCells(board, shape, x, y, cols, rows);
-    score += touchingExisting * 0.5;
-    
-    // COLUMN BALANCE: Penalize placing in already-tall columns when short columns exist
-    // This prevents bowl-shaped boards
-    const colHeights = [];
-    for (let cx = 0; cx < cols; cx++) {
-        for (let cy = 0; cy < rows; cy++) {
-            if (board[cy][cx] !== null) {
-                colHeights.push(rows - cy);
-                break;
-            }
-            if (cy === rows - 1) colHeights.push(0);
-        }
-    }
-    
-    // Find the column(s) this piece occupies
-    const pieceMinX = x;
-    const pieceMaxX = x + shape[0].length - 1;
-    
-    // Get the height of the tallest column this piece occupies
-    let pieceColMaxHeight = 0;
-    for (let cx = pieceMinX; cx <= pieceMaxX && cx < cols; cx++) {
-        pieceColMaxHeight = Math.max(pieceColMaxHeight, colHeights[cx] || 0);
-    }
-    
-    // Get the height of the shortest non-zero column (or 0 if all empty)
-    const nonZeroHeights = colHeights.filter(h => h > 0);
-    const minColHeight = nonZeroHeights.length > 0 ? Math.min(...nonZeroHeights) : 0;
-    
-    // Penalty for stacking on tall columns when short columns exist
-    if (pieceColMaxHeight > minColHeight + 4 && minColHeight > 0) {
-        score -= (pieceColMaxHeight - minColHeight - 4) * 2;
-    }
-    
-    // Bonus for placing in empty or very short columns
-    if (pieceColMaxHeight <= 2 && colHeights.some(h => h > 4)) {
-        score += 5;
-    }
-    
-    // Death zone penalties
+    // 5. Severe height penalties
     if (stackHeight >= 18) {
-        score -= 500;
+        score -= 200;
     } else if (stackHeight >= 16) {
         score -= 50;
     } else if (stackHeight >= 14) {
-        score -= 10;
+        score -= 15;
     }
     
-    // ========================================
-    // PHASE 2: CHECK FOR TSUNAMI/BLACK HOLE COMPLETION
-    // ========================================
+    // ====== SCORING PRIORITIES (when not in danger) ======
     
-    // If this placement COMPLETES a tsunami, it's worth it
-    for (const blob of blobs) {
-        if (blob.size >= 10) {
-            const { minX, maxX } = getBlobWidth(blob, cols);
-            if (minX === 0 && maxX === cols - 1) {
-                // TSUNAMI! Big bonus
-                return score + 150 + blob.size * 3;
-            }
-        }
-    }
-    
-    // Check for Black Hole completion/progress
-    const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
-    if (blackHoleResult.canComplete) {
-        // If we can complete a black hole, give significant bonus
-        score += blackHoleResult.bonus;
-    }
-    
-    // ========================================
-    // PHASE 3: COLOR BUILDING (when board is manageable)
-    // ========================================
-    
-    // Add color bonuses if board is healthy enough to focus on building
-    const isHealthy = holes <= 2 && stackHeight <= 14;
-    const isModeratelyHealthy = holes <= 4 && stackHeight <= 16;
-    
-    if (isHealthy) {
-        // Bonus for same-color adjacency (builds blobs)
+    if (stackHeight <= 14 && holes <= 2) {
+        // 6. Same-color adjacency - builds blobs
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 1.5;  // Increased significantly
+        score += adjacency * 1.5;
         
-        // Bonus for blob size - bigger blobs = more points from tsunamis
+        // 7. Reward large blobs
         for (const blob of blobs) {
-            if (blob.size >= 4) {
-                score += blob.size * 0.4;  // Doubled
-                
-                // Bonus for wide blobs (potential tsunamis)
-                const { width } = getBlobWidth(blob, cols);
-                if (width >= 5) {
-                    score += (width - 4) * 4;  // +4 for width 5, +8 for 6, +12 for 7, +16 for 8, +20 for 9
-                }
+            if (blob.size >= 6) {
+                score += blob.size * 0.3;
             }
         }
         
-        // Black hole progress bonus when healthy
-        if (!blackHoleResult.canComplete && blackHoleResult.progress > 0.3) {
-            score += blackHoleResult.bonus * 0.5;
-        }
-    } else if (isModeratelyHealthy) {
-        // Still give some color bonus when moderately healthy
-        const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 0.5;
-        
-        // Smaller blob bonus
+        // 8. TSUNAMI SETUP - big bonus for extending wide blobs toward edges
         for (const blob of blobs) {
-            if (blob.size >= 8) {
-                score += blob.size * 0.2;
-            }
-        }
-    }
-    
-    // ========================================
-    // PHASE 4: NEAR-TSUNAMI BONUS (when close to spanning width)
-    // ========================================
-    
-    // Find best tsunami candidate
-    let bestTsunamiBlob = null;
-    for (const blob of blobs) {
-        if (blob.size >= 12) {
-            const { width, minX, maxX } = getBlobWidth(blob, cols);
-            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            if (width >= 6 && gap <= 4) {
-                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
-                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
-                }
-            }
-        }
-    }
-    
-    if (bestTsunamiBlob) {
-        const pieceMinX = x;
-        const pieceMaxX = x + shape[0].length - 1;
-        
-        // Count how many matching colors are in the queue (including current piece)
-        const queueMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === bestTsunamiBlob.color).length : 0;
-        const currentMatches = color === bestTsunamiBlob.color ? 1 : 0;
-        const totalMatching = queueMatches + currentMatches;
-        
-        // Estimate how many columns we can cover with matching pieces
-        // Each piece covers ~2-3 columns of extension on average
-        const estimatedCoverage = totalMatching * 2.5;
-        const canLikelyComplete = estimatedCoverage >= bestTsunamiBlob.gap;
-        
-        // If this piece matches the tsunami blob color
-        if (color === bestTsunamiBlob.color) {
-            // Check if piece actually CONNECTS to the blob
-            let connectsToBlob = false;
-            
-            if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
-                const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
-                if (adj > 0) {
-                    connectsToBlob = true;
-                }
-            }
-            
-            if (connectsToBlob) {
-                // Base multiplier scales with gap (closer = more urgent)
-                const gapMultiplier = (5 - bestTsunamiBlob.gap) * 15; // gap=1: 60, gap=2: 45, gap=3: 30, gap=4: 15
+            if (blob.size >= 12 && blob.color === color) {
+                const { minX, maxX, width } = getBlobWidth(blob, cols);
                 
-                // Bonus multiplier if we have more matching pieces in queue
-                const queueBoost = canLikelyComplete ? 1.5 : 1.0;
-                
-                let extensionBonus = 0;
-                
-                // Check if this placement extends toward the missing columns
-                if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-                    extensionBonus += gapMultiplier * queueBoost;
-                    if (pieceMinX === 0) {
-                        extensionBonus += 40; // Reaches edge!
-                    }
-                }
-                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-                    extensionBonus += gapMultiplier * queueBoost;
-                    if (pieceMaxX === cols - 1) {
-                        extensionBonus += 40; // Reaches edge!
-                    }
+                // Already spanning full width? TSUNAMI!
+                if (minX === 0 && maxX === cols - 1) {
+                    score += 200 + blob.size * 5;
+                    continue;
                 }
                 
-                // MASSIVE bonus if this piece would complete the tsunami
-                if (bestTsunamiBlob.gap === 1) {
-                    const needsLeft = bestTsunamiBlob.minX > 0;
-                    const needsRight = bestTsunamiBlob.maxX < cols - 1;
+                // Check if OUR PIECE is at the edge of this blob
+                // (meaning we just extended it toward an edge)
+                const pieceMinX = x;
+                const pieceMaxX = x + shape[0].length - 1;
+                
+                // Did we extend to the left edge?
+                const extendedLeft = (pieceMinX === 0 && minX === 0 && maxX < cols - 1);
+                // Did we extend to the right edge?  
+                const extendedRight = (pieceMaxX === cols - 1 && maxX === cols - 1 && minX > 0);
+                // Did we extend toward (but not reach) an edge?
+                const extendedTowardLeft = (pieceMinX === minX && minX > 0 && minX <= 2);
+                const extendedTowardRight = (pieceMaxX === maxX && maxX < cols - 1 && maxX >= cols - 3);
+                
+                if (extendedLeft || extendedRight || extendedTowardLeft || extendedTowardRight) {
+                    // Count matching colors in queue for extra confidence
+                    const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                    const queueBoost = queueMatches >= 2 ? 1.5 : 1.0;
                     
-                    if (needsLeft && pieceMinX === 0) {
-                        extensionBonus += 200;
-                    }
-                    if (needsRight && pieceMaxX === cols - 1) {
-                        extensionBonus += 200;
-                    }
-                }
-                
-                // Apply bonus if board isn't completely trashed
-                if (holes <= 5) {
+                    // Bonus based on how wide the blob is now
+                    const gap = minX + (cols - 1 - maxX);
+                    const extensionBonus = (10 - gap) * 20 * queueBoost;
                     score += extensionBonus;
+                    
+                    // Extra bonus for reaching edge
+                    if (extendedLeft || extendedRight) {
+                        score += 30;
+                    }
                 }
             }
-        } else if (canLikelyComplete && holes <= 3) {
-            // Current piece doesn't match, but we have matching pieces coming!
-            // Give a small bonus for placements that DON'T block the tsunami blob
-            
-            // Penalty for placing on top of or blocking the tsunami blob's extension paths
-            const blocksLeftExtension = bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX && pieceMaxX < bestTsunamiBlob.minX;
-            const blocksRightExtension = bestTsunamiBlob.maxX < cols - 1 && pieceMinX > bestTsunamiBlob.maxX && pieceMaxX > bestTsunamiBlob.maxX;
-            
-            // Small bonus for NOT blocking the extension path
-            if (!blocksLeftExtension && !blocksRightExtension) {
-                score += queueMatches * 3; // Encourage preserving the opportunity
-            }
-        }
-    }
-    
-    if (typeof score !== 'number' || isNaN(score)) return 0;
-    return score;
-}
-
-/**
- * Count how many cells of the placed piece touch existing blocks
- * This rewards compact placements
- */
-function countTouchingCells(board, shape, x, y, cols, rows) {
-    let touching = 0;
-    
-    for (let sy = 0; sy < shape.length; sy++) {
-        for (let sx = 0; sx < shape[sy].length; sx++) {
-            if (!shape[sy][sx]) continue;
-            
-            const bx = x + sx;
-            const by = y + sy;
-            
-            // Check all 4 neighbors for existing blocks
-            const neighbors = [
-                [bx - 1, by], [bx + 1, by],
-                [bx, by - 1], [bx, by + 1]
-            ];
-            
-            for (const [nx, ny] of neighbors) {
-                // Skip if out of bounds or below the board
-                if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
-                
-                // Check if there's an existing block at this neighbor position
-                // (not from the current piece being placed)
-                if (board[ny] && board[ny][nx]) {
-                    touching++;
-                }
-            }
-        }
-    }
-    
-    return touching;
-}
-
-/**
- * Check if a piece placement is adjacent to cells of a specific color
- */
-function isAdjacentToBlob(board, shape, x, y, targetColor, cols, rows) {
-    for (let sy = 0; sy < shape.length; sy++) {
-        for (let sx = 0; sx < shape[sy].length; sx++) {
-            if (shape[sy][sx]) {
-                const bx = x + sx;
-                const by = y + sy;
-                // Check all 4 neighbors
-                for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-                    const nx = bx + dx;
-                    const ny = by + dy;
-                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-                        if (board[ny] && board[ny][nx] === targetColor) {
-                            return true;
+            // Non-matching piece near a completable tsunami
+            else if (blob.size >= 15 && blob.color !== color) {
+                const { minX, maxX, width } = getBlobWidth(blob, cols);
+                if (width >= 8) {
+                    const queueMatches = pieceQueue.filter(p => p && p.color === blob.color).length;
+                    if (queueMatches >= 2) {
+                        const pieceMinX = x;
+                        const pieceMaxX = x + shape[0].length - 1;
+                        
+                        // Penalty for blocking extension paths
+                        const blocksLeft = minX > 0 && pieceMinX < minX;
+                        const blocksRight = maxX < cols - 1 && pieceMaxX > maxX;
+                        
+                        if (blocksLeft || blocksRight) {
+                            score -= 10; // Penalty for blocking
+                        } else {
+                            score += 3; // Small bonus for staying clear
                         }
                     }
                 }
             }
         }
     }
-    return false;
+    
+    return score;
 }
+
+// ==================== PLACEMENT GENERATION ====================
 
 function generatePlacements(board, piece, cols, rows) {
     const placements = [];
-    const rotations = getAllRotations(piece.shape);
+    const shape = piece.shape;
+    const rotations = piece.rotations || [shape];
     
     for (let rotationIndex = 0; rotationIndex < rotations.length; rotationIndex++) {
-        const shape = rotations[rotationIndex];
+        const rotatedShape = rotations[rotationIndex];
+        const pieceWidth = rotatedShape[0].length;
         
-        for (let x = -2; x < cols + 2; x++) {
-            if (!isValidPosition(board, shape, x, -shape.length, cols, rows) &&
-                !isValidPosition(board, shape, x, 0, cols, rows)) {
-                continue;
-            }
+        for (let x = 0; x <= cols - pieceWidth; x++) {
+            const y = dropPiece(board, rotatedShape, x, cols, rows);
             
-            const y = dropPiece(board, shape, x, cols, rows);
+            if (!isValidPosition(board, rotatedShape, x, y, cols, rows)) continue;
             
-            if (!isValidPosition(board, shape, x, y, cols, rows)) continue;
-            
-            // CRITICAL: Check if piece would extend above the board (game over condition)
-            // If y is negative, some part of the piece is above row 0
+            // Game over check
             if (y < 0) {
-                // This placement would cause game over - give massive penalty
-                placements.push({
-                    x, y, rotationIndex, shape, score: -10000
-                });
+                placements.push({ x, y, rotationIndex, shape: rotatedShape, score: -10000 });
                 continue;
             }
             
-            const newBoard = placePiece(board, shape, x, y, piece.color);
-            const linesBefore = countCompleteLines(board);
-            const linesAfter = countCompleteLines(newBoard);
-            const linesCleared = linesAfter - linesBefore;
+            const newBoard = placePiece(board, rotatedShape, x, y, piece.color);
+            const score = evaluateBoard(newBoard, rotatedShape, x, y, piece.color, cols, rows);
             
-            // DON'T simulate line clears - blob gravity makes predictions unreliable
-            // Just evaluate the board with the piece placed
-            // The game will handle line clears and gravity, then call us again with the settled board
-            const score = evaluateBoard(newBoard, shape, x, y, piece.color, cols, rows, linesCleared);
-            
-            placements.push({
-                x, y, rotationIndex, shape, score
-            });
+            placements.push({ x, y, rotationIndex, shape: rotatedShape, score });
         }
     }
     
@@ -1361,9 +457,6 @@ function generatePlacements(board, piece, cols, rows) {
 }
 
 function findBestPlacement(board, piece, cols, rows, queue) {
-    // Update mode based on current stack height BEFORE evaluating
-    updateMode(board, rows);
-    
     const placements = generatePlacements(board, piece, cols, rows);
     
     if (placements.length === 0) {
@@ -1372,53 +465,45 @@ function findBestPlacement(board, piece, cols, rows, queue) {
     
     let bestPlacement;
     
+    // Use queue for 2-ply lookahead if available
     const nextPiece = queue && queue.length > 0 ? queue[0] : null;
     const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
     
-    // 2-ply lookahead if we have pieces in queue
-    // NOTE: We don't simulate line clears because blob gravity is unpredictable
     if (nextPiece) {
+        // 2-ply lookahead: consider where next piece can go
         for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
-            // Don't simulate line clears - just use the board with piece placed
-            
             const nextPlacements = generatePlacements(newBoard, nextPiece, cols, rows);
             
             if (nextPlacements.length > 0) {
-                // Sort and take top 8 placements for 2nd ply (performance optimization)
-                const topNextPlacements = nextPlacements
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 8);
+                // Get top 6 next placements to limit computation
+                const topNext = nextPlacements.sort((a, b) => b.score - a.score).slice(0, 6);
                 
                 let bestNextScore = -Infinity;
                 
-                for (const nextPlacement of topNextPlacements) {
-                    let nextCombinedScore = nextPlacement.score;
+                for (const nextPlacement of topNext) {
+                    let nextScore = nextPlacement.score;
                     
-                    // 3rd ply if we have a third piece
+                    // 3-ply: look one more piece ahead (lighter weight)
                     if (thirdPiece) {
                         const nextBoard = placePiece(newBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
-                        // Don't simulate line clears
-                        
                         const thirdPlacements = generatePlacements(nextBoard, thirdPiece, cols, rows);
                         
                         if (thirdPlacements.length > 0) {
                             const bestThird = thirdPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                            // Weight: 3rd piece contributes 0.25
-                            nextCombinedScore = nextPlacement.score + bestThird.score * 0.25;
-                        } else {
-                            nextCombinedScore = nextPlacement.score - 50;
+                            nextScore += bestThird.score * 0.3; // 3rd piece counts 30%
                         }
                     }
                     
-                    if (nextCombinedScore > bestNextScore) {
-                        bestNextScore = nextCombinedScore;
+                    if (nextScore > bestNextScore) {
+                        bestNextScore = nextScore;
                     }
                 }
                 
-                // Weight: 2nd piece contributes 0.5
+                // Combined score: current + 50% of best future
                 placement.combinedScore = placement.score + bestNextScore * 0.5;
             } else {
+                // Can't place next piece = bad
                 placement.combinedScore = placement.score - 100;
             }
         }
@@ -1427,30 +512,29 @@ function findBestPlacement(board, piece, cols, rows, queue) {
             (a.combinedScore || a.score) > (b.combinedScore || b.score) ? a : b
         );
     } else {
+        // No queue, just pick best immediate score
         bestPlacement = placements.reduce((a, b) => a.score > b.score ? a : b);
     }
     
-    // Record this decision if recording is active
+    // Record decision
+    const stackHeight = getStackHeight(board, rows);
     if (gameRecording.startTime) {
-        recordDecision(board, piece, placements, bestPlacement, currentMode, lastStackHeight);
+        recordDecision(board, piece, placements, bestPlacement, stackHeight);
     }
     
     return bestPlacement;
 }
 
-// Handle messages from main thread
+// ==================== MESSAGE HANDLER ====================
+
 self.onmessage = function(e) {
     const { command, board, piece, queue, cols, rows, skillLevel, cause } = e.data;
     
-    // Handle reset command
     if (command === 'reset') {
-        currentMode = 'colorBuilding';
-        lastStackHeight = 0;
-        self.postMessage({ reset: true, mode: currentMode });
+        self.postMessage({ reset: true });
         return;
     }
     
-    // Handle recording commands
     if (command === 'startRecording') {
         startRecording();
         gameRecording.skillLevel = skillLevel || currentSkillLevel;
@@ -1481,9 +565,9 @@ self.onmessage = function(e) {
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
     
-    // Use setTimeout to yield to other tasks and reduce priority
     setTimeout(() => {
         const bestPlacement = findBestPlacement(board, piece, cols, rows, pieceQueue);
-        self.postMessage({ bestPlacement, mode: currentMode, stackHeight: lastStackHeight });
+        const stackHeight = getStackHeight(board, rows);
+        self.postMessage({ bestPlacement, stackHeight });
     }, 0);
 };
