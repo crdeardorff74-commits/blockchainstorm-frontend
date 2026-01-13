@@ -1598,12 +1598,33 @@ const StarfieldSystem = (function() {
                 const duration = 1500;
                 let allOffScreen = true;
                 
-                // Sort asteroids by depth for proper layering
-                // In normal mode: draw far (high depth) first, close (low depth) last
-                // In reversed mode: draw close (low depth) first, far (high depth) last
-                const sortedAsteroids = [...asteroids].sort((a, b) => 
-                    cameraReversed ? a.depth - b.depth : b.depth - a.depth
-                );
+                // Global scale based on belt progress - whole belt shrinks/grows over time
+                const progress = Math.min(asteroidBeltProgress / duration, 1);
+                const globalBeltScale = cameraReversed 
+                    ? 0.2 + progress * 0.8   // Reversed: starts small (0.2), grows to 1.0
+                    : 1.0 - progress * 0.8;  // Normal: starts at 1.0, shrinks to 0.2
+                
+                // Calculate additional scale based on x position
+                const getPositionScale = (asteroid) => {
+                    const screenWidth = starfieldCanvas.width * 0.6;
+                    if (cameraReversed) {
+                        // Moving right (entering from left, exiting right)
+                        const posProgress = (asteroid.x + screenWidth) / (screenWidth * 2);
+                        return 0.5 + posProgress * 1.0; // 0.5 to 1.5
+                    } else {
+                        // Moving left (entering from right, exiting left)
+                        const posProgress = (asteroid.x + screenWidth) / (screenWidth * 2);
+                        return 0.5 + posProgress * 1.0; // 0.5 to 1.5
+                    }
+                };
+                
+                // Sort asteroids by combined scale for proper layering
+                const sortedAsteroids = [...asteroids].sort((a, b) => {
+                    const scaleA = getPositionScale(a) * (1 + a.depth * 0.3);
+                    const scaleB = getPositionScale(b) * (1 + b.depth * 0.3);
+                    // Draw smaller (further) asteroids first
+                    return scaleA - scaleB;
+                });
                 
                 sortedAsteroids.forEach(asteroid => {
                     if (!paused) {
@@ -1625,20 +1646,14 @@ const StarfieldSystem = (function() {
                         }
                     }
                     
-                    const progress = Math.min(asteroidBeltProgress / duration, 1);
-                    // Base scale from progress (overall belt distance)
-                    const progressScale = cameraReversed 
-                        ? 0.5 + progress * 1.5
-                        : 2 - progress * 1.5;
+                    // Position-based scale (individual asteroid traveling across screen)
+                    const positionScale = getPositionScale(asteroid);
                     
-                    // Depth scale: asteroids with higher depth appear further away
-                    // depth 0 = closer (larger), depth 1 = further (smaller)
-                    // Scale ranges from 1.3 (close) to 0.5 (far)
-                    const depthScale = cameraReversed
-                        ? 0.5 + asteroid.depth * 0.8  // Reversed: depth=0 is small, depth=1 is large
-                        : 1.3 - asteroid.depth * 0.8; // Normal: depth=0 is large, depth=1 is small
+                    // Depth variation per asteroid
+                    const depthVariation = 0.7 + asteroid.depth * 0.6; // 0.7 to 1.3
                     
-                    const scale = progressScale * depthScale;
+                    // Combined scale: global belt distance * position * depth
+                    const scale = globalBeltScale * positionScale * depthVariation;
                     
                     if (asteroid.x > -starfieldCanvas.width * 0.6 && 
                         asteroid.x < starfieldCanvas.width * 0.6) {
