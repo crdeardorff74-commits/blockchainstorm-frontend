@@ -10012,7 +10012,9 @@ function runTwoPhaseGravity() {
         gravityAnimating = false;
         
         // SAFETY CHECK: Even with no animations, check for floating blocks
-        detectAndFixFloatingBlocks();
+        if (detectAndFixFloatingBlocks()) {
+            return; // Don't continue - gravity re-run will handle the rest
+        }
         
         // Update liquid pools
         updateLiquidPoolsAfterGravity();
@@ -10087,8 +10089,11 @@ function updateFallingBlocks() {
         gravityAnimating = false;
         fallingBlocks = [];
         
-        // SAFETY CHECK: Detect and fix any floating blocks that gravity missed
-        detectAndFixFloatingBlocks();
+        // SAFETY CHECK: Detect pathological floating blocks (complete empty rows)
+        // If detected, gravity will be re-run asynchronously
+        if (detectAndFixFloatingBlocks()) {
+            return; // Don't continue - gravity re-run will handle the rest
+        }
         
         // CRITICAL FIX: After gravity, blocks may have fallen into currentPiece's space
         // Push the piece up until it's no longer colliding
@@ -10117,73 +10122,80 @@ function updateFallingBlocks() {
 }
 
 /**
- * Detect floating blocks that should have fallen but didn't
+ * Detect and fix floating blocks that should have fallen but didn't
+ * This is a SAFETY NET for race conditions - only triggers in pathological cases
+ * where there's a complete empty row separating blocks from the floor.
+ * Does NOT touch normal holes within blobs.
  * Returns true if floating blocks were found and fixed
  */
 function detectAndFixFloatingBlocks() {
-    let foundFloating = false;
-    let fixedCount = 0;
+    // Look for a completely empty row that has blocks above it
+    // This indicates a catastrophic gravity failure
     
-    // Keep fixing until no more floating blocks are found
-    // (blocks might need to fall multiple rows)
-    let passes = 0;
-    const maxPasses = ROWS; // Safety limit
+    let emptyRowWithBlocksAbove = -1;
     
-    while (passes < maxPasses) {
-        passes++;
-        let fixedThisPass = false;
-        
-        // For each column, find floating blocks and move them down
+    for (let y = ROWS - 1; y >= 1; y--) {
+        // Check if this row is completely empty
+        let rowIsEmpty = true;
         for (let x = 0; x < COLS; x++) {
-            // Find the lowest empty row that has a block somewhere above it
-            for (let gapY = ROWS - 1; gapY >= 0; gapY--) {
-                if (board[gapY][x] === null) {
-                    // Found an empty cell - check if there's a block above it
-                    for (let blockY = gapY - 1; blockY >= 0; blockY--) {
-                        if (board[blockY][x] !== null) {
-                            // Found a floating block! Move it down
-                            foundFloating = true;
-                            fixedThisPass = true;
-                            fixedCount++;
-                            
-                            // Move the block down to the gap
-                            board[gapY][x] = board[blockY][x];
-                            board[blockY][x] = null;
-                            
-                            // Also move random/lattice flags
-                            if (isRandomBlock[blockY] && isRandomBlock[gapY]) {
-                                isRandomBlock[gapY][x] = isRandomBlock[blockY][x];
-                                isRandomBlock[blockY][x] = false;
-                            }
-                            if (isLatticeBlock[blockY] && isLatticeBlock[gapY]) {
-                                isLatticeBlock[gapY][x] = isLatticeBlock[blockY][x];
-                                isLatticeBlock[blockY][x] = false;
-                            }
-                            
-                            // Move fading blocks
-                            if (fadingBlocks[blockY] && fadingBlocks[gapY]) {
-                                fadingBlocks[gapY][x] = fadingBlocks[blockY][x];
-                                fadingBlocks[blockY][x] = null;
-                            }
-                            
-                            break; // Move on to next gap search
-                        }
-                    }
-                    break; // Found a gap in this column, move to next column
-                }
+            if (board[y][x] !== null) {
+                rowIsEmpty = false;
+                break;
             }
         }
         
-        if (!fixedThisPass) {
-            break; // No more floating blocks found
+        if (rowIsEmpty) {
+            // Check if there are any blocks above this row
+            let hasBlocksAbove = false;
+            for (let checkY = y - 1; checkY >= 0; checkY--) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[checkY][x] !== null) {
+                        hasBlocksAbove = true;
+                        break;
+                    }
+                }
+                if (hasBlocksAbove) break;
+            }
+            
+            if (hasBlocksAbove) {
+                // Also check that there are blocks or floor BELOW this empty row
+                // (to confirm this is actually a gap, not just the top of the board)
+                let hasBlocksOrFloorBelow = (y === ROWS - 1); // Floor counts
+                if (!hasBlocksOrFloorBelow) {
+                    for (let checkY = y + 1; checkY < ROWS; checkY++) {
+                        for (let x = 0; x < COLS; x++) {
+                            if (board[checkY][x] !== null) {
+                                hasBlocksOrFloorBelow = true;
+                                break;
+                            }
+                        }
+                        if (hasBlocksOrFloorBelow) break;
+                    }
+                }
+                
+                if (hasBlocksOrFloorBelow) {
+                    emptyRowWithBlocksAbove = y;
+                    break; // Found the gap
+                }
+            }
         }
     }
     
-    if (foundFloating) {
-        console.log(`🚨 FLOATING BLOCKS FIX: Moved ${fixedCount} blocks down in ${passes} passes`);
+    if (emptyRowWithBlocksAbove === -1) {
+        return false; // No pathological floating detected
     }
     
-    return foundFloating;
+    console.log(`🚨 GRAVITY BUG DETECTED: Empty row ${emptyRowWithBlocksAbove} with blocks above! Re-running gravity...`);
+    
+    // Don't try to fix it ourselves - just re-run the proper gravity system
+    // This ensures blob-based physics are respected
+    setTimeout(() => {
+        if (!gravityAnimating && !animatingLines) {
+            runTwoPhaseGravity();
+        }
+    }, 50);
+    
+    return true;
 }
 
 function drawFallingBlocks() {

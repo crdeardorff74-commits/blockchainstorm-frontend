@@ -522,12 +522,14 @@ function canCompleteTsunamiWithQueue(blob, cols) {
 
 /**
  * Check for potential Black Hole setup (blob surrounded by another color)
+ * Returns progress toward completion and whether queue can help complete it
  */
 function getBlackHoleProgress(blobs, cols, rows) {
-    if (blobs.length < 2) return { progress: 0, canComplete: false };
+    if (blobs.length < 2) return { progress: 0, canComplete: false, bonus: 0 };
     
     let maxProgress = 0;
     let bestCanComplete = false;
+    let bestBonus = 0;
     
     for (let i = 0; i < blobs.length; i++) {
         for (let j = 0; j < blobs.length; j++) {
@@ -537,37 +539,73 @@ function getBlackHoleProgress(blobs, cols, rows) {
             const inner = blobs[i];
             const outer = blobs[j];
             
-            if (inner.size < 4 || outer.size < 6) continue;
+            // Inner blob needs to be decent size for points, outer needs to be bigger
+            if (inner.size < 4 || outer.size < 8) continue;
             
             // Count how many sides of inner are adjacent to outer
             let adjacentCount = 0;
             const outerSet = new Set(outer.positions.map(p => `${p[0]},${p[1]}`));
             
+            // Also track which sides of inner are NOT adjacent (gaps to fill)
+            let gapCount = 0;
+            
             for (const [x, y] of inner.positions) {
                 const neighbors = [[x-1,y], [x+1,y], [x,y-1], [x,y+1]];
                 for (const [nx, ny] of neighbors) {
+                    // Skip if neighbor is part of inner blob
+                    if (inner.positions.some(p => p[0] === nx && p[1] === ny)) continue;
+                    
                     if (outerSet.has(`${nx},${ny}`)) {
                         adjacentCount++;
+                    } else if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                        gapCount++;
                     }
                 }
             }
             
             // Progress based on how surrounded the inner blob is
-            const perimeterEstimate = inner.size * 2 + 2;
-            const progress = adjacentCount / perimeterEstimate;
+            const totalPerimeter = adjacentCount + gapCount;
+            if (totalPerimeter === 0) continue;
             
-            // Check if queue could help complete this
-            const outerMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === outer.color).length : 0;
-            const canComplete = progress > 0.5 && outerMatches >= 2;
+            const progress = adjacentCount / totalPerimeter;
             
-            if (progress > maxProgress) {
+            // Check queue for both inner and outer colors
+            const outerInQueue = pieceQueue ? pieceQueue.filter(p => p && p.color === outer.color).length : 0;
+            const innerInQueue = pieceQueue ? pieceQueue.filter(p => p && p.color === inner.color).length : 0;
+            
+            // Can complete if:
+            // - Already >60% surrounded, OR
+            // - >40% surrounded with 2+ outer colors in queue
+            const canComplete = progress > 0.6 || (progress > 0.4 && outerInQueue >= 2);
+            
+            // Calculate bonus based on:
+            // - Progress toward completion
+            // - Size of blobs (bigger = more points)
+            // - Queue support
+            let bonus = progress * 5;
+            
+            if (canComplete) {
+                // Bigger bonus when completion is likely
+                bonus += 10;
+                bonus += outerInQueue * 3;
+                bonus += (inner.size + outer.size) * 0.2;
+            }
+            
+            // Extra bonus if inner blob could grow (we have inner colors in queue)
+            // Growing inner blob before triggering = more points!
+            if (progress < 0.8 && innerInQueue >= 1) {
+                bonus += innerInQueue * 2;
+            }
+            
+            if (progress > maxProgress || (progress === maxProgress && bonus > bestBonus)) {
                 maxProgress = progress;
                 bestCanComplete = canComplete;
+                bestBonus = bonus;
             }
         }
     }
     
-    return { progress: maxProgress, canComplete: bestCanComplete };
+    return { progress: maxProgress, canComplete: bestCanComplete, bonus: bestBonus };
 }
 
 /**
@@ -695,13 +733,9 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     
     score += nearTsunamiBonus;
     
-    // Black hole progress
+    // Black hole progress - use the calculated bonus
     const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
-    if (blackHoleResult.canComplete) {
-        score += blackHoleResult.progress * 4;
-    } else {
-        score += blackHoleResult.progress * 1.5;
-    }
+    score += blackHoleResult.bonus;
     
     // If we have a path to Tsunami, give extra bonus for placements that help it
     if (hasTsunamiPath) {
@@ -898,7 +932,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     }
     
     // ========================================
-    // PHASE 2: CHECK FOR TSUNAMI COMPLETION
+    // PHASE 2: CHECK FOR TSUNAMI/BLACK HOLE COMPLETION
     // ========================================
     
     // If this placement COMPLETES a tsunami, it's worth it
@@ -910,6 +944,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
                 return score + 150 + blob.size * 3;
             }
         }
+    }
+    
+    // Check for Black Hole completion/progress
+    const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
+    if (blackHoleResult.canComplete) {
+        // If we can complete a black hole, give significant bonus
+        score += blackHoleResult.bonus;
     }
     
     // ========================================
@@ -936,6 +977,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
                 }
             }
         }
+        
+        // Black hole progress bonus when healthy
+        if (!blackHoleResult.canComplete && blackHoleResult.progress > 0.3) {
+            score += blackHoleResult.bonus * 0.5;
+        }
     } else if (holes <= 4 && stackHeight <= 15) {
         // Moderate color bonus even when not perfectly healthy
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
@@ -952,7 +998,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         if (blob.size >= 12) {
             const { width, minX, maxX } = getBlobWidth(blob, cols);
             const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            if (width >= 7 && gap <= 3) {
+            if (width >= 6 && gap <= 4) {
                 if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
                     bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
                 }
@@ -960,69 +1006,84 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         }
     }
     
-    // If we're close to tsunami and this piece matches, give bonus for extending
-    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
+    if (bestTsunamiBlob) {
         const pieceMinX = x;
         const pieceMaxX = x + shape[0].length - 1;
         
-        // CRITICAL: Check if piece actually CONNECTS to the blob
-        // A piece that doesn't touch the blob can't extend it!
-        let connectsToBlob = false;
+        // Count how many matching colors are in the queue (including current piece)
+        const queueMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === bestTsunamiBlob.color).length : 0;
+        const currentMatches = color === bestTsunamiBlob.color ? 1 : 0;
+        const totalMatching = queueMatches + currentMatches;
         
-        // Check if any piece cell is adjacent to (or overlaps) the blob's column range
-        // Piece connects if it touches or overlaps columns [minX-1, maxX+1]
-        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
-            // Piece is horizontally adjacent to or overlapping the blob
-            // Also verify vertical proximity by checking color adjacency
-            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
-            if (adj > 0) {
-                connectsToBlob = true;
-            }
-        }
+        // Estimate how many columns we can cover with matching pieces
+        // Each piece covers ~2-3 columns of extension on average
+        const estimatedCoverage = totalMatching * 2.5;
+        const canLikelyComplete = estimatedCoverage >= bestTsunamiBlob.gap;
         
-        if (connectsToBlob) {
-            // Calculate extension bonus based on gap size
-            // Smaller gap = bigger bonus (more urgent to complete)
-            const gapMultiplier = (4 - bestTsunamiBlob.gap) * 20; // gap=1: 60, gap=2: 40, gap=3: 20
+        // If this piece matches the tsunami blob color
+        if (color === bestTsunamiBlob.color) {
+            // Check if piece actually CONNECTS to the blob
+            let connectsToBlob = false;
             
-            let extensionBonus = 0;
-            
-            // Check if this placement extends toward the missing columns
-            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-                // Extends toward left edge
-                extensionBonus += gapMultiplier;
-                
-                // Extra bonus if this reaches column 0
-                if (pieceMinX === 0) {
-                    extensionBonus += 30;
-                }
-            }
-            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-                // Extends toward right edge
-                extensionBonus += gapMultiplier;
-                
-                // Extra bonus if this reaches column 9
-                if (pieceMaxX === cols - 1) {
-                    extensionBonus += 30;
+            if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
+                const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
+                if (adj > 0) {
+                    connectsToBlob = true;
                 }
             }
             
-            // CRITICAL: If gap is 1 and this piece would complete, massive bonus
-            if (bestTsunamiBlob.gap === 1) {
-                const needsLeft = bestTsunamiBlob.minX > 0;
-                const needsRight = bestTsunamiBlob.maxX < cols - 1;
+            if (connectsToBlob) {
+                // Base multiplier scales with gap (closer = more urgent)
+                const gapMultiplier = (5 - bestTsunamiBlob.gap) * 15; // gap=1: 60, gap=2: 45, gap=3: 30, gap=4: 15
                 
-                if (needsLeft && pieceMinX === 0) {
-                    extensionBonus += 150; // Would complete tsunami!
+                // Bonus multiplier if we have more matching pieces in queue
+                const queueBoost = canLikelyComplete ? 1.5 : 1.0;
+                
+                let extensionBonus = 0;
+                
+                // Check if this placement extends toward the missing columns
+                if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
+                    extensionBonus += gapMultiplier * queueBoost;
+                    if (pieceMinX === 0) {
+                        extensionBonus += 40; // Reaches edge!
+                    }
                 }
-                if (needsRight && pieceMaxX === cols - 1) {
-                    extensionBonus += 150; // Would complete tsunami!
+                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
+                    extensionBonus += gapMultiplier * queueBoost;
+                    if (pieceMaxX === cols - 1) {
+                        extensionBonus += 40; // Reaches edge!
+                    }
+                }
+                
+                // MASSIVE bonus if this piece would complete the tsunami
+                if (bestTsunamiBlob.gap === 1) {
+                    const needsLeft = bestTsunamiBlob.minX > 0;
+                    const needsRight = bestTsunamiBlob.maxX < cols - 1;
+                    
+                    if (needsLeft && pieceMinX === 0) {
+                        extensionBonus += 200;
+                    }
+                    if (needsRight && pieceMaxX === cols - 1) {
+                        extensionBonus += 200;
+                    }
+                }
+                
+                // Apply bonus if board isn't completely trashed
+                if (holes <= 5) {
+                    score += extensionBonus;
                 }
             }
+        } else if (canLikelyComplete && holes <= 3) {
+            // Current piece doesn't match, but we have matching pieces coming!
+            // Give a small bonus for placements that DON'T block the tsunami blob
             
-            // Apply bonus if board isn't completely trashed
-            if (holes <= 5) {
-                score += extensionBonus;
+            // Penalty for placing on top of or blocking the tsunami blob's extension paths
+            const blocksLeftExtension = bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX && pieceMaxX < bestTsunamiBlob.minX;
+            const blocksRightExtension = bestTsunamiBlob.maxX < cols - 1 && pieceMinX > bestTsunamiBlob.maxX && pieceMaxX > bestTsunamiBlob.maxX;
+            
+            // Small bonus for NOT blocking the extension path
+            if (!blocksLeftExtension && !blocksRightExtension) {
+                score += queueMatches * 3; // Encourage preserving the opportunity
             }
         }
     }
