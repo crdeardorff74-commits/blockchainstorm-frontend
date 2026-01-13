@@ -361,50 +361,59 @@ const AIPlayer = (() => {
         const height = fallbackGetHeight(board, rows);
         const holes = fallbackCountHoles(board);
         const adj = fallbackColorAdjacency(board, shape, x, y, color, cols, rows);
-        const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
         
         let score = 0;
-        const headroom = thresholds.upper - height;
-        const safetyRatio = Math.max(0, Math.min(1, headroom / thresholds.upper));
         
-        if (currentMode === 'colorBuilding') {
-            // Color building: context-dependent line clear handling
-            if (headroom > 8) {
-                score -= linesCleared * 3; // Safe - penalize clears
-            } else if (headroom <= 4) {
-                score += linesCleared * 2; // Danger - reward clears
-            }
-            
-            score += adj * 0.6;
-            
-            // Scaled penalties based on safety
-            const holePenalty = 0.8 + (1 - safetyRatio) * 1.5;
-            score -= holes * holePenalty;
-            score -= height * 0.2;
-            
-            // Graduated danger penalty
-            if (headroom < 8) {
-                const dangerLevel = (8 - headroom) / 8;
-                score -= dangerLevel * dangerLevel * 15;
-            }
-        } else {
-            // Survival: reward line clears, penalize height and holes
-            score += linesCleared * linesCleared * 4;
-            score -= height * 0.8;
-            score -= holes * 2.5;
-            score += adj * 0.15;
-            
-            // CRITICAL: Massive penalty for near-death placements
-            if (height >= 19) {
-                score -= 1000;
-            } else if (height >= 18) {
-                score -= 200;
-            } else if (height >= 17) {
-                score -= 50;
-            }
+        // SURVIVAL FIRST: Strong penalties for bad board states
+        score -= holes * 10;      // Holes are devastating
+        score -= height * 0.8;    // Keep stack low
+        
+        // Line clears are always good
+        score += linesCleared * linesCleared * 5;
+        
+        // Compactness: reward touching existing blocks
+        const touching = fallbackCountTouching(board, shape, x, y, cols, rows);
+        score += touching * 1.5;
+        
+        // Small color adjacency bonus (only when board is healthy)
+        if (holes <= 2 && height <= 12) {
+            score += adj * 0.4;
+        }
+        
+        // Death zone penalties
+        if (height >= 18) {
+            score -= 500;
+        } else if (height >= 16) {
+            score -= 50;
+        } else if (height >= 14) {
+            score -= 10;
         }
         
         return score;
+    }
+    
+    /**
+     * Count how many cells of the placed piece touch existing blocks
+     */
+    function fallbackCountTouching(board, shape, x, y, cols, rows) {
+        let touching = 0;
+        for (let sy = 0; sy < shape.length; sy++) {
+            for (let sx = 0; sx < shape[sy].length; sx++) {
+                if (!shape[sy][sx]) continue;
+                const bx = x + sx;
+                const by = y + sy;
+                
+                // Check 4 neighbors
+                [[bx-1, by], [bx+1, by], [bx, by-1], [bx, by+1]].forEach(([nx, ny]) => {
+                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                        if (board[ny] && board[ny][nx]) {
+                            touching++;
+                        }
+                    }
+                });
+            }
+        }
+        return touching;
     }
     
     /**

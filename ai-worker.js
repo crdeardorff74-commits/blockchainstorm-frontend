@@ -853,163 +853,166 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
 }
 
 // ==================== UNIFIED EVALUATION ====================
-// Key insight: Completing a tsunami IS survival - it clears massive blocks
-// So "color building vs survival" is a false dichotomy when near tsunami completion
+// SURVIVAL FIRST: Never compromise basic board health for color bonuses
 
 function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     const blobs = getAllBlobs(board, cols, rows);
     const stackHeight = getStackHeight(board, rows);
+    const holes = countHoles(board);
+    const wells = countWells(board);
+    const bumpiness = getBumpiness(board);
     
-    // Find the best near-tsunami opportunity
-    let bestTsunamiBlob = null;
-    let bestTsunamiGap = Infinity;
+    let score = 0;
     
+    // ========================================
+    // PHASE 1: SURVIVAL (always applies, non-negotiable)
+    // ========================================
+    
+    // Holes are DEVASTATING - each hole makes line clears harder
+    score -= holes * 10;
+    
+    // Deep wells/canyons are almost as bad
+    score -= wells * 2;
+    
+    // Height penalty - keep the stack low
+    score -= stackHeight * 0.8;
+    
+    // Bumpiness makes it hard to clear lines
+    score -= bumpiness * 0.5;
+    
+    // Line clears are always good (they reduce height and potentially clear holes)
+    score += linesCleared * linesCleared * 5;
+    
+    // COMPACTNESS BONUS: Reward placing pieces adjacent to existing blocks
+    // This prevents the AI from spreading pieces out and creating gaps
+    const touchingExisting = countTouchingCells(board, shape, x, y, cols, rows);
+    score += touchingExisting * 1.5;
+    
+    // Death zone penalties
+    if (stackHeight >= 18) {
+        score -= 500;
+    } else if (stackHeight >= 16) {
+        score -= 50;
+    } else if (stackHeight >= 14) {
+        score -= 10;
+    }
+    
+    // ========================================
+    // PHASE 2: CHECK FOR TSUNAMI COMPLETION
+    // ========================================
+    
+    // If this placement COMPLETES a tsunami, it's worth it
     for (const blob of blobs) {
         if (blob.size >= 10) {
-            const { width, minX, maxX } = getBlobWidth(blob, cols);
-            
-            // Check if this placement completes a tsunami
+            const { minX, maxX } = getBlobWidth(blob, cols);
             if (minX === 0 && maxX === cols - 1) {
-                // TSUNAMI COMPLETED! Massive score
-                return 200 + blob.size * 5;
-            }
-            
-            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            if (width >= 7 && gap < bestTsunamiGap) {
-                bestTsunamiGap = gap;
-                bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
+                // TSUNAMI! Big bonus
+                return score + 150 + blob.size * 3;
             }
         }
     }
     
-    let score = 0;
+    // ========================================
+    // PHASE 3: COLOR BUILDING (only when safe)
+    // ========================================
     
-    // === TSUNAMI PRIORITY MODE ===
-    // When we have a large blob VERY close to spanning the width (gap <= 2)
-    // Only activate when we're really close to completing
-    if (bestTsunamiBlob && bestTsunamiBlob.gap <= 2) {
-        const blob = bestTsunamiBlob;
+    // Only add color bonuses if board is healthy
+    const isHealthy = holes <= 2 && stackHeight <= 12;
+    
+    if (isHealthy) {
+        // Small bonus for same-color adjacency
+        const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
+        score += adjacency * 0.4;
         
-        // Check if this piece color matches the blob
-        const colorMatches = (color === blob.color);
-        
-        if (colorMatches) {
-            // This piece CAN extend the blob - check if placement does so
-            const needsLeft = blob.minX > 0;
-            const needsRight = blob.maxX < cols - 1;
-            
-            let extensionBonus = 0;
-            const pieceMinX = x;
-            const pieceMaxX = x + shape[0].length - 1;
-            
-            if (needsLeft && pieceMinX < blob.minX) {
-                extensionBonus += (blob.minX - pieceMinX) * 30;
-            }
-            if (needsRight && pieceMaxX > blob.maxX) {
-                extensionBonus += (pieceMaxX - blob.maxX) * 30;
-            }
-            
-            // Check if piece actually connects to the blob
-            const adjacentToBlob = isAdjacentToBlob(board, shape, x, y, blob.color, cols, rows);
-            if (adjacentToBlob && extensionBonus > 0) {
-                extensionBonus += 50;
-            }
-            
-            score += extensionBonus;
-            
-            // Progress bonus for matching color pieces
-            const progressBonus = (10 - blob.gap) * 8 + blob.size * 0.5;
-            score += progressBonus;
-            
-            // Still penalize holes/wells even when helping tsunami
-            // Just slightly reduced since tsunami completion clears everything
-            score -= countHoles(board) * 2.0;
-            score -= countWells(board) * 0.8;
-            score -= getBumpiness(board) * 0.2;
-            score -= stackHeight * 0.3;
-            
-        } else {
-            // Non-matching color - can't help tsunami, place carefully!
-            // Use stricter evaluation to avoid creating holes/wells
-            score -= countHoles(board) * 4.0;   // Strong hole penalty
-            score -= getBumpiness(board) * 0.5;
-            score -= countWells(board) * 1.5;   // Strong well/canyon penalty
-            score -= stackHeight * 0.5;
-            
-            // Small bonus for keeping board flat (helps future tsunami pieces land)
-            score += linesCleared * linesCleared * 3;
-            
-            // Still give some credit for the tsunami opportunity existing
-            score += (10 - blob.gap) * 2;
-        }
-        
-        // Death penalties apply to all pieces
-        if (stackHeight >= 19) {
-            score -= 500;
-        } else if (stackHeight >= 18) {
-            score -= 100;
-        } else if (stackHeight >= 16) {
-            score -= 30;
-        }
-        
-    } else {
-        // === NORMAL MODE (no tsunami close) ===
-        // Standard evaluation with color building and survival balance
-        
-        const headroom = 20 - stackHeight;
-        
-        // Line clears: reward more when stack is high
-        if (headroom > 10) {
-            score -= linesCleared * 2; // Penalize clears when safe
-        } else if (headroom > 5) {
-            score += linesCleared * 2; // Reward clears when getting high
-        } else {
-            score += linesCleared * linesCleared * 4; // Strong reward in danger
-        }
-        
-        // Color adjacency for building blobs
-        const adjacencyMultiplier = headroom > 8 ? 0.8 : 0.3;
-        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * adjacencyMultiplier;
-        
-        // Blob size rewards
+        // Small bonus for blob size
         for (const blob of blobs) {
             if (blob.size >= 4) {
-                score += blob.size * blob.size * 0.05;
+                score += blob.size * 0.15;
                 
-                // Reward blob width progress
+                // Bonus for wide blobs
                 const { width } = getBlobWidth(blob, cols);
-                score += width * 0.5;
-                
-                // Extra bonus for wide blobs (potential tsunamis)
                 if (width >= 7) {
-                    score += (width - 6) * 3; // +3 for width 7, +6 for 8, +9 for 9
+                    score += (width - 6) * 2;
                 }
             }
         }
+    }
+    
+    // ========================================
+    // PHASE 4: NEAR-TSUNAMI BONUS (only when very close)
+    // ========================================
+    
+    // Find best tsunami candidate
+    let bestTsunamiBlob = null;
+    for (const blob of blobs) {
+        if (blob.size >= 15) {
+            const { width, minX, maxX } = getBlobWidth(blob, cols);
+            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
+            if (width >= 8 && gap <= 2) {
+                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
+                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
+                }
+            }
+        }
+    }
+    
+    // If we're very close to tsunami and this piece matches, give bonus
+    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
+        const pieceMinX = x;
+        const pieceMaxX = x + shape[0].length - 1;
         
-        // If there's a promising blob (gap 3), give bonus for matching color placements
-        if (bestTsunamiBlob && bestTsunamiBlob.gap === 3 && color === bestTsunamiBlob.color) {
-            score += 10; // Encourage building toward tsunami
+        let extensionBonus = 0;
+        if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
+            extensionBonus += 20;
+        }
+        if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
+            extensionBonus += 20;
         }
         
-        // Stack management - holes and wells are VERY bad!
-        score -= stackHeight * 0.5;
-        score -= countHoles(board) * 4.0;   // Increased from 2.5
-        score -= getBumpiness(board) * 0.5;  // Increased from 0.4
-        score -= countWells(board) * 1.5;    // Increased from 0.6 - this is now much more powerful with canyon detection
-        
-        // Danger penalties
-        if (stackHeight >= 19) {
-            score -= 1000;
-        } else if (stackHeight >= 18) {
-            score -= 200;
-        } else if (stackHeight >= 16) {
-            score -= 30;
+        // Only apply bonus if board isn't too messy
+        if (holes <= 4) {
+            score += extensionBonus;
         }
     }
     
     if (typeof score !== 'number' || isNaN(score)) return 0;
     return score;
+}
+
+/**
+ * Count how many cells of the placed piece touch existing blocks
+ * This rewards compact placements
+ */
+function countTouchingCells(board, shape, x, y, cols, rows) {
+    let touching = 0;
+    
+    for (let sy = 0; sy < shape.length; sy++) {
+        for (let sx = 0; sx < shape[sy].length; sx++) {
+            if (!shape[sy][sx]) continue;
+            
+            const bx = x + sx;
+            const by = y + sy;
+            
+            // Check all 4 neighbors for existing blocks
+            const neighbors = [
+                [bx - 1, by], [bx + 1, by],
+                [bx, by - 1], [bx, by + 1]
+            ];
+            
+            for (const [nx, ny] of neighbors) {
+                // Skip if out of bounds or below the board
+                if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+                
+                // Check if there's an existing block at this neighbor position
+                // (not from the current piece being placed)
+                if (board[ny] && board[ny][nx]) {
+                    touching++;
+                }
+            }
+        }
+    }
+    
+    return touching;
 }
 
 /**
