@@ -1906,6 +1906,48 @@ StarfieldSystem.setUFOSwoopCallback(() => {
 // Developer mode (activated by center-clicking "Don't Panic!")
 let developerMode = false;
 
+// AI Mode indicator element (for developer mode)
+let aiModeIndicator = null;
+
+function createAIModeIndicator() {
+    if (aiModeIndicator) return;
+    
+    aiModeIndicator = document.createElement('div');
+    aiModeIndicator.id = 'aiModeIndicator';
+    aiModeIndicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #00ffff;
+        font-family: monospace;
+        font-size: 14px;
+        border-radius: 5px;
+        z-index: 9999;
+        display: none;
+        border: 1px solid #00ffff;
+    `;
+    document.body.appendChild(aiModeIndicator);
+}
+
+function updateAIModeIndicator() {
+    if (!aiModeIndicator) createAIModeIndicator();
+    
+    // Show when AI mode is enabled AND game is running (developer mode shows extra detail)
+    if (aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined' && AIPlayer.getMode) {
+        const mode = AIPlayer.getMode();
+        const stackHeight = AIPlayer.getStackHeight ? AIPlayer.getStackHeight() : '?';
+        const modeText = mode === 'colorBuilding' ? '🎨 COLOR BUILDING' : '⚠️ SURVIVAL';
+        const modeColor = mode === 'colorBuilding' ? '#00ff00' : '#ff6600';
+        const thresholds = AIPlayer.modeThresholds[skillLevel] || AIPlayer.modeThresholds.tempest;
+        aiModeIndicator.innerHTML = `🤖 AI: <span style="color: ${modeColor}">${modeText}</span><br><span style="font-size: 11px; color: #888;">Height: ${stackHeight} (switch@${thresholds.upper})</span>`;
+        aiModeIndicator.style.display = 'block';
+    } else {
+        aiModeIndicator.style.display = 'none';
+    }
+}
+
 // Game mode configuration
 let gameMode = null;
 let skillLevel = 'tempest'; // 'breeze', 'tempest', 'maelstrom'
@@ -10963,6 +11005,9 @@ async function gameOver() {
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
     
+    // Hide AI mode indicator
+    if (aiModeIndicator) aiModeIndicator.style.display = 'none';
+    
     // Stop any ongoing controller haptic feedback
     GamepadController.stopVibration();
     
@@ -11172,7 +11217,9 @@ function stopLeaderboardCloseDetection() {
 function showGameOverScreen() {
     console.log('showGameOverScreen called');
     console.log('gameOverDiv:', gameOverDiv);
+    
     gameOverDiv.style.display = 'block';
+    
     console.log('About to call startCreditsAnimation');
     startCreditsAnimation();
     console.log('startCreditsAnimation returned');
@@ -11208,6 +11255,11 @@ function update(time = 0) {
             earthquakeActive: earthquakeActive,
             earthquakePhase: earthquakePhase
         });
+    }
+    
+    // Update AI mode indicator (developer mode only) - update every frame
+    if (aiModeEnabled && typeof AIPlayer !== 'undefined') {
+        updateAIModeIndicator();
     }
     
     // Update hard drop animation

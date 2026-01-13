@@ -12,14 +12,15 @@
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
 let currentMode = 'colorBuilding'; // 'colorBuilding' or 'survival'
+let lastStackHeight = 0; // Track stack height for debugging
 
 // Row thresholds for mode switching (rows from bottom, 1-indexed)
 // Upper = switch to survival, Lower = switch back to color building
 const modeThresholds = {
-    breeze: { upper: 14, lower: 8 },
-    tempest: { upper: 14, lower: 8 },
-    maelstrom: { upper: 12, lower: 7 },
-    hurricane: { upper: 12, lower: 7 }
+    breeze: { upper: 12, lower: 6 },
+    tempest: { upper: 12, lower: 6 },
+    maelstrom: { upper: 10, lower: 5 },
+    hurricane: { upper: 10, lower: 5 }
 };
 
 function cloneBoard(board) {
@@ -31,11 +32,26 @@ function cloneBoard(board) {
  * Row 1 is the bottom row
  */
 function getStackHeight(board, rows) {
+    if (!board || board.length === 0) {
+        console.log('🔍 getStackHeight: board is empty or null');
+        return 0;
+    }
+    
+    // Find the topmost row that has any blocks
     for (let y = 0; y < board.length; y++) {
-        if (board[y] && board[y].some(cell => cell !== null)) {
-            return rows - y; // Convert to height from bottom
+        const row = board[y];
+        if (row && Array.isArray(row)) {
+            for (let x = 0; x < row.length; x++) {
+                if (row[x] !== null && row[x] !== undefined) {
+                    // Found a block - height is from this row to bottom
+                    const height = board.length - y;
+                    console.log(`🔍 getStackHeight: Found block at y=${y}, height=${height}, rows=${rows}, board.length=${board.length}`);
+                    return height;
+                }
+            }
         }
     }
+    console.log('🔍 getStackHeight: No blocks found, returning 0');
     return 0;
 }
 
@@ -45,6 +61,9 @@ function getStackHeight(board, rows) {
 function updateMode(board, rows) {
     const stackHeight = getStackHeight(board, rows);
     const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
+    
+    // Store for debugging
+    lastStackHeight = stackHeight;
     
     if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
         currentMode = 'survival';
@@ -204,6 +223,76 @@ function getBumpiness(board) {
         bumpiness += Math.abs(heights[i] - heights[i + 1]);
     }
     return bumpiness;
+}
+
+/**
+ * Count deep wells (single-column gaps that are hard to fill)
+ * A well is a column significantly lower than both neighbors
+ */
+function countWells(board) {
+    const cols = board[0].length;
+    const heights = [];
+    
+    // Get column heights
+    for (let x = 0; x < cols; x++) {
+        let height = 0;
+        for (let y = 0; y < board.length; y++) {
+            if (board[y] && board[y][x]) {
+                height = board.length - y;
+                break;
+            }
+        }
+        heights.push(height);
+    }
+    
+    let wellScore = 0;
+    for (let x = 0; x < cols; x++) {
+        const leftHeight = x > 0 ? heights[x - 1] : 999;
+        const rightHeight = x < cols - 1 ? heights[x + 1] : 999;
+        const currentHeight = heights[x];
+        
+        // A well is where current column is lower than both neighbors
+        const wellDepth = Math.min(leftHeight, rightHeight) - currentHeight;
+        if (wellDepth > 0) {
+            // Penalize deeper wells more heavily (quadratic)
+            wellScore += wellDepth * wellDepth;
+        }
+    }
+    return wellScore;
+}
+
+/**
+ * Get horizontal spread bonus for blobs (reward wide blobs over tall narrow ones)
+ */
+function getBlobSpreadBonus(blobs, cols) {
+    let spreadBonus = 0;
+    
+    for (const blob of blobs) {
+        if (blob.size < 4) continue;
+        
+        const { width, minX, maxX } = getBlobWidth(blob, cols);
+        
+        // Calculate blob height
+        let minY = Infinity, maxY = -Infinity;
+        for (const [x, y] of blob.positions) {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+        const height = maxY - minY + 1;
+        
+        // Reward width-to-height ratio (wider is better for tsunamis)
+        if (height > 0) {
+            const ratio = width / height;
+            spreadBonus += ratio * blob.size * 0.1;
+        }
+        
+        // Extra bonus for blobs touching edges (good tsunami setup)
+        if (minX === 0 || maxX === cols - 1) {
+            spreadBonus += blob.size * 0.05;
+        }
+    }
+    
+    return spreadBonus;
 }
 
 function getAggregateHeight(board) {
@@ -406,8 +495,23 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     
     let score = 0;
     
-    // PENALIZE line clears in color building mode - we want to build, not clear!
-    score -= linesCleared * 5;
+    // Calculate how safe we are (0 = at threshold, 1 = very safe)
+    const headroom = thresholds.upper - stackHeight;
+    const safetyRatio = Math.max(0, Math.min(1, headroom / thresholds.upper));
+    
+    // Line clear handling - context dependent:
+    // When safe (low stack): penalize clears to build blobs
+    // When stack is high: reward clears to stay alive
+    if (headroom > 8) {
+        // Very safe - penalize line clears to focus on blob building
+        score -= linesCleared * 3;
+    } else if (headroom > 4) {
+        // Getting higher - neutral on line clears
+        // Don't penalize or reward
+    } else {
+        // Approaching danger - reward line clears
+        score += linesCleared * 2;
+    }
     
     // === Check for Tsunami/Black Hole opportunities with queue ===
     let bestTsunamiScore = 0;
@@ -450,6 +554,9 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
         }
     }
     
+    // Reward horizontal blob spread (wider blobs are better for tsunamis)
+    score += getBlobSpreadBonus(blobs, cols);
+    
     // Color adjacency - reward placing next to same color
     score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.6;
     
@@ -457,17 +564,27 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     const queueMatches = getQueueColorCount(color);
     score += queueMatches * 0.4;
     
-    // Moderate hole penalty (still bad, but less critical than survival)
-    score -= countHoles(board) * 0.6;
+    // Hole penalty - increases as stack gets higher (holes become more dangerous)
+    const holePenaltyMultiplier = 0.8 + (1 - safetyRatio) * 1.5; // 0.8 to 2.3
+    score -= countHoles(board) * holePenaltyMultiplier;
     
-    // Light bumpiness penalty
-    score -= getBumpiness(board) * 0.1;
+    // Bumpiness penalty - increases as stack gets higher
+    const bumpinessPenaltyMultiplier = 0.3 + (1 - safetyRatio) * 0.4; // 0.3 to 0.7
+    score -= getBumpiness(board) * bumpinessPenaltyMultiplier;
     
-    // Safety check - penalize getting too close to danger zone
-    const headroom = thresholds.upper - stackHeight;
-    if (headroom < 4) {
-        score -= (4 - headroom) * 3; // Increasing penalty as we approach danger
+    // Well penalty - strongly discourage single-column gaps, especially when stack is high
+    const wellPenaltyMultiplier = 0.5 + (1 - safetyRatio) * 1.0; // 0.5 to 1.5
+    score -= countWells(board) * wellPenaltyMultiplier;
+    
+    // Graduated danger penalty - kicks in earlier and scales smoothly
+    if (headroom < 8) {
+        // Penalty that increases as we approach danger
+        const dangerLevel = (8 - headroom) / 8; // 0 to 1
+        score -= dangerLevel * dangerLevel * 15; // 0 to 15 points penalty
     }
+    
+    // Stack height penalty - always have some awareness of height
+    score -= stackHeight * 0.2;
     
     if (typeof score !== 'number' || isNaN(score)) return 0;
     return score;
@@ -476,10 +593,38 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
 // ==================== SURVIVAL MODE ====================
 
 function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
+    const blobs = getAllBlobs(board, cols, rows);
     const stackHeight = getStackHeight(board, rows);
     const thresholds = modeThresholds[currentSkillLevel] || modeThresholds.tempest;
     
     let score = 0;
+    
+    // === FIRST: Check for Tsunami opportunity - this overrides normal survival logic ===
+    // If we can complete a Tsunami with the queue, prioritize it heavily!
+    let bestTsunamiScore = 0;
+    for (const blob of blobs) {
+        if (blob.size >= 4) {
+            const tsunamiResult = canCompleteTsunamiWithQueue(blob, cols);
+            if (tsunamiResult.canComplete && tsunamiResult.score > bestTsunamiScore) {
+                bestTsunamiScore = tsunamiResult.score;
+            }
+            
+            // Also check current tsunami progress
+            const progress = getTsunamiProgress(blob, cols);
+            if (progress >= 1.0) {
+                // Very close to tsunami - big bonus even in survival
+                score += progress * 5;
+            }
+        }
+    }
+    
+    // If there's a clear path to Tsunami, give significant bonus for color building
+    if (bestTsunamiScore > 0) {
+        score += bestTsunamiScore * 4;
+        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.5;
+    }
+    
+    // === Normal survival logic ===
     
     // STRONGLY reward line clears
     score += linesCleared * linesCleared * 4;
@@ -487,17 +632,32 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
     // Reward lower stack height
     score -= stackHeight * 0.8;
     
+    // CRITICAL: Massive penalty for placements that would end the game or get very close
+    // The board has 20 rows, pieces spawn at top - if stack is 18+, we're in extreme danger
+    if (stackHeight >= 19) {
+        score -= 1000; // Near-certain death
+    } else if (stackHeight >= 18) {
+        score -= 200; // Extreme danger
+    } else if (stackHeight >= 17) {
+        score -= 50; // High danger
+    }
+    
     // Strong hole penalty
     score -= countHoles(board) * 2.5;
     
     // Bumpiness penalty
     score -= getBumpiness(board) * 0.4;
     
+    // Well penalty - avoid single-column gaps
+    score -= countWells(board) * 0.5;
+    
     // Aggregate height penalty
     score -= getAggregateHeight(board) * 0.15;
     
     // Still give small bonus for color adjacency (helps future blob building)
-    score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.15;
+    if (bestTsunamiScore === 0) {
+        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * 0.15;
+    }
     
     // Urgency bonus - more reward for clearing when stack is high
     const urgency = Math.max(0, stackHeight - thresholds.lower) / (thresholds.upper - thresholds.lower);
@@ -533,6 +693,16 @@ function generatePlacements(board, piece, cols, rows) {
             const y = dropPiece(board, shape, x, cols, rows);
             
             if (!isValidPosition(board, shape, x, y, cols, rows)) continue;
+            
+            // CRITICAL: Check if piece would extend above the board (game over condition)
+            // If y is negative, some part of the piece is above row 0
+            if (y < 0) {
+                // This placement would cause game over - give massive penalty
+                placements.push({
+                    x, y, rotationIndex, shape, score: -10000
+                });
+                continue;
+            }
             
             const newBoard = placePiece(board, shape, x, y, piece.color);
             const linesBefore = countCompleteLines(board);
@@ -591,9 +761,12 @@ self.onmessage = function(e) {
     // Handle reset command
     if (command === 'reset') {
         currentMode = 'colorBuilding';
+        lastStackHeight = 0;
         self.postMessage({ reset: true, mode: currentMode });
         return;
     }
+    
+    console.log(`🔍 Worker received: board.length=${board ? board.length : 'null'}, rows=${rows}, skillLevel=${skillLevel}`);
     
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
@@ -603,6 +776,7 @@ self.onmessage = function(e) {
     // Use setTimeout to yield to other tasks and reduce priority
     setTimeout(() => {
         const bestPlacement = findBestPlacement(board, piece, cols, rows, nextPiece);
-        self.postMessage({ bestPlacement, mode: currentMode });
+        console.log(`🔍 Worker sending: mode=${currentMode}, stackHeight=${lastStackHeight}`);
+        self.postMessage({ bestPlacement, mode: currentMode, stackHeight: lastStackHeight });
     }, 0);
 };
