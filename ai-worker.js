@@ -1,3 +1,4 @@
+// AI Worker v2.1 - Queue-aware tsunami/blackhole evaluation (2026-01-13)
 /**
  * AI Worker for TaNTЯiS / BLOCKCHaiNSTORM
  * Runs placement calculations on a separate thread to avoid UI freezes
