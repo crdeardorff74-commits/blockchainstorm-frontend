@@ -1,7 +1,7 @@
-// AI Worker v3.5 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.5 loaded");
+// AI Worker v3.6 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.6 loaded");
 
-const AI_VERSION = "3.5";
+const AI_VERSION = "3.6";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -330,17 +330,29 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // 2. Height penalty - keep stack low
     score -= stackHeight * 1.0;
     
-    // 3. Bumpiness - flat surface is easier to manage
-    score -= bumpiness * 0.5;
+    // 3. Bumpiness - flat surface is critical for piece placement
+    score -= bumpiness * 1.5;
     
-    // 4. Avoid bowl shapes - penalize if edges are much shorter than middle
+    // 4. Deep wells - penalize columns much lower than neighbors
+    for (let x = 0; x < cols; x++) {
+        const leftHeight = x > 0 ? colHeights[x - 1] : colHeights[x];
+        const rightHeight = x < cols - 1 ? colHeights[x + 1] : colHeights[x];
+        const minNeighbor = Math.min(leftHeight, rightHeight);
+        const wellDepth = minNeighbor - colHeights[x];
+        if (wellDepth > 2) {
+            // Deep wells are very hard to fill
+            score -= (wellDepth - 2) * 5;
+        }
+    }
+    
+    // 5. Avoid bowl shapes - penalize if edges are much shorter than middle
     const edgeAvg = (colHeights[0] + colHeights[cols - 1]) / 2;
     const middleAvg = (colHeights[4] + colHeights[5]) / 2;
     if (middleAvg > edgeAvg + 4) {
         score -= (middleAvg - edgeAvg - 4) * 3;
     }
     
-    // 5. Severe height penalties
+    // 6. Severe height penalties
     if (stackHeight >= 18) {
         score -= 200;
     } else if (stackHeight >= 16) {
