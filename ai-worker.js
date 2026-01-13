@@ -309,17 +309,19 @@ function getBumpiness(board) {
 /**
  * Count deep wells (single-column gaps that are hard to fill)
  * A well is a column significantly lower than both neighbors
+ * Also detects "canyon" patterns where a column is empty while neighbors are full deep down
  */
 function countWells(board) {
+    const rows = board.length;
     const cols = board[0].length;
     const heights = [];
     
-    // Get column heights
+    // Get column heights (from top)
     for (let x = 0; x < cols; x++) {
         let height = 0;
-        for (let y = 0; y < board.length; y++) {
+        for (let y = 0; y < rows; y++) {
             if (board[y] && board[y][x]) {
-                height = board.length - y;
+                height = rows - y;
                 break;
             }
         }
@@ -327,18 +329,42 @@ function countWells(board) {
     }
     
     let wellScore = 0;
+    
     for (let x = 0; x < cols; x++) {
         const leftHeight = x > 0 ? heights[x - 1] : 999;
         const rightHeight = x < cols - 1 ? heights[x + 1] : 999;
         const currentHeight = heights[x];
         
-        // A well is where current column is lower than both neighbors
+        // Basic well: current column is lower than both neighbors
         const wellDepth = Math.min(leftHeight, rightHeight) - currentHeight;
         if (wellDepth > 0) {
-            // Penalize deeper wells more heavily (quadratic)
-            wellScore += wellDepth * wellDepth;
+            // Penalize deeper wells MUCH more heavily (cubic for deep wells)
+            if (wellDepth >= 4) {
+                wellScore += wellDepth * wellDepth * wellDepth * 0.5; // Cubic for deep
+            } else {
+                wellScore += wellDepth * wellDepth; // Quadratic for shallow
+            }
+        }
+        
+        // Also check for "canyon" - column is empty while surrounded by blocks
+        // Count how many cells in this column are empty while having blocks on both sides
+        let canyonDepth = 0;
+        for (let y = 0; y < rows; y++) {
+            const isEmpty = !board[y] || !board[y][x];
+            const hasLeftNeighbor = x > 0 && board[y] && board[y][x - 1];
+            const hasRightNeighbor = x < cols - 1 && board[y] && board[y][x + 1];
+            
+            if (isEmpty && hasLeftNeighbor && hasRightNeighbor) {
+                canyonDepth++;
+            }
+        }
+        
+        // Canyon penalty (very hard to fill narrow gaps with blocks on both sides)
+        if (canyonDepth >= 2) {
+            wellScore += canyonDepth * canyonDepth * 2;
         }
     }
+    
     return wellScore;
 }
 
@@ -895,17 +921,19 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
             const progressBonus = (10 - blob.gap) * 8 + blob.size * 0.5;
             score += progressBonus;
             
-            // Reduced penalties for pieces actively helping tsunami
-            score -= countHoles(board) * 0.8;
-            score -= getBumpiness(board) * 0.15;
+            // Still penalize holes/wells even when helping tsunami
+            // Just slightly reduced since tsunami completion clears everything
+            score -= countHoles(board) * 2.0;
+            score -= countWells(board) * 0.8;
+            score -= getBumpiness(board) * 0.2;
             score -= stackHeight * 0.3;
             
         } else {
             // Non-matching color - can't help tsunami, place carefully!
-            // Use stricter evaluation to avoid creating holes
-            score -= countHoles(board) * 2.0;  // Strong hole penalty
-            score -= getBumpiness(board) * 0.4;
-            score -= countWells(board) * 0.6;
+            // Use stricter evaluation to avoid creating holes/wells
+            score -= countHoles(board) * 4.0;   // Strong hole penalty
+            score -= getBumpiness(board) * 0.5;
+            score -= countWells(board) * 1.5;   // Strong well/canyon penalty
             score -= stackHeight * 0.5;
             
             // Small bonus for keeping board flat (helps future tsunami pieces land)
@@ -964,11 +992,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
             score += 10; // Encourage building toward tsunami
         }
         
-        // Stack management - holes are very bad!
+        // Stack management - holes and wells are VERY bad!
         score -= stackHeight * 0.5;
-        score -= countHoles(board) * 2.5;
-        score -= getBumpiness(board) * 0.4;
-        score -= countWells(board) * 0.6;
+        score -= countHoles(board) * 4.0;   // Increased from 2.5
+        score -= getBumpiness(board) * 0.5;  // Increased from 0.4
+        score -= countWells(board) * 1.5;    // Increased from 0.6 - this is now much more powerful with canyon detection
         
         // Danger penalties
         if (stackHeight >= 19) {
