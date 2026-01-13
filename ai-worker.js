@@ -965,38 +965,65 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         const pieceMinX = x;
         const pieceMaxX = x + shape[0].length - 1;
         
-        // Calculate extension bonus based on gap size
-        // Smaller gap = bigger bonus (more urgent to complete)
-        const gapMultiplier = (4 - bestTsunamiBlob.gap) * 15; // gap=1: 45, gap=2: 30, gap=3: 15
+        // CRITICAL: Check if piece actually CONNECTS to the blob
+        // A piece that doesn't touch the blob can't extend it!
+        let connectsToBlob = false;
         
-        let extensionBonus = 0;
-        
-        // Check if this placement extends toward the missing columns
-        if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-            // Extends toward left edge
-            extensionBonus += gapMultiplier;
+        // Check if any piece cell is adjacent to (or overlaps) the blob's column range
+        // Piece connects if it touches or overlaps columns [minX-1, maxX+1]
+        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
+            // Piece is horizontally adjacent to or overlapping the blob
+            // Also verify vertical proximity by checking color adjacency
+            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
+            if (adj > 0) {
+                connectsToBlob = true;
+            }
         }
-        if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-            // Extends toward right edge
-            extensionBonus += gapMultiplier;
-        }
         
-        // CRITICAL: If gap is 1 and this piece would complete, massive bonus
-        if (bestTsunamiBlob.gap === 1) {
-            const needsLeft = bestTsunamiBlob.minX > 0;
-            const needsRight = bestTsunamiBlob.maxX < cols - 1;
+        if (connectsToBlob) {
+            // Calculate extension bonus based on gap size
+            // Smaller gap = bigger bonus (more urgent to complete)
+            const gapMultiplier = (4 - bestTsunamiBlob.gap) * 20; // gap=1: 60, gap=2: 40, gap=3: 20
             
-            if (needsLeft && pieceMinX === 0) {
-                extensionBonus += 100; // Would complete tsunami!
+            let extensionBonus = 0;
+            
+            // Check if this placement extends toward the missing columns
+            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
+                // Extends toward left edge
+                extensionBonus += gapMultiplier;
+                
+                // Extra bonus if this reaches column 0
+                if (pieceMinX === 0) {
+                    extensionBonus += 30;
+                }
             }
-            if (needsRight && pieceMaxX === cols - 1) {
-                extensionBonus += 100; // Would complete tsunami!
+            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
+                // Extends toward right edge
+                extensionBonus += gapMultiplier;
+                
+                // Extra bonus if this reaches column 9
+                if (pieceMaxX === cols - 1) {
+                    extensionBonus += 30;
+                }
             }
-        }
-        
-        // Apply bonus if board isn't completely trashed
-        if (holes <= 5) {
-            score += extensionBonus;
+            
+            // CRITICAL: If gap is 1 and this piece would complete, massive bonus
+            if (bestTsunamiBlob.gap === 1) {
+                const needsLeft = bestTsunamiBlob.minX > 0;
+                const needsRight = bestTsunamiBlob.maxX < cols - 1;
+                
+                if (needsLeft && pieceMinX === 0) {
+                    extensionBonus += 150; // Would complete tsunami!
+                }
+                if (needsRight && pieceMaxX === cols - 1) {
+                    extensionBonus += 150; // Would complete tsunami!
+                }
+            }
+            
+            // Apply bonus if board isn't completely trashed
+            if (holes <= 5) {
+                score += extensionBonus;
+            }
         }
     }
     
