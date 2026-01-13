@@ -871,8 +871,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     // Holes are DEVASTATING - each hole makes line clears harder
     score -= holes * 10;
     
-    // Deep wells/canyons are almost as bad
-    score -= wells * 2;
+    // Deep wells/canyons are almost as bad as holes
+    score -= wells * 3;
     
     // Height penalty - keep the stack low
     score -= stackHeight * 0.8;
@@ -1094,64 +1094,9 @@ function findBestPlacement(board, piece, cols, rows, queue) {
         return null;
     }
     
-    let bestPlacement;
-    
-    const nextPiece = queue && queue.length > 0 ? queue[0] : null;
-    const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
-    
-    // 3-ply lookahead if we have pieces in queue
-    if (nextPiece) {
-        for (const placement of placements) {
-            const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
-            const clearedBoard = removeCompleteLines(newBoard);
-            
-            const nextPlacements = generatePlacements(clearedBoard, nextPiece, cols, rows);
-            
-            if (nextPlacements.length > 0) {
-                // Sort and take top 8 placements for 2nd ply (performance optimization)
-                const topNextPlacements = nextPlacements
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 8);
-                
-                let bestNextScore = -Infinity;
-                
-                for (const nextPlacement of topNextPlacements) {
-                    let nextCombinedScore = nextPlacement.score;
-                    
-                    // 3rd ply if we have a third piece
-                    if (thirdPiece) {
-                        const nextBoard = placePiece(clearedBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
-                        const nextClearedBoard = removeCompleteLines(nextBoard);
-                        
-                        const thirdPlacements = generatePlacements(nextClearedBoard, thirdPiece, cols, rows);
-                        
-                        if (thirdPlacements.length > 0) {
-                            const bestThird = thirdPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                            // Weight: 3rd piece contributes 0.25
-                            nextCombinedScore = nextPlacement.score + bestThird.score * 0.25;
-                        } else {
-                            nextCombinedScore = nextPlacement.score - 50;
-                        }
-                    }
-                    
-                    if (nextCombinedScore > bestNextScore) {
-                        bestNextScore = nextCombinedScore;
-                    }
-                }
-                
-                // Weight: 2nd piece contributes 0.5
-                placement.combinedScore = placement.score + bestNextScore * 0.5;
-            } else {
-                placement.combinedScore = placement.score - 100;
-            }
-        }
-        
-        bestPlacement = placements.reduce((a, b) => 
-            (a.combinedScore || a.score) > (b.combinedScore || b.score) ? a : b
-        );
-    } else {
-        bestPlacement = placements.reduce((a, b) => a.score > b.score ? a : b);
-    }
+    // Simple 1-ply: just pick the best immediate placement
+    // The evaluation function should handle everything
+    const bestPlacement = placements.reduce((a, b) => a.score > b.score ? a : b);
     
     // Record this decision if recording is active
     if (gameRecording.startTime) {
