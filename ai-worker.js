@@ -1,7 +1,7 @@
-// AI Worker v3.3 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.3 loaded");
+// AI Worker v3.4 - Simplified single evaluation (2026-01-13)
+console.log("🤖 AI Worker v3.4 loaded");
 
-const AI_VERSION = "3.3";
+const AI_VERSION = "3.4";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -323,8 +323,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== SURVIVAL PRIORITIES (always matter) ======
     
-    // 1. Holes are devastating - each hole makes the game harder
-    score -= holes * 15;
+    // 1. Holes are DEVASTATING - must heavily penalize
+    // Each hole makes the game exponentially harder to recover from
+    score -= holes * 35;
     
     // 2. Height penalty - keep stack low
     score -= stackHeight * 1.0;
@@ -348,9 +349,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         score -= 15;
     }
     
-    // ====== SCORING PRIORITIES (when not in danger) ======
+    // ====== SCORING PRIORITIES (when not in danger AND no holes) ======
     
-    if (stackHeight <= 14 && holes <= 2) {
+    if (stackHeight <= 14 && holes === 0) {
         // 6. Same-color adjacency - builds blobs
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
         score += adjacency * 1.5;
