@@ -1941,8 +1941,11 @@ function createAIModeIndicator() {
 function updateAIModeIndicator() {
     if (!aiModeIndicator) createAIModeIndicator();
     
+    // Set to true to show AI debug indicator in upper right
+    const showAIDebugIndicator = false;
+    
     // Show when AI mode is enabled AND game is running
-    if (aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined') {
+    if (showAIDebugIndicator && aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined') {
         const stackHeight = AIPlayer.getStackHeight ? AIPlayer.getStackHeight() : '?';
         aiModeIndicator.innerHTML = `🤖 AI Playing<br><span style="font-size: 11px; color: #888;">Stack: ${stackHeight}</span>`;
         aiModeIndicator.style.display = 'block';
