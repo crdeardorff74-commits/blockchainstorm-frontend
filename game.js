@@ -1910,7 +1910,11 @@ let developerMode = false;
 let aiModeIndicator = null;
 
 function createAIModeIndicator() {
-    if (aiModeIndicator) return;
+    // Remove existing indicator to ensure we have latest styles
+    if (aiModeIndicator && aiModeIndicator.parentNode) {
+        aiModeIndicator.parentNode.removeChild(aiModeIndicator);
+        aiModeIndicator = null;
+    }
     
     aiModeIndicator = document.createElement('div');
     aiModeIndicator.id = 'aiModeIndicator';
@@ -1923,10 +1927,12 @@ function createAIModeIndicator() {
         color: #00ffff;
         font-family: monospace;
         font-size: 14px;
+        line-height: 1.4;
         border-radius: 5px;
         z-index: 9999;
         display: none;
         border: 1px solid #00ffff;
+        white-space: nowrap;
     `;
     document.body.appendChild(aiModeIndicator);
 }
@@ -9355,6 +9361,11 @@ function checkForSpecialFormations() {
         triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
         volcanoCount++;
         
+        // Record event for AI analysis
+        if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
+            AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn });
+        }
+        
         // Score calculation - VOLCANO SCORING:
         // Inner lava blob: size³ × 500
         // Outer surrounding blob: No points (just the trigger)
@@ -9378,6 +9389,11 @@ function checkForSpecialFormations() {
             const bh = blackHoleData[0];
             triggerBlackHole(bh.innerBlob, bh.outerBlob);
             blackHoleCount++;
+            
+            // Record event for AI analysis
+            if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
+                AIPlayer.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
+            }
             
             // Score calculation - BLACK HOLE SCORING:
             // Inner blob (black hole core): size³ × 800
@@ -9413,6 +9429,11 @@ function checkForSpecialFormations() {
             // Trigger the actual clearing animation
             triggerTsunamiAnimation(blob);
             tsunamiCount++;
+            
+            // Record event for AI analysis
+            if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
+                AIPlayer.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
+            }
             
             // Score calculation - TSUNAMI SCORING:
             // Points = (blob size)³ × 200
@@ -10253,6 +10274,11 @@ function clearLines() {
         if (isStrike) {
             triggerLightning(300); // Single strike for 4 lines
             strikeCount++;
+            
+            // Record event for AI analysis
+            if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
+                AIPlayer.recordEvent('strike', { count: strikeCount, linesCleared: completedRows.length });
+            }
         } else if (willHaveBlackHole) {
             // Black hole takes priority - purple/dark effect
             canvas.classList.add('blackhole-active');
@@ -11008,6 +11034,16 @@ async function gameOver() {
     // Hide AI mode indicator
     if (aiModeIndicator) aiModeIndicator.style.display = 'none';
     
+    // Stop AI recording and offer download
+    if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.isRecording && AIPlayer.isRecording()) {
+        const recording = await AIPlayer.stopRecording(board, 'game_over');
+        if (recording && recording.decisions && recording.decisions.length > 0) {
+            console.log(`🎬 AI Recording complete: ${recording.decisions.length} decisions recorded`);
+            // Auto-download the recording
+            AIPlayer.downloadRecording(recording);
+        }
+    }
+    
     // Stop any ongoing controller haptic feedback
     GamepadController.stopVibration();
     
@@ -11508,6 +11544,11 @@ function startGame(mode) {
     // Reset AI player state
     if (typeof AIPlayer !== 'undefined') {
         AIPlayer.reset();
+        
+        // Start recording if AI mode is enabled
+        if (aiModeEnabled && AIPlayer.startRecording) {
+            AIPlayer.startRecording();
+        }
     }
     
     // Hide leaderboard if it was shown

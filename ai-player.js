@@ -40,6 +40,95 @@ const AIPlayer = (() => {
         hurricane: { upper: 10, lower: 5 }
     };
     
+    // ==================== FALLBACK RECORDING SYSTEM ====================
+    // Used when Web Worker is not available (e.g., file:// protocol)
+    
+    let fallbackRecording = {
+        startTime: null,
+        skillLevel: null,
+        decisions: [],
+        events: [],
+        finalState: null
+    };
+    
+    function fallbackStartRecording() {
+        fallbackRecording = {
+            startTime: Date.now(),
+            skillLevel: currentSkillLevel,
+            decisions: [],
+            events: [],
+            finalState: null
+        };
+        console.log('🎬 Fallback recording started');
+    }
+    
+    function fallbackRecordDecision(board, piece, placements, chosen) {
+        if (!fallbackRecording.startTime) return;
+        
+        // Sort placements by score
+        const sortedPlacements = [...placements].sort((a, b) => b.score - a.score);
+        const topPlacements = sortedPlacements.slice(0, 5);
+        const bottomPlacements = sortedPlacements.slice(-2);
+        
+        // Compress board
+        const compressedBoard = [];
+        for (let y = 0; y < board.length; y++) {
+            for (let x = 0; x < board[y].length; x++) {
+                if (board[y][x]) {
+                    compressedBoard.push({ x, y, c: board[y][x] });
+                }
+            }
+        }
+        
+        fallbackRecording.decisions.push({
+            t: Date.now() - fallbackRecording.startTime,
+            mode: currentMode,
+            stackHeight: currentStackHeight,
+            piece: { shape: piece.shape, color: piece.color },
+            board: compressedBoard,
+            top: topPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
+            bottom: bottomPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
+            chosen: { x: chosen.x, y: chosen.y, r: chosen.rotationIndex, s: Math.round(chosen.score * 100) / 100 }
+        });
+    }
+    
+    function fallbackRecordEvent(type, data) {
+        if (!fallbackRecording.startTime) return;
+        fallbackRecording.events.push({
+            t: Date.now() - fallbackRecording.startTime,
+            type,
+            ...data
+        });
+    }
+    
+    function fallbackFinalizeRecording(board, cause) {
+        if (!fallbackRecording.startTime) return fallbackRecording;
+        
+        // Compress final board
+        const compressedBoard = [];
+        if (board) {
+            for (let y = 0; y < board.length; y++) {
+                for (let x = 0; x < board[y].length; x++) {
+                    if (board[y][x]) {
+                        compressedBoard.push({ x, y, c: board[y][x] });
+                    }
+                }
+            }
+        }
+        
+        fallbackRecording.finalState = {
+            board: compressedBoard,
+            cause,
+            stackHeight: currentStackHeight,
+            mode: currentMode,
+            totalDecisions: fallbackRecording.decisions.length,
+            duration: Date.now() - fallbackRecording.startTime
+        };
+        
+        console.log('🎬 Fallback recording finalized');
+        return fallbackRecording;
+    }
+    
     /**
      * Initialize the Web Worker
      */
@@ -330,9 +419,11 @@ const AIPlayer = (() => {
         if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
             currentMode = 'survival';
             console.log(`🔴 FALLBACK: Switching to SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
+            fallbackRecordEvent('modeSwitch', { from: 'colorBuilding', to: 'survival', stackHeight });
         } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
             currentMode = 'colorBuilding';
             console.log(`🟢 FALLBACK: Switching to COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
+            fallbackRecordEvent('modeSwitch', { from: 'survival', to: 'colorBuilding', stackHeight });
         }
     }
     
@@ -343,6 +434,7 @@ const AIPlayer = (() => {
         const rotations = fallbackGetAllRotations(piece.shape);
         let best = null;
         let bestScore = -Infinity;
+        const allPlacements = []; // Collect all placements for recording
         
         for (let ri = 0; ri < rotations.length; ri++) {
             const shape = rotations[ri];
@@ -354,9 +446,11 @@ const AIPlayer = (() => {
                 // CRITICAL: Check if piece would extend above the board (game over)
                 if (y < 0) {
                     // This placement would cause game over - skip or massive penalty
+                    const placement = { x, y, rotationIndex: ri, shape, score: -10000 };
+                    allPlacements.push(placement);
                     if (-10000 > bestScore) {
                         bestScore = -10000;
-                        best = { x, y, rotationIndex: ri, shape, score: -10000 };
+                        best = placement;
                     }
                     continue;
                 }
@@ -366,12 +460,21 @@ const AIPlayer = (() => {
                 const linesAfter = fallbackCountLines(newBoard);
                 const score = fallbackEvaluate(newBoard, shape, x, y, piece.color, cols, rows, linesAfter - linesBefore);
                 
+                const placement = { x, y, rotationIndex: ri, shape, score };
+                allPlacements.push(placement);
+                
                 if (score > bestScore) {
                     bestScore = score;
-                    best = { x, y, rotationIndex: ri, shape, score };
+                    best = placement;
                 }
             }
         }
+        
+        // Record this decision if recording is active
+        if (recordingEnabled && best && allPlacements.length > 0) {
+            fallbackRecordDecision(board, piece, allPlacements, best);
+        }
+        
         return best;
     }
     
@@ -561,9 +664,11 @@ const AIPlayer = (() => {
         if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
             currentMode = 'survival';
             console.log(`🔴 AI SWITCHING TO SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
+            recordEvent('modeSwitch', { from: 'colorBuilding', to: 'survival', stackHeight });
         } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
             currentMode = 'colorBuilding';
             console.log(`🟢 AI SWITCHING TO COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
+            recordEvent('modeSwitch', { from: 'survival', to: 'colorBuilding', stackHeight });
         }
     }
     
@@ -578,6 +683,115 @@ const AIPlayer = (() => {
         }
     }
     
+    // ==================== RECORDING SYSTEM ====================
+    
+    let recordingEnabled = false;
+    let currentRecording = null;
+    
+    /**
+     * Start recording AI decisions
+     */
+    function startRecording() {
+        recordingEnabled = true;
+        currentRecording = null;
+        
+        if (worker && workerReady) {
+            worker.postMessage({ 
+                command: 'startRecording',
+                skillLevel: currentSkillLevel
+            });
+            console.log('🎬 AI Recording started (worker)');
+        } else {
+            // Use fallback recording
+            fallbackStartRecording();
+        }
+    }
+    
+    /**
+     * Stop recording and get the data
+     */
+    function stopRecording(board, cause) {
+        recordingEnabled = false;
+        
+        return new Promise((resolve) => {
+            if (worker && workerReady) {
+                const handler = function(e) {
+                    if (e.data.recordingStopped) {
+                        currentRecording = e.data.recording;
+                        worker.removeEventListener('message', handler);
+                        console.log('🎬 AI Recording stopped (worker)');
+                        resolve(currentRecording);
+                    }
+                };
+                worker.addEventListener('message', handler);
+                worker.postMessage({ 
+                    command: 'stopRecording',
+                    board: board,
+                    cause: cause || 'unknown'
+                });
+            } else {
+                // Use fallback recording
+                currentRecording = fallbackFinalizeRecording(board, cause || 'unknown');
+                resolve(currentRecording);
+            }
+        });
+    }
+    
+    /**
+     * Record a game event (tsunami, line clear, mode switch, etc.)
+     */
+    function recordEvent(eventType, eventData) {
+        if (!recordingEnabled) return;
+        
+        if (worker && workerReady) {
+            worker.postMessage({
+                command: 'recordEvent',
+                eventType: eventType,
+                eventData: eventData
+            });
+        } else {
+            // Use fallback recording
+            fallbackRecordEvent(eventType, eventData);
+        }
+    }
+    
+    /**
+     * Download recording as JSON file
+     */
+    function downloadRecording(recording) {
+        const data = recording || currentRecording;
+        if (!data) {
+            console.warn('No recording available to download');
+            return;
+        }
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ai-game-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('🎬 Recording downloaded');
+    }
+    
+    /**
+     * Check if recording is active
+     */
+    function isRecording() {
+        return recordingEnabled;
+    }
+    
+    /**
+     * Get current recording data
+     */
+    function getRecording() {
+        return currentRecording;
+    }
+    
     return {
         init,
         setEnabled,
@@ -589,7 +803,14 @@ const AIPlayer = (() => {
         terminate,
         getMode,
         getStackHeight,
-        modeThresholds
+        modeThresholds,
+        // Recording API
+        startRecording,
+        stopRecording,
+        recordEvent,
+        downloadRecording,
+        isRecording,
+        getRecording
     };
 })();
 

@@ -14,6 +14,87 @@ let pieceQueue = [];
 let currentMode = 'colorBuilding'; // 'colorBuilding' or 'survival'
 let lastStackHeight = 0; // Track stack height for debugging
 
+// ==================== GAME RECORDING ====================
+let gameRecording = {
+    startTime: null,
+    decisions: [],
+    events: [],
+    finalState: null
+};
+
+function startRecording() {
+    gameRecording = {
+        startTime: Date.now(),
+        skillLevel: currentSkillLevel,
+        decisions: [],
+        events: [],
+        finalState: null
+    };
+}
+
+function recordDecision(board, piece, placements, chosen, mode, stackHeight) {
+    // Only record top 5 and bottom 2 placements to keep size manageable
+    const sortedPlacements = [...placements].sort((a, b) => b.score - a.score);
+    const topPlacements = sortedPlacements.slice(0, 5);
+    const bottomPlacements = sortedPlacements.slice(-2);
+    
+    // Compress board to just occupied cells for smaller file size
+    const compressedBoard = [];
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < board[y].length; x++) {
+            if (board[y][x]) {
+                compressedBoard.push({ x, y, c: board[y][x] });
+            }
+        }
+    }
+    
+    gameRecording.decisions.push({
+        t: Date.now() - gameRecording.startTime, // Time offset
+        mode,
+        stackHeight,
+        piece: { shape: piece.shape, color: piece.color },
+        board: compressedBoard,
+        top: topPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
+        bottom: bottomPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: Math.round(p.score * 100) / 100 })),
+        chosen: { x: chosen.x, y: chosen.y, r: chosen.rotationIndex, s: Math.round(chosen.score * 100) / 100 }
+    });
+}
+
+function recordEvent(type, data) {
+    gameRecording.events.push({
+        t: Date.now() - (gameRecording.startTime || Date.now()),
+        type,
+        ...data
+    });
+}
+
+function finalizeRecording(board, cause) {
+    // Compress final board state
+    const compressedBoard = [];
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < board[y].length; x++) {
+            if (board[y][x]) {
+                compressedBoard.push({ x, y, c: board[y][x] });
+            }
+        }
+    }
+    
+    gameRecording.finalState = {
+        board: compressedBoard,
+        cause,
+        stackHeight: lastStackHeight,
+        mode: currentMode,
+        totalDecisions: gameRecording.decisions.length,
+        duration: Date.now() - gameRecording.startTime
+    };
+    
+    return gameRecording;
+}
+
+function getRecording() {
+    return gameRecording;
+}
+
 // Row thresholds for mode switching (rows from bottom, 1-indexed)
 // Upper = switch to survival, Lower = switch back to color building
 const modeThresholds = {
@@ -721,7 +802,7 @@ function generatePlacements(board, piece, cols, rows) {
     return placements;
 }
 
-function findBestPlacement(board, piece, cols, rows, nextPiece) {
+function findBestPlacement(board, piece, cols, rows, queue) {
     // Update mode based on current stack height BEFORE evaluating
     updateMode(board, rows);
     
@@ -731,32 +812,76 @@ function findBestPlacement(board, piece, cols, rows, nextPiece) {
         return null;
     }
     
-    // 2-ply lookahead if we have next piece
+    let bestPlacement;
+    
+    const nextPiece = queue && queue.length > 0 ? queue[0] : null;
+    const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
+    
+    // 3-ply lookahead if we have pieces in queue
     if (nextPiece) {
         for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
             const clearedBoard = removeCompleteLines(newBoard);
             
             const nextPlacements = generatePlacements(clearedBoard, nextPiece, cols, rows);
+            
             if (nextPlacements.length > 0) {
-                const bestNext = nextPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                placement.combinedScore = placement.score + bestNext.score * 0.5;
+                // Sort and take top 8 placements for 2nd ply (performance optimization)
+                const topNextPlacements = nextPlacements
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 8);
+                
+                let bestNextScore = -Infinity;
+                
+                for (const nextPlacement of topNextPlacements) {
+                    let nextCombinedScore = nextPlacement.score;
+                    
+                    // 3rd ply if we have a third piece
+                    if (thirdPiece) {
+                        const nextBoard = placePiece(clearedBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
+                        const nextClearedBoard = removeCompleteLines(nextBoard);
+                        
+                        const thirdPlacements = generatePlacements(nextClearedBoard, thirdPiece, cols, rows);
+                        
+                        if (thirdPlacements.length > 0) {
+                            const bestThird = thirdPlacements.reduce((a, b) => a.score > b.score ? a : b);
+                            // Weight: 3rd piece contributes 0.25
+                            nextCombinedScore = nextPlacement.score + bestThird.score * 0.25;
+                        } else {
+                            nextCombinedScore = nextPlacement.score - 50;
+                        }
+                    }
+                    
+                    if (nextCombinedScore > bestNextScore) {
+                        bestNextScore = nextCombinedScore;
+                    }
+                }
+                
+                // Weight: 2nd piece contributes 0.5
+                placement.combinedScore = placement.score + bestNextScore * 0.5;
             } else {
                 placement.combinedScore = placement.score - 100;
             }
         }
         
-        return placements.reduce((a, b) => 
+        bestPlacement = placements.reduce((a, b) => 
             (a.combinedScore || a.score) > (b.combinedScore || b.score) ? a : b
         );
+    } else {
+        bestPlacement = placements.reduce((a, b) => a.score > b.score ? a : b);
     }
     
-    return placements.reduce((a, b) => a.score > b.score ? a : b);
+    // Record this decision if recording is active
+    if (gameRecording.startTime) {
+        recordDecision(board, piece, placements, bestPlacement, currentMode, lastStackHeight);
+    }
+    
+    return bestPlacement;
 }
 
 // Handle messages from main thread
 self.onmessage = function(e) {
-    const { command, board, piece, queue, cols, rows, skillLevel } = e.data;
+    const { command, board, piece, queue, cols, rows, skillLevel, cause } = e.data;
     
     // Handle reset command
     if (command === 'reset') {
@@ -766,17 +891,40 @@ self.onmessage = function(e) {
         return;
     }
     
-    console.log(`🔍 Worker received: board.length=${board ? board.length : 'null'}, rows=${rows}, skillLevel=${skillLevel}`);
+    // Handle recording commands
+    if (command === 'startRecording') {
+        startRecording();
+        gameRecording.skillLevel = skillLevel || currentSkillLevel;
+        self.postMessage({ recordingStarted: true });
+        return;
+    }
+    
+    if (command === 'stopRecording') {
+        if (board) {
+            const recording = finalizeRecording(board, cause || 'manual_stop');
+            self.postMessage({ recordingStopped: true, recording });
+        } else {
+            self.postMessage({ recordingStopped: true, recording: getRecording() });
+        }
+        return;
+    }
+    
+    if (command === 'getRecording') {
+        self.postMessage({ recording: getRecording() });
+        return;
+    }
+    
+    if (command === 'recordEvent') {
+        recordEvent(e.data.eventType, e.data.eventData || {});
+        return;
+    }
     
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
     
-    const nextPiece = pieceQueue.length > 0 ? pieceQueue[0] : null;
-    
     // Use setTimeout to yield to other tasks and reduce priority
     setTimeout(() => {
-        const bestPlacement = findBestPlacement(board, piece, cols, rows, nextPiece);
-        console.log(`🔍 Worker sending: mode=${currentMode}, stackHeight=${lastStackHeight}`);
+        const bestPlacement = findBestPlacement(board, piece, cols, rows, pieceQueue);
         self.postMessage({ bestPlacement, mode: currentMode, stackHeight: lastStackHeight });
     }, 0);
 };
