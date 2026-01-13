@@ -826,14 +826,165 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
     return score;
 }
 
-// ==================== MAIN EVALUATION ====================
+// ==================== UNIFIED EVALUATION ====================
+// Key insight: Completing a tsunami IS survival - it clears massive blocks
+// So "color building vs survival" is a false dichotomy when near tsunami completion
 
 function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
-    if (currentMode === 'colorBuilding') {
-        return evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesCleared);
-    } else {
-        return evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared);
+    const blobs = getAllBlobs(board, cols, rows);
+    const stackHeight = getStackHeight(board, rows);
+    
+    // Find the best near-tsunami opportunity
+    let bestTsunamiBlob = null;
+    let bestTsunamiGap = Infinity;
+    
+    for (const blob of blobs) {
+        if (blob.size >= 10) {
+            const { width, minX, maxX } = getBlobWidth(blob, cols);
+            
+            // Check if this placement completes a tsunami
+            if (minX === 0 && maxX === cols - 1) {
+                // TSUNAMI COMPLETED! Massive score
+                return 200 + blob.size * 5;
+            }
+            
+            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
+            if (width >= 7 && gap < bestTsunamiGap) {
+                bestTsunamiGap = gap;
+                bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
+            }
+        }
     }
+    
+    let score = 0;
+    
+    // === TSUNAMI PRIORITY MODE ===
+    // When we have a large blob close to spanning the width, prioritize completing it
+    if (bestTsunamiBlob && bestTsunamiBlob.gap <= 3) {
+        const blob = bestTsunamiBlob;
+        
+        // Check if this piece color matches the blob
+        if (color === blob.color) {
+            // This piece can extend the blob!
+            // Give massive bonus for placing it to extend toward the gap
+            
+            // Check which side needs extension
+            const needsLeft = blob.minX > 0;
+            const needsRight = blob.maxX < cols - 1;
+            
+            // Calculate if this placement extends the blob in the right direction
+            let extensionBonus = 0;
+            const pieceMinX = x;
+            const pieceMaxX = x + shape[0].length - 1;
+            
+            if (needsLeft && pieceMinX < blob.minX) {
+                // This could extend left!
+                extensionBonus += (blob.minX - pieceMinX) * 30;
+            }
+            if (needsRight && pieceMaxX > blob.maxX) {
+                // This could extend right!
+                extensionBonus += (pieceMaxX - blob.maxX) * 30;
+            }
+            
+            // Also check if piece is adjacent to the blob (can connect)
+            const adjacentToBlob = isAdjacentToBlob(board, shape, x, y, blob.color, cols, rows);
+            if (adjacentToBlob && extensionBonus > 0) {
+                extensionBonus += 50; // Big bonus for actually connecting
+            }
+            
+            score += extensionBonus;
+        }
+        
+        // Always reward progress toward tsunami, regardless of color
+        const progressBonus = (10 - blob.gap) * 8 + blob.size * 0.5;
+        score += progressBonus;
+        
+        // Reduced stack penalty when close to tsunami - completing it will save us!
+        score -= stackHeight * 0.3;
+        
+        // Only apply danger penalties if we're REALLY close to death
+        if (stackHeight >= 19) {
+            score -= 500;
+        } else if (stackHeight >= 18) {
+            score -= 100;
+        }
+        
+        // Moderate line clear bonus
+        score += linesCleared * linesCleared * 2;
+        
+    } else {
+        // === NORMAL MODE (no tsunami close) ===
+        // Standard evaluation with color building and survival balance
+        
+        const headroom = 20 - stackHeight;
+        
+        // Line clears: reward more when stack is high
+        if (headroom > 10) {
+            score -= linesCleared * 2; // Penalize clears when safe
+        } else if (headroom > 5) {
+            score += linesCleared * 2; // Reward clears when getting high
+        } else {
+            score += linesCleared * linesCleared * 4; // Strong reward in danger
+        }
+        
+        // Color adjacency for building blobs
+        const adjacencyMultiplier = headroom > 8 ? 0.8 : 0.3;
+        score += getColorAdjacency(board, shape, x, y, color, cols, rows) * adjacencyMultiplier;
+        
+        // Blob size rewards
+        for (const blob of blobs) {
+            if (blob.size >= 4) {
+                score += blob.size * blob.size * 0.05;
+                
+                // Reward blob width progress
+                const { width } = getBlobWidth(blob, cols);
+                score += width * 0.5;
+            }
+        }
+        
+        // Stack management
+        score -= stackHeight * 0.5;
+        score -= countHoles(board) * 1.5;
+        score -= getBumpiness(board) * 0.3;
+        score -= countWells(board) * 0.5;
+        
+        // Danger penalties
+        if (stackHeight >= 19) {
+            score -= 1000;
+        } else if (stackHeight >= 18) {
+            score -= 200;
+        } else if (stackHeight >= 16) {
+            score -= 30;
+        }
+    }
+    
+    if (typeof score !== 'number' || isNaN(score)) return 0;
+    return score;
+}
+
+/**
+ * Check if a piece placement is adjacent to cells of a specific color
+ */
+function isAdjacentToBlob(board, shape, x, y, targetColor, cols, rows) {
+    for (let sy = 0; sy < shape.length; sy++) {
+        for (let sx = 0; sx < shape[sy].length; sx++) {
+            if (shape[sy][sx]) {
+                const bx = x + sx;
+                const by = y + sy;
+                // Check all 4 neighbors
+                for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                    const nx = bx + dx;
+                    const ny = by + dy;
+                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                        if (board[ny] && board[ny][nx] === targetColor) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 function generatePlacements(board, piece, cols, rows) {
