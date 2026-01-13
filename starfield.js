@@ -1598,7 +1598,14 @@ const StarfieldSystem = (function() {
                 const duration = 1500;
                 let allOffScreen = true;
                 
-                asteroids.forEach(asteroid => {
+                // Sort asteroids by depth for proper layering
+                // In normal mode: draw far (high depth) first, close (low depth) last
+                // In reversed mode: draw close (low depth) first, far (high depth) last
+                const sortedAsteroids = [...asteroids].sort((a, b) => 
+                    cameraReversed ? a.depth - b.depth : b.depth - a.depth
+                );
+                
+                sortedAsteroids.forEach(asteroid => {
                     if (!paused) {
                         if (cameraReversed) {
                             asteroid.x += asteroid.speed * (1 + asteroid.depth * 0.5);
@@ -1619,9 +1626,19 @@ const StarfieldSystem = (function() {
                     }
                     
                     const progress = Math.min(asteroidBeltProgress / duration, 1);
-                    const scale = cameraReversed 
+                    // Base scale from progress (overall belt distance)
+                    const progressScale = cameraReversed 
                         ? 0.5 + progress * 1.5
                         : 2 - progress * 1.5;
+                    
+                    // Depth scale: asteroids with higher depth appear further away
+                    // depth 0 = closer (larger), depth 1 = further (smaller)
+                    // Scale ranges from 1.3 (close) to 0.5 (far)
+                    const depthScale = cameraReversed
+                        ? 0.5 + asteroid.depth * 0.8  // Reversed: depth=0 is small, depth=1 is large
+                        : 1.3 - asteroid.depth * 0.8; // Normal: depth=0 is large, depth=1 is small
+                    
+                    const scale = progressScale * depthScale;
                     
                     if (asteroid.x > -starfieldCanvas.width * 0.6 && 
                         asteroid.x < starfieldCanvas.width * 0.6) {
