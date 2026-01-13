@@ -1,4 +1,4 @@
-// AI Worker v2.2 - Fixed bowl-stacking issue - Queue-aware tsunami/blackhole evaluation (2026-01-13)
+// AI Worker v2.4 - No line clear simulation (trusts game gravity) (2026-01-13)
 /**
  * AI Worker for TaNTЯiS / BLOCKCHaiNSTORM
  * Runs placement calculations on a separate thread to avoid UI freezes
@@ -1016,8 +1016,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     score -= bumpiness * 0.5;
     
     // LINE CLEARS: Context-dependent handling
-    // When safe: PENALIZE clears to build blobs for tsunamis
-    // When in danger: REWARD clears to survive
+    // We know how many lines WILL be cleared but don't simulate the result
+    // The game handles blob gravity correctly after we place the piece
     const headroom = 20 - stackHeight;
     if (headroom > 10) {
         // Very safe (stack <= 9) - penalize line clears to focus on blob building
@@ -1346,8 +1346,10 @@ function generatePlacements(board, piece, cols, rows) {
             const linesAfter = countCompleteLines(newBoard);
             const linesCleared = linesAfter - linesBefore;
             
-            const clearedBoard = removeCompleteLines(newBoard);
-            const score = evaluateBoard(clearedBoard, shape, x, y, piece.color, cols, rows, linesCleared);
+            // DON'T simulate line clears - blob gravity makes predictions unreliable
+            // Just evaluate the board with the piece placed
+            // The game will handle line clears and gravity, then call us again with the settled board
+            const score = evaluateBoard(newBoard, shape, x, y, piece.color, cols, rows, linesCleared);
             
             placements.push({
                 x, y, rotationIndex, shape, score
@@ -1373,13 +1375,14 @@ function findBestPlacement(board, piece, cols, rows, queue) {
     const nextPiece = queue && queue.length > 0 ? queue[0] : null;
     const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
     
-    // 3-ply lookahead if we have pieces in queue
+    // 2-ply lookahead if we have pieces in queue
+    // NOTE: We don't simulate line clears because blob gravity is unpredictable
     if (nextPiece) {
         for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
-            const clearedBoard = removeCompleteLines(newBoard);
+            // Don't simulate line clears - just use the board with piece placed
             
-            const nextPlacements = generatePlacements(clearedBoard, nextPiece, cols, rows);
+            const nextPlacements = generatePlacements(newBoard, nextPiece, cols, rows);
             
             if (nextPlacements.length > 0) {
                 // Sort and take top 8 placements for 2nd ply (performance optimization)
@@ -1394,10 +1397,10 @@ function findBestPlacement(board, piece, cols, rows, queue) {
                     
                     // 3rd ply if we have a third piece
                     if (thirdPiece) {
-                        const nextBoard = placePiece(clearedBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
-                        const nextClearedBoard = removeCompleteLines(nextBoard);
+                        const nextBoard = placePiece(newBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
+                        // Don't simulate line clears
                         
-                        const thirdPlacements = generatePlacements(nextClearedBoard, thirdPiece, cols, rows);
+                        const thirdPlacements = generatePlacements(nextBoard, thirdPiece, cols, rows);
                         
                         if (thirdPlacements.length > 0) {
                             const bestThird = thirdPlacements.reduce((a, b) => a.score > b.score ? a : b);
