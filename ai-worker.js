@@ -1,4 +1,4 @@
-// AI Worker v2.1 - Queue-aware tsunami/blackhole evaluation (2026-01-13)
+// AI Worker v2.2 - Fixed bowl-stacking issue - Queue-aware tsunami/blackhole evaluation (2026-01-13)
 /**
  * AI Worker for TaNTЯiS / BLOCKCHaiNSTORM
  * Runs placement calculations on a separate thread to avoid UI freezes
@@ -1033,10 +1033,47 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         score += linesCleared * linesCleared * 8;
     }
     
-    // COMPACTNESS BONUS: Reward placing pieces adjacent to existing blocks
-    // This prevents the AI from spreading pieces out and creating gaps
+    // COMPACTNESS BONUS: Small reward for touching existing blocks
+    // Reduced from 1.5 to 0.5 to prevent middle-stacking
     const touchingExisting = countTouchingCells(board, shape, x, y, cols, rows);
-    score += touchingExisting * 1.5;
+    score += touchingExisting * 0.5;
+    
+    // COLUMN BALANCE: Penalize placing in already-tall columns when short columns exist
+    // This prevents bowl-shaped boards
+    const colHeights = [];
+    for (let cx = 0; cx < cols; cx++) {
+        for (let cy = 0; cy < rows; cy++) {
+            if (board[cy][cx] !== null) {
+                colHeights.push(rows - cy);
+                break;
+            }
+            if (cy === rows - 1) colHeights.push(0);
+        }
+    }
+    
+    // Find the column(s) this piece occupies
+    const pieceMinX = x;
+    const pieceMaxX = x + shape[0].length - 1;
+    
+    // Get the height of the tallest column this piece occupies
+    let pieceColMaxHeight = 0;
+    for (let cx = pieceMinX; cx <= pieceMaxX && cx < cols; cx++) {
+        pieceColMaxHeight = Math.max(pieceColMaxHeight, colHeights[cx] || 0);
+    }
+    
+    // Get the height of the shortest non-zero column (or 0 if all empty)
+    const nonZeroHeights = colHeights.filter(h => h > 0);
+    const minColHeight = nonZeroHeights.length > 0 ? Math.min(...nonZeroHeights) : 0;
+    
+    // Penalty for stacking on tall columns when short columns exist
+    if (pieceColMaxHeight > minColHeight + 4 && minColHeight > 0) {
+        score -= (pieceColMaxHeight - minColHeight - 4) * 2;
+    }
+    
+    // Bonus for placing in empty or very short columns
+    if (pieceColMaxHeight <= 2 && colHeights.some(h => h > 4)) {
+        score += 5;
+    }
     
     // Death zone penalties
     if (stackHeight >= 18) {
