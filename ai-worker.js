@@ -1014,8 +1014,23 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     // Bumpiness makes it hard to clear lines
     score -= bumpiness * 0.5;
     
-    // Line clears are always good (they reduce height and potentially clear holes)
-    score += linesCleared * linesCleared * 5;
+    // LINE CLEARS: Context-dependent handling
+    // When safe: PENALIZE clears to build blobs for tsunamis
+    // When in danger: REWARD clears to survive
+    const headroom = 20 - stackHeight;
+    if (headroom > 10) {
+        // Very safe (stack <= 9) - penalize line clears to focus on blob building
+        score -= linesCleared * linesCleared * 3;
+    } else if (headroom > 6) {
+        // Moderately safe (stack 10-13) - slight penalty for clearing
+        score -= linesCleared * 2;
+    } else if (headroom > 3) {
+        // Getting dangerous (stack 14-16) - small reward for clearing
+        score += linesCleared * linesCleared * 2;
+    } else {
+        // Critical danger (stack 17+) - big reward for clearing
+        score += linesCleared * linesCleared * 8;
+    }
     
     // COMPACTNESS BONUS: Reward placing pieces adjacent to existing blocks
     // This prevents the AI from spreading pieces out and creating gaps
@@ -1054,26 +1069,27 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     }
     
     // ========================================
-    // PHASE 3: COLOR BUILDING (only when safe)
+    // PHASE 3: COLOR BUILDING (when board is manageable)
     // ========================================
     
-    // Only add color bonuses if board is healthy
-    const isHealthy = holes <= 2 && stackHeight <= 12;
+    // Add color bonuses if board is healthy enough to focus on building
+    const isHealthy = holes <= 2 && stackHeight <= 14;
+    const isModeratelyHealthy = holes <= 4 && stackHeight <= 16;
     
     if (isHealthy) {
         // Bonus for same-color adjacency (builds blobs)
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 0.8;  // Increased from 0.4
+        score += adjacency * 1.5;  // Increased significantly
         
-        // Bonus for blob size
+        // Bonus for blob size - bigger blobs = more points from tsunamis
         for (const blob of blobs) {
             if (blob.size >= 4) {
-                score += blob.size * 0.2;  // Increased from 0.15
+                score += blob.size * 0.4;  // Doubled
                 
                 // Bonus for wide blobs (potential tsunamis)
                 const { width } = getBlobWidth(blob, cols);
-                if (width >= 6) {
-                    score += (width - 5) * 3;  // +3 for width 6, +6 for 7, +9 for 8, +12 for 9
+                if (width >= 5) {
+                    score += (width - 4) * 4;  // +4 for width 5, +8 for 6, +12 for 7, +16 for 8, +20 for 9
                 }
             }
         }
@@ -1082,10 +1098,17 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         if (!blackHoleResult.canComplete && blackHoleResult.progress > 0.3) {
             score += blackHoleResult.bonus * 0.5;
         }
-    } else if (holes <= 4 && stackHeight <= 15) {
-        // Moderate color bonus even when not perfectly healthy
+    } else if (isModeratelyHealthy) {
+        // Still give some color bonus when moderately healthy
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 0.3;
+        score += adjacency * 0.5;
+        
+        // Smaller blob bonus
+        for (const blob of blobs) {
+            if (blob.size >= 8) {
+                score += blob.size * 0.2;
+            }
+        }
     }
     
     // ========================================
