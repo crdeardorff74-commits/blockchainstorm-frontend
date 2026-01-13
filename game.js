@@ -5016,16 +5016,18 @@ function areInterlocked(blob1, blob2) {
             
             console.log(`      📊 Column ${col}: blob1 Y-range [${min1}-${max1}], blob2 Y-range [${min2}-${max2}]`);
             
-            // Check if Y ranges overlap (share at least one row)
+            // Check if Y ranges overlap OR are adjacent (touching)
+            // overlap = -1 means adjacent, >= 0 means overlapping
             const overlap = Math.min(max1, max2) - Math.max(min1, min2);
-            if (overlap >= 0) {
-                console.log(`    🔗 Interlocked: Y ranges overlap by ${overlap + 1} rows in column ${col}`);
+            if (overlap >= -1) {
+                const relationship = overlap >= 0 ? 'overlap' : 'are adjacent';
+                console.log(`    🔗 Interlocked: Y ranges ${relationship} (overlap=${overlap}) in column ${col}`);
                 return true;
             }
         }
     }
     
-    console.log(`      ❌ Shared columns but no Y overlap - not interlocked`);
+    console.log(`      ❌ Shared columns but not adjacent or overlapping - not interlocked`);
     return false;
 }
 
@@ -9649,6 +9651,10 @@ function detectInterlocking(blobs) {
             columns.get(pos.x).push(pos.y);
         });
         blobColumns.set(blob.id, columns);
+        
+        // Debug: show all columns each blob occupies
+        const colList = [...columns.keys()].sort((a,b) => a-b);
+        console.log(`  📍 ${blob.id} (${blob.color.substring(0,7)}): cols [${colList.join(',')}]`);
     });
     
     // Check all pairs of blobs for interlocking
@@ -9667,6 +9673,9 @@ function detectInterlocking(blobs) {
             for (let [colX, rowsA] of columnsA) {
                 const rowsB = columnsB.get(colX);
                 if (!rowsB || rowsB.length === 0) continue;
+                
+                // Found a shared column - log it
+                console.log(`  🔍 ${blobA.id} vs ${blobB.id} share col ${colX}: A=[${rowsA.sort((a,b)=>a-b).join(',')}] B=[${rowsB.sort((a,b)=>a-b).join(',')}]`);
                 
                 const minYA = Math.min(...rowsA);
                 const maxYA = Math.max(...rowsA);
@@ -9687,15 +9696,18 @@ function detectInterlocking(blobs) {
                     break;
                 }
                 
-                // NEW: Check if Y ranges OVERLAP (not just touch)
+                // NEW: Check if Y ranges OVERLAP or are ADJACENT
                 // Two ranges [minA, maxA] and [minB, maxB] overlap if:
                 // minA <= maxB AND minB <= maxA
-                // But we want STRICT overlap (at least one row in common), not just touching
+                // They're ADJACENT if one ends where the other begins (e.g., rows 8-9 and 10-11)
+                // overlap = -1 means adjacent, >= 0 means overlapping
                 const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
-                if (overlap >= 0) {
-                    // They share at least one row in this column
+                console.log(`      overlap = min(${maxYA},${maxYB}) - max(${minYA},${minYB}) = ${overlap}`);
+                if (overlap >= -1) {
+                    // They share at least one row OR are directly adjacent in this column
                     isInterlocked = true;
-                    reason = `${blobA.id} and ${blobB.id} overlap in column ${colX} (Y ranges [${minYA}-${maxYA}] and [${minYB}-${maxYB}])`;
+                    const relationship = overlap >= 0 ? 'overlap' : 'are adjacent';
+                    reason = `${blobA.id} and ${blobB.id} ${relationship} in column ${colX} (Y ranges [${minYA}-${maxYA}] and [${minYB}-${maxYB}])`;
                     break;
                 }
             }
