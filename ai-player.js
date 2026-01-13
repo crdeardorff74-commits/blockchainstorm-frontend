@@ -375,9 +375,11 @@ const AIPlayer = (() => {
         const touching = fallbackCountTouching(board, shape, x, y, cols, rows);
         score += touching * 1.5;
         
-        // Small color adjacency bonus (only when board is healthy)
+        // Color adjacency bonus (only when board is healthy)
         if (holes <= 2 && height <= 12) {
-            score += adj * 0.4;
+            score += adj * 0.8;  // Increased from 0.4
+        } else if (holes <= 4 && height <= 15) {
+            score += adj * 0.3;  // Moderate bonus when not perfectly healthy
         }
         
         // Death zone penalties

@@ -920,35 +920,39 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
     const isHealthy = holes <= 2 && stackHeight <= 12;
     
     if (isHealthy) {
-        // Small bonus for same-color adjacency
+        // Bonus for same-color adjacency (builds blobs)
         const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 0.4;
+        score += adjacency * 0.8;  // Increased from 0.4
         
-        // Small bonus for blob size
+        // Bonus for blob size
         for (const blob of blobs) {
             if (blob.size >= 4) {
-                score += blob.size * 0.15;
+                score += blob.size * 0.2;  // Increased from 0.15
                 
-                // Bonus for wide blobs
+                // Bonus for wide blobs (potential tsunamis)
                 const { width } = getBlobWidth(blob, cols);
-                if (width >= 7) {
-                    score += (width - 6) * 2;
+                if (width >= 6) {
+                    score += (width - 5) * 3;  // +3 for width 6, +6 for 7, +9 for 8, +12 for 9
                 }
             }
         }
+    } else if (holes <= 4 && stackHeight <= 15) {
+        // Moderate color bonus even when not perfectly healthy
+        const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
+        score += adjacency * 0.3;
     }
     
     // ========================================
-    // PHASE 4: NEAR-TSUNAMI BONUS (only when very close)
+    // PHASE 4: NEAR-TSUNAMI BONUS (when close to spanning width)
     // ========================================
     
     // Find best tsunami candidate
     let bestTsunamiBlob = null;
     for (const blob of blobs) {
-        if (blob.size >= 15) {
+        if (blob.size >= 12) {
             const { width, minX, maxX } = getBlobWidth(blob, cols);
             const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
-            if (width >= 8 && gap <= 2) {
+            if (width >= 7 && gap <= 3) {
                 if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
                     bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
                 }
@@ -956,21 +960,42 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, linesCleared) {
         }
     }
     
-    // If we're very close to tsunami and this piece matches, give bonus
+    // If we're close to tsunami and this piece matches, give bonus for extending
     if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
         const pieceMinX = x;
         const pieceMaxX = x + shape[0].length - 1;
         
+        // Calculate extension bonus based on gap size
+        // Smaller gap = bigger bonus (more urgent to complete)
+        const gapMultiplier = (4 - bestTsunamiBlob.gap) * 15; // gap=1: 45, gap=2: 30, gap=3: 15
+        
         let extensionBonus = 0;
+        
+        // Check if this placement extends toward the missing columns
         if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
-            extensionBonus += 20;
+            // Extends toward left edge
+            extensionBonus += gapMultiplier;
         }
         if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
-            extensionBonus += 20;
+            // Extends toward right edge
+            extensionBonus += gapMultiplier;
         }
         
-        // Only apply bonus if board isn't too messy
-        if (holes <= 4) {
+        // CRITICAL: If gap is 1 and this piece would complete, massive bonus
+        if (bestTsunamiBlob.gap === 1) {
+            const needsLeft = bestTsunamiBlob.minX > 0;
+            const needsRight = bestTsunamiBlob.maxX < cols - 1;
+            
+            if (needsLeft && pieceMinX === 0) {
+                extensionBonus += 100; // Would complete tsunami!
+            }
+            if (needsRight && pieceMaxX === cols - 1) {
+                extensionBonus += 100; // Would complete tsunami!
+            }
+        }
+        
+        // Apply bonus if board isn't completely trashed
+        if (holes <= 5) {
             score += extensionBonus;
         }
     }
