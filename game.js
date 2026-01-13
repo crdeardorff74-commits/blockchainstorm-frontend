@@ -10011,6 +10011,9 @@ function runTwoPhaseGravity() {
         // No animations, so update board immediately
         gravityAnimating = false;
         
+        // SAFETY CHECK: Even with no animations, check for floating blocks
+        detectAndFixFloatingBlocks();
+        
         // Update liquid pools
         updateLiquidPoolsAfterGravity();
         
@@ -10084,6 +10087,9 @@ function updateFallingBlocks() {
         gravityAnimating = false;
         fallingBlocks = [];
         
+        // SAFETY CHECK: Detect and fix any floating blocks that gravity missed
+        detectAndFixFloatingBlocks();
+        
         // CRITICAL FIX: After gravity, blocks may have fallen into currentPiece's space
         // Push the piece up until it's no longer colliding
         if (currentPiece && collides(currentPiece)) {
@@ -10108,6 +10114,76 @@ function updateFallingBlocks() {
         // Just check for line clears
         clearLines();
     }
+}
+
+/**
+ * Detect floating blocks that should have fallen but didn't
+ * Returns true if floating blocks were found and fixed
+ */
+function detectAndFixFloatingBlocks() {
+    let foundFloating = false;
+    let fixedCount = 0;
+    
+    // Keep fixing until no more floating blocks are found
+    // (blocks might need to fall multiple rows)
+    let passes = 0;
+    const maxPasses = ROWS; // Safety limit
+    
+    while (passes < maxPasses) {
+        passes++;
+        let fixedThisPass = false;
+        
+        // For each column, find floating blocks and move them down
+        for (let x = 0; x < COLS; x++) {
+            // Find the lowest empty row that has a block somewhere above it
+            for (let gapY = ROWS - 1; gapY >= 0; gapY--) {
+                if (board[gapY][x] === null) {
+                    // Found an empty cell - check if there's a block above it
+                    for (let blockY = gapY - 1; blockY >= 0; blockY--) {
+                        if (board[blockY][x] !== null) {
+                            // Found a floating block! Move it down
+                            foundFloating = true;
+                            fixedThisPass = true;
+                            fixedCount++;
+                            
+                            // Move the block down to the gap
+                            board[gapY][x] = board[blockY][x];
+                            board[blockY][x] = null;
+                            
+                            // Also move random/lattice flags
+                            if (isRandomBlock[blockY] && isRandomBlock[gapY]) {
+                                isRandomBlock[gapY][x] = isRandomBlock[blockY][x];
+                                isRandomBlock[blockY][x] = false;
+                            }
+                            if (isLatticeBlock[blockY] && isLatticeBlock[gapY]) {
+                                isLatticeBlock[gapY][x] = isLatticeBlock[blockY][x];
+                                isLatticeBlock[blockY][x] = false;
+                            }
+                            
+                            // Move fading blocks
+                            if (fadingBlocks[blockY] && fadingBlocks[gapY]) {
+                                fadingBlocks[gapY][x] = fadingBlocks[blockY][x];
+                                fadingBlocks[blockY][x] = null;
+                            }
+                            
+                            break; // Move on to next gap search
+                        }
+                    }
+                    break; // Found a gap in this column, move to next column
+                }
+            }
+        }
+        
+        if (!fixedThisPass) {
+            break; // No more floating blocks found
+        }
+    }
+    
+    if (foundFloating) {
+        console.log(`🚨 FLOATING BLOCKS FIX: Moved ${fixedCount} blocks down in ${passes} passes`);
+    }
+    
+    return foundFloating;
 }
 
 function drawFallingBlocks() {
@@ -10914,6 +10990,16 @@ function hardDrop() {
 
 function updateHardDrop() {
     if (!hardDropping || !currentPiece) return;
+    
+    // SAFETY: Stop hard drop if gravity animation started
+    // This prevents race conditions at high speeds
+    if (gravityAnimating || animatingLines) {
+        console.log('⚠️ Hard drop interrupted - gravity/line animation in progress');
+        hardDropping = false;
+        hardDropVelocity = 0;
+        hardDropPixelY = 0;
+        return;
+    }
     
     // Fast hard drop speed
     const hardDropAcceleration = 50;
