@@ -491,16 +491,20 @@ const AIPlayer = (() => {
         
         pendingCallback = callback;
         
+        // Generate all rotations for this piece
+        const rotations = fallbackGetAllRotations(piece.shape);
+        
         // Serialize data for worker
         worker.postMessage({
             board: board,
             piece: {
                 shape: piece.shape,
                 color: piece.color,
+                rotations: rotations,
                 x: piece.x,
                 y: piece.y
             },
-            queue: queue.map(p => p ? { shape: p.shape, color: p.color } : null).filter(Boolean),
+            queue: queue.map(p => p ? { shape: p.shape, color: p.color, rotations: fallbackGetAllRotations(p.shape) } : null).filter(Boolean),
             cols: cols,
             rows: rows,
             skillLevel: currentSkillLevel
