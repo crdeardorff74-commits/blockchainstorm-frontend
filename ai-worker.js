@@ -706,6 +706,7 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     let bestTsunamiScore = 0;
     let hasTsunamiPath = false;
     let nearTsunamiBonus = 0;
+    let bestTsunamiBlob = null;
     
     for (const blob of blobs) {
         if (blob.size >= 4) {
@@ -721,8 +722,17 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
             const progress = getTsunamiProgress(blob, cols);
             score += progress * 3; // Increased multiplier
             
+            // Track best tsunami candidate for extension bonus
+            const { width, minX, maxX } = getBlobWidth(blob, cols);
+            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
+            
+            if (blob.size >= 12 && width >= 6 && gap <= 4) {
+                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
+                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
+                }
+            }
+            
             // Extra bonus for near-completion (width 8 or 9)
-            const { width } = getBlobWidth(blob, cols);
             if (width >= 9 && blob.size >= 15) {
                 nearTsunamiBonus = Math.max(nearTsunamiBonus, 30);
             } else if (width >= 8 && blob.size >= 12) {
@@ -732,6 +742,48 @@ function evaluateColorBuilding(board, shape, x, y, color, cols, rows, linesClear
     }
     
     score += nearTsunamiBonus;
+    
+    // TSUNAMI EXTENSION BONUS - reward placing pieces toward the gap!
+    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
+        const pieceMinX = x;
+        const pieceMaxX = x + shape[0].length - 1;
+        
+        // Check if piece connects to the blob
+        let connectsToBlob = false;
+        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
+            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
+            if (adj > 0) {
+                connectsToBlob = true;
+            }
+        }
+        
+        if (connectsToBlob) {
+            // Count matching colors in queue for boost
+            const queueMatches = pieceQueue ? pieceQueue.filter(p => p && p.color === bestTsunamiBlob.color).length : 0;
+            const queueBoost = queueMatches >= 2 ? 1.5 : 1.0;
+            
+            const gapMultiplier = (5 - bestTsunamiBlob.gap) * 15 * queueBoost;
+            
+            let extensionBonus = 0;
+            
+            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
+                extensionBonus += gapMultiplier;
+                if (pieceMinX === 0) extensionBonus += 40;
+            }
+            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
+                extensionBonus += gapMultiplier;
+                if (pieceMaxX === cols - 1) extensionBonus += 40;
+            }
+            
+            // Gap=1 completion bonus
+            if (bestTsunamiBlob.gap === 1) {
+                if (bestTsunamiBlob.minX > 0 && pieceMinX === 0) extensionBonus += 150;
+                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX === cols - 1) extensionBonus += 150;
+            }
+            
+            score += extensionBonus;
+        }
+    }
     
     // Black hole progress - use the calculated bonus
     const blackHoleResult = getBlackHoleProgress(blobs, cols, rows);
@@ -811,6 +863,7 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
     // === Check for near-Tsunami opportunities ===
     let bestTsunamiScore = 0;
     let nearTsunamiBonus = 0;
+    let bestTsunamiBlob = null;
     
     for (const blob of blobs) {
         if (blob.size >= 4) {
@@ -820,8 +873,16 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
             }
             
             // Check for near-completion
-            const { width } = getBlobWidth(blob, cols);
+            const { width, minX, maxX } = getBlobWidth(blob, cols);
+            const gap = (minX > 0 ? minX : 0) + (maxX < cols - 1 ? cols - 1 - maxX : 0);
             const progress = getTsunamiProgress(blob, cols);
+            
+            // Track best tsunami candidate for extension bonus
+            if (blob.size >= 12 && width >= 6 && gap <= 4) {
+                if (!bestTsunamiBlob || blob.size > bestTsunamiBlob.size) {
+                    bestTsunamiBlob = { ...blob, width, minX, maxX, gap };
+                }
+            }
             
             if (width >= 9 && blob.size >= 15) {
                 nearTsunamiBonus = Math.max(nearTsunamiBonus, 25);
@@ -832,6 +893,45 @@ function evaluateSurvival(board, shape, x, y, color, cols, rows, linesCleared) {
             if (progress >= 1.0) {
                 score += progress * 5;
             }
+        }
+    }
+    
+    // TSUNAMI EXTENSION BONUS - critical for actually completing tsunamis!
+    if (bestTsunamiBlob && color === bestTsunamiBlob.color) {
+        const pieceMinX = x;
+        const pieceMaxX = x + shape[0].length - 1;
+        
+        // Check if piece connects to the blob
+        let connectsToBlob = false;
+        if (pieceMaxX >= bestTsunamiBlob.minX - 1 && pieceMinX <= bestTsunamiBlob.maxX + 1) {
+            const adj = getColorAdjacency(board, shape, x, y, color, cols, rows);
+            if (adj > 0) {
+                connectsToBlob = true;
+            }
+        }
+        
+        if (connectsToBlob) {
+            // In survival, completing a tsunami is EXTREMELY valuable - it clears lots of blocks!
+            const gapMultiplier = (5 - bestTsunamiBlob.gap) * 20; // gap=1: 80, gap=2: 60, gap=3: 40, gap=4: 20
+            
+            let extensionBonus = 0;
+            
+            if (bestTsunamiBlob.minX > 0 && pieceMinX < bestTsunamiBlob.minX) {
+                extensionBonus += gapMultiplier;
+                if (pieceMinX === 0) extensionBonus += 50;
+            }
+            if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX > bestTsunamiBlob.maxX) {
+                extensionBonus += gapMultiplier;
+                if (pieceMaxX === cols - 1) extensionBonus += 50;
+            }
+            
+            // Gap=1 completion is HUGE in survival - this clears massive amounts
+            if (bestTsunamiBlob.gap === 1) {
+                if (bestTsunamiBlob.minX > 0 && pieceMinX === 0) extensionBonus += 200;
+                if (bestTsunamiBlob.maxX < cols - 1 && pieceMaxX === cols - 1) extensionBonus += 200;
+            }
+            
+            score += extensionBonus;
         }
     }
     
