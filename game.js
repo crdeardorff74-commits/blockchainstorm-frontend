@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.9 loaded");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -1880,6 +1880,96 @@ function adjustPanelForSongInfo() {
     if (planetStats) {
         planetStats.style.padding = '8px';
         planetStats.style.marginTop = '8px';
+    }
+}
+
+// Create volume controls dynamically
+function createVolumeControls() {
+    // Find the side panel
+    const sidePanel = document.querySelector('.side-panel');
+    if (!sidePanel) return;
+    
+    // Check if already exists
+    if (document.getElementById('volumeControls')) return;
+    
+    // Find music select to insert after it
+    const musicSelect = document.getElementById('musicSelect');
+    const musicParent = musicSelect?.parentElement?.parentElement;
+    
+    // Create volume controls container
+    const volumeControls = document.createElement('div');
+    volumeControls.id = 'volumeControls';
+    volumeControls.style.cssText = `
+        margin-top: 1vh;
+        padding: 0.8vh;
+        background: rgba(26, 26, 46, 0.6);
+        border-radius: 0.4vh;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    
+    volumeControls.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5vw; margin-bottom: 0.6vh;">
+            <button id="musicMuteBtn" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 0.3vh 0.5vw; border-radius: 0.3vh; cursor: pointer; font-size: 1.2vh;" title="Mute/Unmute Music">🔊</button>
+            <label style="font-size: 1vh; color: #888; flex-shrink: 0;">MUSIC</label>
+            <input type="range" id="musicVolumeSlider" min="0" max="100" value="${getMusicVolume() * 100}" style="flex: 1; height: 0.8vh; cursor: pointer;">
+            <span id="musicVolumeDisplay" style="font-size: 1vh; color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getMusicVolume() * 100)}%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5vw;">
+            <button id="sfxMuteBtn" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 0.3vh 0.5vw; border-radius: 0.3vh; cursor: pointer; font-size: 1.2vh;" title="Mute/Unmute Sound Effects">🔊</button>
+            <label style="font-size: 1vh; color: #888; flex-shrink: 0;">SFX</label>
+            <input type="range" id="sfxVolumeSlider" min="0" max="100" value="${getSfxVolume() * 100}" style="flex: 1; height: 0.8vh; cursor: pointer;">
+            <span id="sfxVolumeDisplay" style="font-size: 1vh; color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getSfxVolume() * 100)}%</span>
+        </div>
+    `;
+    
+    // Insert after music select option or at the end of side panel
+    if (musicParent && musicParent.nextSibling) {
+        musicParent.parentNode.insertBefore(volumeControls, musicParent.nextSibling);
+    } else {
+        sidePanel.appendChild(volumeControls);
+    }
+    
+    // Set up event listeners
+    const musicVolumeSlider = document.getElementById('musicVolumeSlider');
+    const sfxVolumeSlider = document.getElementById('sfxVolumeSlider');
+    const musicMuteBtn = document.getElementById('musicMuteBtn');
+    const sfxMuteBtn = document.getElementById('sfxMuteBtn');
+    const musicVolumeDisplay = document.getElementById('musicVolumeDisplay');
+    const sfxVolumeDisplay = document.getElementById('sfxVolumeDisplay');
+    
+    musicVolumeSlider.addEventListener('input', (e) => {
+        const volume = e.target.value / 100;
+        setMusicVolume(volume);
+        musicVolumeDisplay.textContent = `${e.target.value}%`;
+        updateMuteButtonIcon(musicMuteBtn, isMusicMuted());
+    });
+    
+    sfxVolumeSlider.addEventListener('input', (e) => {
+        const volume = e.target.value / 100;
+        setSfxVolume(volume);
+        sfxVolumeDisplay.textContent = `${e.target.value}%`;
+        updateMuteButtonIcon(sfxMuteBtn, isSfxMuted());
+    });
+    
+    musicMuteBtn.addEventListener('click', () => {
+        toggleMusicMute();
+        updateMuteButtonIcon(musicMuteBtn, isMusicMuted());
+    });
+    
+    sfxMuteBtn.addEventListener('click', () => {
+        toggleSfxMute();
+        updateMuteButtonIcon(sfxMuteBtn, isSfxMuted());
+    });
+    
+    // Set initial mute button states
+    updateMuteButtonIcon(musicMuteBtn, isMusicMuted());
+    updateMuteButtonIcon(sfxMuteBtn, isSfxMuted());
+}
+
+function updateMuteButtonIcon(button, isMuted) {
+    if (button) {
+        button.textContent = isMuted ? '🔇' : '🔊';
+        button.style.color = isMuted ? '#ff6666' : '#aaa';
     }
 }
 
@@ -12351,6 +12441,9 @@ function startGame(mode) {
     // Create song info display element if not exists
     createSongInfoElement();
     
+    // Create volume controls if not exists
+    createVolumeControls();
+    
     startMusic(gameMode, musicSelect);
     
     // Update song display after a short delay (to let audio load)
@@ -12645,6 +12738,9 @@ function updateSelectedMode() {
 
 // Initialize first button as selected
 updateSelectedMode();
+
+// Initialize volume controls
+createVolumeControls();
 
 playAgainBtn.addEventListener('click', () => {
     stopCreditsAnimation();

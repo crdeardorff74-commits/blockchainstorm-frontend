@@ -20,6 +20,12 @@ let hasPlayedGame = false; // Track if a game has been completed
 let gameInProgress = false; // Track if a game is currently running
 let fullSongPlayedOnMenu = false; // Track if a full song has completed on main menu
 
+// Music volume controls
+let musicVolume = parseFloat(localStorage.getItem('blockchainstorm_musicVolume')) || 0.5;
+let musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
+let sfxVolume = parseFloat(localStorage.getItem('blockchainstorm_sfxVolume')) || 0.7;
+let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
+
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
 
@@ -59,12 +65,13 @@ function initSoundEffects() {
 // Play an MP3 sound effect
 function playMP3SoundEffect(effectId, soundToggle) {
     if (!soundToggle || !soundToggle.checked) return;
+    if (sfxMuted) return;
     
     const audio = soundEffectElements[effectId];
     if (audio) {
         // Clone the audio to allow overlapping plays
         const clone = audio.cloneNode();
-        clone.volume = soundEffectVolumes[effectId] || 0.7;
+        clone.volume = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
         clone.play().catch(e => console.log('Sound effect autoplay prevented:', e));
     }
 }
@@ -820,7 +827,7 @@ function startMusic(gameMode, musicSelect) {
     let audio = gameplayMusicElements[trackId];
     if (!audio && song) {
         audio = new Audio(song.file);
-        audio.volume = 0.5;
+        audio.volume = musicMuted ? 0 : musicVolume;
     }
     
     if (audio && song) {
@@ -912,7 +919,7 @@ function initGameplayMusic() {
     allSongs.forEach(song => {
         const audio = new Audio(song.file);
         audio.loop = true;
-        audio.volume = 0.5;
+        audio.volume = musicMuted ? 0 : musicVolume;
         audio.preload = 'auto';
         // Add ended event listener for shuffle mode
         audio.addEventListener('ended', onSongEnded);
@@ -1605,7 +1612,7 @@ function startMenuMusic(musicToggleOrSelect) {
     // Create audio element if needed
     if (!menuMusicElement) {
         menuMusicElement = new Audio();
-        menuMusicElement.volume = 0.5;
+        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
         // Add ended event listener for credits shuffle
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
     }
@@ -1668,6 +1675,8 @@ function stopMenuMusic() {
 
 // Basic sound generator
 function playSound(frequency, duration, type = 'sine') {
+    if (sfxMuted) return;
+    
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
     
@@ -1677,7 +1686,8 @@ function playSound(frequency, duration, type = 'sine') {
     oscillator.frequency.value = frequency;
     oscillator.type = type;
     
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    const volume = 0.3 * sfxVolume;
+    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
     
     oscillator.start(audioContext.currentTime);
@@ -1704,6 +1714,7 @@ function playTsunamiWhoosh(soundToggle) {
 // Realistic thunder effect
 function playThunder(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     // Create realistic thunder: sharp crack followed by deep rumbling decay
     const thunder = audioContext.createBufferSource();
@@ -1783,6 +1794,7 @@ function playThunder(soundToggle) {
 // Continuous volcano rumble for warming phase (3 seconds)
 function playVolcanoRumble(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     // Create a 3.5 second continuous rumble that builds in intensity
     const rumble = audioContext.createBufferSource();
@@ -1842,6 +1854,7 @@ function playVolcanoRumble(soundToggle) {
 // Continuous earthquake rumble (shorter than volcano, more shaky)
 function playEarthquakeRumble(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     // Create a 2.5 second rumble with shaking character
     const rumble = audioContext.createBufferSource();
@@ -1901,6 +1914,7 @@ function playEarthquakeRumble(soundToggle) {
 // Similar to the rumble but with added crunchiness
 function playEarthquakeCrack(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     // Create a 2.5 second rumble with crunchy texture
     const crack = audioContext.createBufferSource();
@@ -1962,6 +1976,7 @@ function playEarthquakeCrack(soundToggle) {
 // Main sound effects dispatcher
 function playSoundEffect(effect, soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     switch(effect) {
         case 'move':
@@ -2123,6 +2138,7 @@ let tornadoWindFading = false;
 
 function startTornadoWind(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     if (tornadoWindSource) return; // Already playing
     
     tornadoWindFading = false;
@@ -2201,6 +2217,7 @@ function stopTornadoWind() {
 // Low rumble/crumble sound for tornado destroying blobs
 function playSmallExplosion(soundToggle) {
     if (!soundToggle.checked) return;
+    if (sfxMuted) return;
     
     // Create a sustained low crumbling sound
     const crumble = audioContext.createBufferSource();
@@ -2260,6 +2277,91 @@ function playSmallExplosion(soundToggle) {
     crumble.stop(audioContext.currentTime + duration);
 }
 
+// ============================================
+// VOLUME CONTROL FUNCTIONS
+// ============================================
+
+function setMusicVolume(volume) {
+    musicVolume = Math.max(0, Math.min(1, volume));
+    localStorage.setItem('blockchainstorm_musicVolume', musicVolume.toString());
+    applyMusicVolume();
+}
+
+function getMusicVolume() {
+    return musicVolume;
+}
+
+function setMusicMuted(muted) {
+    musicMuted = muted;
+    localStorage.setItem('blockchainstorm_musicMuted', muted.toString());
+    applyMusicVolume();
+}
+
+function isMusicMuted() {
+    return musicMuted;
+}
+
+function toggleMusicMute() {
+    setMusicMuted(!musicMuted);
+    return musicMuted;
+}
+
+function applyMusicVolume() {
+    const effectiveVolume = musicMuted ? 0 : musicVolume;
+    
+    // Apply to menu music
+    if (menuMusicElement) {
+        menuMusicElement.volume = effectiveVolume;
+    }
+    
+    // Apply to all gameplay music elements
+    Object.values(gameplayMusicElements).forEach(audio => {
+        if (audio) {
+            audio.volume = effectiveVolume;
+        }
+    });
+}
+
+function setSfxVolume(volume) {
+    sfxVolume = Math.max(0, Math.min(1, volume));
+    localStorage.setItem('blockchainstorm_sfxVolume', sfxVolume.toString());
+    applySfxVolume();
+}
+
+function getSfxVolume() {
+    return sfxVolume;
+}
+
+function setSfxMuted(muted) {
+    sfxMuted = muted;
+    localStorage.setItem('blockchainstorm_sfxMuted', muted.toString());
+}
+
+function isSfxMuted() {
+    return sfxMuted;
+}
+
+function toggleSfxMute() {
+    setSfxMuted(!sfxMuted);
+    return sfxMuted;
+}
+
+function applySfxVolume() {
+    // Apply to preloaded sound effects
+    Object.keys(soundEffectElements).forEach(id => {
+        const audio = soundEffectElements[id];
+        if (audio) {
+            audio.volume = sfxMuted ? 0 : (soundEffectVolumes[id] || 0.7) * sfxVolume;
+        }
+    });
+}
+
+// Get effective SFX volume for a specific effect (used when playing)
+function getEffectiveSfxVolume(effectId) {
+    if (sfxMuted) return 0;
+    return (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
+}
+
     // Export all public functions for use in main game
     window.AudioSystem = {
         audioContext,
@@ -2292,6 +2394,18 @@ function playSmallExplosion(soundToggle) {
         getCurrentSongInfo,
         setOnSongChangeCallback,
         setOnPauseStateChangeCallback,
-        insertFWordSong
+        insertFWordSong,
+        // Volume controls
+        setMusicVolume,
+        getMusicVolume,
+        setMusicMuted,
+        isMusicMuted,
+        toggleMusicMute,
+        setSfxVolume,
+        getSfxVolume,
+        setSfxMuted,
+        isSfxMuted,
+        toggleSfxMute,
+        getEffectiveSfxVolume
     };
 })(); // End IIFE
