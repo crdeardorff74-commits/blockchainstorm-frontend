@@ -656,6 +656,10 @@ const StarfieldSystem = (function() {
     
     // Load planet images
     planets.forEach(planet => {
+        if (!planet.imageUrl) {
+            imagesLoaded++;
+            return; // Skip planets without images (e.g., Asteroid Belt)
+        }
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
