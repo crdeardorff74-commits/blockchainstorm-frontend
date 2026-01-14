@@ -187,9 +187,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7vh;">
+            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh;">
                 <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-                <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.3vh;">
+                <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.2vh;">
                     <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
                     <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
                     <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
@@ -202,9 +202,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     }
     
     let html = `
-        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7vh;">
+        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh;">
             <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-            <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.3vh;">
+            <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.2vh;">
                 <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
                 <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
                 <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
@@ -233,7 +233,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
         if (entry.volcanoes > 0) events.push(`🌋${entry.volcanoes}`);
         if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
-        const eventsStr = events.length > 0 ? `<br><span class="special-events">${events.join(' ')}</span>` : '';
+        const eventsStr = events.length > 0 ? ` <span class="special-events">${events.join(' ')}</span>` : '';
         
         // Build challenges display for challenge mode
         let challengesCell = '';
