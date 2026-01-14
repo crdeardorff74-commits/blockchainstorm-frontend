@@ -1748,7 +1748,9 @@ const finalScoreDisplay = document.getElementById('finalScore');
 const finalStatsDisplay = document.getElementById('finalStats');
 const planetStatsDiv = document.getElementById('planetStats');
 const planetStatsContent = document.getElementById('planetStatsContent');
-const soundToggle = document.getElementById('soundToggle');
+// Sound toggle removed - now controlled by volume/mute in side panel
+// Create fake toggle that's always "on" so existing code works
+const soundToggle = { checked: true };
 const musicSelect = document.getElementById('musicSelect');
 const vibrationToggle = document.getElementById('vibrationToggle');
 const vibrationOption = document.getElementById('vibrationOption');

@@ -55,7 +55,6 @@ const SettingsSync = {
         
         // Checkboxes
         const checkboxes = [
-            'soundToggle', 
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
@@ -115,7 +114,6 @@ const SettingsSync = {
         
         // Apply checkboxes
         const checkboxes = [
-            'soundToggle',
             'stormEffectsToggle', 
             'cameraOrientationToggle',
             'minimalistToggle',
@@ -297,7 +295,6 @@ const SettingsSync = {
      */
     attachListeners() {
         const checkboxes = [
-            'soundToggle',
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
