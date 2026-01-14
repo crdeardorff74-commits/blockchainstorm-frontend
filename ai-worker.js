@@ -1,7 +1,7 @@
-// AI Worker v4.2 - 4-ply lookahead, skill-level aware strategy (2026-01-14)
-console.log("🤖 AI Worker v4.2 loaded - 4-ply lookahead, Breeze=blob focus, Tempest/Maelstrom=tsunami focus");
+// AI Worker v4.3 - 4-ply lookahead, skill-level aware strategy (2026-01-14)
+console.log("🤖 AI Worker v4.3 loaded - 4-ply lookahead, Breeze=blob focus, Tempest/Maelstrom=tsunami focus");
 
-const AI_VERSION = "4.2";
+const AI_VERSION = "4.3";
 
 /**
  * Radically simplified AI for TaNTЯiS
