@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.10 loaded - stuck detection fix");
+console.log("🎮 AI Player v3.11 loaded - stuck detection + earthquake positioning");
 
 const AIPlayer = (() => {
     // Configuration
@@ -230,8 +230,9 @@ const AIPlayer = (() => {
     
     /**
      * Calculate moves needed to reach target placement
+     * @param {boolean} skipDrop - If true, don't add drop command (for earthquake positioning)
      */
-    function calculateMoves(currentPiece, targetPlacement) {
+    function calculateMoves(currentPiece, targetPlacement, skipDrop = false) {
         const moves = [];
         
         for (let i = 0; i < targetPlacement.rotationIndex; i++) {
@@ -250,7 +251,9 @@ const AIPlayer = (() => {
             }
         }
         
-        moves.push('drop');
+        if (!skipDrop) {
+            moves.push('drop');
+        }
         
         return moves;
     }
@@ -546,22 +549,9 @@ const AIPlayer = (() => {
         if (moveQueue.length > 0) {
             if (now - lastMoveTime >= moveDelay) {
                 const move = moveQueue.shift();
-                
-                // During earthquake, delay drop commands - position the piece but wait to drop
-                if (duringEarthquake && move === 'drop') {
-                    // Put the drop back so we remember to do it when earthquake ends
-                    moveQueue.unshift('drop');
-                    return;
-                }
-                
                 executeMove(move, callbacks);
                 lastMoveTime = now;
             }
-            return;
-        }
-        
-        // During earthquake with no moves queued, just wait for it to finish
-        if (duringEarthquake) {
             return;
         }
         
@@ -569,22 +559,25 @@ const AIPlayer = (() => {
         if (thinking) return;
         
         // Stuck detection: check if piece is in same position as last calculation
+        // Skip stuck detection during earthquake since we're intentionally not dropping
         const pieceKey = getPieceKey(currentPiece);
-        if (pieceKey === lastPieceKey) {
-            samePositionCount++;
-            if (samePositionCount >= STUCK_THRESHOLD) {
-                // Piece hasn't moved after multiple attempts - force immediate drop
-                console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
-                moveQueue = ['drop'];
-                lastMoveTime = Date.now();
-                samePositionCount = 0; // Reset after forcing drop
-                lastPieceKey = null;
-                return;
+        if (!duringEarthquake) {
+            if (pieceKey === lastPieceKey) {
+                samePositionCount++;
+                if (samePositionCount >= STUCK_THRESHOLD) {
+                    // Piece hasn't moved after multiple attempts - force immediate drop
+                    console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
+                    moveQueue = ['drop'];
+                    lastMoveTime = Date.now();
+                    samePositionCount = 0; // Reset after forcing drop
+                    lastPieceKey = null;
+                    return;
+                }
+            } else {
+                // Piece moved or new piece - reset counter
+                samePositionCount = 0;
+                lastPieceKey = pieceKey;
             }
-        } else {
-            // Piece moved or new piece - reset counter
-            samePositionCount = 0;
-            lastPieceKey = pieceKey;
         }
         
         thinking = true;
@@ -609,9 +602,11 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement) => {
                 if (bestPlacement) {
-                    moveQueue = calculateMoves(currentPiece, bestPlacement);
+                    // During earthquake: position piece but don't hard drop (let it fall naturally)
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
                 } else {
-                    moveQueue = ['drop'];
+                    // Only drop if not during earthquake
+                    moveQueue = duringEarthquake ? [] : ['drop'];
                 }
                 
                 thinking = false;
