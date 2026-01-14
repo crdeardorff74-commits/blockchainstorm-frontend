@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.9 loaded");
+console.log("🎮 AI Player v3.10 loaded - stuck detection fix");
 
 const AIPlayer = (() => {
     // Configuration
@@ -25,6 +25,11 @@ const AIPlayer = (() => {
     let currentMode = 'colorBuilding'; // Track mode for display/logging
     let currentStackHeight = 0; // Track stack height for debugging
     let currentUfoActive = false; // Track UFO state for 42 lines easter egg
+    
+    // Stuck detection - prevents infinite rotation/movement loops
+    let lastPieceKey = null; // Track piece identity (x, y, rotation, shape hash)
+    let samePositionCount = 0; // How many times we've calculated for same piece position
+    const STUCK_THRESHOLD = 3; // Force drop after this many same-position calculations
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
@@ -248,6 +253,16 @@ const AIPlayer = (() => {
         moves.push('drop');
         
         return moves;
+    }
+    
+    /**
+     * Generate a key to identify piece state for stuck detection
+     */
+    function getPieceKey(piece) {
+        if (!piece || !piece.shape) return null;
+        // Include position and shape hash to detect if piece has actually moved
+        const shapeStr = piece.shape.map(row => row.join('')).join('|');
+        return `${piece.x},${piece.y},${shapeStr}`;
     }
     
     // ============ INLINE FALLBACK (for file:// protocol) ============
@@ -553,6 +568,25 @@ const AIPlayer = (() => {
         // Don't start thinking if already thinking
         if (thinking) return;
         
+        // Stuck detection: check if piece is in same position as last calculation
+        const pieceKey = getPieceKey(currentPiece);
+        if (pieceKey === lastPieceKey) {
+            samePositionCount++;
+            if (samePositionCount >= STUCK_THRESHOLD) {
+                // Piece hasn't moved after multiple attempts - force immediate drop
+                console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
+                moveQueue = ['drop'];
+                lastMoveTime = Date.now();
+                samePositionCount = 0; // Reset after forcing drop
+                lastPieceKey = null;
+                return;
+            }
+        } else {
+            // Piece moved or new piece - reset counter
+            samePositionCount = 0;
+            lastPieceKey = pieceKey;
+        }
+        
         thinking = true;
         
         // Store UFO state for this decision
@@ -619,6 +653,10 @@ const AIPlayer = (() => {
         lastMoveTime = 0;
         pendingCallback = null;
         currentMode = 'colorBuilding'; // Reset to color building mode
+        
+        // Reset stuck detection
+        lastPieceKey = null;
+        samePositionCount = 0;
         
         // Also reset worker's mode
         if (worker && workerReady) {
