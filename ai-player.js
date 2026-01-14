@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.12 loaded - stuck detection + earthquake positioning + death spiral detection");
+console.log("🎮 AI Player v3.12 loaded - enhanced stuck detection with piece identity tracking");
 
 const AIPlayer = (() => {
     // Configuration
@@ -31,10 +31,9 @@ const AIPlayer = (() => {
     let samePositionCount = 0; // How many times we've calculated for same piece position
     const STUCK_THRESHOLD = 3; // Force drop after this many same-position calculations
     
-    // Death spiral detection - prevents infinite loop when board is nearly full
-    let consecutiveBadPlacements = 0; // Count placements with very negative scores
-    const BAD_PLACEMENT_THRESHOLD = -300; // Score below this indicates board is critical
-    const DEATH_SPIRAL_LIMIT = 5; // After this many bad placements, stop trying
+    // Piece identity tracking - prevent multiple calculations for same piece
+    let lastCalculatedPieceId = null; // Track which piece we last calculated for
+    let samePieceCount = 0; // How many times we've tried to calculate for same piece
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
@@ -513,6 +512,14 @@ const AIPlayer = (() => {
             return;
         }
         
+        // Don't send a new request if one is already pending
+        // This prevents duplicate calculations when tab is backgrounded/resumed
+        if (pendingCallback) {
+            // Don't start a new request, but also don't leave caller hanging
+            // The pending request will complete and trigger its callback
+            return;
+        }
+        
         pendingCallback = callback;
         
         // Generate all rotations for this piece
@@ -550,6 +557,9 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
+        // Generate piece identity based on color (new piece = new color in this game)
+        const currentPieceId = currentPiece.color;
+        
         // Execute queued moves
         if (moveQueue.length > 0) {
             if (now - lastMoveTime >= moveDelay) {
@@ -562,6 +572,23 @@ const AIPlayer = (() => {
         
         // Don't start thinking if already thinking
         if (thinking) return;
+        
+        // If we already calculated for this piece and have no moves, force drop
+        // This handles the case where calculation completed but moves didn't execute
+        if (lastCalculatedPieceId === currentPieceId) {
+            samePieceCount++;
+            if (samePieceCount >= STUCK_THRESHOLD) {
+                console.log(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
+                moveQueue = ['drop'];
+                lastMoveTime = now;
+                samePieceCount = 0;
+                lastCalculatedPieceId = null;
+                return;
+            }
+        } else {
+            // New piece - reset counter
+            samePieceCount = 0;
+        }
         
         // Stuck detection: check if piece is in same position as last calculation
         // Skip stuck detection during earthquake since we're intentionally not dropping
@@ -576,6 +603,7 @@ const AIPlayer = (() => {
                     lastMoveTime = Date.now();
                     samePositionCount = 0; // Reset after forcing drop
                     lastPieceKey = null;
+                    lastCalculatedPieceId = null;
                     return;
                 }
             } else {
@@ -586,6 +614,7 @@ const AIPlayer = (() => {
         }
         
         thinking = true;
+        lastCalculatedPieceId = currentPieceId;
         
         // Store UFO state for this decision
         currentUfoActive = ufoActive || false;
@@ -607,22 +636,6 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement) => {
                 if (bestPlacement) {
-                    // Death spiral detection: if score is very negative, board is critical
-                    if (bestPlacement.score < BAD_PLACEMENT_THRESHOLD) {
-                        consecutiveBadPlacements++;
-                        if (consecutiveBadPlacements >= DEATH_SPIRAL_LIMIT) {
-                            console.log(`🤖 AI death spiral detected (${consecutiveBadPlacements} bad placements, score ${bestPlacement.score}) - letting piece fall`);
-                            // Don't queue any moves - let piece fall naturally to trigger game over
-                            moveQueue = [];
-                            thinking = false;
-                            lastMoveTime = Date.now();
-                            return;
-                        }
-                    } else {
-                        // Good placement found, reset counter
-                        consecutiveBadPlacements = 0;
-                    }
-                    
                     // During earthquake: position piece but don't hard drop (let it fall naturally)
                     moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
                 } else {
@@ -673,9 +686,8 @@ const AIPlayer = (() => {
         // Reset stuck detection
         lastPieceKey = null;
         samePositionCount = 0;
-        
-        // Reset death spiral detection
-        consecutiveBadPlacements = 0;
+        lastCalculatedPieceId = null;
+        samePieceCount = 0;
         
         // Also reset worker's mode
         if (worker && workerReady) {
