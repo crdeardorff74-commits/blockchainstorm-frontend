@@ -244,48 +244,139 @@ console.log = function(...args) {
 function copyLogsToClipboard() {
     const logText = logQueue.join('\n');
     
-    // Try to copy using modern Clipboard API
+    // Copy to clipboard silently
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(logText).then(() => {
-            originalConsoleLog('✅ Copied ' + logQueue.length + ' log entries to clipboard!');
-            // Briefly show a visual indicator
-            const indicator = document.createElement('div');
-            indicator.style.position = 'fixed';
-            indicator.style.top = '50%';
-            indicator.style.left = '50%';
-            indicator.style.transform = 'translate(-50%, -50%)';
-            indicator.style.padding = '20px 40px';
-            indicator.style.background = 'rgba(0, 255, 0, 0.9)';
-            indicator.style.color = 'white';
-            indicator.style.fontSize = '24px';
-            indicator.style.fontWeight = 'bold';
-            indicator.style.borderRadius = '10px';
-            indicator.style.zIndex = '10000';
-            indicator.textContent = `📋 Copied ${logQueue.length} logs!`;
-            document.body.appendChild(indicator);
-            setTimeout(() => indicator.remove(), 2000);
-        }).catch(err => {
-            originalConsoleLog('❌ Failed to copy logs:', err);
-            alert('Failed to copy logs to clipboard. Check console for details.');
-        });
-    } else {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = logText;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            originalConsoleLog('✅ Copied ' + logQueue.length + ' log entries to clipboard (fallback method)!');
-            alert(`📋 Copied ${logQueue.length} logs to clipboard!`);
-        } catch (err) {
-            originalConsoleLog('❌ Failed to copy logs:', err);
-            alert('Failed to copy logs to clipboard.');
-        }
-        document.body.removeChild(textarea);
+        navigator.clipboard.writeText(logText).catch(() => {});
     }
+    
+    // Pause the game
+    const wasRunning = gameRunning;
+    if (wasRunning && !isPaused) {
+        togglePause();
+    }
+    
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85); z-index: 10000;
+        display: flex; align-items: center; justify-content: center;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: #1a1a2e; border: 2px solid #00ff00; border-radius: 10px;
+        padding: 30px; max-width: 500px; width: 90%; color: #00ff00;
+        font-family: 'Press Start 2P', monospace;
+    `;
+    
+    modal.innerHTML = `
+        <h2 style="margin: 0 0 20px 0; font-size: 16px; text-align: center;">🐛 BUG REPORT</h2>
+        <p style="font-size: 10px; margin-bottom: 15px; color: #aaa;">
+            Describe what happened (optional):
+        </p>
+        <textarea id="bugDescription" style="
+            width: 100%; height: 120px; background: #0a0a1a; border: 1px solid #00ff00;
+            color: #fff; font-family: monospace; font-size: 12px; padding: 10px;
+            resize: vertical; box-sizing: border-box;
+        " placeholder="e.g., Blocks fell through each other when..."></textarea>
+        <div style="display: flex; gap: 15px; margin-top: 20px; justify-content: center;">
+            <button id="bugSubmit" style="
+                background: #00ff00; color: #000; border: none; padding: 12px 24px;
+                font-family: 'Press Start 2P', monospace; font-size: 10px; cursor: pointer;
+            ">SUBMIT</button>
+            <button id="bugCancel" style="
+                background: #333; color: #fff; border: 1px solid #666; padding: 12px 24px;
+                font-family: 'Press Start 2P', monospace; font-size: 10px; cursor: pointer;
+            ">CANCEL</button>
+        </div>
+        <p style="font-size: 8px; margin-top: 15px; color: #666; text-align: center;">
+            ${logQueue.length} log entries will be included
+        </p>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    const textarea = document.getElementById('bugDescription');
+    textarea.focus();
+    
+    const closeModal = (submit) => {
+        if (submit) {
+            const description = textarea.value.trim();
+            submitBugReport(logText, description);
+        }
+        overlay.remove();
+        // Resume game if it was running
+        if (wasRunning && isPaused) {
+            togglePause();
+        }
+    };
+    
+    document.getElementById('bugSubmit').onclick = () => closeModal(true);
+    document.getElementById('bugCancel').onclick = () => closeModal(false);
+    
+    // ESC to cancel
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeModal(false);
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+}
+
+// Submit bug report to server
+async function submitBugReport(debugLog, bugDescription) {
+    try {
+        const token = localStorage.getItem('oi_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const payload = {
+            debugLog: debugLog,
+            bugDescription: bugDescription || null,
+            score: score,
+            lines: lines,
+            level: level,
+            difficulty: gameMode,
+            skillLevel: skillLevel,
+            mode: challengeMode,
+            challenges: Array.from(activeChallenges),
+            playerType: aiModeEnabled ? 'ai' : 'human',
+            timestamp: new Date().toISOString()
+        };
+        
+        const response = await fetch('https://blockchainstorm.onrender.com/api/bug-report', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showBugReportConfirmation(true);
+        } else {
+            showBugReportConfirmation(false);
+        }
+    } catch (e) {
+        console.error('Bug report submission failed:', e);
+        showBugReportConfirmation(false);
+    }
+}
+
+function showBugReportConfirmation(success) {
+    const indicator = document.createElement('div');
+    indicator.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        padding: 20px 40px; background: ${success ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)'};
+        color: white; font-size: 18px; font-weight: bold; border-radius: 10px; z-index: 10001;
+        font-family: 'Press Start 2P', monospace;
+    `;
+    indicator.textContent = success ? '✅ Bug report submitted!' : '❌ Submission failed';
+    document.body.appendChild(indicator);
+    setTimeout(() => indicator.remove(), 2500);
 }
 
 // Function to capture canvas snapshot and copy to clipboard
@@ -11259,8 +11350,6 @@ async function gameOver() {
         const recording = await AIPlayer.stopRecording(board, 'game_over');
         if (recording && recording.decisions && recording.decisions.length > 0) {
             console.log(`🎬 AI Recording complete: ${recording.decisions.length} decisions recorded`);
-            // Auto-download the recording
-            AIPlayer.downloadRecording(recording);
             
             // Also submit to server (if GameRecorder is available and score > 0)
             if (typeof GameRecorder !== 'undefined' && GameRecorder.submitRecording && score > 0) {
@@ -11288,7 +11377,8 @@ async function gameOver() {
                     blackholes: blackHoleCount,
                     volcanoes: volcanoCount,
                     durationSeconds: recording.metadata?.durationSeconds || 0,
-                    endCause: 'game_over'
+                    endCause: 'game_over',
+                    debugLog: logQueue.join('\n')
                 });
                 console.log('📤 AI Recording submitted to server');
             }
@@ -11332,7 +11422,8 @@ async function gameOver() {
                 tsunamis: tsunamiCount,
                 blackholes: blackHoleCount,
                 volcanoes: volcanoCount,
-                endCause: 'game_over'
+                endCause: 'game_over',
+                debugLog: logQueue.join('\n')
             });
         }
     }

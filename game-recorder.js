@@ -189,7 +189,8 @@ const GameRecorder = (() => {
                 volcanoes: gameData.volcanoes ?? recordingData.finalStats?.volcanoes ?? 0,
                 durationSeconds: gameData.durationSeconds ?? Math.floor((recordingData.finalStats?.duration || 0) / 1000),
                 gameVersion: recordingData.gameVersion,
-                endCause: gameData.endCause || recordingData.finalStats?.endCause || 'game_over'
+                endCause: gameData.endCause || recordingData.finalStats?.endCause || 'game_over',
+                debugLog: gameData.debugLog || null
             };
             
             const response = await fetch(`${API_URL}/recording`, {
