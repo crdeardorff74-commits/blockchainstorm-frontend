@@ -1902,11 +1902,8 @@ function createVolumeControls() {
     const volumeControls = document.createElement('div');
     volumeControls.id = 'volumeControls';
     volumeControls.style.cssText = `
-        margin-top: 1vh;
-        padding: 0.8vh;
-        background: rgba(26, 26, 46, 0.6);
-        border-radius: 0.4vh;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 0.3vh;
+        padding: 0 0.2vw;
     `;
     
     volumeControls.innerHTML = `
