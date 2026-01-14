@@ -1,7 +1,7 @@
-// AI Worker v4.1 - 5-ply lookahead for better planning (2026-01-14)
-console.log("🤖 AI Worker v4.1 loaded - 5-ply lookahead, all queue pieces considered");
+// AI Worker v4.2 - 4-ply lookahead, reduced hole penalty when tsunami likely (2026-01-14)
+console.log("🤖 AI Worker v4.2 loaded - 4-ply lookahead, tsunami-aware hole penalties");
 
-const AI_VERSION = "4.1";
+const AI_VERSION = "4.2";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -390,10 +390,47 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const bumpiness = getBumpiness(board);
     const colHeights = getColumnHeights(board, cols, rows);
     
-    // ====== SURVIVAL PRIORITIES (always matter) ======
+    // ====== CHECK TSUNAMI POTENTIAL FIRST ======
+    // This affects how we penalize holes
+    const runs = getHorizontalRuns(board, cols, rows);
+    const bestRuns = getBestRunsPerColor(runs);
     
-    // 1. Holes - progressive penalty
-    if (holes <= 2) {
+    // Check if we have a promising tsunami in progress
+    // Consider queue colors - if we have matching pieces coming, lower the threshold
+    let hasTsunamiPotential = false;
+    let tsunamiLikelyAchievable = false;
+    let bestTsunamiWidth = 0;
+    let bestTsunamiColor = null;
+    
+    for (const runColor in bestRuns) {
+        const run = bestRuns[runColor];
+        // Count matching pieces in queue for this color
+        const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
+        // Lower threshold if we have matching pieces coming (6 with 2+ matches, 7 with 1+ match, 8 always)
+        const effectiveThreshold = queueMatches >= 2 ? 6 : (queueMatches >= 1 ? 7 : 8);
+        
+        if (run.width >= effectiveThreshold) {
+            hasTsunamiPotential = true;
+            if (run.width > bestTsunamiWidth) {
+                bestTsunamiWidth = run.width;
+                bestTsunamiColor = runColor;
+            }
+        }
+        
+        // Tsunami is likely achievable if width >= 8 with queue support, or width >= 9
+        if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+            tsunamiLikelyAchievable = true;
+        }
+    }
+    
+    // ====== SURVIVAL PRIORITIES ======
+    
+    // 1. Holes - progressive penalty, BUT reduced if tsunami is likely
+    // If tsunami is achievable, holes in the tsunami blob area don't matter
+    if (tsunamiLikelyAchievable) {
+        // Minimal hole penalty - tsunami will clear them
+        score -= holes * 2;
+    } else if (holes <= 2) {
         score -= holes * 8;
     } else if (holes <= 5) {
         score -= 16 + (holes - 2) * 12;
@@ -404,8 +441,12 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // 2. Height penalty
     score -= stackHeight * 1.2;
     
-    // 3. Bumpiness
-    score -= bumpiness * 1.2;
+    // 3. Bumpiness - also reduced if building tsunami
+    if (tsunamiLikelyAchievable) {
+        score -= bumpiness * 0.5;
+    } else {
+        score -= bumpiness * 1.2;
+    }
     
     // 4. Deep wells
     for (let col = 0; col < cols; col++) {
@@ -432,31 +473,6 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     for (let row = 0; row < rows; row++) {
         if (board[row] && board[row].every(cell => cell !== null)) {
             completeRows++;
-        }
-    }
-    
-    // Get horizontal runs to check tsunami potential
-    const runs = getHorizontalRuns(board, cols, rows);
-    const bestRuns = getBestRunsPerColor(runs);
-    
-    // Check if we have a promising tsunami in progress
-    // Consider queue colors - if we have matching pieces coming, lower the threshold
-    let hasTsunamiPotential = false;
-    let bestTsunamiWidth = 0;
-    let bestTsunamiColor = null;
-    for (const runColor in bestRuns) {
-        const run = bestRuns[runColor];
-        // Count matching pieces in queue for this color
-        const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
-        // Lower threshold if we have matching pieces coming (6 with 2+ matches, 7 with 1+ match, 8 always)
-        const effectiveThreshold = queueMatches >= 2 ? 6 : (queueMatches >= 1 ? 7 : 8);
-        
-        if (run.width >= effectiveThreshold) {
-            hasTsunamiPotential = true;
-            if (run.width > bestTsunamiWidth) {
-                bestTsunamiWidth = run.width;
-                bestTsunamiColor = runColor;
-            }
         }
     }
     
@@ -690,11 +706,11 @@ function findBestPlacement(board, piece, cols, rows, queue) {
     
     let bestPlacement;
     
-    // Use queue for 4-ply lookahead if available
+    // Use queue for 4-ply lookahead (current + 3 next pieces)
+    // All 4 queue pieces are still considered for tsunami potential in evaluateBoard
     const nextPiece = queue && queue.length > 0 ? queue[0] : null;
     const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
     const fourthPiece = queue && queue.length > 2 ? queue[2] : null;
-    const fifthPiece = queue && queue.length > 3 ? queue[3] : null;
     
     if (nextPiece) {
         // 4-ply lookahead: consider where next pieces can go
@@ -730,29 +746,8 @@ function findBestPlacement(board, piece, cols, rows, queue) {
                                     const fourthPlacements = generatePlacements(thirdBoard, fourthPiece, cols, rows);
                                     
                                     if (fourthPlacements.length > 0) {
-                                        // Get top 3 fourth placements
-                                        const topFourth = fourthPlacements.sort((a, b) => b.score - a.score).slice(0, 3);
-                                        let bestFourthScore = -Infinity;
-                                        
-                                        for (const fourthPlacement of topFourth) {
-                                            let fourthScore = fourthPlacement.score;
-                                            
-                                            // 5-ply: look at fifth piece (lightest weight)
-                                            if (fifthPiece) {
-                                                const fourthBoard = placePiece(thirdBoard, fourthPlacement.shape, fourthPlacement.x, fourthPlacement.y, fourthPiece.color);
-                                                const fifthPlacements = generatePlacements(fourthBoard, fifthPiece, cols, rows);
-                                                
-                                                if (fifthPlacements.length > 0) {
-                                                    const bestFifth = fifthPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                                                    fourthScore += bestFifth.score * 0.15; // 5th piece counts 15%
-                                                }
-                                            }
-                                            
-                                            if (fourthScore > bestFourthScore) {
-                                                bestFourthScore = fourthScore;
-                                            }
-                                        }
-                                        thirdScore += bestFourthScore * 0.2; // 4th piece counts 20%
+                                        const bestFourth = fourthPlacements.reduce((a, b) => a.score > b.score ? a : b);
+                                        thirdScore += bestFourth.score * 0.25; // 4th piece counts 25%
                                     }
                                 }
                                 
@@ -760,7 +755,7 @@ function findBestPlacement(board, piece, cols, rows, queue) {
                                     bestThirdScore = thirdScore;
                                 }
                             }
-                            nextScore += bestThirdScore * 0.3; // 3rd piece counts 30%
+                            nextScore += bestThirdScore * 0.35; // 3rd piece counts 35%
                         }
                     }
                     
