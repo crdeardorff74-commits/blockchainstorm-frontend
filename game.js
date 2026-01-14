@@ -3714,6 +3714,15 @@ function spawnTornado() {
     tornadoFinalCenterY = null;
     tornadoFadeProgress = 0;
     
+    // Record tornado spawn for playback
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordTornadoSpawn({
+            x: tornadoX,
+            snakeDirection: tornadoSnakeDirection,
+            snakeChangeCounter: tornadoSnakeChangeCounter
+        });
+    }
+    
     // Create initial swirling particles
     for (let i = 0; i < 50; i++) {
         const angle = (i / 50) * Math.PI * 2;
@@ -3853,6 +3862,11 @@ function updateTornado() {
                 tornadoSnakeDirection *= -1;
             }
             tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20);
+            
+            // Record direction change for playback
+            if (window.GameRecorder && window.GameRecorder.isActive()) {
+                window.GameRecorder.recordTornadoDirectionChange(tornadoSnakeDirection, tornadoSnakeChangeCounter);
+            }
         }
         
         // Gradually accelerate/decelerate in current direction
@@ -3986,6 +4000,11 @@ function updateTornado() {
             const maxDropCol = COLS - blobWidth;
             tornadoDropTargetX = Math.floor(Math.random() * maxDropCol + blobWidth / 2) * BLOCK_SIZE + BLOCK_SIZE / 2;
             tornadoOrbitStartTime = Date.now();
+            
+            // Record drop target for playback
+            if (window.GameRecorder && window.GameRecorder.isActive()) {
+                window.GameRecorder.recordTornadoDrop(tornadoDropTargetX);
+            }
         }
     } else if (tornadoState === 'carrying') {
         // Blob flung free - moves to drop target while still orbiting (but orbit fades out)
@@ -4761,6 +4780,11 @@ function splitBlocksByCrack() {
         earthquakeShiftType = 'right';
     }
     console.log('🌍 Earthquake shift type:', earthquakeShiftType);
+    
+    // Record earthquake for playback (crack path + shift type)
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordEarthquake(earthquakeCrack, earthquakeShiftType);
+    }
     
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
@@ -6292,13 +6316,20 @@ function createPiece() {
     const shape = shapeSet[type];
     const pieceHeight = shape.length;
     
-    return {
+    const piece = {
         shape: shape,
         type: type,
         color: randomColor(),
         x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
         y: -pieceHeight  // Spawn completely above the well
     };
+    
+    // Record piece generation for playback
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordPieceGenerated(piece);
+    }
+    
+    return piece;
 }
 
 // Hexomino shapes (6 blocks) - verified block counts
@@ -6347,13 +6378,20 @@ function createGiantPiece(segmentCount) {
     
     const pieceHeight = shapeData.shape.length;
     
-    return {
+    const piece = {
         shape: shapeData.shape,
         type: 'giant' + segmentCount,
         color: color,
         x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
         y: -pieceHeight  // Spawn completely above the well
     };
+    
+    // Record piece generation for playback
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordPieceGenerated(piece);
+    }
+    
+    return piece;
 }
 
 function createRandomHailBlock() {
@@ -6387,6 +6425,11 @@ function createRandomHailBlock() {
         board[y][x] = color;
         isRandomBlock[y][x] = true; // Mark as random block
         fadingBlocks[y][x] = { opacity: 0.01, scale: 0.15 }; // Start small and nearly invisible
+        
+        // Record hail block for playback
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordHailBlock(x, y, color);
+        }
     }
 }
 
@@ -6444,6 +6487,11 @@ function updateGremlinFadingBlocks() {
                 gremlin.color = board[y][x];
                 gremlin.pending = false;
                 
+                // Record gremlin attack for playback
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordChallengeEvent('gremlin', { x: x, y: y, color: gremlin.color });
+                }
+                
                 // Play sound now that we have a real target
                 playGremlinGiggle();
             }
@@ -6489,6 +6537,11 @@ function switchSoRandomMode() {
     soRandomCurrentMode = newMode;
     
     console.log(`🎲 So Random switched to: ${newMode}`);
+    
+    // Record challenge mode switch for playback
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordChallengeEvent('sorandom_switch', { newMode: newMode });
+    }
     
     // Apply visual effects for CSS-based modes
     if (newMode === 'stranger') {
@@ -9600,9 +9653,10 @@ function checkForSpecialFormations() {
         if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
             AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn });
         }
-        // Record event for human analysis
+        // Record event for human analysis (both general event and random event for playback)
         if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length });
+            GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType);
         }
         
         // Score calculation - VOLCANO SCORING:

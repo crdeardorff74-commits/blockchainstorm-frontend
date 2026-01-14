@@ -1,9 +1,9 @@
 /**
  * Game Recorder Module for TaNTЯiS / BLOCKCHaiNSTORM
- * Records human gameplay for analysis
+ * Records human gameplay for analysis and playback
  * Similar structure to AI recording but captures human decisions
  */
-console.log("📹 Game Recorder v1.0 loaded");
+console.log("📹 Game Recorder v1.1 loaded");
 
 const GameRecorder = (() => {
     const API_URL = 'https://blockchainstorm.onrender.com/api';
@@ -21,7 +21,7 @@ const GameRecorder = (() => {
      */
     function startRecording(config) {
         recording = {
-            version: '1.0',
+            version: '1.1',
             gameVersion: config.gameVersion || 'unknown',
             startTime: Date.now(),
             playerType: 'human',
@@ -33,7 +33,9 @@ const GameRecorder = (() => {
             
             // Game events
             moves: [],          // Every piece placement
+            pieces: [],         // Piece generation sequence (type, color)
             events: [],         // Special events (strikes, tsunamis, etc.)
+            randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
             keyframes: [],      // Periodic board snapshots
             
             // Final stats (filled at end)
@@ -47,6 +49,21 @@ const GameRecorder = (() => {
         
         console.log('📹 Recording started');
         return true;
+    }
+    
+    /**
+     * Record a piece being generated (for replay)
+     */
+    function recordPieceGenerated(piece) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.pieces.push({
+            t: timestamp,
+            type: piece.type,
+            color: piece.color
+        });
     }
     
     /**
@@ -88,6 +105,122 @@ const GameRecorder = (() => {
         recording.events.push({
             t: timestamp,
             type: eventType,
+            ...data
+        });
+    }
+    
+    // ============================================
+    // RANDOM EVENT RECORDING (for playback)
+    // ============================================
+    
+    /**
+     * Record tornado spawn with its random parameters
+     */
+    function recordTornadoSpawn(tornadoData) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'tornado_spawn',
+            x: tornadoData.x,
+            snakeDirection: tornadoData.snakeDirection,
+            snakeChangeCounter: tornadoData.snakeChangeCounter
+        });
+    }
+    
+    /**
+     * Record tornado direction change
+     */
+    function recordTornadoDirectionChange(newDirection, newCounter) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'tornado_direction',
+            direction: newDirection,
+            counter: newCounter
+        });
+    }
+    
+    /**
+     * Record tornado drop target position
+     */
+    function recordTornadoDrop(targetX) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'tornado_drop',
+            targetX: targetX
+        });
+    }
+    
+    /**
+     * Record earthquake crack path
+     */
+    function recordEarthquake(crackPath, shiftType) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'earthquake',
+            crack: crackPath.map(pt => ({ x: pt.x, y: pt.y })),
+            shiftType: shiftType
+        });
+    }
+    
+    /**
+     * Record volcano eruption column selection
+     */
+    function recordVolcanoEruption(column, edgeType) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'volcano',
+            column: column,
+            edge: edgeType
+        });
+    }
+    
+    /**
+     * Record random hail block spawn (for Hailstorm/Hurricane modes)
+     */
+    function recordHailBlock(x, y, color) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'hail_block',
+            x: x,
+            y: y,
+            color: color
+        });
+    }
+    
+    /**
+     * Record challenge mode random events
+     */
+    function recordChallengeEvent(challengeType, data) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'challenge_' + challengeType,
             ...data
         });
     }
@@ -135,6 +268,8 @@ const GameRecorder = (() => {
             volcanoes: finalStats.volcanoes || 0,
             duration: Date.now() - recording.startTime,
             totalMoves: recording.moves.length,
+            totalPieces: recording.pieces.length,
+            totalRandomEvents: recording.randomEvents.length,
             endCause: finalStats.endCause || 'game_over'
         };
         
@@ -143,7 +278,7 @@ const GameRecorder = (() => {
             recording.finalBoard = compressBoard(finalStats.board);
         }
         
-        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events`);
+        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.pieces.length} pieces`);
         
         const result = recording;
         recording = null;
@@ -300,8 +435,16 @@ const GameRecorder = (() => {
     
     return {
         startRecording,
+        recordPieceGenerated,
         recordMove,
         recordEvent,
+        recordTornadoSpawn,
+        recordTornadoDirectionChange,
+        recordTornadoDrop,
+        recordEarthquake,
+        recordVolcanoEruption,
+        recordHailBlock,
+        recordChallengeEvent,
         captureFrame,
         stopRecording,
         submitRecording,
