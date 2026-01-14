@@ -215,9 +215,10 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                 <tr>
                     <th class="rank">#</th>
                     <th class="name">Name</th>
+                    <th class="events-col">Events</th>
                     <th class="score">Score</th>
                     <th>Lines</th>
-                    <th>Level</th>
+                    <th>Lvl</th>
                     ${mode === 'challenge' ? '<th class="challenges-col">🎯</th>' : ''}
                 </tr>
             </thead>
@@ -233,7 +234,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
         if (entry.volcanoes > 0) events.push(`🌋${entry.volcanoes}`);
         if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
-        const eventsStr = events.length > 0 ? ` <span class="special-events">${events.join(' ')}</span>` : '';
+        const eventsCell = `<td class="events-col">${events.join(' ')}</td>`;
         
         // Build challenges display for challenge mode
         let challengesCell = '';
@@ -259,7 +260,8 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         html += `
             <tr class="${rowClasses}" data-challenges="${hasChallenge ? escapeHtml(challengeNames) : ''}" data-speed-bonus="${speedBonus.toFixed(2)}">
                 <td class="rank">${index + 1}</td>
-                <td class="name">${escapeHtml(entry.username)}${eventsStr}</td>
+                <td class="name">${escapeHtml(entry.username)}</td>
+                ${eventsCell}
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
                 <td>${entry.lines}</td>
                 <td>${entry.level}</td>
