@@ -187,19 +187,29 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-title">${getModeDisplayName(difficulty)}${skillLabel}${modeLabel}</div>
+            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
+                <select id="leaderboardSkillSelect" style="padding: 4px 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 12px;">
+                    <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
+                    <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
+                    <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
+                </select>
+            </div>
             <div class="leaderboard-loading">No scores yet. Be the first!</div>
         `;
+        attachLeaderboardSkillListener(difficulty, mode);
         return;
     }
     
     let html = `
-        <div class="leaderboard-title">${getModeDisplayName(difficulty)}${skillLabel}${modeLabel}</div>
-        <!-- div class="leaderboard-mode-selector">
-            Use <strong>↑↓</strong> arrows to browse difficulties
-            <br>
-            Press <strong>Enter</strong> to play again
-        </div -->
+        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
+            <select id="leaderboardSkillSelect" style="padding: 4px 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 12px;">
+                <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
+                <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
+                <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
+            </select>
+        </div>
         <table class="leaderboard-table">
             <thead>
                 <tr>
@@ -264,6 +274,19 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     leaderboardContent.innerHTML = html;
+    attachLeaderboardSkillListener(difficulty, mode);
+}
+
+// Attach change listener to leaderboard skill selector
+function attachLeaderboardSkillListener(difficulty, mode) {
+    const select = document.getElementById('leaderboardSkillSelect');
+    if (select) {
+        select.addEventListener('change', () => {
+            const newSkill = select.value;
+            currentLeaderboardSkillLevel = newSkill;
+            displayLeaderboard(difficulty, lastPlayerScore, mode, newSkill);
+        });
+    }
 }
 
 // Hide leaderboard and show rules again
