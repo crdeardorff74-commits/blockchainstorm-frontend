@@ -66,13 +66,13 @@ window.testHighScore = async function(testScore = 1000000) {
     };
     
     const isTopTen = await checkIfTopTen('drizzle', testScore);
-    console.log('Is this score in the top 15?', isTopTen);
+    console.log('Is this score in the top 20?', isTopTen);
     
     if (isTopTen) {
-        console.log('Score makes top 15! Showing name entry prompt...');
+        console.log('Score makes top 20! Showing name entry prompt...');
         promptForName(scoreData);
     } else {
-        console.log('Score does not make top 15. Showing leaderboard only...');
+        console.log('Score does not make top 20. Showing leaderboard only...');
         await displayLeaderboard('drizzle', testScore);
     }
 };
@@ -133,7 +133,7 @@ function getLocalLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest'
 function saveLocalLeaderboard(difficulty, scores, mode = 'normal', skillLevel = 'tempest') {
     const key = `blockchainstorm_leaderboard_${difficulty}_${mode}_${skillLevel}`;
     try {
-        const topScores = scores.slice(0, 15);
+        const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
     } catch (e) {
         console.error('Error saving local leaderboard:', e);
@@ -343,9 +343,9 @@ function getChallengeDisplayName(challenge) {
     return names[challenge] || challenge;
 }
 
-// Check if score makes top 15
+// Check if score makes top 20
 async function checkIfTopTen(difficulty, score, mode = 'normal', skillLevel = 'tempest') {
-    console.log(`Checking if score ${score} makes top 15 for ${difficulty} (${mode}) skill:${skillLevel}`);
+    console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode}) skill:${skillLevel}`);
     
     // Don't allow 0 scores on the leaderboard
     if (score <= 0) {
@@ -360,14 +360,14 @@ async function checkIfTopTen(difficulty, score, mode = 'normal', skillLevel = 't
         return true;
     }
     
-    if (scores.length < 15) {
-        console.log(`Only ${scores.length} scores, automatically top 15`);
+    if (scores.length < 20) {
+        console.log(`Only ${scores.length} scores, automatically top 20`);
         return true;
     }
     
-    const lowestTopTen = scores[14].score;
+    const lowestTopTen = scores[19].score;
     const result = score > lowestTopTen;
-    console.log(`Lowest top 15 score: ${lowestTopTen}, player score: ${score}, makes top 15: ${result}`);
+    console.log(`Lowest top 20 score: ${lowestTopTen}, player score: ${score}, makes top 20: ${result}`);
     return result;
 }
 
@@ -776,7 +776,7 @@ function promptForName(scoreData) {
             
             const updatedScores = [...localScores, newEntry]
                 .sort((a, b) => b.score - a.score)
-                .slice(0, 15);
+                .slice(0, 20);
             
             saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
             console.log('Score saved to local leaderboard');
