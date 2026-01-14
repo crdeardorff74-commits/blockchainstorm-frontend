@@ -8,7 +8,7 @@ const RenderUtils = (() => {
     let nextPiece = null;
     let ctx = null;
     let nextCtx = null;
-    let faceOpacity = 0.42;
+    let faceOpacity = 0.50;
 
     function init(config) {
         trainingWheelsToggle = config.trainingWheelsToggle;
