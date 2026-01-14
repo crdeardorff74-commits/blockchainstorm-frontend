@@ -187,9 +187,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-                <select id="leaderboardSkillSelect" style="padding: 4px 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 12px;">
+                <select id="leaderboardSkillSelect" style="padding: 2px 6px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 11px;">
                     <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
                     <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
                     <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
@@ -202,9 +202,9 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     }
     
     let html = `
-        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-            <select id="leaderboardSkillSelect" style="padding: 4px 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 12px;">
+            <select id="leaderboardSkillSelect" style="padding: 2px 6px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 11px;">
                 <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
                 <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
                 <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
