@@ -168,27 +168,28 @@ const GameRecorder = (() => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
             
+            // Use gameData as overrides for recordingData fields
             const payload = {
                 recording: recordingData,
                 username: gameData.username || 'Anonymous',
                 sessionId: gameData.sessionId || getSessionId(),
                 game: gameData.game || 'blockchainstorm',
-                playerType: recordingData.playerType || 'human',
-                difficulty: recordingData.difficulty,
-                skillLevel: recordingData.skillLevel,
-                mode: recordingData.mode,
-                challenges: recordingData.challenges,
-                speedBonus: recordingData.speedBonus,
-                score: recordingData.finalStats?.score || 0,
-                lines: recordingData.finalStats?.lines || 0,
-                level: recordingData.finalStats?.level || 1,
-                strikes: recordingData.finalStats?.strikes || 0,
-                tsunamis: recordingData.finalStats?.tsunamis || 0,
-                blackholes: recordingData.finalStats?.blackholes || 0,
-                volcanoes: recordingData.finalStats?.volcanoes || 0,
-                durationSeconds: Math.floor((recordingData.finalStats?.duration || 0) / 1000),
+                playerType: gameData.playerType || recordingData.playerType || 'human',
+                difficulty: gameData.difficulty || recordingData.difficulty,
+                skillLevel: gameData.skillLevel || recordingData.skillLevel,
+                mode: gameData.mode || recordingData.mode,
+                challenges: gameData.challenges || recordingData.challenges,
+                speedBonus: gameData.speedBonus || recordingData.speedBonus,
+                score: gameData.score ?? recordingData.finalStats?.score ?? 0,
+                lines: gameData.lines ?? recordingData.finalStats?.lines ?? 0,
+                level: gameData.level ?? recordingData.finalStats?.level ?? 1,
+                strikes: gameData.strikes ?? recordingData.finalStats?.strikes ?? 0,
+                tsunamis: gameData.tsunamis ?? recordingData.finalStats?.tsunamis ?? 0,
+                blackholes: gameData.blackholes ?? recordingData.finalStats?.blackholes ?? 0,
+                volcanoes: gameData.volcanoes ?? recordingData.finalStats?.volcanoes ?? 0,
+                durationSeconds: gameData.durationSeconds ?? Math.floor((recordingData.finalStats?.duration || 0) / 1000),
                 gameVersion: recordingData.gameVersion,
-                endCause: recordingData.finalStats?.endCause || 'game_over'
+                endCause: gameData.endCause || recordingData.finalStats?.endCause || 'game_over'
             };
             
             const response = await fetch(`${API_URL}/recording`, {

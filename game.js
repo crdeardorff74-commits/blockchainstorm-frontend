@@ -11254,13 +11254,44 @@ async function gameOver() {
     // Hide AI mode indicator
     if (aiModeIndicator) aiModeIndicator.style.display = 'none';
     
-    // Stop AI recording and offer download
+    // Stop AI recording and offer download + submit to server
     if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.isRecording && AIPlayer.isRecording()) {
         const recording = await AIPlayer.stopRecording(board, 'game_over');
         if (recording && recording.decisions && recording.decisions.length > 0) {
             console.log(`🎬 AI Recording complete: ${recording.decisions.length} decisions recorded`);
             // Auto-download the recording
             AIPlayer.downloadRecording(recording);
+            
+            // Also submit to server (if GameRecorder is available and score > 0)
+            if (typeof GameRecorder !== 'undefined' && GameRecorder.submitRecording && score > 0) {
+                const aiRecordingData = {
+                    moves: recording.decisions,
+                    startTime: recording.startTime,
+                    endTime: recording.endTime,
+                    metadata: recording.metadata,
+                    finalState: recording.finalState
+                };
+                GameRecorder.submitRecording(aiRecordingData, {
+                    username: 'AI-' + (recording.metadata?.skillLevel || 'tempest'),
+                    game: 'blockchainstorm',
+                    playerType: 'ai',
+                    difficulty: recording.metadata?.difficulty || currentDifficulty,
+                    skillLevel: recording.metadata?.skillLevel || aiSkillLevel,
+                    mode: isChallengeModeEnabled ? 'challenge' : 'normal',
+                    challenges: activeChallenges || [],
+                    speedBonus: speedBonus,
+                    score: score,
+                    lines: lines,
+                    level: level,
+                    strikes: strikeCount,
+                    tsunamis: tsunamiCount,
+                    blackholes: blackHoleCount,
+                    volcanoes: volcanoCount,
+                    durationSeconds: recording.metadata?.durationSeconds || 0,
+                    endCause: 'game_over'
+                });
+                console.log('📤 AI Recording submitted to server');
+            }
         }
     }
     
@@ -11278,7 +11309,7 @@ async function gameOver() {
             endCause: 'game_over'
         };
         const recording = GameRecorder.stopRecording(finalStats);
-        if (recording && recording.moves && recording.moves.length > 0) {
+        if (recording && recording.moves && recording.moves.length > 0 && score > 0) {
             console.log(`📹 Human Recording complete: ${recording.moves.length} moves recorded`);
             // Get username from auth if logged in
             const username = (typeof authCurrentUser !== 'undefined' && authCurrentUser) 
@@ -11287,7 +11318,21 @@ async function gameOver() {
             // Submit to server (async, don't wait)
             GameRecorder.submitRecording(recording, {
                 username: username,
-                game: 'blockchainstorm'
+                game: 'blockchainstorm',
+                playerType: 'human',
+                difficulty: currentDifficulty,
+                skillLevel: aiSkillLevel,
+                mode: isChallengeModeEnabled ? 'challenge' : 'normal',
+                challenges: activeChallenges || [],
+                speedBonus: speedBonus,
+                score: score,
+                lines: lines,
+                level: level,
+                strikes: strikeCount,
+                tsunamis: tsunamiCount,
+                blackholes: blackHoleCount,
+                volcanoes: volcanoCount,
+                endCause: 'game_over'
             });
         }
     }
