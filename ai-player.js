@@ -24,6 +24,7 @@ const AIPlayer = (() => {
     let pieceQueue = [];
     let currentMode = 'colorBuilding'; // Track mode for display/logging
     let currentStackHeight = 0; // Track stack height for debugging
+    let currentUfoActive = false; // Track UFO state for 42 lines easter egg
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
@@ -507,13 +508,14 @@ const AIPlayer = (() => {
             queue: queue.map(p => p ? { shape: p.shape, color: p.color, rotations: fallbackGetAllRotations(p.shape) } : null).filter(Boolean),
             cols: cols,
             rows: rows,
-            skillLevel: currentSkillLevel
+            skillLevel: currentSkillLevel,
+            ufoActive: currentUfoActive
         });
     }
     
     /**
      * Main AI update function - call each frame
-     * gameState optional parameter includes: { earthquakeActive, earthquakePhase }
+     * gameState optional parameter includes: { earthquakeActive, earthquakePhase, ufoActive }
      */
     function update(board, currentPiece, nextPieceOrQueue, cols, rows, callbacks, gameState = {}) {
         if (!enabled || !currentPiece) return;
@@ -522,7 +524,7 @@ const AIPlayer = (() => {
         updateModeFromBoard(board, rows);
         
         const now = Date.now();
-        const { earthquakeActive, earthquakePhase } = gameState;
+        const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
         // Execute queued moves
@@ -552,6 +554,9 @@ const AIPlayer = (() => {
         if (thinking) return;
         
         thinking = true;
+        
+        // Store UFO state for this decision
+        currentUfoActive = ufoActive || false;
         
         // Handle both legacy single piece and new queue array
         if (Array.isArray(nextPieceOrQueue)) {

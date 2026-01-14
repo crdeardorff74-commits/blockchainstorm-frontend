@@ -11916,6 +11916,7 @@ function update(time = 0) {
         AIPlayer.setSkillLevel(skillLevel);
         // Pass the full queue so AI can plan ahead based on upcoming colors
         // Also pass earthquake state so AI can hold off during earthquakes
+        // Pass UFO state so AI can avoid clearing lines during easter egg
         AIPlayer.update(board, currentPiece, nextPieceQueue, COLS, ROWS, {
             moveLeft: () => movePiece(-1),
             moveRight: () => movePiece(1),
@@ -11924,7 +11925,8 @@ function update(time = 0) {
             softDrop: () => dropPiece()
         }, {
             earthquakeActive: earthquakeActive,
-            earthquakePhase: earthquakePhase
+            earthquakePhase: earthquakePhase,
+            ufoActive: StarfieldSystem.isUFOActive()
         });
     }
     

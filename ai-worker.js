@@ -16,6 +16,7 @@ const AI_VERSION = "3.9";
 
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
+let currentUfoActive = false; // Track UFO state for 42 lines easter egg
 
 // ==================== GAME RECORDING ====================
 let gameRecording = {
@@ -348,8 +349,12 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         } else if (stackHeight >= 14) {
             // Getting risky - modest bonus
             score += completeRows * 20;
+        } else if (currentUfoActive) {
+            // UFO easter egg active - avoid line clears to stay at 42 lines
+            // Penalty is significant but won't override survival priorities
+            score -= completeRows * 40;
         }
-        // Below 14: no bonus - prefer building blobs for tsunamis
+        // Below 14 and no UFO: no bonus - prefer building blobs for tsunamis
     }
     
     // ====== SURVIVAL PRIORITIES (always matter) ======
@@ -576,7 +581,7 @@ function findBestPlacement(board, piece, cols, rows, queue) {
 // ==================== MESSAGE HANDLER ====================
 
 self.onmessage = function(e) {
-    const { command, board, piece, queue, cols, rows, skillLevel, cause } = e.data;
+    const { command, board, piece, queue, cols, rows, skillLevel, ufoActive, cause } = e.data;
     
     if (command === 'reset') {
         self.postMessage({ reset: true });
@@ -612,6 +617,7 @@ self.onmessage = function(e) {
     
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
+    currentUfoActive = ufoActive || false;
     
     setTimeout(() => {
         const bestPlacement = findBestPlacement(board, piece, cols, rows, pieceQueue);
