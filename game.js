@@ -6266,6 +6266,9 @@ let dropInterval = 1000;
 let lockDelayCounter = 0; // Time spent resting on stack
 let lockDelayActive = false; // Whether piece is currently in lock delay
 const LOCK_DELAY_TIME = 500; // 500ms grace period when piece lands
+let lockDelayResets = 0; // Number of times lock delay has been reset by movement
+const MAX_LOCK_DELAY_RESETS = 15; // Maximum resets before piece must lock
+const LOCK_DELAY_DECAY = 0.85; // Each reset reduces remaining grace period to 85%
 let animatingLines = false;
 let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
 let yesAndSpawnedLimb = false; // Flag to track if Yes, And... mode spawned a limb (for delayed line check)
@@ -11159,8 +11162,11 @@ function rotatePiece() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay timer on successful rotation
-                lockDelayCounter = 0;
+                // Decaying lock delay reset - each reset is less effective
+                if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
+                    lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
+                    lockDelayResets++;
+                }
                 break;
             }
         }
@@ -11204,8 +11210,11 @@ function rotatePieceCounterClockwise() {
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
                 playSoundEffect('rotate', soundToggle);
-                // Reset lock delay timer on successful rotation
-                lockDelayCounter = 0;
+                // Decaying lock delay reset - each reset is less effective
+                if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
+                    lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
+                    lockDelayResets++;
+                }
                 break;
             }
         }
@@ -11236,8 +11245,11 @@ function movePiece(dir) {
         currentPiece.x -= actualDir;
     } else {
         playSoundEffect('move', soundToggle);
-        // Reset lock delay timer on successful move
-        lockDelayCounter = 0;
+        // Decaying lock delay reset - each reset is less effective
+        if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
+            lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
+            lockDelayResets++;
+        }
     }
 }
 
@@ -11961,6 +11973,7 @@ function update(time = 0) {
                 // (otherwise dropPiece sees lockDelayActive=true and returns early)
                 lockDelayActive = false;
                 lockDelayCounter = 0;
+                lockDelayResets = 0; // Reset for next piece
                 dropPiece(); // This will lock the piece since it can't move down
                 dropCounter = 0;
             }
@@ -11968,6 +11981,7 @@ function update(time = 0) {
             // Piece is not resting - use normal drop timing
             lockDelayActive = false;
             lockDelayCounter = 0;
+            lockDelayResets = 0; // Reset when piece leaves the stack
             
             dropCounter += deltaTime;
             if (dropCounter > dropInterval) {
@@ -12452,6 +12466,7 @@ function startGame(mode) {
     // Reset lock delay state
     lockDelayCounter = 0;
     lockDelayActive = false;
+    lockDelayResets = 0;
     
     updateStats();
     
