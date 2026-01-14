@@ -1,7 +1,7 @@
-// AI Worker v4.0 - Horizontal connectivity priority for tsunamis (2026-01-14)
-console.log("🤖 AI Worker v4.0 loaded - tsunami-focused horizontal strategy");
+// AI Worker v4.1 - 5-ply lookahead for better planning (2026-01-14)
+console.log("🤖 AI Worker v4.1 loaded - 5-ply lookahead, all queue pieces considered");
 
-const AI_VERSION = "4.0";
+const AI_VERSION = "4.1";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -439,14 +439,24 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const runs = getHorizontalRuns(board, cols, rows);
     const bestRuns = getBestRunsPerColor(runs);
     
-    // Check if we have a promising tsunami in progress (any color with width >= 8)
+    // Check if we have a promising tsunami in progress
+    // Consider queue colors - if we have matching pieces coming, lower the threshold
     let hasTsunamiPotential = false;
     let bestTsunamiWidth = 0;
+    let bestTsunamiColor = null;
     for (const runColor in bestRuns) {
         const run = bestRuns[runColor];
-        if (run.width >= 8) {
+        // Count matching pieces in queue for this color
+        const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
+        // Lower threshold if we have matching pieces coming (6 with 2+ matches, 7 with 1+ match, 8 always)
+        const effectiveThreshold = queueMatches >= 2 ? 6 : (queueMatches >= 1 ? 7 : 8);
+        
+        if (run.width >= effectiveThreshold) {
             hasTsunamiPotential = true;
-            if (run.width > bestTsunamiWidth) bestTsunamiWidth = run.width;
+            if (run.width > bestTsunamiWidth) {
+                bestTsunamiWidth = run.width;
+                bestTsunamiColor = runColor;
+            }
         }
     }
     
@@ -471,6 +481,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             // No tsunami potential, modest bonus for clearing
             score += completeRows * 5;
         }
+    }
+    
+    // Bonus for placing piece that matches our best tsunami color
+    if (hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor) {
+        const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+        // Extra bonus scaled by how many matching pieces are coming
+        score += 10 + (matchingInQueue * 5);
     }
     
     // ====== TSUNAMI BUILDING (horizontal connectivity) ======
@@ -615,9 +632,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         }
         
         // 5. QUEUE AWARENESS - if upcoming pieces match our tsunami color, boost confidence
-        if (ourBestRun && ourBestRun.width >= 6) {
+        // Now considering all 4 pieces in the queue for better tsunami planning
+        if (ourBestRun && ourBestRun.width >= 5) {
             const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
-            if (queueMatches >= 2) {
+            if (queueMatches >= 3) {
+                // 3+ matching pieces in queue - very confident about tsunami
+                score += ourBestRun.width * 5;
+            } else if (queueMatches >= 2) {
                 score += ourBestRun.width * 3;
             } else if (queueMatches >= 1) {
                 score += ourBestRun.width * 1.5;
@@ -669,33 +690,77 @@ function findBestPlacement(board, piece, cols, rows, queue) {
     
     let bestPlacement;
     
-    // Use queue for 2-ply lookahead if available
+    // Use queue for 4-ply lookahead if available
     const nextPiece = queue && queue.length > 0 ? queue[0] : null;
     const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
+    const fourthPiece = queue && queue.length > 2 ? queue[2] : null;
+    const fifthPiece = queue && queue.length > 3 ? queue[3] : null;
     
     if (nextPiece) {
-        // 2-ply lookahead: consider where next piece can go
+        // 4-ply lookahead: consider where next pieces can go
         for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
             const nextPlacements = generatePlacements(newBoard, nextPiece, cols, rows);
             
             if (nextPlacements.length > 0) {
-                // Get top 6 next placements to limit computation
-                const topNext = nextPlacements.sort((a, b) => b.score - a.score).slice(0, 6);
+                // Get top 5 next placements to limit computation
+                const topNext = nextPlacements.sort((a, b) => b.score - a.score).slice(0, 5);
                 
                 let bestNextScore = -Infinity;
                 
                 for (const nextPlacement of topNext) {
                     let nextScore = nextPlacement.score;
                     
-                    // 3-ply: look one more piece ahead (lighter weight)
+                    // 3-ply: look at third piece
                     if (thirdPiece) {
                         const nextBoard = placePiece(newBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
                         const thirdPlacements = generatePlacements(nextBoard, thirdPiece, cols, rows);
                         
                         if (thirdPlacements.length > 0) {
-                            const bestThird = thirdPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                            nextScore += bestThird.score * 0.3; // 3rd piece counts 30%
+                            // Get top 4 third placements
+                            const topThird = thirdPlacements.sort((a, b) => b.score - a.score).slice(0, 4);
+                            let bestThirdScore = -Infinity;
+                            
+                            for (const thirdPlacement of topThird) {
+                                let thirdScore = thirdPlacement.score;
+                                
+                                // 4-ply: look at fourth piece
+                                if (fourthPiece) {
+                                    const thirdBoard = placePiece(nextBoard, thirdPlacement.shape, thirdPlacement.x, thirdPlacement.y, thirdPiece.color);
+                                    const fourthPlacements = generatePlacements(thirdBoard, fourthPiece, cols, rows);
+                                    
+                                    if (fourthPlacements.length > 0) {
+                                        // Get top 3 fourth placements
+                                        const topFourth = fourthPlacements.sort((a, b) => b.score - a.score).slice(0, 3);
+                                        let bestFourthScore = -Infinity;
+                                        
+                                        for (const fourthPlacement of topFourth) {
+                                            let fourthScore = fourthPlacement.score;
+                                            
+                                            // 5-ply: look at fifth piece (lightest weight)
+                                            if (fifthPiece) {
+                                                const fourthBoard = placePiece(thirdBoard, fourthPlacement.shape, fourthPlacement.x, fourthPlacement.y, fourthPiece.color);
+                                                const fifthPlacements = generatePlacements(fourthBoard, fifthPiece, cols, rows);
+                                                
+                                                if (fifthPlacements.length > 0) {
+                                                    const bestFifth = fifthPlacements.reduce((a, b) => a.score > b.score ? a : b);
+                                                    fourthScore += bestFifth.score * 0.15; // 5th piece counts 15%
+                                                }
+                                            }
+                                            
+                                            if (fourthScore > bestFourthScore) {
+                                                bestFourthScore = fourthScore;
+                                            }
+                                        }
+                                        thirdScore += bestFourthScore * 0.2; // 4th piece counts 20%
+                                    }
+                                }
+                                
+                                if (thirdScore > bestThirdScore) {
+                                    bestThirdScore = thirdScore;
+                                }
+                            }
+                            nextScore += bestThirdScore * 0.3; // 3rd piece counts 30%
                         }
                     }
                     
