@@ -1,7 +1,7 @@
-// AI Worker v3.9 - Simplified single evaluation (2026-01-13)
-console.log("🤖 AI Worker v3.9 loaded");
+// AI Worker v4.0 - Horizontal connectivity priority for tsunamis (2026-01-14)
+console.log("🤖 AI Worker v4.0 loaded - tsunami-focused horizontal strategy");
 
-const AI_VERSION = "3.9";
+const AI_VERSION = "4.0";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -311,6 +311,75 @@ function countCompleteLines(board) {
     return count;
 }
 
+// ==================== HORIZONTAL CONNECTIVITY ANALYSIS ====================
+
+/**
+ * Analyze horizontal color runs in the board
+ * Returns array of runs: { color, row, startX, endX, width, touchesLeft, touchesRight }
+ */
+function getHorizontalRuns(board, cols, rows) {
+    const runs = [];
+    
+    for (let row = 0; row < rows; row++) {
+        if (!board[row]) continue;
+        
+        let runStart = -1;
+        let runColor = null;
+        
+        for (let x = 0; x <= cols; x++) {
+            const cell = x < cols ? board[row][x] : null;
+            
+            if (cell === runColor && cell !== null) {
+                // Continue current run
+            } else {
+                // End current run if exists
+                if (runColor !== null && runStart >= 0) {
+                    const width = x - runStart;
+                    if (width >= 2) { // Only track runs of 2+
+                        runs.push({
+                            color: runColor,
+                            row,
+                            startX: runStart,
+                            endX: x - 1,
+                            width,
+                            touchesLeft: runStart === 0,
+                            touchesRight: x - 1 === cols - 1
+                        });
+                    }
+                }
+                // Start new run
+                runStart = x;
+                runColor = cell;
+            }
+        }
+    }
+    
+    return runs;
+}
+
+/**
+ * Find the best horizontal run for each color (widest, preferring edge-touching)
+ */
+function getBestRunsPerColor(runs) {
+    const bestByColor = {};
+    
+    for (const run of runs) {
+        const existing = bestByColor[run.color];
+        if (!existing) {
+            bestByColor[run.color] = run;
+        } else {
+            // Prefer wider runs, then edge-touching runs
+            const existingScore = existing.width * 10 + (existing.touchesLeft ? 5 : 0) + (existing.touchesRight ? 5 : 0);
+            const newScore = run.width * 10 + (run.touchesLeft ? 5 : 0) + (run.touchesRight ? 5 : 0);
+            if (newScore > existingScore) {
+                bestByColor[run.color] = run;
+            }
+        }
+    }
+    
+    return bestByColor;
+}
+
 // ==================== SINGLE EVALUATION FUNCTION ====================
 
 function evaluateBoard(board, shape, x, y, color, cols, rows) {
@@ -320,156 +389,238 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const stackHeight = getStackHeight(board, rows);
     const bumpiness = getBumpiness(board);
     const colHeights = getColumnHeights(board, cols, rows);
-    const blobs = getAllBlobs(board, cols, rows);
-    
-    // ====== LINE CLEARS - BONUS SCALES WITH DANGER ======
-    // Count rows that would be cleared by this placement
-    let completeRows = 0;
-    for (let row = 0; row < rows; row++) {
-        let complete = true;
-        for (let col = 0; col < cols; col++) {
-            if (!board[row][col]) {
-                complete = false;
-                break;
-            }
-        }
-        if (complete) completeRows++;
-    }
-    
-    // Line clears only valuable when stack is getting dangerous
-    if (completeRows > 0) {
-        if (stackHeight >= 18) {
-            // Critical - desperately need to clear
-            score += completeRows * 80;
-            if (completeRows >= 2) score += 50;
-        } else if (stackHeight >= 16) {
-            // Dangerous - strongly prefer clears
-            score += completeRows * 50;
-            if (completeRows >= 2) score += 30;
-        } else if (stackHeight >= 14) {
-            // Getting risky - modest bonus
-            score += completeRows * 20;
-        } else if (currentUfoActive) {
-            // UFO easter egg active - avoid line clears to stay at 42 lines
-            // Penalty is significant but won't override survival priorities
-            score -= completeRows * 40;
-        }
-        // Below 14 and no UFO: no bonus - prefer building blobs for tsunamis
-    }
     
     // ====== SURVIVAL PRIORITIES (always matter) ======
     
-    // 1. Holes are bad but blob gravity can fill them via cascades
-    score -= holes * 10;
+    // 1. Holes - progressive penalty
+    if (holes <= 2) {
+        score -= holes * 8;
+    } else if (holes <= 5) {
+        score -= 16 + (holes - 2) * 12;
+    } else {
+        score -= 52 + (holes - 5) * 20;
+    }
     
-    // 2. Height penalty - keep stack low
-    score -= stackHeight * 1.0;
+    // 2. Height penalty
+    score -= stackHeight * 1.2;
     
-    // 3. Bumpiness - flat surface is critical for piece placement
-    score -= bumpiness * 1.5;
+    // 3. Bumpiness
+    score -= bumpiness * 1.2;
     
-    // 4. Deep wells - penalize columns much lower than neighbors
-    for (let x = 0; x < cols; x++) {
-        const leftHeight = x > 0 ? colHeights[x - 1] : colHeights[x];
-        const rightHeight = x < cols - 1 ? colHeights[x + 1] : colHeights[x];
+    // 4. Deep wells
+    for (let col = 0; col < cols; col++) {
+        const leftHeight = col > 0 ? colHeights[col - 1] : colHeights[col];
+        const rightHeight = col < cols - 1 ? colHeights[col + 1] : colHeights[col];
         const minNeighbor = Math.min(leftHeight, rightHeight);
-        const wellDepth = minNeighbor - colHeights[x];
+        const wellDepth = minNeighbor - colHeights[col];
         if (wellDepth > 2) {
-            // Deep wells are very hard to fill
-            score -= (wellDepth - 2) * 5;
+            score -= (wellDepth - 2) * 4;
         }
     }
     
-    // 5. Avoid bowl shapes - penalize if edges are much shorter than middle
-    const edgeAvg = (colHeights[0] + colHeights[cols - 1]) / 2;
-    const middleAvg = (colHeights[4] + colHeights[5]) / 2;
-    if (middleAvg > edgeAvg + 4) {
-        score -= (middleAvg - edgeAvg - 4) * 3;
-    }
-    
-    // 6. Severe height penalties
+    // 5. Severe height penalties
     if (stackHeight >= 18) {
-        score -= 200;
+        score -= 150;
     } else if (stackHeight >= 16) {
-        score -= 50;
+        score -= 40;
     } else if (stackHeight >= 14) {
-        score -= 15;
+        score -= 12;
     }
     
-    // ====== SCORING PRIORITIES (when not in danger AND no holes) ======
+    // ====== LINE CLEARS ======
+    let completeRows = 0;
+    for (let row = 0; row < rows; row++) {
+        if (board[row] && board[row].every(cell => cell !== null)) {
+            completeRows++;
+        }
+    }
     
-    if (stackHeight <= 14 && holes === 0) {
-        // 6. Same-color adjacency - builds blobs
-        const adjacency = getColorAdjacency(board, shape, x, y, color, cols, rows);
-        score += adjacency * 1.5;
+    // Get horizontal runs to check tsunami potential
+    const runs = getHorizontalRuns(board, cols, rows);
+    const bestRuns = getBestRunsPerColor(runs);
+    
+    // Check if we have a promising tsunami in progress (any color with width >= 8)
+    let hasTsunamiPotential = false;
+    let bestTsunamiWidth = 0;
+    for (const runColor in bestRuns) {
+        const run = bestRuns[runColor];
+        if (run.width >= 8) {
+            hasTsunamiPotential = true;
+            if (run.width > bestTsunamiWidth) bestTsunamiWidth = run.width;
+        }
+    }
+    
+    if (completeRows > 0) {
+        if (stackHeight >= 18) {
+            // Critical - must clear
+            score += completeRows * 100;
+        } else if (stackHeight >= 16) {
+            // Dangerous
+            score += completeRows * 60;
+        } else if (stackHeight >= 14) {
+            // Risky
+            score += completeRows * 30;
+        } else if (currentUfoActive) {
+            // UFO easter egg - avoid clears
+            score -= completeRows * 40;
+        } else if (hasTsunamiPotential) {
+            // We're building toward a tsunami - penalize line clears that might disrupt it
+            // The wider our best run, the more we want to avoid clearing
+            score -= completeRows * (bestTsunamiWidth * 3);
+        } else {
+            // No tsunami potential, modest bonus for clearing
+            score += completeRows * 5;
+        }
+    }
+    
+    // ====== TSUNAMI BUILDING (horizontal connectivity) ======
+    // This is the key scoring section - prioritize when board is healthy enough
+    
+    if (stackHeight <= 16 && holes <= 3) {
         
-        // 7. Reward large blobs
-        for (const blob of blobs) {
-            if (blob.size >= 6) {
-                score += blob.size * 0.3;
+        // Analyze horizontal runs after this placement
+        const runsAfter = getHorizontalRuns(board, cols, rows);
+        
+        // 1. HORIZONTAL ADJACENCY - value left/right same-color neighbors highly
+        let horizontalAdj = 0;
+        let verticalAdj = 0;
+        
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (!shape[py][px]) continue;
+                const bx = x + px;
+                const by = y + py;
+                
+                // Check left neighbor (not part of piece)
+                if (bx > 0 && board[by] && board[by][bx - 1] === color) {
+                    // Make sure it's not part of the piece we're placing
+                    let partOfPiece = false;
+                    if (px > 0 && shape[py][px - 1]) partOfPiece = true;
+                    if (!partOfPiece) horizontalAdj++;
+                }
+                
+                // Check right neighbor
+                if (bx < cols - 1 && board[by] && board[by][bx + 1] === color) {
+                    let partOfPiece = false;
+                    if (px < shape[py].length - 1 && shape[py][px + 1]) partOfPiece = true;
+                    if (!partOfPiece) horizontalAdj++;
+                }
+                
+                // Check vertical neighbors (less valuable)
+                if (by > 0 && board[by - 1] && board[by - 1][bx] === color) {
+                    let partOfPiece = false;
+                    if (py > 0 && shape[py - 1] && shape[py - 1][px]) partOfPiece = true;
+                    if (!partOfPiece) verticalAdj++;
+                }
+                if (by < rows - 1 && board[by + 1] && board[by + 1][bx] === color) {
+                    let partOfPiece = false;
+                    if (py < shape.length - 1 && shape[py + 1] && shape[py + 1][px]) partOfPiece = true;
+                    if (!partOfPiece) verticalAdj++;
+                }
             }
         }
         
-        // 8. TSUNAMI SETUP - big bonus for extending wide blobs toward edges
-        for (const blob of blobs) {
-            if (blob.size >= 12 && blob.color === color) {
-                const { minX, maxX, width } = getBlobWidth(blob, cols);
+        // Horizontal adjacency worth 3x vertical
+        score += horizontalAdj * 6;
+        score += verticalAdj * 2;
+        
+        // 2. REWARD WIDE HORIZONTAL RUNS
+        for (const run of runsAfter) {
+            if (run.width >= 4) {
+                // Base bonus for run width
+                let runBonus = run.width * 2;
                 
-                // Already spanning full width? TSUNAMI!
-                if (minX === 0 && maxX === cols - 1) {
-                    score += 200 + blob.size * 5;
-                    continue;
+                // Bonus for touching edges (closer to tsunami)
+                if (run.touchesLeft) runBonus += run.width * 1.5;
+                if (run.touchesRight) runBonus += run.width * 1.5;
+                if (run.touchesLeft && run.touchesRight) {
+                    // FULL SPAN - TSUNAMI! Massive bonus
+                    runBonus += 300 + run.width * 10;
                 }
                 
-                // Check if OUR PIECE is at the edge of this blob
-                // (meaning we just extended it toward an edge)
-                const pieceMinX = x;
-                const pieceMaxX = x + shape[0].length - 1;
-                
-                // Did we extend to the left edge?
-                const extendedLeft = (pieceMinX === 0 && minX === 0 && maxX < cols - 1);
-                // Did we extend to the right edge?  
-                const extendedRight = (pieceMaxX === cols - 1 && maxX === cols - 1 && minX > 0);
-                // Did we extend toward (but not reach) an edge?
-                const extendedTowardLeft = (pieceMinX === minX && minX > 0 && minX <= 2);
-                const extendedTowardRight = (pieceMaxX === maxX && maxX < cols - 1 && maxX >= cols - 3);
-                
-                if (extendedLeft || extendedRight || extendedTowardLeft || extendedTowardRight) {
-                    // Count matching colors in queue for extra confidence
-                    const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
-                    const queueBoost = queueMatches >= 2 ? 1.5 : 1.0;
-                    
-                    // Bonus based on how wide the blob is now
-                    const gap = minX + (cols - 1 - maxX);
-                    const extensionBonus = (10 - gap) * 20 * queueBoost;
-                    score += extensionBonus;
-                    
-                    // Extra bonus for reaching edge
-                    if (extendedLeft || extendedRight) {
-                        score += 30;
-                    }
+                // Extra bonus if this run involves our piece color
+                if (run.color === color) {
+                    runBonus *= 1.5;
                 }
+                
+                // Scale bonus with width (exponential for near-tsunamis)
+                if (run.width >= 10) {
+                    runBonus += (run.width - 9) * 30; // Big bonus for 10, 11, 12 wide
+                } else if (run.width >= 8) {
+                    runBonus += (run.width - 7) * 15;
+                }
+                
+                score += runBonus;
             }
-            // Non-matching piece near a completable tsunami
-            else if (blob.size >= 15 && blob.color !== color) {
-                const { minX, maxX, width } = getBlobWidth(blob, cols);
-                if (width >= 8) {
-                    const queueMatches = pieceQueue.filter(p => p && p.color === blob.color).length;
-                    if (queueMatches >= 2) {
-                        const pieceMinX = x;
-                        const pieceMaxX = x + shape[0].length - 1;
-                        
-                        // Penalty for blocking extension paths
-                        const blocksLeft = minX > 0 && pieceMinX < minX;
-                        const blocksRight = maxX < cols - 1 && pieceMaxX > maxX;
-                        
-                        if (blocksLeft || blocksRight) {
-                            score -= 10; // Penalty for blocking
-                        } else {
-                            score += 3; // Small bonus for staying clear
+        }
+        
+        // 3. STRONGLY PREFER EXTENDING OUR OWN COLOR'S RUNS
+        // Rather than penalizing blocking others, just make our own extensions very attractive
+        const ourRuns = runsAfter.filter(r => r.color === color);
+        for (const run of ourRuns) {
+            if (run.width >= 4) {
+                // Did we extend an existing run? Check if piece is at the edge
+                const pieceMinX = x;
+                const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
+                
+                // Check if piece cells are at the boundary of this run
+                let atRunEdge = false;
+                for (let py = 0; py < shape.length; py++) {
+                    for (let px = 0; px < shape[py].length; px++) {
+                        if (!shape[py][px]) continue;
+                        const cellX = x + px;
+                        const cellY = y + py;
+                        if (cellY === run.row && (cellX === run.startX || cellX === run.endX)) {
+                            atRunEdge = true;
                         }
                     }
                 }
+                
+                if (atRunEdge) {
+                    // We extended a run - extra bonus
+                    score += run.width * 4;
+                }
+            }
+        }
+        
+        // 4. PLACEMENT NEAR EDGES - prefer placing same color near board edges
+        const pieceMinX = x;
+        const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
+        
+        // Check if we have an existing run of our color
+        const ourBestRun = bestRuns[color];
+        if (ourBestRun && ourBestRun.width >= 5) {
+            // We have a decent run of our color - reward extending it toward edges
+            if (ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
+                // Run touches left, reward placing on right side to extend
+                if (pieceMaxX >= ourBestRun.endX) {
+                    score += 20 + (ourBestRun.width * 2);
+                }
+            } else if (ourBestRun.touchesRight && !ourBestRun.touchesLeft) {
+                // Run touches right, reward placing on left side
+                if (pieceMinX <= ourBestRun.startX) {
+                    score += 20 + (ourBestRun.width * 2);
+                }
+            } else if (!ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
+                // Run in middle - reward extending toward either edge
+                if (pieceMinX <= ourBestRun.startX || pieceMaxX >= ourBestRun.endX) {
+                    score += 10 + ourBestRun.width;
+                }
+            }
+        } else {
+            // No significant run yet - small bonus for edge placement to start one
+            if (pieceMinX === 0 || pieceMaxX === cols - 1) {
+                score += 5;
+            }
+        }
+        
+        // 5. QUEUE AWARENESS - if upcoming pieces match our tsunami color, boost confidence
+        if (ourBestRun && ourBestRun.width >= 6) {
+            const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+            if (queueMatches >= 2) {
+                score += ourBestRun.width * 3;
+            } else if (queueMatches >= 1) {
+                score += ourBestRun.width * 1.5;
             }
         }
     }
