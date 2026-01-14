@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.11 loaded - stuck detection + earthquake positioning");
+console.log("🎮 AI Player v3.12 loaded - stuck detection + earthquake positioning + death spiral detection");
 
 const AIPlayer = (() => {
     // Configuration
@@ -30,6 +30,11 @@ const AIPlayer = (() => {
     let lastPieceKey = null; // Track piece identity (x, y, rotation, shape hash)
     let samePositionCount = 0; // How many times we've calculated for same piece position
     const STUCK_THRESHOLD = 3; // Force drop after this many same-position calculations
+    
+    // Death spiral detection - prevents infinite loop when board is nearly full
+    let consecutiveBadPlacements = 0; // Count placements with very negative scores
+    const BAD_PLACEMENT_THRESHOLD = -300; // Score below this indicates board is critical
+    const DEATH_SPIRAL_LIMIT = 5; // After this many bad placements, stop trying
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
@@ -602,6 +607,22 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement) => {
                 if (bestPlacement) {
+                    // Death spiral detection: if score is very negative, board is critical
+                    if (bestPlacement.score < BAD_PLACEMENT_THRESHOLD) {
+                        consecutiveBadPlacements++;
+                        if (consecutiveBadPlacements >= DEATH_SPIRAL_LIMIT) {
+                            console.log(`🤖 AI death spiral detected (${consecutiveBadPlacements} bad placements, score ${bestPlacement.score}) - letting piece fall`);
+                            // Don't queue any moves - let piece fall naturally to trigger game over
+                            moveQueue = [];
+                            thinking = false;
+                            lastMoveTime = Date.now();
+                            return;
+                        }
+                    } else {
+                        // Good placement found, reset counter
+                        consecutiveBadPlacements = 0;
+                    }
+                    
                     // During earthquake: position piece but don't hard drop (let it fall naturally)
                     moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
                 } else {
@@ -652,6 +673,9 @@ const AIPlayer = (() => {
         // Reset stuck detection
         lastPieceKey = null;
         samePositionCount = 0;
+        
+        // Reset death spiral detection
+        consecutiveBadPlacements = 0;
         
         // Also reset worker's mode
         if (worker && workerReady) {
