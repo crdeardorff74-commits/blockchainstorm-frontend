@@ -1755,6 +1755,34 @@ const musicSelect = document.getElementById('musicSelect');
 const vibrationToggle = document.getElementById('vibrationToggle');
 const vibrationOption = document.getElementById('vibrationOption');
 
+// Update special events display based on skill level
+// Breeze: Only Strikes
+// Tempest: Strikes, Tsunamis, Black Holes (no Volcanoes)
+// Maelstrom: All (Strikes, Tsunamis, Black Holes, Volcanoes)
+function updateSpecialEventsDisplay(level) {
+    const strikesRow = document.getElementById('strikesRow');
+    const tsunamisRow = document.getElementById('tsunamisRow');
+    const blackholesRow = document.getElementById('blackholesRow');
+    const volcanoesRow = document.getElementById('volcanoesRow');
+    
+    if (level === 'breeze') {
+        if (strikesRow) strikesRow.style.display = '';
+        if (tsunamisRow) tsunamisRow.style.display = 'none';
+        if (blackholesRow) blackholesRow.style.display = 'none';
+        if (volcanoesRow) volcanoesRow.style.display = 'none';
+    } else if (level === 'tempest') {
+        if (strikesRow) strikesRow.style.display = '';
+        if (tsunamisRow) tsunamisRow.style.display = '';
+        if (blackholesRow) blackholesRow.style.display = '';
+        if (volcanoesRow) volcanoesRow.style.display = 'none';
+    } else { // maelstrom
+        if (strikesRow) strikesRow.style.display = '';
+        if (tsunamisRow) tsunamisRow.style.display = '';
+        if (blackholesRow) blackholesRow.style.display = '';
+        if (volcanoesRow) volcanoesRow.style.display = '';
+    }
+}
+
 // Set up vibration toggle
 if (vibrationToggle) {
     vibrationToggle.addEventListener('change', () => {
@@ -1902,8 +1930,8 @@ function createVolumeControls() {
     const volumeControls = document.createElement('div');
     volumeControls.id = 'volumeControls';
     volumeControls.style.cssText = `
-        margin-top: 0.3vh;
-        padding: 0 0.2vw;
+        margin-top: 0.5vh;
+        padding: 0.5vh 0.3vw;
     `;
     
     volumeControls.innerHTML = `
@@ -1923,6 +1951,8 @@ function createVolumeControls() {
     
     // Insert after music select option or at the end of side panel
     if (musicParent && musicParent.nextSibling) {
+        // Remove the divider below Music since volume controls follow it
+        musicParent.style.borderBottom = 'none';
         musicParent.parentNode.insertBefore(volumeControls, musicParent.nextSibling);
     } else {
         sidePanel.appendChild(volumeControls);
@@ -11794,6 +11824,9 @@ function startAIAutoRestartTimer() {
             skillLevelSelect.value = randomSkill;
         }
         
+        // Update special events display for new skill level
+        updateSpecialEventsDisplay(randomSkill);
+        
         // Hide game over screen and leaderboard
         gameOverDiv.style.display = 'none';
         if (window.leaderboard && window.leaderboard.hideLeaderboard) {
@@ -13736,6 +13769,7 @@ if (startOverlay) {
         if (skillLevelSelect) skillLevelSelect.value = level;
         if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = level;
         updateRulesForSkillLevel(level);
+        updateSpecialEventsDisplay(level);
         console.log('🎮 Skill level set to:', level);
     }
     
