@@ -11615,8 +11615,8 @@ async function gameOver() {
     };
     
     
-    // Check if score makes top 20 (but not in AI mode)
-    console.log('Checking if score makes top 20...');
+    // Check if score makes top 15 (but not in AI mode)
+    console.log('Checking if score makes top 15...');
     
     // AI Mode: Auto-submit score and go straight to game over screen
     if (aiModeEnabled && window.leaderboard) {
@@ -11638,7 +11638,7 @@ async function gameOver() {
     if (isTopTen && window.leaderboard) {
         // DON'T show game over div yet - go to name prompt first
         // Credits and music will start after score submission via onScoreSubmitted callback
-        console.log('Score is top 20! Showing name entry prompt...');
+        console.log('Score is top 15! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
         
         // Pass callback if leaderboard supports it, also set up fallback detection
@@ -11647,8 +11647,8 @@ async function gameOver() {
         // Fallback: Watch for leaderboard popup to close if callback isn't called
         startLeaderboardCloseDetection();
     } else {
-        // Score didn't make top 20, show game over div, credits, and music immediately
-        console.log('Score did not make top 20, displaying game over and leaderboard');
+        // Score didn't make top 15, show game over div, credits, and music immediately
+        console.log('Score did not make top 15, displaying game over and leaderboard');
         showGameOverScreen();
         if (window.leaderboard) {
             await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode, skillLevel);
