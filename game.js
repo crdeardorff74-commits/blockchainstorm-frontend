@@ -9859,8 +9859,26 @@ function runPhase1(blobs, compoundGroups, phantom) {
                     const blobIds = compoundBlobs.map(b => b.id).join('+');
                     console.log(`    Compound (${blobIds}): Falling ${fall} rows together (${allPositions.length} blocks)`);
                     
-                    // Move all blobs in the compound together
-                    compoundBlobs.forEach(b => moveBlob(b, fall, phantom));
+                    // CRITICAL: Move compound blobs in two phases to prevent phantom corruption
+                    // Phase A: Remove ALL blobs from old positions first
+                    compoundBlobs.forEach(b => {
+                        b.positions.forEach(pos => {
+                            phantom.board[pos.y][pos.x] = null;
+                            phantom.isRandom[pos.y][pos.x] = false;
+                            phantom.isLattice[pos.y][pos.x] = false;
+                        });
+                    });
+                    
+                    // Phase B: Add ALL blobs to new positions
+                    compoundBlobs.forEach(b => {
+                        const newPositions = [];
+                        b.positions.forEach(pos => {
+                            const newPos = {x: pos.x, y: pos.y + fall};
+                            newPositions.push(newPos);
+                            phantom.board[newPos.y][newPos.x] = b.color;
+                        });
+                        b.positions = newPositions;
+                    });
                 }
             } else {
                 // Individual blob
@@ -9902,7 +9920,8 @@ function runPhase2(blobs, phantom) {
         });
         
         sortedBlobs.forEach((blob, index) => {
-            // In Phase 2, ignore compound status - treat each blob individually
+            // Phase 2: Allow all blobs to settle further into gaps
+            // The phantom board should correctly block them from falling through other blobs
             const fall = calculateFallDistance(blob.positions, phantom);
             
             if (fall > 0) {
