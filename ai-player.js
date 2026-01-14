@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.12 loaded - enhanced stuck detection with piece identity tracking");
+console.log("🎮 AI Player v3.13 loaded - decision metadata recording support");
 
 const AIPlayer = (() => {
     // Configuration
@@ -34,6 +34,9 @@ const AIPlayer = (() => {
     // Piece identity tracking - prevent multiple calculations for same piece
     let lastCalculatedPieceId = null; // Track which piece we last calculated for
     let samePieceCount = 0; // How many times we've tried to calculate for same piece
+    
+    // Decision metadata for recording
+    let lastDecisionMeta = null;
     
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
@@ -164,15 +167,20 @@ const AIPlayer = (() => {
                     console.log('🤖 AI Worker confirmed ready');
                 }
                 
-                const { bestPlacement, reset, stackHeight } = e.data;
+                const { bestPlacement, reset, stackHeight, decisionMeta } = e.data;
                 
                 // Track stack height for display
                 if (typeof stackHeight === 'number') {
                     currentStackHeight = stackHeight;
                 }
                 
+                // Store decision metadata for recording
+                if (decisionMeta) {
+                    lastDecisionMeta = decisionMeta;
+                }
+                
                 if (pendingCallback && !reset) {
-                    pendingCallback(bestPlacement);
+                    pendingCallback(bestPlacement, decisionMeta);
                     pendingCallback = null;
                 }
             };
@@ -508,7 +516,7 @@ const AIPlayer = (() => {
             // Fallback: use inline synchronous calculation (fallbackFindBest calls fallbackUpdateMode)
             const best = fallbackFindBest(board, piece, cols, rows);
             console.log(`🤖 FALLBACK: mode=${currentMode}, stackHeight=${currentStackHeight}`);
-            callback(best);
+            callback(best, null);
             return;
         }
         
@@ -539,7 +547,8 @@ const AIPlayer = (() => {
             cols: cols,
             rows: rows,
             skillLevel: currentSkillLevel,
-            ufoActive: currentUfoActive
+            ufoActive: currentUfoActive,
+            captureDecisionMeta: recordingEnabled
         });
     }
     
@@ -634,7 +643,7 @@ const AIPlayer = (() => {
             }
             
             // Request placement from worker
-            requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement) => {
+            requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
                     // During earthquake: position piece but don't hard drop (let it fall naturally)
                     moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
@@ -867,6 +876,20 @@ const AIPlayer = (() => {
         return currentRecording;
     }
     
+    /**
+     * Get last decision metadata (for external use by game recorder)
+     */
+    function getLastDecisionMeta() {
+        return lastDecisionMeta;
+    }
+    
+    /**
+     * Clear last decision metadata
+     */
+    function clearLastDecisionMeta() {
+        lastDecisionMeta = null;
+    }
+    
     return {
         init,
         setEnabled,
@@ -885,7 +908,9 @@ const AIPlayer = (() => {
         recordEvent,
         downloadRecording,
         isRecording,
-        getRecording
+        getRecording,
+        getLastDecisionMeta,
+        clearLastDecisionMeta
     };
 })();
 

@@ -2,8 +2,9 @@
  * Game Recorder Module for TaNTЯiS / BLOCKCHaiNSTORM
  * Records human gameplay for analysis and playback
  * Similar structure to AI recording but captures human decisions
+ * v1.2: Added AI decision metadata recording
  */
-console.log("📹 Game Recorder v1.1 loaded");
+console.log("📹 Game Recorder v1.2 loaded - AI decision metadata support");
 
 const GameRecorder = (() => {
     const API_URL = 'https://blockchainstorm.onrender.com/api';
@@ -21,10 +22,10 @@ const GameRecorder = (() => {
      */
     function startRecording(config) {
         recording = {
-            version: '1.1',
+            version: '1.2',
             gameVersion: config.gameVersion || 'unknown',
             startTime: Date.now(),
-            playerType: 'human',
+            playerType: config.playerType || 'human',
             difficulty: config.difficulty || 'drizzle',
             skillLevel: config.skillLevel || 'tempest',
             mode: config.mode || 'normal',
@@ -37,6 +38,9 @@ const GameRecorder = (() => {
             events: [],         // Special events (strikes, tsunamis, etc.)
             randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
             keyframes: [],      // Periodic board snapshots
+            
+            // AI decision metadata (only populated for AI games)
+            aiDecisions: [],
             
             // Final stats (filled at end)
             finalStats: null
@@ -92,6 +96,29 @@ const GameRecorder = (() => {
         if (moveData.thinkTime) pieceData.tt = moveData.thinkTime;
         
         recording.moves.push(pieceData);
+    }
+    
+    /**
+     * Record AI decision metadata (why the AI made a particular move)
+     */
+    function recordAIDecision(decisionMeta) {
+        if (!isRecording || !recording || !decisionMeta) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        // Compress the decision data
+        const decision = {
+            t: timestamp,
+            chosen: decisionMeta.chosen,
+            alts: decisionMeta.alternatives?.slice(0, 3) || [], // Top 3 alternatives
+            diff: decisionMeta.scoreDifferential,
+            board: decisionMeta.boardMetrics,
+            look: decisionMeta.lookahead?.depth || 1,
+            candidates: decisionMeta.candidatesEvaluated,
+            skill: decisionMeta.skillLevel
+        };
+        
+        recording.aiDecisions.push(decision);
     }
     
     /**
@@ -270,6 +297,7 @@ const GameRecorder = (() => {
             totalMoves: recording.moves.length,
             totalPieces: recording.pieces.length,
             totalRandomEvents: recording.randomEvents.length,
+            totalAIDecisions: recording.aiDecisions?.length || 0,
             endCause: finalStats.endCause || 'game_over'
         };
         
@@ -278,7 +306,7 @@ const GameRecorder = (() => {
             recording.finalBoard = compressBoard(finalStats.board);
         }
         
-        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.pieces.length} pieces`);
+        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.aiDecisions?.length || 0} AI decisions, ${recording.pieces.length} pieces`);
         
         const result = recording;
         recording = null;
@@ -437,6 +465,7 @@ const GameRecorder = (() => {
         startRecording,
         recordPieceGenerated,
         recordMove,
+        recordAIDecision,
         recordEvent,
         recordTornadoSpawn,
         recordTornadoDirectionChange,

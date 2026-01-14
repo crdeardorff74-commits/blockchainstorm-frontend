@@ -1,7 +1,7 @@
-// AI Worker v4.3 - 4-ply lookahead, skill-level aware strategy (2026-01-14)
-console.log("🤖 AI Worker v4.3 loaded - 4-ply lookahead, Breeze=blob focus, Tempest/Maelstrom=tsunami focus");
+// AI Worker v4.4 - 4-ply lookahead with decision metadata (2026-01-14)
+console.log("🤖 AI Worker v4.4 loaded - 4-ply lookahead with detailed decision reasoning");
 
-const AI_VERSION = "4.3";
+const AI_VERSION = "4.4";
 
 /**
  * Radically simplified AI for TaNTЯiS
@@ -382,6 +382,314 @@ function getBestRunsPerColor(runs) {
 
 // ==================== SINGLE EVALUATION FUNCTION ====================
 
+/**
+ * Evaluate board and return detailed breakdown for analysis
+ * Returns: { score, breakdown } where breakdown contains all individual factors
+ */
+function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
+    const breakdown = {
+        holes: { count: 0, penalty: 0 },
+        height: { value: 0, penalty: 0 },
+        bumpiness: { value: 0, penalty: 0 },
+        wells: { count: 0, penalty: 0 },
+        criticalHeight: { penalty: 0 },
+        lineClears: { count: 0, bonus: 0 },
+        tsunami: { potential: false, achievable: false, width: 0, color: null, bonus: 0 },
+        blob: { horizontalAdj: 0, verticalAdj: 0, bonus: 0 },
+        runs: { bonus: 0 },
+        edge: { bonus: 0 },
+        queue: { matchingPieces: 0, bonus: 0 },
+        classification: 'neutral' // 'defensive', 'offensive', 'opportunistic', 'survival'
+    };
+    
+    let score = 0;
+    
+    const holes = countHoles(board);
+    const stackHeight = getStackHeight(board, rows);
+    const bumpiness = getBumpiness(board);
+    const colHeights = getColumnHeights(board, cols, rows);
+    
+    breakdown.holes.count = holes;
+    breakdown.height.value = stackHeight;
+    breakdown.bumpiness.value = bumpiness;
+    
+    // ====== CHECK TSUNAMI POTENTIAL FIRST ======
+    const isBreeze = currentSkillLevel === 'breeze';
+    
+    const runs = getHorizontalRuns(board, cols, rows);
+    const bestRuns = getBestRunsPerColor(runs);
+    
+    let hasTsunamiPotential = false;
+    let tsunamiLikelyAchievable = false;
+    let bestTsunamiWidth = 0;
+    let bestTsunamiColor = null;
+    
+    if (!isBreeze) {
+        for (const runColor in bestRuns) {
+            const run = bestRuns[runColor];
+            const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
+            const effectiveThreshold = queueMatches >= 2 ? 6 : (queueMatches >= 1 ? 7 : 8);
+            
+            if (run.width >= effectiveThreshold) {
+                hasTsunamiPotential = true;
+                if (run.width > bestTsunamiWidth) {
+                    bestTsunamiWidth = run.width;
+                    bestTsunamiColor = runColor;
+                }
+            }
+            
+            if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+                tsunamiLikelyAchievable = true;
+            }
+        }
+    }
+    
+    breakdown.tsunami.potential = hasTsunamiPotential;
+    breakdown.tsunami.achievable = tsunamiLikelyAchievable;
+    breakdown.tsunami.width = bestTsunamiWidth;
+    breakdown.tsunami.color = bestTsunamiColor;
+    
+    // ====== SURVIVAL PRIORITIES ======
+    
+    // 1. Holes penalty
+    if (tsunamiLikelyAchievable) {
+        breakdown.holes.penalty = holes * 2;
+    } else if (holes <= 2) {
+        breakdown.holes.penalty = holes * 8;
+    } else if (holes <= 5) {
+        breakdown.holes.penalty = 16 + (holes - 2) * 12;
+    } else {
+        breakdown.holes.penalty = 52 + (holes - 5) * 20;
+    }
+    score -= breakdown.holes.penalty;
+    
+    // 2. Height penalty
+    breakdown.height.penalty = stackHeight * 1.2;
+    score -= breakdown.height.penalty;
+    
+    // 3. Bumpiness
+    if (tsunamiLikelyAchievable) {
+        breakdown.bumpiness.penalty = bumpiness * 0.5;
+    } else {
+        breakdown.bumpiness.penalty = bumpiness * 1.2;
+    }
+    score -= breakdown.bumpiness.penalty;
+    
+    // 4. Deep wells
+    let wellPenalty = 0;
+    let wellCount = 0;
+    for (let col = 0; col < cols; col++) {
+        const leftHeight = col > 0 ? colHeights[col - 1] : colHeights[col];
+        const rightHeight = col < cols - 1 ? colHeights[col + 1] : colHeights[col];
+        const minNeighbor = Math.min(leftHeight, rightHeight);
+        const wellDepth = minNeighbor - colHeights[col];
+        if (wellDepth > 2) {
+            wellPenalty += (wellDepth - 2) * 4;
+            wellCount++;
+        }
+    }
+    breakdown.wells.count = wellCount;
+    breakdown.wells.penalty = wellPenalty;
+    score -= wellPenalty;
+    
+    // 5. Severe height penalties
+    if (stackHeight >= 18) {
+        breakdown.criticalHeight.penalty = 150;
+        breakdown.classification = 'survival';
+    } else if (stackHeight >= 16) {
+        breakdown.criticalHeight.penalty = 40;
+        breakdown.classification = 'defensive';
+    } else if (stackHeight >= 14) {
+        breakdown.criticalHeight.penalty = 12;
+    }
+    score -= breakdown.criticalHeight.penalty;
+    
+    // ====== LINE CLEARS ======
+    let completeRows = 0;
+    for (let row = 0; row < rows; row++) {
+        if (board[row] && board[row].every(cell => cell !== null)) {
+            completeRows++;
+        }
+    }
+    breakdown.lineClears.count = completeRows;
+    
+    if (completeRows > 0) {
+        if (stackHeight >= 18) {
+            breakdown.lineClears.bonus = completeRows * 100;
+            breakdown.classification = 'survival';
+        } else if (stackHeight >= 16) {
+            breakdown.lineClears.bonus = completeRows * 60;
+        } else if (stackHeight >= 14) {
+            breakdown.lineClears.bonus = completeRows * 30;
+        } else if (currentUfoActive) {
+            breakdown.lineClears.bonus = -completeRows * 40;
+        } else if (hasTsunamiPotential) {
+            breakdown.lineClears.bonus = -completeRows * (bestTsunamiWidth * 3);
+        } else {
+            breakdown.lineClears.bonus = completeRows * 5;
+        }
+        score += breakdown.lineClears.bonus;
+    }
+    
+    // Tsunami color match bonus
+    if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor) {
+        const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+        breakdown.tsunami.bonus = 10 + (matchingInQueue * 5);
+        score += breakdown.tsunami.bonus;
+        if (!breakdown.classification || breakdown.classification === 'neutral') {
+            breakdown.classification = 'offensive';
+        }
+    }
+    
+    // ====== BLOB BUILDING ======
+    if (stackHeight <= 16 && holes <= 3) {
+        const runsAfter = getHorizontalRuns(board, cols, rows);
+        
+        // Adjacency analysis
+        let horizontalAdj = 0;
+        let verticalAdj = 0;
+        
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (!shape[py][px]) continue;
+                const bx = x + px;
+                const by = y + py;
+                
+                if (bx > 0 && board[by] && board[by][bx - 1] === color) {
+                    let partOfPiece = false;
+                    if (px > 0 && shape[py][px - 1]) partOfPiece = true;
+                    if (!partOfPiece) horizontalAdj++;
+                }
+                
+                if (bx < cols - 1 && board[by] && board[by][bx + 1] === color) {
+                    let partOfPiece = false;
+                    if (px < shape[py].length - 1 && shape[py][px + 1]) partOfPiece = true;
+                    if (!partOfPiece) horizontalAdj++;
+                }
+                
+                if (by > 0 && board[by - 1] && board[by - 1][bx] === color) {
+                    let partOfPiece = false;
+                    if (py > 0 && shape[py - 1] && shape[py - 1][px]) partOfPiece = true;
+                    if (!partOfPiece) verticalAdj++;
+                }
+                if (by < rows - 1 && board[by + 1] && board[by + 1][bx] === color) {
+                    let partOfPiece = false;
+                    if (py < shape.length - 1 && shape[py + 1] && shape[py + 1][px]) partOfPiece = true;
+                    if (!partOfPiece) verticalAdj++;
+                }
+            }
+        }
+        
+        breakdown.blob.horizontalAdj = horizontalAdj;
+        breakdown.blob.verticalAdj = verticalAdj;
+        
+        if (isBreeze) {
+            breakdown.blob.bonus = horizontalAdj * 5 + verticalAdj * 5;
+            for (const run of runsAfter) {
+                if (run.width >= 3 && run.color === color) {
+                    breakdown.blob.bonus += run.width * 3;
+                }
+            }
+        } else {
+            breakdown.blob.bonus = horizontalAdj * 6 + verticalAdj * 2;
+            
+            // Run bonuses
+            for (const run of runsAfter) {
+                if (run.width >= 4) {
+                    let runBonus = run.width * 2;
+                    if (run.touchesLeft) runBonus += run.width * 1.5;
+                    if (run.touchesRight) runBonus += run.width * 1.5;
+                    if (run.touchesLeft && run.touchesRight) {
+                        runBonus += 300 + run.width * 10;
+                        breakdown.classification = 'opportunistic';
+                    }
+                    if (run.color === color) runBonus *= 1.5;
+                    if (run.width >= 10) {
+                        runBonus += (run.width - 9) * 30;
+                    } else if (run.width >= 8) {
+                        runBonus += (run.width - 7) * 15;
+                    }
+                    breakdown.runs.bonus += runBonus;
+                }
+            }
+            
+            // Edge extension bonuses
+            const ourRuns = runsAfter.filter(r => r.color === color);
+            for (const run of ourRuns) {
+                if (run.width >= 4) {
+                    const pieceMinX = x;
+                    const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
+                    
+                    let atRunEdge = false;
+                    for (let py = 0; py < shape.length; py++) {
+                        for (let px = 0; px < shape[py].length; px++) {
+                            if (!shape[py][px]) continue;
+                            const cellX = x + px;
+                            const cellY = y + py;
+                            if (cellY === run.row && (cellX === run.startX || cellX === run.endX)) {
+                                atRunEdge = true;
+                            }
+                        }
+                    }
+                    
+                    if (atRunEdge) {
+                        breakdown.edge.bonus += run.width * 4;
+                    }
+                }
+            }
+            
+            // Queue awareness for tsunami building
+            const ourBestRun = bestRuns[color];
+            if (ourBestRun && ourBestRun.width >= 5) {
+                const pieceMinX = x;
+                const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
+                
+                if (ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
+                    if (pieceMaxX >= ourBestRun.endX) {
+                        breakdown.edge.bonus += 20 + (ourBestRun.width * 2);
+                    }
+                } else if (ourBestRun.touchesRight && !ourBestRun.touchesLeft) {
+                    if (pieceMinX <= ourBestRun.startX) {
+                        breakdown.edge.bonus += 20 + (ourBestRun.width * 2);
+                    }
+                } else if (!ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
+                    if (pieceMinX <= ourBestRun.startX || pieceMaxX >= ourBestRun.endX) {
+                        breakdown.edge.bonus += 10 + ourBestRun.width;
+                    }
+                }
+                
+                const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                breakdown.queue.matchingPieces = queueMatches;
+                if (queueMatches >= 3) {
+                    breakdown.queue.bonus = ourBestRun.width * 5;
+                } else if (queueMatches >= 2) {
+                    breakdown.queue.bonus = ourBestRun.width * 3;
+                } else if (queueMatches >= 1) {
+                    breakdown.queue.bonus = ourBestRun.width * 1.5;
+                }
+            }
+        }
+        
+        score += breakdown.blob.bonus;
+        score += breakdown.runs.bonus;
+        score += breakdown.edge.bonus;
+        score += breakdown.queue.bonus;
+    }
+    
+    // Set default classification if not set
+    if (!breakdown.classification || breakdown.classification === 'neutral') {
+        if (breakdown.blob.bonus > 20 || breakdown.runs.bonus > 30) {
+            breakdown.classification = 'offensive';
+        } else if (breakdown.holes.penalty > 20 || breakdown.height.penalty > 15) {
+            breakdown.classification = 'defensive';
+        } else {
+            breakdown.classification = 'neutral';
+        }
+    }
+    
+    return { score, breakdown };
+}
+
 function evaluateBoard(board, shape, x, y, color, cols, rows) {
     let score = 0;
     
@@ -687,7 +995,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
 
 // ==================== PLACEMENT GENERATION ====================
 
-function generatePlacements(board, piece, cols, rows) {
+function generatePlacements(board, piece, cols, rows, captureBreakdown = false) {
     const placements = [];
     const shape = piece.shape;
     const rotations = piece.rotations || [shape];
@@ -708,20 +1016,26 @@ function generatePlacements(board, piece, cols, rows) {
             }
             
             const newBoard = placePiece(board, rotatedShape, x, y, piece.color);
-            const score = evaluateBoard(newBoard, rotatedShape, x, y, piece.color, cols, rows);
             
-            placements.push({ x, y, rotationIndex, shape: rotatedShape, score });
+            if (captureBreakdown) {
+                const { score, breakdown } = evaluateBoardWithBreakdown(newBoard, rotatedShape, x, y, piece.color, cols, rows);
+                placements.push({ x, y, rotationIndex, shape: rotatedShape, score, breakdown });
+            } else {
+                const score = evaluateBoard(newBoard, rotatedShape, x, y, piece.color, cols, rows);
+                placements.push({ x, y, rotationIndex, shape: rotatedShape, score });
+            }
         }
     }
     
     return placements;
 }
 
-function findBestPlacement(board, piece, cols, rows, queue) {
-    const placements = generatePlacements(board, piece, cols, rows);
+function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta = false) {
+    // Use breakdown capture for decision metadata
+    const placements = generatePlacements(board, piece, cols, rows, captureDecisionMeta);
     
     if (placements.length === 0) {
-        return null;
+        return captureDecisionMeta ? { placement: null, decisionMeta: null } : null;
     }
     
     let bestPlacement;
@@ -806,6 +1120,55 @@ function findBestPlacement(board, piece, cols, rows, queue) {
         recordDecision(board, piece, placements, bestPlacement, stackHeight);
     }
     
+    // Build decision metadata if requested
+    if (captureDecisionMeta) {
+        const sortedPlacements = [...placements].sort((a, b) => 
+            (b.combinedScore || b.score) - (a.combinedScore || a.score)
+        );
+        
+        const secondBest = sortedPlacements.length > 1 ? sortedPlacements[1] : null;
+        const scoreDifferential = secondBest ? 
+            (bestPlacement.combinedScore || bestPlacement.score) - (secondBest.combinedScore || secondBest.score) : null;
+        
+        // Get board metrics
+        const holes = countHoles(board);
+        const bumpiness = getBumpiness(board);
+        
+        const decisionMeta = {
+            chosen: {
+                x: bestPlacement.x,
+                y: bestPlacement.y,
+                rotation: bestPlacement.rotationIndex,
+                immediateScore: Math.round(bestPlacement.score * 100) / 100,
+                combinedScore: bestPlacement.combinedScore ? Math.round(bestPlacement.combinedScore * 100) / 100 : null,
+                breakdown: bestPlacement.breakdown || null,
+                classification: bestPlacement.breakdown?.classification || 'unknown'
+            },
+            alternatives: sortedPlacements.slice(1, 4).map(p => ({
+                x: p.x,
+                y: p.y,
+                rotation: p.rotationIndex,
+                immediateScore: Math.round(p.score * 100) / 100,
+                combinedScore: p.combinedScore ? Math.round(p.combinedScore * 100) / 100 : null,
+                classification: p.breakdown?.classification || 'unknown'
+            })),
+            scoreDifferential: scoreDifferential ? Math.round(scoreDifferential * 100) / 100 : null,
+            boardMetrics: {
+                stackHeight,
+                holes,
+                bumpiness
+            },
+            lookahead: {
+                depth: fourthPiece ? 4 : (thirdPiece ? 3 : (nextPiece ? 2 : 1)),
+                queueColors: queue ? queue.map(p => p?.color || null) : []
+            },
+            candidatesEvaluated: placements.length,
+            skillLevel: currentSkillLevel
+        };
+        
+        return { placement: bestPlacement, decisionMeta };
+    }
+    
     return bestPlacement;
 }
 
@@ -850,10 +1213,22 @@ self.onmessage = function(e) {
     pieceQueue = queue || [];
     currentUfoActive = ufoActive || false;
     
+    // Check if decision metadata is requested
+    const captureDecisionMeta = e.data.captureDecisionMeta || false;
+    
     setTimeout(() => {
-        const bestPlacement = findBestPlacement(board, piece, cols, rows, pieceQueue);
+        const result = findBestPlacement(board, piece, cols, rows, pieceQueue, captureDecisionMeta);
         const stackHeight = getStackHeight(board, rows);
-        self.postMessage({ bestPlacement, stackHeight });
+        
+        if (captureDecisionMeta && result) {
+            self.postMessage({ 
+                bestPlacement: result.placement, 
+                stackHeight,
+                decisionMeta: result.decisionMeta
+            });
+        } else {
+            self.postMessage({ bestPlacement: result, stackHeight });
+        }
     }, 0);
 };
 
