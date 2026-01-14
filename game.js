@@ -1448,6 +1448,7 @@ let creditsAnimationId = null;
 let creditsScrollY = 0;
 let creditsContentHeight = 0;
 let creditsMusicTimeoutId = null;
+let aiAutoRestartTimerId = null;
 
 function getCreditsElements() {
     return {
@@ -11385,7 +11386,8 @@ async function gameOver() {
         }
     }
     
-    // Stop human recording and submit to server
+    // Stop human recording - store for later submission with entered username
+    let pendingRecording = null;
     if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
         const finalStats = {
             score: score,
@@ -11401,30 +11403,29 @@ async function gameOver() {
         const recording = GameRecorder.stopRecording(finalStats);
         if (recording && recording.moves && recording.moves.length > 0 && score > 0) {
             console.log(`📹 Human Recording complete: ${recording.moves.length} moves recorded`);
-            // Get username from auth if logged in
-            const username = (typeof authCurrentUser !== 'undefined' && authCurrentUser) 
-                ? authCurrentUser.username 
-                : 'Anonymous';
-            // Submit to server (async, don't wait)
-            GameRecorder.submitRecording(recording, {
-                username: username,
-                game: 'blockchainstorm',
-                playerType: 'human',
-                difficulty: gameMode,
-                skillLevel: skillLevel,
-                mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
-                challenges: Array.from(activeChallenges),
-                speedBonus: speedBonusAverage,
-                score: score,
-                lines: lines,
-                level: level,
-                strikes: strikeCount,
-                tsunamis: tsunamiCount,
-                blackholes: blackHoleCount,
-                volcanoes: volcanoCount,
-                endCause: 'game_over',
-                debugLog: logQueue.join('\n')
-            });
+            // Store recording data for submission after name entry
+            pendingRecording = {
+                recording: recording,
+                gameData: {
+                    game: 'blockchainstorm',
+                    playerType: 'human',
+                    difficulty: gameMode,
+                    skillLevel: skillLevel,
+                    mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
+                    challenges: Array.from(activeChallenges),
+                    speedBonus: speedBonusAverage,
+                    score: score,
+                    lines: lines,
+                    level: level,
+                    strikes: strikeCount,
+                    tsunamis: tsunamiCount,
+                    blackholes: blackHoleCount,
+                    volcanoes: volcanoCount,
+                    endCause: 'game_over',
+                    debugLog: logQueue.join('\n')
+                }
+            };
+            window.pendingGameRecording = pendingRecording;
         }
     }
     
@@ -11506,6 +11507,9 @@ async function gameOver() {
         await window.leaderboard.submitAIScore(scoreData);
         showGameOverScreen();
         await window.leaderboard.displayLeaderboard(gameMode, score, aiMode, skillLevel);
+        
+        // Start auto-restart timer for AI mode (10 seconds)
+        startAIAutoRestartTimer();
         return;
     }
     
@@ -11532,6 +11536,11 @@ async function gameOver() {
             // Send notification for non-high-score game completion
             window.leaderboard.notifyGameCompletion(scoreData);
         }
+        // Submit pending recording with stored username or Anonymous
+        if (typeof window.submitPendingRecording === 'function') {
+            const storedUsername = localStorage.getItem('blockchainstorm_username') || 'Anonymous';
+            window.submitPendingRecording(storedUsername);
+        }
     }
 }
 
@@ -11553,6 +11562,17 @@ function onScoreSubmitted() {
 
 // Expose globally so leaderboard.js can call it
 window.onScoreSubmitted = onScoreSubmitted;
+
+// Function for leaderboard.js to call when submitting a high score with a name
+window.submitPendingRecording = function(username) {
+    if (window.pendingGameRecording && typeof GameRecorder !== 'undefined') {
+        const pending = window.pendingGameRecording;
+        pending.gameData.username = username || 'Anonymous';
+        console.log(`📤 Submitting recording with username: ${pending.gameData.username}`);
+        GameRecorder.submitRecording(pending.recording, pending.gameData);
+        window.pendingGameRecording = null;
+    }
+};
 
 // Fallback detection for when leaderboard popup closes
 let leaderboardCloseInterval = null;
@@ -11652,6 +11672,61 @@ function showGameOverScreen() {
         startMenuMusic(musicSelect); // This will play End Credits version since hasPlayedGame is true
         creditsMusicTimeoutId = null;
     }, 3000);
+}
+
+// AI Auto-restart functionality
+const AI_DIFFICULTY_OPTIONS = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
+const AI_SKILL_OPTIONS = ['breeze', 'tempest', 'maelstrom'];
+
+function startAIAutoRestartTimer() {
+    // Clear any existing timer
+    cancelAIAutoRestartTimer();
+    
+    console.log('🤖 AI Auto-restart: Starting 10 second countdown...');
+    
+    aiAutoRestartTimerId = setTimeout(() => {
+        if (!aiModeEnabled) {
+            console.log('🤖 AI Auto-restart: AI mode disabled, cancelling');
+            return;
+        }
+        
+        // Randomly select difficulty and skill level
+        const randomDifficulty = AI_DIFFICULTY_OPTIONS[Math.floor(Math.random() * AI_DIFFICULTY_OPTIONS.length)];
+        const randomSkill = AI_SKILL_OPTIONS[Math.floor(Math.random() * AI_SKILL_OPTIONS.length)];
+        
+        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
+        
+        // Set the skill level globally
+        skillLevel = randomSkill;
+        
+        // Update the skill level UI if present
+        const skillLevelSelect = document.getElementById('skillLevelSelect');
+        if (skillLevelSelect) {
+            skillLevelSelect.value = randomSkill;
+        }
+        
+        // Hide game over screen and leaderboard
+        gameOverDiv.style.display = 'none';
+        if (window.leaderboard && window.leaderboard.hideLeaderboard) {
+            window.leaderboard.hideLeaderboard();
+        }
+        
+        // Stop credits
+        stopCreditsAnimation();
+        
+        // Start new game with random difficulty
+        startGame(randomDifficulty);
+        
+        aiAutoRestartTimerId = null;
+    }, 10000);
+}
+
+function cancelAIAutoRestartTimer() {
+    if (aiAutoRestartTimerId) {
+        clearTimeout(aiAutoRestartTimerId);
+        aiAutoRestartTimerId = null;
+        console.log('🤖 AI Auto-restart: Timer cancelled');
+    }
 }
 
 function update(time = 0) {
@@ -11923,6 +11998,7 @@ function startGame(mode) {
     // Stop any running credits animation
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
+    cancelAIAutoRestartTimer(); // Cancel any pending AI auto-restart
     scoreSubmittedHandled = false; // Reset for new game
     
     // Reset AI player state
@@ -12573,6 +12649,7 @@ updateSelectedMode();
 playAgainBtn.addEventListener('click', () => {
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
+    cancelAIAutoRestartTimer(); // Cancel AI auto-restart if pending
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
     document.body.classList.remove('game-started');
@@ -12728,6 +12805,10 @@ if (aiModeToggle) {
         aiModeEnabled = e.target.checked;
         if (typeof AIPlayer !== 'undefined') {
             AIPlayer.setEnabled(aiModeEnabled);
+        }
+        // Cancel auto-restart timer if AI mode is disabled
+        if (!aiModeEnabled) {
+            cancelAIAutoRestartTimer();
         }
         // Show/hide speed slider
         const aiSpeedOption = document.getElementById('aiSpeedOption');

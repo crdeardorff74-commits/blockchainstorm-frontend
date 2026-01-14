@@ -710,6 +710,11 @@ function promptForName(scoreData) {
             localStorage.setItem('blockchainstorm_username', rawUsername);
         }
         
+        // Submit pending game recording with the entered username
+        if (typeof window.submitPendingRecording === 'function') {
+            window.submitPendingRecording(username);
+        }
+        
         // Hide overlay and keyboard immediately - don't leave user waiting
         overlay.style.display = 'none';
         const keyboard = document.getElementById('customKeyboard');
@@ -1044,7 +1049,7 @@ async function notifyGameCompletion(scoreData) {
         
         const dataToSubmit = {
             ...scoreData,
-            username: 'Anonymous',  // No name entry for non-high-scores
+            username: localStorage.getItem('blockchainstorm_username') || 'Anonymous',
             challengeNames: challengeNames,
             notifyOnly: true  // Flag to indicate this is just a notification, not a leaderboard entry
         };
