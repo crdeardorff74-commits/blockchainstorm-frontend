@@ -10736,8 +10736,8 @@ function clearLines() {
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('strike', { count: strikeCount, linesCleared: completedRows.length });
             }
-            // Record event for human analysis
-            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            // Record strike event for replay (both AI and human games)
+            if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordEvent('strike', { count: strikeCount, linesCleared: completedRows.length });
             }
         } else if (willHaveBlackHole) {
@@ -14153,6 +14153,7 @@ window.startGameReplay = function(recording) {
     replayPieceInputs = [];
     replayInputIndex = 0;
     replayEventIndex = 0;
+    replayGameEventIndex = 0;
     
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
@@ -14171,7 +14172,8 @@ window.startGameReplay = function(recording) {
     window.skillLevel = recording.skill_level;
     
     // MUST set COLS BEFORE creating board and updating canvas
-    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 15 : 10;
+    // Blizzard and hurricane use 12 columns, others use 10
+    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 12 : 10;
     console.log('🎬 Setting COLS to', COLS, 'for difficulty', gameMode);
     console.log('🎬 Canvas before resize:', canvas.width, 'x', canvas.height);
     updateCanvasSize();
@@ -14287,6 +14289,7 @@ function stopReplay() {
     replayPieceInputs = [];
     replayInputIndex = 0;
     replayEventIndex = 0;
+    replayGameEventIndex = 0;
     
     // Cancel any active special event animations
     tsunamiAnimating = false;
@@ -14344,6 +14347,7 @@ let replayPieceStartY = -2; // Spawn position
 let replayPieceInputs = []; // Inputs for current piece
 let replayInputIndex = 0; // Current input index
 let replayEventIndex = 0; // Current special event index (tsunamis, black holes, volcanoes)
+let replayGameEventIndex = 0; // Current game event index (line clears, strikes)
 
 function runReplay() {
     if (!replayActive || replayPaused) return;
@@ -14389,6 +14393,25 @@ function runReplay() {
         replayCurrentMoveIndex++;
         replayCurrentPiece = null; // Clear current piece, will set up next one
         replayInputIndex = 0; // Reset input tracking for next piece
+    }
+    
+    // Process game events (line clears, strikes)
+    const gameEvents = recData.events || [];
+    while (replayGameEventIndex < gameEvents.length && 
+           gameEvents[replayGameEventIndex].t <= replayElapsedTime) {
+        const event = gameEvents[replayGameEventIndex];
+        
+        if (event.type === 'linesClear' && event.rows) {
+            // Trigger line clear animation
+            animateClearLines(event.rows);
+            console.log('🎬 Replay: Line clear triggered for rows', event.rows);
+        } else if (event.type === 'strike') {
+            // Trigger strike animation (lightning)
+            triggerLightning(300);
+            console.log('🎬 Replay: Strike triggered');
+        }
+        
+        replayGameEventIndex++;
     }
     
     // Process special events (tsunamis, black holes, volcanoes)
@@ -14615,6 +14638,7 @@ function runReplay() {
     updateTsunamiAnimation();
     updateBlackHoleAnimation();
     updateVolcanoAnimation();
+    updateLineAnimations();
     
     // Render board
     drawBoard();
