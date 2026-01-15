@@ -220,6 +220,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                     <th>Lines</th>
                     <th>Lvl</th>
                     ${mode === 'challenge' ? '<th class="challenges-col">🎯</th>' : ''}
+                    <th class="replay-col" title="Watch Replay">▶</th>
                 </tr>
             </thead>
             <tbody>
@@ -254,6 +255,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         // Get speed bonus (default to 1.0 for older entries)
         const speedBonus = entry.speedBonus || 1.0;
         
+        // Build replay cell
+        const replayCell = entry.recording_id 
+            ? `<td class="replay-col"><span class="replay-btn" data-recording-id="${entry.recording_id}" title="Watch replay">▶️</span></td>`
+            : '<td class="replay-col"></td>';
+        
         // All rows can show tooltip (for speed bonus), add data attributes
         const rowClasses = [rowClass, 'has-tooltip', hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
         
@@ -266,6 +272,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                 <td>${entry.lines}</td>
                 <td>${entry.level}</td>
                 ${challengesCell}
+                ${replayCell}
             </tr>
         `;
     });
@@ -277,6 +284,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     leaderboardContent.innerHTML = html;
     attachLeaderboardSkillListener(difficulty, mode);
+    attachReplayButtonListeners();
 }
 
 // Attach change listener to leaderboard skill selector
@@ -288,6 +296,47 @@ function attachLeaderboardSkillListener(difficulty, mode) {
             currentLeaderboardSkillLevel = newSkill;
             displayLeaderboard(difficulty, lastPlayerScore, mode, newSkill);
         });
+    }
+}
+
+// Attach click listeners to replay buttons
+function attachReplayButtonListeners() {
+    const replayBtns = document.querySelectorAll('.replay-btn');
+    replayBtns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const recordingId = btn.getAttribute('data-recording-id');
+            if (recordingId) {
+                await startReplay(recordingId);
+            }
+        });
+    });
+}
+
+// Fetch recording and start replay
+async function startReplay(recordingId) {
+    try {
+        console.log(`🎬 Fetching recording ${recordingId}...`);
+        
+        const response = await fetch(`${API_URL}/recording/${recordingId}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch recording: ${response.status}`);
+        }
+        
+        const recording = await response.json();
+        console.log('🎬 Recording loaded:', recording.username, recording.score, 'pts');
+        
+        // Call the game's replay function if available
+        if (typeof window.startGameReplay === 'function') {
+            window.startGameReplay(recording);
+        } else {
+            console.error('🎬 Replay function not available');
+            alert('Replay feature not yet available');
+        }
+        
+    } catch (error) {
+        console.error('🎬 Failed to load recording:', error);
+        alert('Failed to load recording');
     }
 }
 

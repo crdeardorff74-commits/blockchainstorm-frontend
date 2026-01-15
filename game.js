@@ -14040,3 +14040,242 @@ const handleUnpauseTap = (e) => {
 
 document.addEventListener('click', handleUnpauseTap);
 document.addEventListener('touchend', handleUnpauseTap);
+// ==================== REPLAY SYSTEM ====================
+
+// Replay state
+let replayActive = false;
+let replayPaused = false;
+let replayData = null;
+let replaySpeed = 1.0;
+let replayMoveIndex = 0;
+let replayStartTime = 0;
+let replayAnimationFrame = null;
+
+// Start game replay from recording
+window.startGameReplay = function(recording) {
+    console.log('🎬 Starting replay:', recording.username, recording.difficulty, recording.skill_level);
+    
+    replayData = recording;
+    replayActive = true;
+    replayPaused = false;
+    replayMoveIndex = 0;
+    replaySpeed = 1.0;
+    
+    // Hide any existing overlays/menus
+    if (gameOverDiv) gameOverDiv.style.display = 'none';
+    if (modeMenu) modeMenu.classList.add('hidden');
+    if (startOverlay) startOverlay.style.display = 'none';
+    
+    // Hide leaderboard
+    if (window.leaderboard && window.leaderboard.hideLeaderboard) {
+        window.leaderboard.hideLeaderboard();
+    }
+    
+    // Set up game for replay
+    const recData = recording.recording_data;
+    gameMode = recording.difficulty;
+    skillLevel = recording.skill_level;
+    window.skillLevel = recording.skill_level;
+    
+    // Reset game state
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    score = 0;
+    lines = 0;
+    level = 1;
+    gameRunning = true;
+    paused = false;
+    currentPiece = null;
+    nextPieceQueue = [];
+    
+    // Reset special event counters
+    strikeCount = 0;
+    tsunamiCount = 0;
+    blackHoleCount = 0;
+    volcanoCount = 0;
+    
+    // Adjust canvas for game mode
+    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 15 : 10;
+    updateCanvasSize();
+    
+    // Show replay controls
+    showReplayControls(recording);
+    
+    // Start the replay
+    replayStartTime = Date.now();
+    runReplay();
+};
+
+// Show replay control overlay
+function showReplayControls(recording) {
+    // Remove existing if present
+    const existing = document.getElementById('replayControls');
+    if (existing) existing.remove();
+    
+    const controls = document.createElement('div');
+    controls.id = 'replayControls';
+    controls.style.cssText = `
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 10px 20px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 10px;
+        color: #fff;
+    `;
+    
+    controls.innerHTML = `
+        <span style="color: #ff6b6b;">🎬 REPLAY</span>
+        <span style="color: #aaa;">${escapeHtml(recording.username)}</span>
+        <span style="color: #6eb5ff;">${recording.score.toLocaleString()} pts</span>
+        <button id="replayPauseBtn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏸️</button>
+        <select id="replaySpeedSelect" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px;">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+            <option value="8">8x</option>
+        </select>
+        <button id="replayStopBtn" style="background: #553333; border: 1px solid #885555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏹️ Stop</button>
+    `;
+    
+    document.body.appendChild(controls);
+    
+    // Wire up controls
+    document.getElementById('replayPauseBtn').addEventListener('click', toggleReplayPause);
+    document.getElementById('replaySpeedSelect').addEventListener('change', (e) => {
+        replaySpeed = parseFloat(e.target.value);
+    });
+    document.getElementById('replayStopBtn').addEventListener('click', stopReplay);
+}
+
+function toggleReplayPause() {
+    replayPaused = !replayPaused;
+    const btn = document.getElementById('replayPauseBtn');
+    if (btn) {
+        btn.textContent = replayPaused ? '▶️' : '⏸️';
+    }
+    if (!replayPaused) {
+        replayStartTime = Date.now() - (replayMoveIndex * 500 / replaySpeed); // Approximate resume point
+        runReplay();
+    }
+}
+
+function stopReplay() {
+    replayActive = false;
+    replayPaused = false;
+    replayData = null;
+    
+    if (replayAnimationFrame) {
+        cancelAnimationFrame(replayAnimationFrame);
+        replayAnimationFrame = null;
+    }
+    
+    // Remove controls
+    const controls = document.getElementById('replayControls');
+    if (controls) controls.remove();
+    
+    // Reset game state
+    gameRunning = false;
+    currentPiece = null;
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    
+    // Show mode menu
+    modeMenu.classList.remove('hidden');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    console.log('🎬 Replay stopped');
+}
+
+// Main replay loop
+function runReplay() {
+    if (!replayActive || replayPaused) return;
+    
+    const recData = replayData.recording_data;
+    if (!recData || !recData.moves) {
+        console.log('🎬 No moves in recording');
+        stopReplay();
+        return;
+    }
+    
+    const moves = recData.moves;
+    
+    // Check if replay is complete
+    if (replayMoveIndex >= moves.length) {
+        console.log('🎬 Replay complete!');
+        showReplayComplete();
+        return;
+    }
+    
+    // Get current move
+    const move = moves[replayMoveIndex];
+    
+    // Apply the move (simplified - just place the piece)
+    if (move.finalBoard) {
+        // Use the recorded board state
+        board = JSON.parse(JSON.stringify(move.finalBoard));
+    } else if (move.piece) {
+        // Place the piece manually
+        const piece = move.piece;
+        if (piece.shape) {
+            piece.shape.forEach((row, py) => {
+                row.forEach((val, px) => {
+                    if (val) {
+                        const boardY = piece.y + py;
+                        const boardX = piece.x + px;
+                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                            board[boardY][boardX] = { color: piece.color };
+                        }
+                    }
+                });
+            });
+        }
+    }
+    
+    // Update display
+    score = move.score || score;
+    lines = move.lines || lines;
+    level = move.level || level;
+    
+    // Render
+    draw();
+    updateDisplay();
+    
+    replayMoveIndex++;
+    
+    // Schedule next move
+    const delay = Math.max(50, 300 / replaySpeed);
+    setTimeout(() => {
+        replayAnimationFrame = requestAnimationFrame(runReplay);
+    }, delay);
+}
+
+function showReplayComplete() {
+    const controls = document.getElementById('replayControls');
+    if (controls) {
+        controls.innerHTML = `
+            <span style="color: #4ecdc4;">🎬 REPLAY COMPLETE</span>
+            <span style="color: #aaa;">${escapeHtml(replayData.username)}</span>
+            <span style="color: #6eb5ff;">Final: ${replayData.score.toLocaleString()} pts</span>
+            <button id="replayStopBtn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Close</button>
+        `;
+        document.getElementById('replayStopBtn').addEventListener('click', stopReplay);
+    }
+}
+
+// Helper for replay controls
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+console.log('🎬 Replay system initialized');
