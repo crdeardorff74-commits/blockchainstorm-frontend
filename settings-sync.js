@@ -89,7 +89,8 @@ const SettingsSync = {
             'cameraOrientationToggle',
             'minimalistToggle',
             'vibrationToggle',
-            'aiModeToggle'
+            'aiModeToggle',
+            'introFullscreenCheckbox'
         ];
         
         checkboxes.forEach(id => {
@@ -101,7 +102,8 @@ const SettingsSync = {
         
         // Select dropdowns
         const selects = [
-            'musicSelect'
+            'musicSelect',
+            'skillLevelSelect'
         ];
         
         selects.forEach(id => {
@@ -167,7 +169,8 @@ const SettingsSync = {
             'cameraOrientationToggle',
             'minimalistToggle',
             'vibrationToggle',
-            'aiModeToggle'
+            'aiModeToggle',
+            'introFullscreenCheckbox'
         ];
         
         checkboxes.forEach(id => {
@@ -181,7 +184,8 @@ const SettingsSync = {
         
         // Apply select dropdowns
         const selects = [
-            'musicSelect'
+            'musicSelect',
+            'skillLevelSelect'
         ];
         
         selects.forEach(id => {
@@ -190,13 +194,27 @@ const SettingsSync = {
                 elem.value = settings[id];
                 // Trigger change event so game code responds
                 elem.dispatchEvent(new Event('change'));
-                // Also sync intro music select if it exists
-                const introSelect = document.getElementById('introMusicSelect');
-                if (introSelect) {
-                    introSelect.value = settings[id];
-                }
             }
         });
+        
+        // Sync intro and rules selects from their main counterparts
+        if (settings.musicSelect !== undefined) {
+            const introMusicSelect = document.getElementById('introMusicSelect');
+            if (introMusicSelect) {
+                introMusicSelect.value = settings.musicSelect;
+            }
+        }
+        
+        if (settings.skillLevelSelect !== undefined) {
+            const introSkillSelect = document.getElementById('introSkillLevelSelect');
+            const rulesSkillSelect = document.getElementById('rulesSkillLevelSelect');
+            if (introSkillSelect) {
+                introSkillSelect.value = settings.skillLevelSelect;
+            }
+            if (rulesSkillSelect) {
+                rulesSkillSelect.value = settings.skillLevelSelect;
+            }
+        }
         
         // Apply sliders (static elements)
         const sliders = [
@@ -392,7 +410,8 @@ const SettingsSync = {
             'cameraOrientationToggle',
             'minimalistToggle',
             'vibrationToggle',
-            'aiModeToggle'
+            'aiModeToggle',
+            'introFullscreenCheckbox'
         ];
         
         let attachedCount = 0;
@@ -410,9 +429,10 @@ const SettingsSync = {
             }
         });
         
-        // Select dropdowns
+        // Select dropdowns (main settings)
         const selects = [
-            'musicSelect'
+            'musicSelect',
+            'skillLevelSelect'
         ];
         
         selects.forEach(id => {
@@ -425,6 +445,30 @@ const SettingsSync = {
                 attachedCount++;
             } else {
                 console.warn(`⚙️ Element not found: ${id}`);
+            }
+        });
+        
+        // Intro screen selects (sync to main and save)
+        const introSelects = [
+            { intro: 'introMusicSelect', main: 'musicSelect' },
+            { intro: 'introSkillLevelSelect', main: 'skillLevelSelect' },
+            { intro: 'rulesSkillLevelSelect', main: 'skillLevelSelect' }
+        ];
+        
+        introSelects.forEach(({ intro, main }) => {
+            const introElem = document.getElementById(intro);
+            const mainElem = document.getElementById(main);
+            if (introElem) {
+                introElem.addEventListener('change', () => {
+                    console.log(`⚙️ Setting changed: ${intro}`);
+                    // Sync to main select
+                    if (mainElem) {
+                        mainElem.value = introElem.value;
+                        mainElem.dispatchEvent(new Event('change'));
+                    }
+                    this.saveSettings();
+                });
+                attachedCount++;
             }
         });
         
