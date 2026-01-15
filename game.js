@@ -7264,6 +7264,13 @@ function drawBoard() {
             fallingBlockSet.add(`${fb.x},${fb.targetY}`);
         });
     }
+    
+    // During replay, also skip cells that are being animated (their START positions)
+    if (replayActive && replayAnimatingCells.size > 0) {
+        replayAnimatingCells.forEach(cell => {
+            fallingBlockSet.add(cell);
+        });
+    }
 
     const blobs = getAllBlobs();
     
@@ -10451,21 +10458,22 @@ function updateFallingBlocks() {
     
     // Animation complete - NOW place ALL blocks at once
     if (allDone) {
+        // Skip board modification during replay - keyframes handle final state
+        if (replayActive) {
+            gravityAnimating = false;
+            fallingBlocks = [];
+            replayAnimatingCells = new Set(); // Clear the animated cells set
+            return;
+        }
+        
         // Place all landed blocks on the board simultaneously
         fallingBlocks.forEach(block => {
             board[block.targetY][block.x] = block.color;
-            if (!replayActive) {
-                isRandomBlock[block.targetY][block.x] = block.isRandom;
-            }
+            isRandomBlock[block.targetY][block.x] = block.isRandom;
         });
         
         gravityAnimating = false;
         fallingBlocks = [];
-        
-        // Skip game logic during replay - keyframes will handle final state
-        if (replayActive) {
-            return;
-        }
         
         // Update liquid pools after blocks have fallen
         updateLiquidPoolsAfterGravity();
@@ -14166,6 +14174,8 @@ window.startGameReplay = function(recording) {
     replayInputIndex = 0;
     replayEventIndex = 0;
     replayGameEventIndex = 0;
+    replayAnimatingCells = new Set();
+    replayLastKeyframeTime = -1;
     
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
@@ -14312,6 +14322,8 @@ function stopReplay() {
     replayInputIndex = 0;
     replayEventIndex = 0;
     replayGameEventIndex = 0;
+    replayAnimatingCells = new Set();
+    replayLastKeyframeTime = -1;
     
     // Cancel any active special event animations
     tsunamiAnimating = false;
@@ -14372,6 +14384,8 @@ let replayPieceInputs = []; // Inputs for current piece
 let replayInputIndex = 0; // Current input index
 let replayEventIndex = 0; // Current special event index (tsunamis, black holes, volcanoes)
 let replayGameEventIndex = 0; // Current game event index (line clears, strikes)
+let replayAnimatingCells = new Set(); // Cells being animated (don't draw from board)
+let replayLastKeyframeTime = -1; // Timestamp of last applied keyframe
 
 function runReplay() {
     if (!replayActive || replayPaused) return;
@@ -14528,6 +14542,12 @@ function runReplay() {
     
     // Set up current falling piece if needed
     if (!replayCurrentPiece) {
+        // Skip setting up new piece while animations are still running
+        // This prevents keyframes from conflicting with ongoing animations
+        if (gravityAnimating || tsunamiAnimating || blackHoleAnimating || volcanoAnimating) {
+            // Don't set up piece yet - animations are still running
+            // Continue below to update animations and render
+        } else {
         // Find the best keyframe for board state:
         // We want to show the board AFTER the previous piece locked and lines cleared,
         // but BEFORE the current piece locks.
@@ -14588,6 +14608,7 @@ function runReplay() {
         
         // Calculate collision Y based on current board state (safety cap to prevent visual overlap)
         replayCurrentPiece.collisionY = calculateReplayCollisionY(replayCurrentPiece);
+        } // Close the else block
     }
     
     // Apply inputs that have occurred up to current time
@@ -14659,6 +14680,30 @@ function runReplay() {
         volcanoCount = Math.floor((finalStats.volcanoes || 0) * progress);
     }
     
+    // Update board state from keyframes when not animating
+    // This ensures the board reflects the correct state after animations complete
+    if (!gravityAnimating && !tsunamiAnimating && !blackHoleAnimating && !volcanoAnimating) {
+        // Find the most recent keyframe at or before current time
+        let currentKeyframe = null;
+        for (let i = keyframes.length - 1; i >= 0; i--) {
+            if (keyframes[i].t <= replayElapsedTime) {
+                currentKeyframe = keyframes[i];
+                break;
+            }
+        }
+        
+        // Apply if this is a newer keyframe than last applied
+        if (currentKeyframe && currentKeyframe.t > replayLastKeyframeTime) {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            currentKeyframe.board.forEach(cell => {
+                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+                    board[cell.y][cell.x] = cell.c;
+                }
+            });
+            replayLastKeyframeTime = currentKeyframe.t;
+        }
+    }
+    
     // Update storm particles for animation
     updateStormParticles();
     
@@ -14671,6 +14716,9 @@ function runReplay() {
     
     // Render board
     drawBoard();
+    
+    // Draw falling blocks from gravity animation
+    drawFallingBlocks();
     
     // Draw falling piece
     if (replayCurrentPiece && replayCurrentPiece.shape) {
@@ -14752,16 +14800,16 @@ function calculateReplayCollisionY(piece) {
 function triggerReplayGravity(blocks) {
     if (!blocks || blocks.length === 0) return;
     
-    // Clear blocks from their start positions on the board
-    blocks.forEach(block => {
-        if (block.sy >= 0 && block.sy < ROWS && block.x >= 0 && block.x < COLS) {
-            board[block.sy][block.x] = null;
-        }
-    });
+    // DON'T clear blocks from board - keyframes manage board state
+    // Instead, track which cells are being animated so we skip drawing them from the board
+    replayAnimatingCells = new Set();
     
     // Set up falling blocks for animation
     fallingBlocks = [];
     blocks.forEach(block => {
+        // Track the start cell so we don't draw it from the board
+        replayAnimatingCells.add(`${block.x},${block.sy}`);
+        
         fallingBlocks.push({
             x: block.x,
             startY: block.sy,
