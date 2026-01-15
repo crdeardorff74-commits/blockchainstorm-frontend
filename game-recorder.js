@@ -261,16 +261,67 @@ const GameRecorder = (() => {
     /**
      * Record volcano eruption column selection
      */
-    function recordVolcanoEruption(column, edgeType) {
+    function recordVolcanoEruption(column, edgeType, lavaBlob = null) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        const volcanoData = {
+            t: timestamp,
+            type: 'volcano',
+            column: column,
+            edge: edgeType
+        };
+        
+        // Include lava blob data if provided (for replay animation)
+        if (lavaBlob && lavaBlob.positions) {
+            volcanoData.positions = lavaBlob.positions;
+            volcanoData.color = lavaBlob.color;
+        }
+        
+        recording.randomEvents.push(volcanoData);
+    }
+    
+    /**
+     * Record tsunami event with blob data for replay
+     */
+    function recordTsunami(blobData) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
         recording.randomEvents.push({
             t: timestamp,
-            type: 'volcano',
-            column: column,
-            edge: edgeType
+            type: 'tsunami',
+            positions: blobData.positions, // Array of [x, y] coordinates
+            color: blobData.color,
+            size: blobData.positions.length
+        });
+    }
+    
+    /**
+     * Record black hole event with inner and outer blob data for replay
+     */
+    function recordBlackHole(innerBlob, outerBlob) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        // Calculate center
+        const innerXs = innerBlob.positions.map(p => p[0]);
+        const innerYs = innerBlob.positions.map(p => p[1]);
+        const centerX = (Math.min(...innerXs) + Math.max(...innerXs)) / 2;
+        const centerY = (Math.min(...innerYs) + Math.max(...innerYs)) / 2;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'blackHole',
+            innerPositions: innerBlob.positions,
+            innerColor: innerBlob.color,
+            outerPositions: outerBlob.positions,
+            outerColor: outerBlob.color,
+            centerX: centerX,
+            centerY: centerY
         });
     }
     
@@ -554,6 +605,8 @@ const GameRecorder = (() => {
         recordTornadoDrop,
         recordEarthquake,
         recordVolcanoEruption,
+        recordTsunami,
+        recordBlackHole,
         recordHailBlock,
         recordChallengeEvent,
         captureFrame,

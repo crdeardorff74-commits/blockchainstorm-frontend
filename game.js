@@ -9656,10 +9656,10 @@ function checkForSpecialFormations() {
         if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
             AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn });
         }
-        // Record event for human analysis (both general event and random event for playback)
-        if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+        // Record detailed volcano data for replay (both AI and human games)
+        if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length });
-            GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType);
+            GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType, v.lavaBlob);
         }
         
         // Score calculation - VOLCANO SCORING:
@@ -9690,9 +9690,10 @@ function checkForSpecialFormations() {
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
             }
-            // Record event for human analysis
-            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            // Record detailed black hole data for replay (both AI and human games)
+            if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
+                GameRecorder.recordBlackHole(bh.innerBlob, bh.outerBlob);
             }
             
             // Score calculation - BLACK HOLE SCORING:
@@ -9734,9 +9735,10 @@ function checkForSpecialFormations() {
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
                 AIPlayer.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
             }
-            // Record event for human analysis
-            if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            // Record detailed tsunami data for replay (both AI and human games)
+            if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
+                GameRecorder.recordTsunami(blob);
             }
             
             // Score calculation - TSUNAMI SCORING:
@@ -10913,12 +10915,13 @@ function clearLines() {
         
         lines += completedRows.length;
         
-        // Record line clear event for human analysis
-        if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+        // Record line clear event for replay (both AI and human games)
+        if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             GameRecorder.recordEvent('linesClear', { 
                 linesCleared: completedRows.length, 
                 totalLines: lines,
-                level: level
+                level: level,
+                rows: completedRows // Include which rows were cleared
             });
         }
         
@@ -14149,6 +14152,7 @@ window.startGameReplay = function(recording) {
     replayCurrentPiece = null;
     replayPieceInputs = [];
     replayInputIndex = 0;
+    replayEventIndex = 0;
     
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
@@ -14282,6 +14286,13 @@ function stopReplay() {
     replayCurrentPiece = null;
     replayPieceInputs = [];
     replayInputIndex = 0;
+    replayEventIndex = 0;
+    
+    // Cancel any active special event animations
+    tsunamiAnimating = false;
+    blackHoleAnimating = false;
+    blackHoleActive = false;
+    volcanoAnimating = false;
     
     if (replayAnimationFrame) {
         cancelAnimationFrame(replayAnimationFrame);
@@ -14332,6 +14343,7 @@ let replayCurrentPiece = null;
 let replayPieceStartY = -2; // Spawn position
 let replayPieceInputs = []; // Inputs for current piece
 let replayInputIndex = 0; // Current input index
+let replayEventIndex = 0; // Current special event index (tsunamis, black holes, volcanoes)
 
 function runReplay() {
     if (!replayActive || replayPaused) return;
@@ -14379,6 +14391,49 @@ function runReplay() {
         replayInputIndex = 0; // Reset input tracking for next piece
     }
     
+    // Process special events (tsunamis, black holes, volcanoes)
+    const randomEvents = recData.randomEvents || [];
+    while (replayEventIndex < randomEvents.length && 
+           randomEvents[replayEventIndex].t <= replayElapsedTime) {
+        const event = randomEvents[replayEventIndex];
+        
+        if (event.type === 'tsunami' && event.positions) {
+            // Trigger tsunami animation
+            const blob = {
+                positions: event.positions,
+                color: event.color
+            };
+            triggerTsunamiAnimation(blob);
+            console.log('🎬 Replay: Tsunami triggered');
+        } else if (event.type === 'blackHole' && event.innerPositions) {
+            // Trigger black hole animation
+            const innerBlob = {
+                positions: event.innerPositions,
+                color: event.innerColor
+            };
+            const outerBlob = {
+                positions: event.outerPositions,
+                color: event.outerColor
+            };
+            triggerBlackHole(innerBlob, outerBlob);
+            console.log('🎬 Replay: Black hole triggered');
+        } else if (event.type === 'volcano' && event.column !== undefined) {
+            // Trigger volcano animation if blob data is available
+            if (event.positions) {
+                const lavaBlob = {
+                    positions: event.positions,
+                    color: event.color
+                };
+                triggerVolcano(lavaBlob, event.column, event.edge);
+                console.log('🎬 Replay: Volcano triggered in column', event.column);
+            } else {
+                console.log('🎬 Replay: Volcano in column', event.column, '(no animation data)');
+            }
+        }
+        
+        replayEventIndex++;
+    }
+    
     // Check if replay is complete
     if (replayCurrentMoveIndex >= moves.length) {
         // Show final board state from last keyframe
@@ -14422,19 +14477,36 @@ function runReplay() {
     
     // Set up current falling piece if needed
     if (!replayCurrentPiece) {
-        // Find keyframe from before this piece started
-        let previousKeyframe = null;
-        for (let i = keyframes.length - 1; i >= 0; i--) {
-            if (keyframes[i].t <= moveStartTime) {
-                previousKeyframe = keyframes[i];
-                break;
+        // Find the best keyframe for board state:
+        // We want to show the board AFTER the previous piece locked and lines cleared,
+        // but BEFORE the current piece locks.
+        // 
+        // Strategy: Find first keyframe AFTER moveStartTime (post-line-clear state)
+        // If none exists, fall back to last keyframe BEFORE moveStartTime
+        let boardKeyframe = null;
+        
+        // First try: keyframe after previous piece locked (captures post-line-clear state)
+        for (let i = 0; i < keyframes.length; i++) {
+            if (keyframes[i].t > moveStartTime && keyframes[i].t < moveEndTime) {
+                boardKeyframe = keyframes[i];
+                break; // Take first one after previous lock
             }
         }
         
-        // Apply previous board state (before this piece)
-        if (previousKeyframe && previousKeyframe.board) {
+        // Fallback: if no keyframe during this piece's lifetime, use last one before
+        if (!boardKeyframe) {
+            for (let i = keyframes.length - 1; i >= 0; i--) {
+                if (keyframes[i].t <= moveStartTime) {
+                    boardKeyframe = keyframes[i];
+                    break;
+                }
+            }
+        }
+        
+        // Apply board state
+        if (boardKeyframe && boardKeyframe.board) {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-            previousKeyframe.board.forEach(cell => {
+            boardKeyframe.board.forEach(cell => {
                 if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
                     board[cell.y][cell.x] = cell.c;
                 }
@@ -14462,18 +14534,26 @@ function runReplay() {
         
         // Get initial piece shape
         replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
+        
+        // Calculate collision Y based on current board state (safety cap to prevent visual overlap)
+        replayCurrentPiece.collisionY = calculateReplayCollisionY(replayCurrentPiece);
     }
     
     // Apply inputs that have occurred up to current time
+    let inputsApplied = false;
     while (replayInputIndex < replayPieceInputs.length && 
            replayPieceInputs[replayInputIndex].t <= replayElapsedTime) {
         const input = replayPieceInputs[replayInputIndex];
         
         // Apply the input's recorded position/rotation directly
-        if (input.x !== undefined) replayCurrentPiece.x = input.x;
+        if (input.x !== undefined) {
+            replayCurrentPiece.x = input.x;
+            inputsApplied = true;
+        }
         if (input.r !== undefined) {
             replayCurrentPiece.rotation = input.r;
             replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
+            inputsApplied = true;
         }
         
         // For hard drop, immediately set to target Y
@@ -14482,6 +14562,11 @@ function runReplay() {
         }
         
         replayInputIndex++;
+    }
+    
+    // Recalculate collision Y if inputs changed position/rotation
+    if (inputsApplied && replayCurrentPiece) {
+        replayCurrentPiece.collisionY = calculateReplayCollisionY(replayCurrentPiece);
     }
     
     // Animate Y position (falling) - interpolate between current position and where piece should be
@@ -14504,8 +14589,9 @@ function runReplay() {
         // (hardDrop sets Y immediately, don't override it)
         const lastProcessedInput = replayInputIndex > 0 ? replayPieceInputs[replayInputIndex - 1] : null;
         if (!lastProcessedInput || lastProcessedInput.type !== 'hardDrop') {
-            // Cap Y at target to prevent overshoot
-            replayCurrentPiece.y = Math.min(animatedY, replayCurrentPiece.targetY);
+            // Cap Y at both targetY and collisionY to prevent overlap with stack
+            const maxY = Math.min(replayCurrentPiece.targetY, replayCurrentPiece.collisionY || ROWS);
+            replayCurrentPiece.y = Math.min(animatedY, maxY);
         }
     }
     
@@ -14524,6 +14610,11 @@ function runReplay() {
     
     // Update storm particles for animation
     updateStormParticles();
+    
+    // Update special event animations (tsunami, black hole, volcano)
+    updateTsunamiAnimation();
+    updateBlackHoleAnimation();
+    updateVolcanoAnimation();
     
     // Render board
     drawBoard();
