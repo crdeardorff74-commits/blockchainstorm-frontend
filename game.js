@@ -12229,6 +12229,11 @@ function update(time = 0) {
         ctx.restore();
     }
 
+    // Capture frame for game recording (keyframes for replay)
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.captureFrame(board);
+    }
+
     gameLoop = requestAnimationFrame(update);
 }
 
@@ -14090,6 +14095,9 @@ let replayAnimationFrame = null;
 // Start game replay from recording
 window.startGameReplay = function(recording) {
     console.log('🎬 Starting replay:', recording.username, recording.difficulty, recording.skill_level);
+    console.log('🎬 Recording has:', 
+        (recording.recording_data?.keyframes?.length || 0), 'keyframes,',
+        (recording.recording_data?.moves?.length || 0), 'moves');
     
     replayData = recording;
     replayActive = true;
@@ -14264,50 +14272,68 @@ function runReplay() {
     if (!replayActive || replayPaused) return;
     
     const recData = replayData.recording_data;
-    if (!recData || !recData.moves) {
-        console.log('🎬 No moves in recording');
+    if (!recData) {
+        console.log('🎬 No recording data');
         stopReplay();
         return;
     }
     
-    const moves = recData.moves;
+    // Use keyframes for board state replay
+    const keyframes = recData.keyframes || [];
+    
+    if (keyframes.length === 0) {
+        console.log('🎬 No keyframes in recording (older recording format)');
+        alert('This recording does not contain replay data. Only new recordings support replay.');
+        stopReplay();
+        return;
+    }
     
     // Check if replay is complete
-    if (replayMoveIndex >= moves.length) {
+    if (replayMoveIndex >= keyframes.length) {
         console.log('🎬 Replay complete!');
         showReplayComplete();
         return;
     }
     
-    // Get current move
-    const move = moves[replayMoveIndex];
+    // Get current keyframe
+    const keyframe = keyframes[replayMoveIndex];
     
-    // Apply the move (simplified - just place the piece)
-    if (move.finalBoard) {
-        // Use the recorded board state
-        board = JSON.parse(JSON.stringify(move.finalBoard));
-    } else if (move.piece) {
-        // Place the piece manually
-        const piece = move.piece;
-        if (piece.shape) {
-            piece.shape.forEach((row, py) => {
-                row.forEach((val, px) => {
-                    if (val) {
-                        const boardY = piece.y + py;
-                        const boardX = piece.x + px;
-                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
-                            board[boardY][boardX] = { color: piece.color };
-                        }
-                    }
-                });
-            });
-        }
+    // Decompress and apply board state
+    // Clear board first
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    
+    // Apply compressed board data: [{x, y, c: {color: ...}}]
+    if (keyframe.board) {
+        keyframe.board.forEach(cell => {
+            if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+                board[cell.y][cell.x] = cell.c;
+            }
+        });
     }
     
-    // Update display
-    score = move.score || score;
-    lines = move.lines || lines;
-    level = move.level || level;
+    // Update stats from finalStats if available, or estimate from keyframe progress
+    const finalStats = recData.finalStats;
+    if (finalStats) {
+        const progress = replayMoveIndex / keyframes.length;
+        score = Math.floor((finalStats.score || 0) * progress);
+        lines = Math.floor((finalStats.lines || 0) * progress);
+        level = Math.max(1, Math.floor((finalStats.level || 1) * progress));
+        strikeCount = Math.floor((finalStats.strikes || 0) * progress);
+        tsunamiCount = Math.floor((finalStats.tsunamis || 0) * progress);
+        blackHoleCount = Math.floor((finalStats.blackHoles || 0) * progress);
+        volcanoCount = Math.floor((finalStats.volcanoes || 0) * progress);
+    }
+    
+    // At last keyframe, use exact final stats
+    if (replayMoveIndex === keyframes.length - 1 && finalStats) {
+        score = finalStats.score || 0;
+        lines = finalStats.lines || 0;
+        level = finalStats.level || 1;
+        strikeCount = finalStats.strikes || 0;
+        tsunamiCount = finalStats.tsunamis || 0;
+        blackHoleCount = finalStats.blackHoles || 0;
+        volcanoCount = finalStats.volcanoes || 0;
+    }
     
     // Render board
     drawBoard();
@@ -14325,8 +14351,14 @@ function runReplay() {
     
     replayMoveIndex++;
     
-    // Schedule next move
-    const delay = Math.max(50, 300 / replaySpeed);
+    // Schedule next keyframe - adjust delay based on timestamp difference
+    let delay = 100; // Default delay
+    if (replayMoveIndex < keyframes.length) {
+        const nextKeyframe = keyframes[replayMoveIndex];
+        const timeDiff = nextKeyframe.t - keyframe.t;
+        delay = Math.max(30, timeDiff / replaySpeed);
+    }
+    
     setTimeout(() => {
         replayAnimationFrame = requestAnimationFrame(runReplay);
     }, delay);
