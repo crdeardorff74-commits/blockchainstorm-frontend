@@ -11924,14 +11924,17 @@ function startAIAutoRestartTimer() {
         
         console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
         
-        // Set the skill level globally
+        // Set the skill level globally (both local var and window for AI player)
         skillLevel = randomSkill;
+        window.skillLevel = randomSkill;
         
-        // Update the skill level UI if present
+        // Update all skill level UI selects
         const skillLevelSelect = document.getElementById('skillLevelSelect');
-        if (skillLevelSelect) {
-            skillLevelSelect.value = randomSkill;
-        }
+        const introSkillLevelSelect = document.getElementById('introSkillLevelSelect');
+        const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
+        if (skillLevelSelect) skillLevelSelect.value = randomSkill;
+        if (introSkillLevelSelect) introSkillLevelSelect.value = randomSkill;
+        if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = randomSkill;
         
         // Update special events display for new skill level
         updateSpecialEventsDisplay(randomSkill);
