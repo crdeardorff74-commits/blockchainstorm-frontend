@@ -12902,6 +12902,7 @@ if (rulesPanelViewSelect) {
         const view = rulesPanelViewSelect.value;
         const rulesInstructions = document.querySelector('.rules-instructions');
         const leaderboardContent = document.getElementById('leaderboardContent');
+        const panelTitle = document.getElementById('rulesPanelTitle');
         
         if (view === 'leaderboard') {
             // Show leaderboard, hide rules
@@ -12914,6 +12915,8 @@ if (rulesPanelViewSelect) {
             // Show rules, hide leaderboard
             if (leaderboardContent) leaderboardContent.style.display = 'none';
             if (rulesInstructions) rulesInstructions.style.display = 'block';
+            // Restore title
+            if (panelTitle) panelTitle.textContent = 'How to Play';
         }
     });
 }
@@ -13929,7 +13932,15 @@ if (startOverlay) {
         skillLevelSelect.addEventListener('change', () => setSkillLevel(skillLevelSelect.value));
     }
     if (rulesSkillLevelSelect) {
-        rulesSkillLevelSelect.addEventListener('change', () => setSkillLevel(rulesSkillLevelSelect.value));
+        rulesSkillLevelSelect.addEventListener('change', () => {
+            setSkillLevel(rulesSkillLevelSelect.value);
+            // If leaderboard is visible, refresh it with new skill level
+            const leaderboardContent = document.getElementById('leaderboardContent');
+            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), rulesSkillLevelSelect.value);
+            }
+        });
     }
     
     // Initialize with default skill level

@@ -173,6 +173,12 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     const modeLabel = mode === 'challenge' ? ' (Challenge)' : (mode === 'ai' ? ' (AI)' : (mode === 'ai-challenge' ? ' (AI Challenge)' : ''));
     const skillLabel = skillLevel === 'maelstrom' ? ' 🌀' : (skillLevel === 'breeze' ? ' 🌤️' : ' 🌪️');
     
+    // Update the panel title to show leaderboard info
+    const panelTitle = document.getElementById('rulesPanelTitle');
+    if (panelTitle) {
+        panelTitle.textContent = `${getModeDisplayName(difficulty)}${modeLabel}`;
+    }
+    
     leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
             Loading ${difficulty}${modeLabel} leaderboard...
@@ -193,29 +199,12 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     if (scores.length === 0) {
         leaderboardContent.innerHTML = `
-            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh;">
-                <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-                <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.2vh;">
-                    <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
-                    <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
-                    <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
-                </select>
-            </div>
             <div class="leaderboard-loading">No scores yet. Be the first!</div>
         `;
-        attachLeaderboardSkillListener(difficulty, mode);
         return;
     }
     
     let html = `
-        <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh;">
-            <div class="leaderboard-title" style="margin-bottom: 0;">${getModeDisplayName(difficulty)}${modeLabel}</div>
-            <select id="leaderboardSkillSelect" style="padding: 0.3vh 0.5vw; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 1.2vh;">
-                <option value="breeze" ${skillLevel === 'breeze' ? 'selected' : ''}>🌤️ Breeze</option>
-                <option value="tempest" ${skillLevel === 'tempest' ? 'selected' : ''}>🌪️ Tempest</option>
-                <option value="maelstrom" ${skillLevel === 'maelstrom' ? 'selected' : ''}>🌀 Maelstrom</option>
-            </select>
-        </div>
         <table class="leaderboard-table">
             <thead>
                 <tr>
@@ -289,7 +278,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     leaderboardContent.innerHTML = html;
-    attachLeaderboardSkillListener(difficulty, mode);
     attachReplayButtonListeners();
 }
 
@@ -351,6 +339,7 @@ function hideLeaderboard() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     const rulesInstructions = document.querySelector('.rules-instructions');
     const viewSelect = document.getElementById('rulesPanelViewSelect');
+    const panelTitle = document.getElementById('rulesPanelTitle');
     
     if (leaderboardContent) {
         leaderboardContent.style.display = 'none';
@@ -363,6 +352,11 @@ function hideLeaderboard() {
     // Reset the view dropdown to "How to Play"
     if (viewSelect) {
         viewSelect.value = 'rules';
+    }
+    
+    // Restore the title
+    if (panelTitle) {
+        panelTitle.textContent = 'How to Play';
     }
     
     currentLeaderboardMode = null;
