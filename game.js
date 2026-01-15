@@ -7264,10 +7264,11 @@ function drawBoard() {
     const fallingBlockSet = new Set();
     if (gravityAnimating) {
         if (replayActive) {
-            // During replay, only skip START positions (from replayAnimatingCells)
-            // The board shows the pre-gravity state, we animate blocks falling from there
-            replayAnimatingCells.forEach(cell => {
-                fallingBlockSet.add(cell);
+            // During replay, skip BOTH start AND end positions
+            // Keyframes may show post-gravity state, so we need to hide destinations too
+            fallingBlocks.forEach(fb => {
+                fallingBlockSet.add(`${fb.x},${fb.startY}`);  // Hide start position
+                fallingBlockSet.add(`${fb.x},${fb.targetY}`); // Hide end position (keyframe may show it)
             });
         } else {
             // During normal gameplay, skip target positions (blocks cleared from board already)
@@ -10473,6 +10474,7 @@ function updateFallingBlocks() {
             gravityAnimating = false;
             fallingBlocks = [];
             replayAnimatingCells = new Set(); // Clear the animated cells set
+            replayGravityBoardLocked = false; // Unlock board for keyframe updates
             return;
         }
         
@@ -14184,6 +14186,7 @@ window.startGameReplay = function(recording) {
     replayEventIndex = 0;
     replayGameEventIndex = 0;
     replayAnimatingCells = new Set();
+    replayGravityBoardLocked = false;
     replayLastKeyframeTime = -1;
     
     // Hide any existing overlays/menus
@@ -14332,6 +14335,7 @@ function stopReplay() {
     replayEventIndex = 0;
     replayGameEventIndex = 0;
     replayAnimatingCells = new Set();
+    replayGravityBoardLocked = false;
     replayLastKeyframeTime = -1;
     
     // Cancel any active special event animations
@@ -14395,6 +14399,7 @@ let replayEventIndex = 0; // Current special event index (tsunamis, black holes,
 let replayGameEventIndex = 0; // Current game event index (line clears, strikes)
 let replayAnimatingCells = new Set(); // Cells being animated (don't draw from board)
 let replayLastKeyframeTime = -1; // Timestamp of last applied keyframe
+let replayGravityBoardLocked = false; // Lock board state during gravity animation
 
 function runReplay() {
     if (!replayActive || replayPaused) return;
@@ -14808,6 +14813,9 @@ function calculateReplayCollisionY(piece) {
  */
 function triggerReplayGravity(blobs) {
     if (!blobs || blobs.length === 0) return;
+    
+    // Lock the board state - prevent keyframe updates during gravity animation
+    replayGravityBoardLocked = true;
     
     // Track which cells are being animated so we skip drawing them from the board
     // ONLY track START positions - the end positions may have other blocks already there
