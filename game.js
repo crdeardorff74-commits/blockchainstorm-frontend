@@ -12903,6 +12903,7 @@ if (rulesPanelViewSelect) {
         const rulesInstructions = document.querySelector('.rules-instructions');
         const leaderboardContent = document.getElementById('leaderboardContent');
         const panelTitle = document.getElementById('rulesPanelTitle');
+        const skillLevelLabel = document.getElementById('skillLevelLabel');
         
         if (view === 'leaderboard') {
             // Show leaderboard, hide rules
@@ -12915,8 +12916,9 @@ if (rulesPanelViewSelect) {
             // Show rules, hide leaderboard
             if (leaderboardContent) leaderboardContent.style.display = 'none';
             if (rulesInstructions) rulesInstructions.style.display = 'block';
-            // Restore title
-            if (panelTitle) panelTitle.textContent = 'How to Play';
+            // Hide title and show skill label
+            if (panelTitle) panelTitle.style.display = 'none';
+            if (skillLevelLabel) skillLevelLabel.style.display = 'inline';
         }
     });
 }

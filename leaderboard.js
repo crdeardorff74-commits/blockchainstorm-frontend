@@ -173,10 +173,15 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     const modeLabel = mode === 'challenge' ? ' (Challenge)' : (mode === 'ai' ? ' (AI)' : (mode === 'ai-challenge' ? ' (AI Challenge)' : ''));
     const skillLabel = skillLevel === 'maelstrom' ? ' 🌀' : (skillLevel === 'breeze' ? ' 🌤️' : ' 🌪️');
     
-    // Update the panel title to show leaderboard info
+    // Update the panel title to show leaderboard info and hide skill label
     const panelTitle = document.getElementById('rulesPanelTitle');
+    const skillLevelLabel = document.getElementById('skillLevelLabel');
     if (panelTitle) {
         panelTitle.textContent = `${getModeDisplayName(difficulty)}${modeLabel}`;
+        panelTitle.style.display = 'block';
+    }
+    if (skillLevelLabel) {
+        skillLevelLabel.style.display = 'none';
     }
     
     leaderboardContent.innerHTML = `
@@ -281,18 +286,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     attachReplayButtonListeners();
 }
 
-// Attach change listener to leaderboard skill selector
-function attachLeaderboardSkillListener(difficulty, mode) {
-    const select = document.getElementById('leaderboardSkillSelect');
-    if (select) {
-        select.addEventListener('change', () => {
-            const newSkill = select.value;
-            currentLeaderboardSkillLevel = newSkill;
-            displayLeaderboard(difficulty, lastPlayerScore, mode, newSkill);
-        });
-    }
-}
-
 // Attach click listeners to replay buttons
 function attachReplayButtonListeners() {
     const replayBtns = document.querySelectorAll('.replay-btn');
@@ -340,6 +333,7 @@ function hideLeaderboard() {
     const rulesInstructions = document.querySelector('.rules-instructions');
     const viewSelect = document.getElementById('rulesPanelViewSelect');
     const panelTitle = document.getElementById('rulesPanelTitle');
+    const skillLevelLabel = document.getElementById('skillLevelLabel');
     
     if (leaderboardContent) {
         leaderboardContent.style.display = 'none';
@@ -354,9 +348,12 @@ function hideLeaderboard() {
         viewSelect.value = 'rules';
     }
     
-    // Restore the title
+    // Hide the title and show skill label
     if (panelTitle) {
-        panelTitle.textContent = 'How to Play';
+        panelTitle.style.display = 'none';
+    }
+    if (skillLevelLabel) {
+        skillLevelLabel.style.display = 'inline';
     }
     
     currentLeaderboardMode = null;

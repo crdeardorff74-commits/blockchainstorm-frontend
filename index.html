@@ -2553,16 +2553,19 @@
         <div class="game-container">
         <div class="rules-panel">
             <div class="rules-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1vh; padding-bottom: 0.8vh; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <div id="rulesPanelTitle" class="rules-title" style="margin: 0; font-size: 1.4vh;">How to Play</div>
-                <select id="rulesSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 1.2vh;">
-                    <option value="breeze">Breeze</option>
-                    <option value="tempest" selected>Tempest</option>
-                    <option value="maelstrom">Maelstrom</option>
-                </select>
                 <select id="rulesPanelViewSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 1.2vh;">
                     <option value="rules" selected>📖 How to Play</option>
                     <option value="leaderboard">🏆 Leaderboards</option>
                 </select>
+                <div id="rulesPanelTitle" style="font-size: 1.4vh; color: #fff; display: none;"></div>
+                <div style="display: flex; align-items: center; gap: 0.5vw;">
+                    <span id="skillLevelLabel" style="font-size: 1.1vh; color: #888;">Skill Level:</span>
+                    <select id="rulesSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 1.2vh;">
+                        <option value="breeze">Breeze</option>
+                        <option value="tempest" selected>Tempest</option>
+                        <option value="maelstrom">Maelstrom</option>
+                    </select>
+                </div>
             </div>
             <div class="rules-instructions">
                 
