@@ -13000,6 +13000,10 @@ settingsOverlay.addEventListener('click', (e) => {
 
 opacitySlider.addEventListener('input', (e) => {
     faceOpacity = parseFloat(e.target.value) / 100; // Convert 0-100 to 0-1
+    const opacityDisplay = document.getElementById('opacityDisplay');
+    if (opacityDisplay) {
+        opacityDisplay.textContent = `${e.target.value}%`;
+    }
 });
 
 cameraOrientationToggle.addEventListener('change', (e) => {
