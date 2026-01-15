@@ -1,6 +1,6 @@
 /**
  * Settings Sync for BLOCKCHaiNSTORM
- * Saves and restores game settings for logged-in users
+ * Saves and restores game settings locally and syncs to server for logged-in users
  */
 
 // Check for token in URL (passed from main site) and store it
@@ -22,6 +22,7 @@
 const SettingsSync = {
     API_URL: 'https://official-intelligence-api.onrender.com',
     GAME_NAME: 'blockchainstorm',
+    LOCAL_STORAGE_KEY: 'blockchainstorm_settings',
     
     // Debounce timer for saving
     saveTimeout: null,
@@ -48,6 +49,35 @@ const SettingsSync = {
     },
     
     /**
+     * Save settings to localStorage (always available, no login required)
+     */
+    saveToLocalStorage(settings) {
+        try {
+            localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(settings));
+            console.log('⚙️ Settings saved to localStorage');
+        } catch (error) {
+            console.error('⚙️ Failed to save to localStorage:', error);
+        }
+    },
+    
+    /**
+     * Load settings from localStorage
+     */
+    loadFromLocalStorage() {
+        try {
+            const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
+            if (stored) {
+                const settings = JSON.parse(stored);
+                console.log('⚙️ Loaded settings from localStorage:', settings);
+                return settings;
+            }
+        } catch (error) {
+            console.error('⚙️ Failed to load from localStorage:', error);
+        }
+        return null;
+    },
+    
+    /**
      * Get current settings from UI elements
      */
     getCurrentSettings() {
@@ -58,7 +88,8 @@ const SettingsSync = {
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle'
+            'vibrationToggle',
+            'aiModeToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -80,10 +111,11 @@ const SettingsSync = {
             }
         });
         
-        // Sliders
+        // Sliders (static elements)
         const sliders = [
             'opacitySlider',
-            'starSpeedSlider'
+            'starSpeedSlider',
+            'aiSpeedSlider'
         ];
         
         sliders.forEach(id => {
@@ -92,6 +124,23 @@ const SettingsSync = {
                 settings[id] = parseFloat(elem.value);
             }
         });
+        
+        // Dynamic volume sliders (created by game.js)
+        const volumeSliders = [
+            'musicVolumeSlider',
+            'sfxVolumeSlider'
+        ];
+        
+        volumeSliders.forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) {
+                settings[id] = parseFloat(elem.value);
+            }
+        });
+        
+        // Audio mute states from localStorage (managed by audio.js)
+        settings.musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
+        settings.sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
         
         // Controls configuration
         if (typeof ControlsConfig !== 'undefined' && ControlsConfig.getBindings) {
@@ -117,7 +166,8 @@ const SettingsSync = {
             'stormEffectsToggle', 
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle'
+            'vibrationToggle',
+            'aiModeToggle'
         ];
         
         checkboxes.forEach(id => {
@@ -148,10 +198,11 @@ const SettingsSync = {
             }
         });
         
-        // Apply sliders
+        // Apply sliders (static elements)
         const sliders = [
             'opacitySlider',
-            'starSpeedSlider'
+            'starSpeedSlider',
+            'aiSpeedSlider'
         ];
         
         sliders.forEach(id => {
@@ -159,6 +210,35 @@ const SettingsSync = {
             if (elem && settings[id] !== undefined) {
                 elem.value = settings[id];
                 // Trigger input event so game code responds
+                elem.dispatchEvent(new Event('input'));
+            }
+        });
+        
+        // Apply volume settings via audio.js localStorage keys
+        // These will be picked up when volume controls are created
+        if (settings.musicVolumeSlider !== undefined) {
+            localStorage.setItem('blockchainstorm_musicVolume', (settings.musicVolumeSlider / 100).toString());
+        }
+        if (settings.sfxVolumeSlider !== undefined) {
+            localStorage.setItem('blockchainstorm_sfxVolume', (settings.sfxVolumeSlider / 100).toString());
+        }
+        if (settings.musicMuted !== undefined) {
+            localStorage.setItem('blockchainstorm_musicMuted', settings.musicMuted.toString());
+        }
+        if (settings.sfxMuted !== undefined) {
+            localStorage.setItem('blockchainstorm_sfxMuted', settings.sfxMuted.toString());
+        }
+        
+        // Apply to dynamic volume sliders if they already exist
+        const volumeSliders = [
+            'musicVolumeSlider',
+            'sfxVolumeSlider'
+        ];
+        
+        volumeSliders.forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem && settings[id] !== undefined) {
+                elem.value = settings[id];
                 elem.dispatchEvent(new Event('input'));
             }
         });
@@ -217,13 +297,9 @@ const SettingsSync = {
     },
     
     /**
-     * Save settings to server (debounced)
+     * Save settings (debounced) - always saves to localStorage, also to server if logged in
      */
     saveSettings() {
-        if (!this.isLoggedIn()) {
-            return;
-        }
-        
         // Debounce - wait 500ms after last change before saving
         if (this.saveTimeout) {
             clearTimeout(this.saveTimeout);
@@ -239,6 +315,15 @@ const SettingsSync = {
      */
     async _doSave() {
         const settings = this.getCurrentSettings();
+        
+        // Always save to localStorage (works for all users)
+        this.saveToLocalStorage(settings);
+        
+        // Also save to server if logged in
+        if (!this.isLoggedIn()) {
+            return;
+        }
+        
         const url = `${this.API_URL}/settings/${this.GAME_NAME}`;
         
         try {
@@ -263,7 +348,7 @@ const SettingsSync = {
             console.log('⚙️ Settings saved to server');
             
         } catch (error) {
-            console.error('⚙️ Failed to save settings:', error);
+            console.error('⚙️ Failed to save settings to server:', error);
         }
     },
     
@@ -276,11 +361,19 @@ const SettingsSync = {
         console.log('⚙️ Token exists:', !!token);
         console.log('⚙️ Logged in:', this.isLoggedIn());
         
-        // Load settings if logged in
+        // First, load settings from localStorage (available for all users)
+        const localSettings = this.loadFromLocalStorage();
+        if (localSettings) {
+            this.applySettings(localSettings);
+        }
+        
+        // If logged in, also load from server (server settings take precedence)
         if (this.isLoggedIn()) {
-            const savedSettings = await this.loadSettings();
-            if (savedSettings) {
-                this.applySettings(savedSettings);
+            const serverSettings = await this.loadSettings();
+            if (serverSettings && Object.keys(serverSettings).length > 0) {
+                this.applySettings(serverSettings);
+                // Also update localStorage with server settings
+                this.saveToLocalStorage(serverSettings);
             }
         }
         
@@ -298,7 +391,8 @@ const SettingsSync = {
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle'
+            'vibrationToggle',
+            'aiModeToggle'
         ];
         
         let attachedCount = 0;
@@ -336,7 +430,8 @@ const SettingsSync = {
         
         const sliders = [
             'opacitySlider',
-            'starSpeedSlider'
+            'starSpeedSlider',
+            'aiSpeedSlider'
         ];
         
         sliders.forEach(id => {
@@ -353,6 +448,51 @@ const SettingsSync = {
         });
         
         console.log(`⚙️ Attached listeners to ${attachedCount} settings elements`);
+        
+        // Set up observer for dynamic volume controls (created by game.js)
+        this.observeVolumeControls();
+    },
+    
+    /**
+     * Watch for dynamically created volume controls
+     */
+    observeVolumeControls() {
+        const checkAndAttach = () => {
+            const volumeElements = [
+                'musicVolumeSlider',
+                'sfxVolumeSlider',
+                'musicMuteBtn',
+                'sfxMuteBtn'
+            ];
+            
+            volumeElements.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem && !elem.hasAttribute('data-sync-attached')) {
+                    elem.setAttribute('data-sync-attached', 'true');
+                    elem.addEventListener('change', () => {
+                        console.log(`⚙️ Volume setting changed: ${id}`);
+                        this.saveSettings();
+                    });
+                    // Also listen for input for real-time slider changes
+                    if (id.includes('Slider')) {
+                        elem.addEventListener('input', () => {
+                            this.saveSettings();
+                        });
+                    }
+                    console.log(`⚙️ Attached listener to dynamic element: ${id}`);
+                }
+            });
+        };
+        
+        // Check immediately
+        checkAndAttach();
+        
+        // Also observe DOM for when controls are created
+        const observer = new MutationObserver(() => {
+            checkAndAttach();
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 };
 
