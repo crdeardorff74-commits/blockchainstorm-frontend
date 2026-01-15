@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.9 loaded");
+console.log("🎮 Game v3.10 loaded - AI shadow evaluation for human game recordings");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
@@ -11303,12 +11303,55 @@ function dropPiece() {
         playSoundEffect('drop', soundToggle);
         
         // Record human move before merging (captures final position)
+        // For human games, also get AI shadow evaluation for comparison
         if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             const moveData = {
                 hardDrop: hardDropping,
                 thinkTime: pieceSpawnTime ? Date.now() - pieceSpawnTime : 0
             };
-            GameRecorder.recordMove(currentPiece, board, moveData);
+            
+            // Get AI shadow evaluation (what AI would have done)
+            if (typeof AIPlayer !== 'undefined' && AIPlayer.shadowEvaluate) {
+                // Capture current state for async callback
+                const pieceSnapshot = {
+                    x: currentPiece.x,
+                    y: currentPiece.y,
+                    rotationIndex: currentPiece.rotationIndex || 0,
+                    color: currentPiece.color,
+                    type: currentPiece.type,
+                    shape: currentPiece.shape
+                };
+                const boardSnapshot = board.map(row => row ? [...row] : null);
+                
+                AIPlayer.shadowEvaluate(boardSnapshot, pieceSnapshot, nextPieceQueue, COLS, ROWS)
+                    .then(aiShadow => {
+                        GameRecorder.recordMove(pieceSnapshot, boardSnapshot, moveData, aiShadow);
+                    })
+                    .catch(() => {
+                        // If shadow eval fails, record without it
+                        GameRecorder.recordMove(pieceSnapshot, boardSnapshot, moveData, null);
+                    });
+            } else {
+                // No AI available, record without shadow
+                GameRecorder.recordMove(currentPiece, board, moveData, null);
+            }
+        }
+        
+        // Record AI move with decision metadata (for AI games using GameRecorder)
+        if (aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            const moveData = {
+                hardDrop: true, // AI always hard drops
+                thinkTime: pieceSpawnTime ? Date.now() - pieceSpawnTime : 0
+            };
+            
+            // Get the decision metadata from the last AI calculation
+            const decisionMeta = typeof AIPlayer !== 'undefined' ? AIPlayer.getLastDecisionMeta() : null;
+            
+            // Record move and decision metadata
+            GameRecorder.recordMove(currentPiece, board, moveData, null);
+            if (decisionMeta) {
+                GameRecorder.recordAIDecision(decisionMeta);
+            }
         }
         
         mergePiece();
@@ -11533,47 +11576,15 @@ async function gameOver() {
     
     // Stop AI recording and offer download + submit to server
     if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.isRecording && AIPlayer.isRecording()) {
-        const recording = await AIPlayer.stopRecording(board, 'game_over');
-        if (recording && recording.decisions && recording.decisions.length > 0) {
-            console.log(`🎬 AI Recording complete: ${recording.decisions.length} decisions recorded`);
-            
-            // Also submit to server (if GameRecorder is available and score > 0)
-            if (typeof GameRecorder !== 'undefined' && GameRecorder.submitRecording && score > 0) {
-                const aiRecordingData = {
-                    moves: recording.decisions,
-                    startTime: recording.startTime,
-                    endTime: recording.endTime,
-                    metadata: recording.metadata,
-                    finalState: recording.finalState
-                };
-                GameRecorder.submitRecording(aiRecordingData, {
-                    username: 'AI-' + (recording.metadata?.skillLevel || 'tempest'),
-                    game: 'blockchainstorm',
-                    playerType: 'ai',
-                    difficulty: recording.metadata?.difficulty || gameMode,
-                    skillLevel: recording.metadata?.skillLevel || skillLevel,
-                    mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
-                    challenges: Array.from(activeChallenges),
-                    speedBonus: speedBonusAverage,
-                    score: score,
-                    lines: lines,
-                    level: level,
-                    strikes: strikeCount,
-                    tsunamis: tsunamiCount,
-                    blackholes: blackHoleCount,
-                    volcanoes: volcanoCount,
-                    durationSeconds: recording.metadata?.durationSeconds || 0,
-                    endCause: 'game_over',
-                    debugLog: logQueue.join('\n')
-                });
-                console.log('📤 AI Recording submitted to server');
-            }
+        const aiPlayerRecording = await AIPlayer.stopRecording(board, 'game_over');
+        if (aiPlayerRecording && aiPlayerRecording.decisions && aiPlayerRecording.decisions.length > 0) {
+            console.log(`🎬 AIPlayer Recording complete: ${aiPlayerRecording.decisions.length} decisions recorded`);
         }
     }
     
-    // Stop human recording - store for later submission with entered username
+    // Stop GameRecorder (unified recording for both human and AI games)
     let pendingRecording = null;
-    if (!aiModeEnabled && typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+    if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
         const finalStats = {
             score: score,
             lines: lines,
@@ -11587,13 +11598,19 @@ async function gameOver() {
         };
         const recording = GameRecorder.stopRecording(finalStats);
         if (recording && recording.moves && recording.moves.length > 0 && score > 0) {
-            console.log(`📹 Human Recording complete: ${recording.moves.length} moves recorded`);
-            // Store recording data for submission after name entry
-            pendingRecording = {
-                recording: recording,
-                gameData: {
+            const playerTypeLabel = aiModeEnabled ? 'AI' : 'Human';
+            const shadowInfo = recording.finalStats?.humanVsAI ? 
+                ` (${recording.finalStats.humanVsAI.matchRate}% AI match)` : '';
+            const aiDecisionInfo = recording.aiDecisions?.length ? 
+                `, ${recording.aiDecisions.length} AI decisions` : '';
+            console.log(`📹 ${playerTypeLabel} Recording complete: ${recording.moves.length} moves${aiDecisionInfo}${shadowInfo}`);
+            
+            if (aiModeEnabled) {
+                // AI games: submit immediately with auto-generated username
+                GameRecorder.submitRecording(recording, {
+                    username: 'AI-' + skillLevel,
                     game: 'blockchainstorm',
-                    playerType: 'human',
+                    playerType: 'ai',
                     difficulty: gameMode,
                     skillLevel: skillLevel,
                     mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
@@ -11606,11 +11623,37 @@ async function gameOver() {
                     tsunamis: tsunamiCount,
                     blackholes: blackHoleCount,
                     volcanoes: volcanoCount,
+                    durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
                     endCause: 'game_over',
                     debugLog: logQueue.join('\n')
-                }
-            };
-            window.pendingGameRecording = pendingRecording;
+                });
+                console.log('📤 AI Recording submitted to server');
+            } else {
+                // Human games: Store recording data for submission after name entry
+                pendingRecording = {
+                    recording: recording,
+                    gameData: {
+                        game: 'blockchainstorm',
+                        playerType: 'human',
+                        difficulty: gameMode,
+                        skillLevel: skillLevel,
+                        mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
+                        challenges: Array.from(activeChallenges),
+                        speedBonus: speedBonusAverage,
+                        score: score,
+                        lines: lines,
+                        level: level,
+                        strikes: strikeCount,
+                        tsunamis: tsunamiCount,
+                        blackholes: blackHoleCount,
+                        volcanoes: volcanoCount,
+                        durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
+                        endCause: 'game_over',
+                        debugLog: logQueue.join('\n')
+                    }
+                };
+                window.pendingGameRecording = pendingRecording;
+            }
         }
     }
     
@@ -12196,6 +12239,9 @@ function startGame(mode) {
     // Reset AI player state
     if (typeof AIPlayer !== 'undefined') {
         AIPlayer.reset();
+        // Initialize AI worker even for human games (needed for shadow evaluation)
+        AIPlayer.init();
+        AIPlayer.setSkillLevel(skillLevel);
         
         // Start recording if AI mode is enabled
         if (aiModeEnabled && AIPlayer.startRecording) {
@@ -12203,10 +12249,11 @@ function startGame(mode) {
         }
     }
     
-    // Start human game recording (when not in AI mode)
-    if (!aiModeEnabled && typeof GameRecorder !== 'undefined') {
+    // Start game recording (for both human and AI games via GameRecorder)
+    if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.9',
+            gameVersion: '3.10',
+            playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
             mode: challengeMode !== 'normal' ? 'challenge' : 'normal',

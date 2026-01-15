@@ -2,9 +2,9 @@
  * Game Recorder Module for TaNTЯiS / BLOCKCHaiNSTORM
  * Records human gameplay for analysis and playback
  * Similar structure to AI recording but captures human decisions
- * v1.2: Added AI decision metadata recording
+ * v1.3: Added AI shadow mode - records what AI would do during human games
  */
-console.log("📹 Game Recorder v1.2 loaded - AI decision metadata support");
+console.log("📹 Game Recorder v1.3 loaded - AI shadow mode for human vs AI comparison");
 
 const GameRecorder = (() => {
     const API_URL = 'https://blockchainstorm.onrender.com/api';
@@ -72,8 +72,9 @@ const GameRecorder = (() => {
     
     /**
      * Record a piece placement
+     * For human games, aiShadow contains what the AI would have done
      */
-    function recordMove(piece, board, moveData = {}) {
+    function recordMove(piece, board, moveData = {}, aiShadow = null) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
@@ -94,6 +95,33 @@ const GameRecorder = (() => {
         if (moveData.rotations) pieceData.rots = moveData.rotations;
         if (moveData.lateralMoves) pieceData.lat = moveData.lateralMoves;
         if (moveData.thinkTime) pieceData.tt = moveData.thinkTime;
+        
+        // Add AI shadow evaluation if provided (what AI would have done)
+        if (aiShadow) {
+            pieceData.aiWouldDo = {
+                x: aiShadow.chosen?.x,
+                y: aiShadow.chosen?.y,
+                rot: aiShadow.chosen?.rotation,
+                score: aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore,
+                class: aiShadow.chosen?.classification,
+                // Did human match AI recommendation?
+                match: (piece.x === aiShadow.chosen?.x && 
+                       (piece.rotationIndex || 0) === aiShadow.chosen?.rotation)
+            };
+            
+            // Calculate how the AI would have scored the human's actual move
+            // This requires finding it in the alternatives
+            if (aiShadow.alternatives) {
+                const humanChoice = aiShadow.alternatives.find(alt => 
+                    alt.x === piece.x && alt.rotation === (piece.rotationIndex || 0)
+                );
+                if (humanChoice) {
+                    pieceData.humanScore = humanChoice.combinedScore || humanChoice.immediateScore;
+                    pieceData.scoreDiff = (aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore) - 
+                                         (humanChoice.combinedScore || humanChoice.immediateScore);
+                }
+            }
+        }
         
         recording.moves.push(pieceData);
     }
@@ -285,6 +313,31 @@ const GameRecorder = (() => {
         
         isRecording = false;
         
+        // Calculate human vs AI comparison stats if shadow data exists
+        let humanVsAI = null;
+        const movesWithShadow = recording.moves.filter(m => m.aiWouldDo);
+        if (movesWithShadow.length > 0) {
+            const matches = movesWithShadow.filter(m => m.aiWouldDo.match).length;
+            const scoreDiffs = movesWithShadow.filter(m => m.scoreDiff !== undefined).map(m => m.scoreDiff);
+            const avgDiff = scoreDiffs.length > 0 ? 
+                scoreDiffs.reduce((a, b) => a + b, 0) / scoreDiffs.length : 0;
+            
+            // Classify moves: human better (negative diff), AI better (positive diff), same
+            const humanBetter = scoreDiffs.filter(d => d < -5).length;
+            const aiBetter = scoreDiffs.filter(d => d > 5).length;
+            const similar = scoreDiffs.length - humanBetter - aiBetter;
+            
+            humanVsAI = {
+                totalCompared: movesWithShadow.length,
+                exactMatches: matches,
+                matchRate: Math.round(matches / movesWithShadow.length * 100),
+                avgScoreDiff: Math.round(avgDiff * 100) / 100,
+                humanBetterCount: humanBetter,
+                aiBetterCount: aiBetter,
+                similarCount: similar
+            };
+        }
+        
         recording.finalStats = {
             score: finalStats.score || 0,
             lines: finalStats.lines || 0,
@@ -298,7 +351,8 @@ const GameRecorder = (() => {
             totalPieces: recording.pieces.length,
             totalRandomEvents: recording.randomEvents.length,
             totalAIDecisions: recording.aiDecisions?.length || 0,
-            endCause: finalStats.endCause || 'game_over'
+            endCause: finalStats.endCause || 'game_over',
+            humanVsAI: humanVsAI
         };
         
         // Add final board state
@@ -306,7 +360,8 @@ const GameRecorder = (() => {
             recording.finalBoard = compressBoard(finalStats.board);
         }
         
-        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.aiDecisions?.length || 0} AI decisions, ${recording.pieces.length} pieces`);
+        const shadowInfo = humanVsAI ? `, ${humanVsAI.matchRate}% AI match rate` : '';
+        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.aiDecisions?.length || 0} AI decisions, ${recording.pieces.length} pieces${shadowInfo}`);
         
         const result = recording;
         recording = null;

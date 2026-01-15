@@ -1209,6 +1209,22 @@ self.onmessage = function(e) {
         return;
     }
     
+    // Shadow evaluation - calculate what AI would do without recording or executing
+    if (command === 'shadowEvaluate') {
+        currentSkillLevel = skillLevel || 'tempest';
+        pieceQueue = queue || [];
+        currentUfoActive = ufoActive || false;
+        
+        setTimeout(() => {
+            const result = findBestPlacement(board, piece, cols, rows, pieceQueue, true);
+            self.postMessage({ 
+                shadowResponse: true,
+                decisionMeta: result ? result.decisionMeta : null
+            });
+        }, 0);
+        return;
+    }
+    
     currentSkillLevel = skillLevel || 'tempest';
     pieceQueue = queue || [];
     currentUfoActive = ufoActive || false;

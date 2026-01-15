@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.13 loaded - decision metadata recording support");
+console.log("🎮 AI Player v3.14 loaded - shadow evaluation for human game analysis");
 
 const AIPlayer = (() => {
     // Configuration
@@ -890,6 +890,66 @@ const AIPlayer = (() => {
         lastDecisionMeta = null;
     }
     
+    // ==================== SHADOW MODE (for human game analysis) ====================
+    
+    let shadowCallback = null;
+    
+    /**
+     * Calculate what the AI would do without executing moves
+     * Used during human gameplay to compare decisions
+     * Returns promise that resolves with decision metadata
+     */
+    function shadowEvaluate(board, piece, queue, cols, rows) {
+        return new Promise((resolve) => {
+            if (!worker || !workerReady) {
+                // No worker available - can't shadow evaluate
+                resolve(null);
+                return;
+            }
+            
+            // Update skill level from global if available
+            if (typeof window !== 'undefined' && window.skillLevel) {
+                currentSkillLevel = window.skillLevel;
+            }
+            
+            // Generate all rotations for this piece
+            const rotations = fallbackGetAllRotations(piece.shape);
+            
+            // Set up one-time handler for shadow response
+            const shadowHandler = function(e) {
+                if (e.data.shadowResponse) {
+                    worker.removeEventListener('message', shadowHandler);
+                    resolve(e.data.decisionMeta);
+                }
+            };
+            worker.addEventListener('message', shadowHandler);
+            
+            // Send shadow evaluation request
+            worker.postMessage({
+                command: 'shadowEvaluate',
+                board: board,
+                piece: {
+                    shape: piece.shape,
+                    color: piece.color,
+                    rotations: rotations,
+                    x: piece.x,
+                    y: piece.y
+                },
+                queue: queue.map(p => p ? { shape: p.shape, color: p.color, rotations: fallbackGetAllRotations(p.shape) } : null).filter(Boolean),
+                cols: cols,
+                rows: rows,
+                skillLevel: currentSkillLevel,
+                ufoActive: currentUfoActive
+            });
+            
+            // Timeout fallback
+            setTimeout(() => {
+                worker.removeEventListener('message', shadowHandler);
+                resolve(null);
+            }, 500);
+        });
+    }
+    
     return {
         init,
         setEnabled,
@@ -910,7 +970,9 @@ const AIPlayer = (() => {
         isRecording,
         getRecording,
         getLastDecisionMeta,
-        clearLastDecisionMeta
+        clearLastDecisionMeta,
+        // Shadow mode for human game analysis
+        shadowEvaluate
     };
 })();
 
