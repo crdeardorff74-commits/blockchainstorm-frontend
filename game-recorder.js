@@ -38,6 +38,7 @@ const GameRecorder = (() => {
             events: [],         // Special events (strikes, tsunamis, etc.)
             randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
             keyframes: [],      // Periodic board snapshots
+            inputs: [],         // Every input for exact replay (move, rotate, drop, hardDrop)
             
             // AI decision metadata (only populated for AI games)
             aiDecisions: [],
@@ -124,6 +125,31 @@ const GameRecorder = (() => {
         }
         
         recording.moves.push(pieceData);
+    }
+    
+    /**
+     * Record a player input for exact replay
+     * @param {string} inputType - 'left', 'right', 'rotate', 'rotateCCW', 'softDrop', 'hardDrop'
+     * @param {object} pieceState - Current piece state {x, y, rotation}
+     */
+    function recordInput(inputType, pieceState = null) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        const input = {
+            t: timestamp,
+            type: inputType
+        };
+        
+        // Optionally include piece state for verification during replay
+        if (pieceState) {
+            input.x = pieceState.x;
+            input.y = pieceState.y;
+            if (pieceState.rotation !== undefined) input.r = pieceState.rotation;
+        }
+        
+        recording.inputs.push(input);
     }
     
     /**
@@ -520,6 +546,7 @@ const GameRecorder = (() => {
         startRecording,
         recordPieceGenerated,
         recordMove,
+        recordInput,
         recordAIDecision,
         recordEvent,
         recordTornadoSpawn,

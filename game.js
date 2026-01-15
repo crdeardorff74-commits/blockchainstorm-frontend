@@ -11161,11 +11161,21 @@ function rotatePiece() {
             currentPiece.x = originalX + kick;
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
+                // Update rotation index
+                currentPiece.rotationIndex = ((currentPiece.rotationIndex || 0) + 1) % 4;
                 playSoundEffect('rotate', soundToggle);
                 // Decaying lock delay reset - each reset is less effective
                 if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
                     lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
                     lockDelayResets++;
+                }
+                // Record input for replay
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordInput('rotate', {
+                        x: currentPiece.x,
+                        y: currentPiece.y,
+                        rotation: currentPiece.rotationIndex
+                    });
                 }
                 break;
             }
@@ -11209,11 +11219,21 @@ function rotatePieceCounterClockwise() {
             currentPiece.x = originalX + kick;
             if (!collides(currentPiece)) {
                 rotationSuccessful = true;
+                // Update rotation index (CCW = -1, wrap around)
+                currentPiece.rotationIndex = ((currentPiece.rotationIndex || 0) + 3) % 4;
                 playSoundEffect('rotate', soundToggle);
                 // Decaying lock delay reset - each reset is less effective
                 if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
                     lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
                     lockDelayResets++;
+                }
+                // Record input for replay
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordInput('rotateCCW', {
+                        x: currentPiece.x,
+                        y: currentPiece.y,
+                        rotation: currentPiece.rotationIndex
+                    });
                 }
                 break;
             }
@@ -11249,6 +11269,14 @@ function movePiece(dir) {
         if (lockDelayActive && lockDelayResets < MAX_LOCK_DELAY_RESETS) {
             lockDelayCounter = Math.floor(lockDelayCounter * (1 - LOCK_DELAY_DECAY));
             lockDelayResets++;
+        }
+        // Record input for replay
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordInput(dir > 0 ? 'right' : 'left', {
+                x: currentPiece.x,
+                y: currentPiece.y,
+                rotation: currentPiece.rotationIndex || 0
+            });
         }
     }
 }
@@ -11432,6 +11460,15 @@ function hardDrop() {
     if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
     // Prevent hard drop during earthquake shift phase
     if (earthquakeActive && earthquakePhase === 'shift') return;
+    
+    // Record input for replay BEFORE starting drop
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        window.GameRecorder.recordInput('hardDrop', {
+            x: currentPiece.x,
+            y: currentPiece.y,
+            rotation: currentPiece.rotationIndex || 0
+        });
+    }
     
     // Start animated drop
     hardDropping = true;
@@ -14110,6 +14147,8 @@ window.startGameReplay = function(recording) {
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
     replayCurrentPiece = null;
+    replayPieceInputs = [];
+    replayInputIndex = 0;
     
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
@@ -14241,6 +14280,8 @@ function stopReplay() {
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
     replayCurrentPiece = null;
+    replayPieceInputs = [];
+    replayInputIndex = 0;
     
     if (replayAnimationFrame) {
         cancelAnimationFrame(replayAnimationFrame);
@@ -14289,6 +14330,8 @@ let replayElapsedTime = 0;
 let replayLastFrameTime = 0;
 let replayCurrentPiece = null;
 let replayPieceStartY = -2; // Spawn position
+let replayPieceInputs = []; // Inputs for current piece
+let replayInputIndex = 0; // Current input index
 
 function runReplay() {
     if (!replayActive || replayPaused) return;
@@ -14302,6 +14345,7 @@ function runReplay() {
     
     const moves = recData.moves || [];
     const keyframes = recData.keyframes || [];
+    const inputs = recData.inputs || [];
     
     if (moves.length === 0 && keyframes.length === 0) {
         console.log('🎬 No moves or keyframes in recording');
@@ -14312,7 +14356,7 @@ function runReplay() {
     
     // Debug first frame
     if (replayElapsedTime === 0) {
-        console.log('🎬 Starting replay with', moves.length, 'moves,', keyframes.length, 'keyframes');
+        console.log('🎬 Starting replay with', moves.length, 'moves,', keyframes.length, 'keyframes,', inputs.length, 'inputs');
         if (moves.length > 0) {
             console.log('🎬 First move:', moves[0]);
             console.log('🎬 Last move timestamp:', moves[moves.length - 1].t, 'ms');
@@ -14329,30 +14373,10 @@ function runReplay() {
     // Find the current move based on elapsed time
     while (replayCurrentMoveIndex < moves.length && 
            moves[replayCurrentMoveIndex].t <= replayElapsedTime) {
-        // This move has completed - apply it to board and advance
-        const move = moves[replayCurrentMoveIndex];
-        
-        // Find nearest keyframe at or before this move's timestamp
-        let nearestKeyframe = null;
-        for (let i = keyframes.length - 1; i >= 0; i--) {
-            if (keyframes[i].t <= move.t) {
-                nearestKeyframe = keyframes[i];
-                break;
-            }
-        }
-        
-        // Apply keyframe board state if available
-        if (nearestKeyframe && nearestKeyframe.board) {
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-            nearestKeyframe.board.forEach(cell => {
-                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
-                    board[cell.y][cell.x] = cell.c;
-                }
-            });
-        }
-        
+        // This move has completed - advance to next
         replayCurrentMoveIndex++;
         replayCurrentPiece = null; // Clear current piece, will set up next one
+        replayInputIndex = 0; // Reset input tracking for next piece
     }
     
     // Check if replay is complete
@@ -14391,32 +14415,98 @@ function runReplay() {
         return;
     }
     
+    // Get current move's time window
+    const currentMove = moves[replayCurrentMoveIndex];
+    const moveStartTime = replayCurrentMoveIndex > 0 ? moves[replayCurrentMoveIndex - 1].t : 0;
+    const moveEndTime = currentMove.t;
+    
     // Set up current falling piece if needed
-    if (!replayCurrentPiece && replayCurrentMoveIndex < moves.length) {
-        const nextMove = moves[replayCurrentMoveIndex];
+    if (!replayCurrentPiece) {
+        // Find keyframe from before this piece started
+        let previousKeyframe = null;
+        for (let i = keyframes.length - 1; i >= 0; i--) {
+            if (keyframes[i].t <= moveStartTime) {
+                previousKeyframe = keyframes[i];
+                break;
+            }
+        }
+        
+        // Apply previous board state (before this piece)
+        if (previousKeyframe && previousKeyframe.board) {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            previousKeyframe.board.forEach(cell => {
+                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+                    board[cell.y][cell.x] = cell.c;
+                }
+            });
+        }
+        
+        // Get inputs for this piece (inputs between moveStartTime and moveEndTime)
+        replayPieceInputs = inputs.filter(inp => inp.t > moveStartTime && inp.t <= moveEndTime);
+        replayInputIndex = 0;
+        
+        // Initialize piece at spawn position (center-ish, depends on piece type)
+        const spawnX = Math.floor((COLS - 3) / 2); // Standard spawn X
         replayCurrentPiece = {
-            type: nextMove.type,
-            color: nextMove.color,
-            x: nextMove.x,
-            targetY: nextMove.y,
-            rotation: nextMove.rot || 0,
-            y: replayPieceStartY, // Start above the board
-            moveStartTime: replayCurrentMoveIndex > 0 ? moves[replayCurrentMoveIndex - 1].t : 0,
-            moveEndTime: nextMove.t
+            type: currentMove.type,
+            color: currentMove.color,
+            x: spawnX,
+            y: replayPieceStartY,
+            rotation: 0,
+            targetX: currentMove.x,
+            targetY: currentMove.y,
+            targetRotation: currentMove.rot || 0,
+            moveStartTime: moveStartTime,
+            moveEndTime: moveEndTime
         };
         
-        // Get piece shape
+        // Get initial piece shape
         replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
     }
     
-    // Animate current piece falling
-    if (replayCurrentPiece) {
-        const moveProgress = Math.min(1, (replayElapsedTime - replayCurrentPiece.moveStartTime) / 
-                                        (replayCurrentPiece.moveEndTime - replayCurrentPiece.moveStartTime));
+    // Apply inputs that have occurred up to current time
+    while (replayInputIndex < replayPieceInputs.length && 
+           replayPieceInputs[replayInputIndex].t <= replayElapsedTime) {
+        const input = replayPieceInputs[replayInputIndex];
         
-        // Ease the fall - faster at end
-        const easedProgress = moveProgress * moveProgress;
-        replayCurrentPiece.y = replayPieceStartY + (replayCurrentPiece.targetY - replayPieceStartY) * easedProgress;
+        // Apply the input's recorded position/rotation directly
+        if (input.x !== undefined) replayCurrentPiece.x = input.x;
+        if (input.r !== undefined) {
+            replayCurrentPiece.rotation = input.r;
+            replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
+        }
+        
+        // For hard drop, immediately set to target Y
+        if (input.type === 'hardDrop') {
+            replayCurrentPiece.y = replayCurrentPiece.targetY;
+        }
+        
+        replayInputIndex++;
+    }
+    
+    // Animate Y position (falling) - interpolate between current position and where piece should be
+    if (replayCurrentPiece) {
+        // Calculate how far through this piece's lifetime we are
+        const moveDuration = moveEndTime - moveStartTime;
+        const timeIntoMove = replayElapsedTime - moveStartTime;
+        const progress = moveDuration > 0 ? Math.min(1, timeIntoMove / moveDuration) : 1;
+        
+        // Calculate where Y should be based on time (smooth falling)
+        // Start at spawn Y, end at target Y
+        const startY = replayPieceStartY;
+        const endY = replayCurrentPiece.targetY;
+        
+        // Ease the fall - faster toward end
+        const easedProgress = progress * progress;
+        const animatedY = startY + (endY - startY) * easedProgress;
+        
+        // Only update Y if we haven't had a hardDrop input
+        // (hardDrop sets Y immediately, don't override it)
+        const lastProcessedInput = replayInputIndex > 0 ? replayPieceInputs[replayInputIndex - 1] : null;
+        if (!lastProcessedInput || lastProcessedInput.type !== 'hardDrop') {
+            // Cap Y at target to prevent overshoot
+            replayCurrentPiece.y = Math.min(animatedY, replayCurrentPiece.targetY);
+        }
     }
     
     // Update stats based on progress
@@ -14476,30 +14566,58 @@ function getPieceShapeForReplay(type, rotation) {
     return typeShapes[rotation % typeShapes.length];
 }
 
-function drawReplayPiece(piece) {
-    if (!piece || !piece.shape) return;
+// Calculate highest Y where piece can be without overlapping board
+function calculateReplayCollisionY(piece) {
+    if (!piece || !piece.shape) return ROWS;
     
-    ctx.save();
+    // For each column the piece occupies, find the highest occupied cell
+    // Then calculate the highest Y where the piece fits
+    let maxY = ROWS; // Start with bottom of board
     
     piece.shape.forEach((row, py) => {
         row.forEach((val, px) => {
             if (val) {
-                const drawX = (piece.x + px) * BLOCK_SIZE;
-                const drawY = (piece.y + py) * BLOCK_SIZE;
+                const boardX = piece.x + px;
+                if (boardX < 0 || boardX >= COLS) return;
                 
-                // Draw block with piece color
-                ctx.fillStyle = piece.color || '#888';
-                ctx.fillRect(drawX + 1, drawY + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                // Find highest occupied cell in this column
+                let highestOccupied = ROWS;
+                for (let y = 0; y < ROWS; y++) {
+                    if (board[y] && board[y][boardX]) {
+                        highestOccupied = y;
+                        break;
+                    }
+                }
                 
-                // Draw border
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(drawX + 1, drawY + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                // The piece block at (px, py) can't go below highestOccupied - 1
+                // So piece.y + py must be < highestOccupied
+                // Therefore piece.y must be < highestOccupied - py
+                const maxYForThisBlock = highestOccupied - py - 1;
+                maxY = Math.min(maxY, maxYForThisBlock);
             }
         });
     });
     
-    ctx.restore();
+    return maxY;
+}
+
+function drawReplayPiece(piece) {
+    if (!piece || !piece.shape) return;
+    
+    // Calculate positions for drawSolidShape (same as drawPiece does)
+    const positions = [];
+    piece.shape.forEach((row, y) => {
+        if (row) {
+            row.forEach((value, x) => {
+                if (value) {
+                    positions.push([piece.x + x, piece.y + y]);
+                }
+            });
+        }
+    });
+    
+    // Use the same rendering as regular pieces
+    drawSolidShape(ctx, positions, piece.color, BLOCK_SIZE, false, getFaceOpacity());
 }
 
 function showReplayComplete() {
