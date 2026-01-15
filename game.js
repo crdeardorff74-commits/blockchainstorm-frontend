@@ -14129,6 +14129,15 @@ window.startGameReplay = function(recording) {
     blackHoleCount = 0;
     volcanoCount = 0;
     
+    // Update all displays
+    scoreDisplay.textContent = formatAsBitcoin(score);
+    linesDisplay.textContent = lines;
+    levelDisplay.textContent = level;
+    strikesDisplay.textContent = strikeCount;
+    tsunamisDisplay.textContent = tsunamiCount;
+    blackHolesDisplay.textContent = blackHoleCount;
+    volcanoesDisplay.textContent = volcanoCount;
+    
     // Adjust canvas for game mode
     COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 15 : 10;
     updateCanvasSize();
@@ -14222,9 +14231,29 @@ function stopReplay() {
     gameRunning = false;
     currentPiece = null;
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    score = 0;
+    lines = 0;
+    level = 1;
+    strikeCount = 0;
+    tsunamiCount = 0;
+    blackHoleCount = 0;
+    volcanoCount = 0;
+    
+    // Reset displays
+    scoreDisplay.textContent = formatAsBitcoin(0);
+    linesDisplay.textContent = '0';
+    levelDisplay.textContent = '1';
+    strikesDisplay.textContent = '0';
+    tsunamisDisplay.textContent = '0';
+    blackHolesDisplay.textContent = '0';
+    volcanoesDisplay.textContent = '0';
     
     // Show mode menu
     modeMenu.classList.remove('hidden');
+    
+    // Reset canvas to standard width
+    COLS = 10;
+    updateCanvasSize();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     console.log('🎬 Replay stopped');
@@ -14280,9 +14309,19 @@ function runReplay() {
     lines = move.lines || lines;
     level = move.level || level;
     
-    // Render
-    draw();
-    updateDisplay();
+    // Render board
+    drawBoard();
+    
+    // Update score/lines/level display
+    scoreDisplay.textContent = formatAsBitcoin(score);
+    linesDisplay.textContent = lines;
+    levelDisplay.textContent = level;
+    
+    // Update event counters display
+    strikesDisplay.textContent = strikeCount;
+    tsunamisDisplay.textContent = tsunamiCount;
+    blackHolesDisplay.textContent = blackHoleCount;
+    volcanoesDisplay.textContent = volcanoCount;
     
     replayMoveIndex++;
     
