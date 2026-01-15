@@ -154,6 +154,12 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     if (rulesInstructions) rulesInstructions.style.display = 'none';
     if (histogramCanvas) histogramCanvas.style.display = 'none';
     
+    // Update the view dropdown to show "Leaderboards"
+    const viewSelect = document.getElementById('rulesPanelViewSelect');
+    if (viewSelect) {
+        viewSelect.value = 'leaderboard';
+    }
+    
     // Get or create leaderboard content div inside rules-panel
     let leaderboardContent = document.getElementById('leaderboardContent');
     if (!leaderboardContent) {
@@ -344,6 +350,7 @@ async function startReplay(recordingId) {
 function hideLeaderboard() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     const rulesInstructions = document.querySelector('.rules-instructions');
+    const viewSelect = document.getElementById('rulesPanelViewSelect');
     
     if (leaderboardContent) {
         leaderboardContent.style.display = 'none';
@@ -351,6 +358,11 @@ function hideLeaderboard() {
     
     if (rulesInstructions) {
         rulesInstructions.style.display = 'block';
+    }
+    
+    // Reset the view dropdown to "How to Play"
+    if (viewSelect) {
+        viewSelect.value = 'rules';
     }
     
     currentLeaderboardMode = null;

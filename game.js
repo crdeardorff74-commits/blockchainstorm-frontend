@@ -12895,14 +12895,25 @@ updateSelectedMode();
 // Initialize volume controls
 createVolumeControls();
 
-// Leaderboard button handler
-const viewLeaderboardBtn = document.getElementById('viewLeaderboardBtn');
-if (viewLeaderboardBtn) {
-    viewLeaderboardBtn.addEventListener('click', () => {
-        if (window.leaderboard) {
-            // Get currently selected difficulty from mode menu (or default to first)
-            const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+// Rules panel view toggle handler
+const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+if (rulesPanelViewSelect) {
+    rulesPanelViewSelect.addEventListener('change', () => {
+        const view = rulesPanelViewSelect.value;
+        const rulesInstructions = document.querySelector('.rules-instructions');
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        
+        if (view === 'leaderboard') {
+            // Show leaderboard, hide rules
+            if (rulesInstructions) rulesInstructions.style.display = 'none';
+            if (window.leaderboard) {
+                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+            }
+        } else {
+            // Show rules, hide leaderboard
+            if (leaderboardContent) leaderboardContent.style.display = 'none';
+            if (rulesInstructions) rulesInstructions.style.display = 'block';
         }
     });
 }
