@@ -11608,7 +11608,7 @@ async function gameOver() {
             if (aiModeEnabled) {
                 // AI games: submit immediately with auto-generated username
                 GameRecorder.submitRecording(recording, {
-                    username: 'AI-' + skillLevel,
+                    username: '🤖 Claude',
                     game: 'blockchainstorm',
                     playerType: 'ai',
                     difficulty: gameMode,
