@@ -12895,6 +12895,18 @@ updateSelectedMode();
 // Initialize volume controls
 createVolumeControls();
 
+// Leaderboard button handler
+const viewLeaderboardBtn = document.getElementById('viewLeaderboardBtn');
+if (viewLeaderboardBtn) {
+    viewLeaderboardBtn.addEventListener('click', () => {
+        if (window.leaderboard) {
+            // Get currently selected difficulty from mode menu (or default to first)
+            const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        }
+    });
+}
+
 playAgainBtn.addEventListener('click', () => {
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
