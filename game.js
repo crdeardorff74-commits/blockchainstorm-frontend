@@ -7263,16 +7263,18 @@ function drawBoard() {
     // Create a set of falling block positions to skip during board rendering
     const fallingBlockSet = new Set();
     if (gravityAnimating) {
-        fallingBlocks.forEach(fb => {
-            fallingBlockSet.add(`${fb.x},${fb.targetY}`);
-        });
-    }
-    
-    // During replay, also skip cells that are being animated (their START positions)
-    if (replayActive && replayAnimatingCells.size > 0) {
-        replayAnimatingCells.forEach(cell => {
-            fallingBlockSet.add(cell);
-        });
+        if (replayActive) {
+            // During replay, only skip START positions (from replayAnimatingCells)
+            // The board shows the pre-gravity state, we animate blocks falling from there
+            replayAnimatingCells.forEach(cell => {
+                fallingBlockSet.add(cell);
+            });
+        } else {
+            // During normal gameplay, skip target positions (blocks cleared from board already)
+            fallingBlocks.forEach(fb => {
+                fallingBlockSet.add(`${fb.x},${fb.targetY}`);
+            });
+        }
     }
 
     const blobs = getAllBlobs();
@@ -7297,7 +7299,7 @@ function drawBoard() {
         }
         
         // Filter out positions that are currently falling (to avoid duplicates)
-        if (gravityAnimating || (replayActive && replayAnimatingCells.size > 0)) {
+        if (gravityAnimating && fallingBlockSet.size > 0) {
             validPositions = validPositions.filter(p => !fallingBlockSet.has(`${p[0]},${p[1]}`));
             if (validPositions.length === 0) {
                 return;
@@ -9600,6 +9602,11 @@ function updateLineAnimations() {
 
         return progress < 1;
     });
+    
+    // During replay, reset animatingLines when all animations complete
+    if (replayActive && lineAnimations.length === 0) {
+        animatingLines = false;
+    }
 }
 
 function checkForSpecialFormations() {
@@ -10599,18 +10606,6 @@ function drawFallingBlocks() {
     const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom') || soRandomCurrentMode === 'phantom';
     if (isPhantomMode) {
         ctx.globalAlpha = phantomOpacity;
-    }
-    
-    // In replay mode, draw each block individually at its interpolated position
-    // This is simpler and works better since we don't have blob grouping info
-    if (replayActive) {
-        fallingBlocks.forEach(block => {
-            const yPixel = block.currentY;
-            const yCell = yPixel / BLOCK_SIZE;
-            drawSolidShape(ctx, [[block.x, yCell]], block.color, BLOCK_SIZE, false, getFaceOpacity(), block.isRandom);
-        });
-        ctx.restore();
-        return;
     }
     
     // Group blocks by blobId and color to draw them as connected shapes
@@ -14454,9 +14449,10 @@ function runReplay() {
         const event = gameEvents[replayGameEventIndex];
         
         if (event.type === 'linesClear' && event.rows) {
-            // Note: Line clear animation skipped in replay - would need cell color data recorded
-            // The keyframes will show the correct board state after line clear
-            console.log('🎬 Replay: Line clear at rows', event.rows);
+            // Trigger line clear animation
+            animatingLines = true;
+            animateClearLines(event.rows);
+            console.log('🎬 Replay: Line clear triggered for rows', event.rows);
         } else if (event.type === 'strike') {
             // Trigger strike animation (lightning)
             triggerLightning(300);
@@ -14504,10 +14500,9 @@ function runReplay() {
             } else {
                 console.log('🎬 Replay: Volcano in column', event.column, '(no animation data)');
             }
-        } else if (event.type === 'gravity' && event.blocks) {
-            // Trigger gravity animation
-            triggerReplayGravity(event.blocks);
-            console.log('🎬 Replay: Gravity triggered with', event.blocks.length, 'blocks');
+        } else if (event.type === 'gravity' && event.blobs) {
+            triggerReplayGravity(event.blobs);
+            console.log('🎬 Replay: Gravity triggered with', event.blobs.length, 'blobs');
         }
         
         replayEventIndex++;
@@ -14696,7 +14691,7 @@ function runReplay() {
     
     // Update board state from keyframes when not animating
     // This ensures the board reflects the correct state after animations complete
-    if (!gravityAnimating && !tsunamiAnimating && !blackHoleAnimating && !volcanoAnimating) {
+    if (!gravityAnimating && !tsunamiAnimating && !blackHoleAnimating && !volcanoAnimating && !animatingLines) {
         // Find the most recent keyframe at or before current time
         let currentKeyframe = null;
         for (let i = keyframes.length - 1; i >= 0; i--) {
@@ -14809,34 +14804,34 @@ function calculateReplayCollisionY(piece) {
 
 /**
  * Trigger gravity animation during replay
- * @param {Array} blocks - Array of {x, sy (startY), ey (endY), c (color)}
+ * @param {Array} blobs - Array of {id, color, positions: [{x, sy, ey}]}
  */
-function triggerReplayGravity(blocks) {
-    if (!blocks || blocks.length === 0) return;
+function triggerReplayGravity(blobs) {
+    if (!blobs || blobs.length === 0) return;
     
-    // DON'T clear blocks from board - keyframes manage board state
-    // Instead, track which cells are being animated so we skip drawing them from the board
-    // Track BOTH start AND end positions to prevent double-drawing
+    // Track which cells are being animated so we skip drawing them from the board
+    // ONLY track START positions - the end positions may have other blocks already there
     replayAnimatingCells = new Set();
     
-    // Set up falling blocks for animation
+    // Set up falling blocks for animation, preserving blob grouping
     fallingBlocks = [];
-    blocks.forEach(block => {
-        // Track both start and end positions to prevent overlap
-        replayAnimatingCells.add(`${block.x},${block.sy}`);  // Start position
-        replayAnimatingCells.add(`${block.x},${block.ey}`);  // End position
-        
-        fallingBlocks.push({
-            x: block.x,
-            startY: block.sy,
-            currentY: block.sy * BLOCK_SIZE,
-            targetY: block.ey,
-            targetYPixels: block.ey * BLOCK_SIZE,
-            color: block.c,
-            velocity: 0,
-            done: false,
-            blobId: null,
-            isRandom: false
+    blobs.forEach(blob => {
+        blob.positions.forEach(pos => {
+            // Only track start position - we'll draw the falling block over it
+            replayAnimatingCells.add(`${pos.x},${pos.sy}`);
+            
+            fallingBlocks.push({
+                x: pos.x,
+                startY: pos.sy,
+                currentY: pos.sy * BLOCK_SIZE,
+                targetY: pos.ey,
+                targetYPixels: pos.ey * BLOCK_SIZE,
+                color: blob.color,
+                velocity: 0,
+                done: false,
+                blobId: blob.id,  // Preserve blob grouping for proper rendering
+                isRandom: false
+            });
         });
     });
     
