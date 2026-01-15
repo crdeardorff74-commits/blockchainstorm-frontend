@@ -2319,6 +2319,9 @@ let blackHoleShakeIntensity = 0;
 let blackHoleInnerBlob = null;
 let blackHoleOuterBlob = null;
 
+// Replay System State
+let replayActive = false;
+
 // Falling Blocks Animation System
 let fallingBlocks = []; // Blocks that are animating falling: {x, y, targetY, color, progress, isRandom}
 let gravityAnimating = false;
@@ -14143,8 +14146,7 @@ document.addEventListener('click', handleUnpauseTap);
 document.addEventListener('touchend', handleUnpauseTap);
 // ==================== REPLAY SYSTEM ====================
 
-// Replay state
-let replayActive = false;
+// Replay state (replayActive declared at top with other state variables)
 let replayPaused = false;
 let replayData = null;
 let replaySpeed = 1.0;
