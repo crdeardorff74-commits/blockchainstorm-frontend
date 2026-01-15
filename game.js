@@ -14105,6 +14105,12 @@ window.startGameReplay = function(recording) {
     replayMoveIndex = 0;
     replaySpeed = 1.0;
     
+    // Reset replay animation state
+    replayCurrentMoveIndex = 0;
+    replayElapsedTime = 0;
+    replayLastFrameTime = 0;
+    replayCurrentPiece = null;
+    
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
     if (modeMenu) modeMenu.classList.add('hidden');
@@ -14121,7 +14127,14 @@ window.startGameReplay = function(recording) {
     skillLevel = recording.skill_level;
     window.skillLevel = recording.skill_level;
     
-    // Reset game state
+    // MUST set COLS BEFORE creating board and updating canvas
+    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 15 : 10;
+    console.log('🎬 Setting COLS to', COLS, 'for difficulty', gameMode);
+    console.log('🎬 Canvas before resize:', canvas.width, 'x', canvas.height);
+    updateCanvasSize();
+    console.log('🎬 Canvas after resize:', canvas.width, 'x', canvas.height, 'BLOCK_SIZE:', BLOCK_SIZE);
+    
+    // Reset game state - now board has correct size
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     score = 0;
     lines = 0;
@@ -14145,10 +14158,6 @@ window.startGameReplay = function(recording) {
     tsunamisDisplay.textContent = tsunamiCount;
     blackHolesDisplay.textContent = blackHoleCount;
     volcanoesDisplay.textContent = volcanoCount;
-    
-    // Adjust canvas for game mode
-    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 15 : 10;
-    updateCanvasSize();
     
     // Show replay controls
     showReplayControls(recording);
@@ -14216,7 +14225,8 @@ function toggleReplayPause() {
         btn.textContent = replayPaused ? '▶️' : '⏸️';
     }
     if (!replayPaused) {
-        replayStartTime = Date.now() - (replayMoveIndex * 500 / replaySpeed); // Approximate resume point
+        // Reset frame time tracking so delta calculation works correctly on resume
+        replayLastFrameTime = 0;
         runReplay();
     }
 }
@@ -14225,6 +14235,12 @@ function stopReplay() {
     replayActive = false;
     replayPaused = false;
     replayData = null;
+    
+    // Reset replay state
+    replayCurrentMoveIndex = 0;
+    replayElapsedTime = 0;
+    replayLastFrameTime = 0;
+    replayCurrentPiece = null;
     
     if (replayAnimationFrame) {
         cancelAnimationFrame(replayAnimationFrame);
@@ -14267,7 +14283,13 @@ function stopReplay() {
     console.log('🎬 Replay stopped');
 }
 
-// Main replay loop
+// Main replay loop - now with falling pieces!
+let replayCurrentMoveIndex = 0;
+let replayElapsedTime = 0;
+let replayLastFrameTime = 0;
+let replayCurrentPiece = null;
+let replayPieceStartY = -2; // Spawn position
+
 function runReplay() {
     if (!replayActive || replayPaused) return;
     
@@ -14278,43 +14300,129 @@ function runReplay() {
         return;
     }
     
-    // Use keyframes for board state replay
+    const moves = recData.moves || [];
     const keyframes = recData.keyframes || [];
     
-    if (keyframes.length === 0) {
-        console.log('🎬 No keyframes in recording (older recording format)');
-        alert('This recording does not contain replay data. Only new recordings support replay.');
+    if (moves.length === 0 && keyframes.length === 0) {
+        console.log('🎬 No moves or keyframes in recording');
+        alert('This recording does not contain replay data.');
         stopReplay();
         return;
     }
     
+    // Debug first frame
+    if (replayElapsedTime === 0) {
+        console.log('🎬 Starting replay with', moves.length, 'moves,', keyframes.length, 'keyframes');
+        if (moves.length > 0) {
+            console.log('🎬 First move:', moves[0]);
+            console.log('🎬 Last move timestamp:', moves[moves.length - 1].t, 'ms');
+        }
+    }
+    
+    // Calculate elapsed time
+    const now = Date.now();
+    if (replayLastFrameTime === 0) replayLastFrameTime = now;
+    const deltaTime = (now - replayLastFrameTime) * replaySpeed;
+    replayLastFrameTime = now;
+    replayElapsedTime += deltaTime;
+    
+    // Find the current move based on elapsed time
+    while (replayCurrentMoveIndex < moves.length && 
+           moves[replayCurrentMoveIndex].t <= replayElapsedTime) {
+        // This move has completed - apply it to board and advance
+        const move = moves[replayCurrentMoveIndex];
+        
+        // Find nearest keyframe at or before this move's timestamp
+        let nearestKeyframe = null;
+        for (let i = keyframes.length - 1; i >= 0; i--) {
+            if (keyframes[i].t <= move.t) {
+                nearestKeyframe = keyframes[i];
+                break;
+            }
+        }
+        
+        // Apply keyframe board state if available
+        if (nearestKeyframe && nearestKeyframe.board) {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            nearestKeyframe.board.forEach(cell => {
+                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+                    board[cell.y][cell.x] = cell.c;
+                }
+            });
+        }
+        
+        replayCurrentMoveIndex++;
+        replayCurrentPiece = null; // Clear current piece, will set up next one
+    }
+    
     // Check if replay is complete
-    if (replayMoveIndex >= keyframes.length) {
+    if (replayCurrentMoveIndex >= moves.length) {
+        // Show final board state from last keyframe
+        if (keyframes.length > 0) {
+            const lastKeyframe = keyframes[keyframes.length - 1];
+            if (lastKeyframe.board) {
+                board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+                lastKeyframe.board.forEach(cell => {
+                    if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+                        board[cell.y][cell.x] = cell.c;
+                    }
+                });
+            }
+        }
+        
+        // Set final stats
+        const finalStats = recData.finalStats;
+        if (finalStats) {
+            score = finalStats.score || 0;
+            lines = finalStats.lines || 0;
+            level = finalStats.level || 1;
+            strikeCount = finalStats.strikes || 0;
+            tsunamiCount = finalStats.tsunamis || 0;
+            blackHoleCount = finalStats.blackHoles || 0;
+            volcanoCount = finalStats.volcanoes || 0;
+        }
+        
+        updateStormParticles();
+        drawBoard();
+        updateReplayDisplays();
+        
         console.log('🎬 Replay complete!');
         showReplayComplete();
         return;
     }
     
-    // Get current keyframe
-    const keyframe = keyframes[replayMoveIndex];
-    
-    // Decompress and apply board state
-    // Clear board first
-    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    
-    // Apply compressed board data: [{x, y, c: {color: ...}}]
-    if (keyframe.board) {
-        keyframe.board.forEach(cell => {
-            if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
-                board[cell.y][cell.x] = cell.c;
-            }
-        });
+    // Set up current falling piece if needed
+    if (!replayCurrentPiece && replayCurrentMoveIndex < moves.length) {
+        const nextMove = moves[replayCurrentMoveIndex];
+        replayCurrentPiece = {
+            type: nextMove.type,
+            color: nextMove.color,
+            x: nextMove.x,
+            targetY: nextMove.y,
+            rotation: nextMove.rot || 0,
+            y: replayPieceStartY, // Start above the board
+            moveStartTime: replayCurrentMoveIndex > 0 ? moves[replayCurrentMoveIndex - 1].t : 0,
+            moveEndTime: nextMove.t
+        };
+        
+        // Get piece shape
+        replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
     }
     
-    // Update stats from finalStats if available, or estimate from keyframe progress
+    // Animate current piece falling
+    if (replayCurrentPiece) {
+        const moveProgress = Math.min(1, (replayElapsedTime - replayCurrentPiece.moveStartTime) / 
+                                        (replayCurrentPiece.moveEndTime - replayCurrentPiece.moveStartTime));
+        
+        // Ease the fall - faster at end
+        const easedProgress = moveProgress * moveProgress;
+        replayCurrentPiece.y = replayPieceStartY + (replayCurrentPiece.targetY - replayPieceStartY) * easedProgress;
+    }
+    
+    // Update stats based on progress
     const finalStats = recData.finalStats;
-    if (finalStats) {
-        const progress = replayMoveIndex / keyframes.length;
+    if (finalStats && moves.length > 0) {
+        const progress = replayCurrentMoveIndex / moves.length;
         score = Math.floor((finalStats.score || 0) * progress);
         lines = Math.floor((finalStats.lines || 0) * progress);
         level = Math.max(1, Math.floor((finalStats.level || 1) * progress));
@@ -14324,44 +14432,74 @@ function runReplay() {
         volcanoCount = Math.floor((finalStats.volcanoes || 0) * progress);
     }
     
-    // At last keyframe, use exact final stats
-    if (replayMoveIndex === keyframes.length - 1 && finalStats) {
-        score = finalStats.score || 0;
-        lines = finalStats.lines || 0;
-        level = finalStats.level || 1;
-        strikeCount = finalStats.strikes || 0;
-        tsunamiCount = finalStats.tsunamis || 0;
-        blackHoleCount = finalStats.blackHoles || 0;
-        volcanoCount = finalStats.volcanoes || 0;
-    }
+    // Update storm particles for animation
+    updateStormParticles();
     
     // Render board
     drawBoard();
     
-    // Update score/lines/level display
+    // Draw falling piece
+    if (replayCurrentPiece && replayCurrentPiece.shape) {
+        drawReplayPiece(replayCurrentPiece);
+    }
+    
+    // Update displays
+    updateReplayDisplays();
+    
+    // Schedule next frame at 60fps
+    replayAnimationFrame = requestAnimationFrame(runReplay);
+}
+
+function updateReplayDisplays() {
     scoreDisplay.textContent = formatAsBitcoin(score);
     linesDisplay.textContent = lines;
     levelDisplay.textContent = level;
-    
-    // Update event counters display
     strikesDisplay.textContent = strikeCount;
     tsunamisDisplay.textContent = tsunamiCount;
     blackHolesDisplay.textContent = blackHoleCount;
     volcanoesDisplay.textContent = volcanoCount;
+}
+
+function getPieceShapeForReplay(type, rotation) {
+    // Standard tetromino shapes
+    const shapes = {
+        'I': [[[1,1,1,1]], [[1],[1],[1],[1]]],
+        'O': [[[1,1],[1,1]]],
+        'T': [[[1,1,1],[0,1,0]], [[1,0],[1,1],[1,0]], [[0,1,0],[1,1,1]], [[0,1],[1,1],[0,1]]],
+        'S': [[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]],
+        'Z': [[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]],
+        'J': [[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]],
+        'L': [[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]
+    };
     
-    replayMoveIndex++;
+    const typeShapes = shapes[type] || shapes['T'];
+    return typeShapes[rotation % typeShapes.length];
+}
+
+function drawReplayPiece(piece) {
+    if (!piece || !piece.shape) return;
     
-    // Schedule next keyframe - adjust delay based on timestamp difference
-    let delay = 100; // Default delay
-    if (replayMoveIndex < keyframes.length) {
-        const nextKeyframe = keyframes[replayMoveIndex];
-        const timeDiff = nextKeyframe.t - keyframe.t;
-        delay = Math.max(30, timeDiff / replaySpeed);
-    }
+    ctx.save();
     
-    setTimeout(() => {
-        replayAnimationFrame = requestAnimationFrame(runReplay);
-    }, delay);
+    piece.shape.forEach((row, py) => {
+        row.forEach((val, px) => {
+            if (val) {
+                const drawX = (piece.x + px) * BLOCK_SIZE;
+                const drawY = (piece.y + py) * BLOCK_SIZE;
+                
+                // Draw block with piece color
+                ctx.fillStyle = piece.color || '#888';
+                ctx.fillRect(drawX + 1, drawY + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                
+                // Draw border
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(drawX + 1, drawY + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+            }
+        });
+    });
+    
+    ctx.restore();
 }
 
 function showReplayComplete() {
