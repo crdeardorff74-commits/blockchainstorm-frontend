@@ -335,25 +335,33 @@ const GameRecorder = (() => {
         
         const timestamp = Date.now() - recording.startTime;
         
-        // Compress animation data - just need start/end positions and colors
-        const blocks = [];
-        animations.forEach(anim => {
+        // Preserve blob structure for proper replay animation
+        const blobs = [];
+        animations.forEach((anim, blobIndex) => {
+            const positions = [];
             anim.startPositions.forEach((startPos, idx) => {
                 const endPos = anim.endPositions[idx];
-                blocks.push({
+                positions.push({
                     x: startPos.x,
                     sy: startPos.y,  // start Y
-                    ey: endPos.y,    // end Y
-                    c: anim.color
+                    ey: endPos.y     // end Y
                 });
             });
+            
+            if (positions.length > 0) {
+                blobs.push({
+                    id: anim.blobId || blobIndex,
+                    color: anim.color,
+                    positions: positions
+                });
+            }
         });
         
-        if (blocks.length > 0) {
+        if (blobs.length > 0) {
             recording.randomEvents.push({
                 t: timestamp,
                 type: 'gravity',
-                blocks: blocks
+                blobs: blobs  // New format: array of blobs with positions
             });
         }
     }
