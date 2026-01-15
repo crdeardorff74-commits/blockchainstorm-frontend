@@ -10257,6 +10257,11 @@ function createAnimations(blobs) {
 function startGravityAnimation(animations) {
     console.log('🎬 Starting gravity animation...');
     
+    // Record gravity event for replay
+    if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+        GameRecorder.recordGravity(animations);
+    }
+    
     // Clear blocks from their original positions on the real board
     animations.forEach(anim => {
         anim.startPositions.forEach(pos => {
@@ -10449,14 +10454,21 @@ function updateFallingBlocks() {
         // Place all landed blocks on the board simultaneously
         fallingBlocks.forEach(block => {
             board[block.targetY][block.x] = block.color;
-            isRandomBlock[block.targetY][block.x] = block.isRandom;
+            if (!replayActive) {
+                isRandomBlock[block.targetY][block.x] = block.isRandom;
+            }
         });
-        
-        // Update liquid pools after blocks have fallen
-        updateLiquidPoolsAfterGravity();
         
         gravityAnimating = false;
         fallingBlocks = [];
+        
+        // Skip game logic during replay - keyframes will handle final state
+        if (replayActive) {
+            return;
+        }
+        
+        // Update liquid pools after blocks have fallen
+        updateLiquidPoolsAfterGravity();
         
         // SAFETY CHECK: Detect pathological floating blocks (complete empty rows)
         // If detected, gravity will be re-run asynchronously
@@ -14195,6 +14207,16 @@ window.startGameReplay = function(recording) {
     blackHoleCount = 0;
     volcanoCount = 0;
     
+    // Reset animation states
+    gravityAnimating = false;
+    fallingBlocks = [];
+    tsunamiAnimating = false;
+    blackHoleAnimating = false;
+    blackHoleActive = false;
+    volcanoAnimating = false;
+    animatingLines = false;
+    lineAnimations = [];
+    
     // Update all displays
     scoreDisplay.textContent = formatAsBitcoin(score);
     linesDisplay.textContent = lines;
@@ -14296,6 +14318,8 @@ function stopReplay() {
     blackHoleAnimating = false;
     blackHoleActive = false;
     volcanoAnimating = false;
+    gravityAnimating = false;
+    fallingBlocks = [];
     
     if (replayAnimationFrame) {
         cancelAnimationFrame(replayAnimationFrame);
@@ -14452,6 +14476,10 @@ function runReplay() {
             } else {
                 console.log('🎬 Replay: Volcano in column', event.column, '(no animation data)');
             }
+        } else if (event.type === 'gravity' && event.blocks) {
+            // Trigger gravity animation
+            triggerReplayGravity(event.blocks);
+            console.log('🎬 Replay: Gravity triggered with', event.blocks.length, 'blocks');
         }
         
         replayEventIndex++;
@@ -14639,6 +14667,7 @@ function runReplay() {
     updateBlackHoleAnimation();
     updateVolcanoAnimation();
     updateLineAnimations();
+    updateFallingBlocks();
     
     // Render board
     drawBoard();
@@ -14714,6 +14743,40 @@ function calculateReplayCollisionY(piece) {
     });
     
     return maxY;
+}
+
+/**
+ * Trigger gravity animation during replay
+ * @param {Array} blocks - Array of {x, sy (startY), ey (endY), c (color)}
+ */
+function triggerReplayGravity(blocks) {
+    if (!blocks || blocks.length === 0) return;
+    
+    // Clear blocks from their start positions on the board
+    blocks.forEach(block => {
+        if (block.sy >= 0 && block.sy < ROWS && block.x >= 0 && block.x < COLS) {
+            board[block.sy][block.x] = null;
+        }
+    });
+    
+    // Set up falling blocks for animation
+    fallingBlocks = [];
+    blocks.forEach(block => {
+        fallingBlocks.push({
+            x: block.x,
+            startY: block.sy,
+            currentY: block.sy * BLOCK_SIZE,
+            targetY: block.ey,
+            targetYPixels: block.ey * BLOCK_SIZE,
+            color: block.c,
+            velocity: 0,
+            done: false,
+            blobId: null,
+            isRandom: false
+        });
+    });
+    
+    gravityAnimating = true;
 }
 
 function drawReplayPiece(piece) {

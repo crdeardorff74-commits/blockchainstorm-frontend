@@ -326,6 +326,39 @@ const GameRecorder = (() => {
     }
     
     /**
+     * Record gravity animation data for replay
+     * @param {Array} animations - Array of animation objects with startPositions, endPositions, color
+     */
+    function recordGravity(animations) {
+        if (!isRecording || !recording) return;
+        if (!animations || animations.length === 0) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        // Compress animation data - just need start/end positions and colors
+        const blocks = [];
+        animations.forEach(anim => {
+            anim.startPositions.forEach((startPos, idx) => {
+                const endPos = anim.endPositions[idx];
+                blocks.push({
+                    x: startPos.x,
+                    sy: startPos.y,  // start Y
+                    ey: endPos.y,    // end Y
+                    c: anim.color
+                });
+            });
+        });
+        
+        if (blocks.length > 0) {
+            recording.randomEvents.push({
+                t: timestamp,
+                type: 'gravity',
+                blocks: blocks
+            });
+        }
+    }
+    
+    /**
      * Record random hail block spawn (for Hailstorm/Hurricane modes)
      */
     function recordHailBlock(x, y, color) {
@@ -607,6 +640,7 @@ const GameRecorder = (() => {
         recordVolcanoEruption,
         recordTsunami,
         recordBlackHole,
+        recordGravity,
         recordHailBlock,
         recordChallengeEvent,
         captureFrame,
