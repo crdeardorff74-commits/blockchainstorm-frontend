@@ -7297,7 +7297,7 @@ function drawBoard() {
         }
         
         // Filter out positions that are currently falling (to avoid duplicates)
-        if (gravityAnimating) {
+        if (gravityAnimating || (replayActive && replayAnimatingCells.size > 0)) {
             validPositions = validPositions.filter(p => !fallingBlockSet.has(`${p[0]},${p[1]}`));
             if (validPositions.length === 0) {
                 return;
@@ -10599,6 +10599,18 @@ function drawFallingBlocks() {
     const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom') || soRandomCurrentMode === 'phantom';
     if (isPhantomMode) {
         ctx.globalAlpha = phantomOpacity;
+    }
+    
+    // In replay mode, draw each block individually at its interpolated position
+    // This is simpler and works better since we don't have blob grouping info
+    if (replayActive) {
+        fallingBlocks.forEach(block => {
+            const yPixel = block.currentY;
+            const yCell = yPixel / BLOCK_SIZE;
+            drawSolidShape(ctx, [[block.x, yCell]], block.color, BLOCK_SIZE, false, getFaceOpacity(), block.isRandom);
+        });
+        ctx.restore();
+        return;
     }
     
     // Group blocks by blobId and color to draw them as connected shapes
@@ -14442,9 +14454,9 @@ function runReplay() {
         const event = gameEvents[replayGameEventIndex];
         
         if (event.type === 'linesClear' && event.rows) {
-            // Trigger line clear animation
-            animateClearLines(event.rows);
-            console.log('🎬 Replay: Line clear triggered for rows', event.rows);
+            // Note: Line clear animation skipped in replay - would need cell color data recorded
+            // The keyframes will show the correct board state after line clear
+            console.log('🎬 Replay: Line clear at rows', event.rows);
         } else if (event.type === 'strike') {
             // Trigger strike animation (lightning)
             triggerLightning(300);
@@ -14804,13 +14816,15 @@ function triggerReplayGravity(blocks) {
     
     // DON'T clear blocks from board - keyframes manage board state
     // Instead, track which cells are being animated so we skip drawing them from the board
+    // Track BOTH start AND end positions to prevent double-drawing
     replayAnimatingCells = new Set();
     
     // Set up falling blocks for animation
     fallingBlocks = [];
     blocks.forEach(block => {
-        // Track the start cell so we don't draw it from the board
-        replayAnimatingCells.add(`${block.x},${block.sy}`);
+        // Track both start and end positions to prevent overlap
+        replayAnimatingCells.add(`${block.x},${block.sy}`);  // Start position
+        replayAnimatingCells.add(`${block.x},${block.ey}`);  // End position
         
         fallingBlocks.push({
             x: block.x,
