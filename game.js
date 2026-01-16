@@ -1479,6 +1479,35 @@ nextCtx.webkitImageSmoothingEnabled = false;
 nextCtx.mozImageSmoothingEnabled = false;
 nextCtx.msImageSmoothingEnabled = false;
 
+// AI Mode menu overlay (shows on main menu when AI mode enabled)
+const aiModeMenuOverlay = document.createElement('div');
+aiModeMenuOverlay.id = 'aiModeMenuOverlay';
+aiModeMenuOverlay.textContent = '🤖 AI MODE';
+aiModeMenuOverlay.style.cssText = `
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: rgba(0, 255, 255, 0.8);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+`;
+canvas.parentElement.style.position = 'relative';
+canvas.parentElement.appendChild(aiModeMenuOverlay);
+
+function updateAIModeMenuOverlay() {
+    // Show overlay on menu when AI mode enabled, hide during gameplay
+    if (aiModeEnabled && !gameRunning) {
+        aiModeMenuOverlay.style.display = 'block';
+    } else {
+        aiModeMenuOverlay.style.display = 'none';
+    }
+}
+
 const histogramCanvas = document.getElementById('histogramCanvas');
 const histogramCtx = histogramCanvas.getContext('2d');
 const modeMenu = document.getElementById('modeMenu');
@@ -2368,6 +2397,9 @@ function exitAIGame() {
     
     // Clear exit bounds
     window.aiExitBounds = null;
+    
+    // Show AI mode overlay on menu
+    updateAIModeMenuOverlay();
 }
 
 function updateAIModeIndicator() {
@@ -12191,6 +12223,7 @@ function startGame(mode) {
         // Initialize AI worker even for human games (needed for shadow evaluation)
         AIPlayer.init();
         AIPlayer.setSkillLevel(skillLevel);
+        AIPlayer.setEnabled(aiModeEnabled); // Re-enable if AI mode is on
         
         // Start recording if AI mode is enabled
         if (aiModeEnabled && AIPlayer.startRecording) {
@@ -12539,6 +12572,7 @@ function startGame(mode) {
     gameOverDiv.style.display = 'none';
     modeMenu.classList.add('hidden');
     toggleUIElements(false); // Hide UI elements when game starts
+    updateAIModeMenuOverlay(); // Hide menu overlay during gameplay
     stopMenuMusic();
     
     // Create song info display element if not exists
@@ -12992,6 +13026,9 @@ playAgainBtn.addEventListener('click', () => {
         selectedModeIndex = 0;
     }
     updateSelectedMode();
+    
+    // Show AI mode overlay if enabled
+    updateAIModeMenuOverlay();
 });
 
 // Settings popup handlers
@@ -13103,6 +13140,9 @@ if (aiModeToggle) {
         console.log('🤖 AI Mode: ENABLED (restored from settings)');
     }
     
+    // Show AI mode overlay on menu if enabled
+    updateAIModeMenuOverlay();
+    
     aiModeToggle.addEventListener('change', (e) => {
         aiModeEnabled = e.target.checked;
         localStorage.setItem('aiModeEnabled', aiModeEnabled);
@@ -13126,6 +13166,9 @@ if (aiModeToggle) {
             const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
             window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
         }
+        
+        // Update menu overlay
+        updateAIModeMenuOverlay();
     });
 }
 
