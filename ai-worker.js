@@ -1,7 +1,7 @@
-// AI Worker v4.5.2 - 2-ply lookahead with volcano detection (2026-01-16)
-console.log("🤖 AI Worker v4.5.2 loaded - 2-ply lookahead, tsunami + volcano awareness");
+// AI Worker v4.5.3 - Survival-focused: earlier line clearing, stronger height penalties (2026-01-16)
+console.log("🤖 AI Worker v4.5.3 loaded - balanced survival with special event building");
 
-const AI_VERSION = "4.5.2";
+const AI_VERSION = "4.5.3";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -637,14 +637,16 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= wellPenalty;
     
     // ====== CRITICAL HEIGHT ======
-    if (stackHeight >= 19) {
-        breakdown.criticalHeight.penalty = 200;
+    if (stackHeight >= 18) {
+        breakdown.criticalHeight.penalty = 300;
         breakdown.classification = 'survival';
-    } else if (stackHeight >= 17) {
-        breakdown.criticalHeight.penalty = 60;
+    } else if (stackHeight >= 16) {
+        breakdown.criticalHeight.penalty = 100;
         breakdown.classification = 'defensive';
-    } else if (stackHeight >= 15) {
-        breakdown.criticalHeight.penalty = 15;
+    } else if (stackHeight >= 14) {
+        breakdown.criticalHeight.penalty = 30;
+    } else if (stackHeight >= 12) {
+        breakdown.criticalHeight.penalty = 10;
     }
     score -= breakdown.criticalHeight.penalty;
     
@@ -669,11 +671,20 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.lineClears.count = completeRows;
     
     if (completeRows > 0) {
-        if (stackHeight >= 18) {
-            breakdown.lineClears.bonus = completeRows * 150;
+        if (stackHeight >= 17) {
+            breakdown.lineClears.bonus = completeRows * 200;
             breakdown.classification = 'survival';
-        } else if (stackHeight >= 16) {
-            breakdown.lineClears.bonus = completeRows * 50;
+        } else if (stackHeight >= 15) {
+            breakdown.lineClears.bonus = completeRows * 80;
+            breakdown.classification = 'defensive';
+        } else if (stackHeight >= 13) {
+            if (tsunamiNearCompletion) {
+                breakdown.lineClears.bonus = -completeRows * 30;
+            } else if (tsunamiLikelyAchievable) {
+                breakdown.lineClears.bonus = -completeRows * 15;
+            } else {
+                breakdown.lineClears.bonus = completeRows * 30;
+            }
         } else if (currentUfoActive) {
             breakdown.lineClears.bonus = -completeRows * 50;
         } else if (tsunamiNearCompletion) {
@@ -681,11 +692,11 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         } else if (tsunamiLikelyAchievable) {
             breakdown.lineClears.bonus = -completeRows * 50;
         } else if (hasTsunamiPotential) {
-            breakdown.lineClears.bonus = -completeRows * 25;
+            breakdown.lineClears.bonus = -completeRows * 20;
         } else if (volcanoPotential.hasPotential) {
-            breakdown.lineClears.bonus = -completeRows * 40;
+            breakdown.lineClears.bonus = -completeRows * 30;
         } else {
-            breakdown.lineClears.bonus = completeRows * 3;
+            breakdown.lineClears.bonus = completeRows * 10;
         }
         score += breakdown.lineClears.bonus;
     }
@@ -723,8 +734,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    const canBuildBlobs = (stackHeight <= 16 && holes <= 5) || 
-                          (buildingSpecialEvent && stackHeight <= 17 && holes <= 8);
+    const canBuildBlobs = (stackHeight <= 14 && holes <= 5) || 
+                          (buildingSpecialEvent && stackHeight <= 16 && holes <= 8);
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
@@ -969,12 +980,14 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== CRITICAL HEIGHT ======
-    if (stackHeight >= 19) {
-        score -= 200;
-    } else if (stackHeight >= 17) {
-        score -= 60;
-    } else if (stackHeight >= 15) {
-        score -= 15;
+    if (stackHeight >= 18) {
+        score -= 300;
+    } else if (stackHeight >= 16) {
+        score -= 100;
+    } else if (stackHeight >= 14) {
+        score -= 30;
+    } else if (stackHeight >= 12) {
+        score -= 10;
     }
     
     // ====== EMERGENCY HOLE PENALTY ======
@@ -985,7 +998,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         score -= (holes - 9) * 5;    // Moderate penalty above 10 holes
     }
     
-    // ====== LINE CLEARS - OFTEN BAD! ======
+    // ====== LINE CLEARS ======
+    // Key insight: survival matters - don't avoid line clears when stack is growing
     let completeRows = 0;
     for (let row = 0; row < rows; row++) {
         if (board[row] && board[row].every(cell => cell !== null)) {
@@ -994,31 +1008,39 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     if (completeRows > 0) {
-        if (stackHeight >= 18) {
+        if (stackHeight >= 17) {
             // Critical emergency - must clear
-            score += completeRows * 150;
-        } else if (stackHeight >= 16) {
-            // Dangerous - clearing is good
-            score += completeRows * 50;
+            score += completeRows * 200;
+        } else if (stackHeight >= 15) {
+            // Dangerous - clearing is strongly encouraged
+            score += completeRows * 80;
+        } else if (stackHeight >= 13) {
+            // Getting risky - clearing is good unless building something
+            if (tsunamiNearCompletion) {
+                score -= completeRows * 30;  // Still penalize if near tsunami
+            } else if (tsunamiLikelyAchievable) {
+                score -= completeRows * 15;
+            } else {
+                score += completeRows * 30;  // Encourage clearing
+            }
         } else if (currentUfoActive) {
-            // UFO easter egg - avoid clears
+            // UFO easter egg - avoid clears (only when safe)
             score -= completeRows * 50;
         } else if (tsunamiNearCompletion) {
             // STRONG penalty - we're about to complete a tsunami!
-            // A 20-block tsunami = 1.6M points, don't throw it away for a line clear
             score -= completeRows * 80;
         } else if (tsunamiLikelyAchievable) {
             // Significant penalty - we have a good tsunami in progress
             score -= completeRows * 50;
         } else if (hasTsunamiPotential) {
             // Moderate penalty - building toward tsunami
-            score -= completeRows * 25;
+            score -= completeRows * 20;
         } else if (volcanoPotential.hasPotential) {
             // Penalty - don't disrupt volcano
-            score -= completeRows * 40;
+            score -= completeRows * 30;
         } else {
-            // No special event building - small bonus for clearing
-            score += completeRows * 3;
+            // No special event building - modest bonus for clearing
+            score += completeRows * 10;
         }
     }
     
@@ -1054,9 +1076,10 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    // Only build blobs when board is reasonably healthy
-    const canBuildBlobs = (stackHeight <= 16 && holes <= 5) || 
-                          (buildingSpecialEvent && stackHeight <= 17 && holes <= 8);
+    // Only focus on blob building when board is healthy
+    // At higher stacks, prioritize survival over blob building
+    const canBuildBlobs = (stackHeight <= 14 && holes <= 5) || 
+                          (buildingSpecialEvent && stackHeight <= 16 && holes <= 8);
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
