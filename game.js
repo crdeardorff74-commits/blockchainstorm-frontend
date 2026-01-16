@@ -2199,7 +2199,8 @@ function initPaletteDropdown() {
             option.appendChild(colorRow);
             option.appendChild(name);
             
-            option.addEventListener('click', () => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
                 selectPalette(palette.id);
                 dropdownMenu.classList.remove('open');
             });

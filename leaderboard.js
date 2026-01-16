@@ -227,8 +227,13 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     scores.forEach((entry, index) => {
-        // Exact match - we just submitted this score so it should match precisely
-        const isPlayerScore = playerScore && entry.score === playerScore;
+        // Type-safe exact match - convert both to numbers for comparison
+        const entryScore = Number(entry.score);
+        const targetScore = Number(playerScore);
+        const isPlayerScore = playerScore && entryScore === targetScore;
+        if (isPlayerScore) {
+            console.log(`🎯 Highlighting score at rank ${index + 1}: ${entryScore}`);
+        }
         const rowClass = isPlayerScore ? 'player-score' : '';
         
         let events = [];
