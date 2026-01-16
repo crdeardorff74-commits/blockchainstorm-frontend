@@ -2364,6 +2364,8 @@
         .palette-dropdown {
             position: relative;
             width: 270px;
+            display: flex;
+            align-items: center;
         }
         
         .palette-dropdown-button {
@@ -2417,9 +2419,7 @@
             display: none;
         }
         
-        .palette-dropdown-menu.open {
-            display: block;
-        }
+        /* .open class no longer used - inline styles control visibility */
         
         .palette-category-header {
             padding: 6px 12px;
@@ -3178,7 +3178,7 @@
             
             <div class="settings-divider"></div>
             
-            <div class="settings-option" style="border-bottom: none;">
+            <div class="settings-option" style="border-bottom: none; position: relative;">
                 <label class="toggle-label">
                     <span class="toggle-label-text">Color Palette</span>
                     <div class="palette-dropdown" id="paletteDropdown" style="margin-left: auto;">

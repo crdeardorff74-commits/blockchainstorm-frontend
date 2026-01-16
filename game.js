@@ -2169,10 +2169,18 @@ function initPaletteDropdown() {
     const dropdownBtn = document.getElementById('paletteDropdownBtn');
     const dropdownMenu = document.getElementById('paletteDropdownMenu');
     const palettePreview = document.getElementById('palettePreview');
+    const paletteDropdown = document.getElementById('paletteDropdown');
     
     if (!dropdownBtn || !dropdownMenu || !palettePreview || typeof ColorPalettes === 'undefined') {
         console.warn('Palette dropdown elements not found or ColorPalettes not loaded');
         return;
+    }
+    
+    // Prevent label click behavior on the dropdown container
+    if (paletteDropdown) {
+        paletteDropdown.addEventListener('click', (e) => {
+            e.preventDefault();
+        });
     }
     
     // Populate dropdown menu
@@ -2219,11 +2227,9 @@ function initPaletteDropdown() {
             
             option.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('🎨 Palette option clicked:', palette.id);
+                e.preventDefault();
                 selectPalette(palette.id);
-                // Explicitly hide menu (classList removal wasn't working)
                 dropdownMenu.style.display = 'none';
-                dropdownMenu.classList.remove('open');
             });
             
             dropdownMenu.appendChild(option);
@@ -2236,6 +2242,7 @@ function initPaletteDropdown() {
     // Toggle dropdown
     dropdownBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        e.preventDefault();
         const isOpen = dropdownMenu.style.display === 'block';
         dropdownMenu.style.display = isOpen ? 'none' : 'block';
     });
@@ -2314,15 +2321,39 @@ function createAIModeIndicator() {
 }
 
 function exitAIGame() {
-    if (!aiModeEnabled || !gameRunning) return;
+    if (!aiModeEnabled) return;
     console.log('🤖 AI game cancelled by user');
-    cancelAIAutoRestartTimer();
+    
+    // Stop the game loop
     gameRunning = false;
+    if (gameLoop) {
+        cancelAnimationFrame(gameLoop);
+        gameLoop = null;
+    }
+    
+    // Stop AI player
+    if (typeof AIPlayer !== 'undefined') {
+        AIPlayer.setEnabled(false);
+    }
+    
+    // Stop music and timers
+    cancelAIAutoRestartTimer();
     stopMusic();
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Reset board
+    initBoard();
+    
+    // Hide game over, show menu
     gameOverDiv.style.display = 'none';
     modeMenu.classList.remove('hidden');
     document.body.classList.remove('game-started');
     toggleUIElements(true);
+    
+    // Clear exit bounds
+    window.aiExitBounds = null;
 }
 
 function updateAIModeIndicator() {
