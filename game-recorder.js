@@ -367,16 +367,16 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record random hail block spawn (for Hailstorm/Hurricane modes)
+     * Record gremlin block spawn (for Gremlins challenge mode)
      */
-    function recordHailBlock(x, y, color) {
+    function recordGremlinBlock(x, y, color) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
         recording.randomEvents.push({
             t: timestamp,
-            type: 'hail_block',
+            type: 'gremlin_block',
             x: x,
             y: y,
             color: color
@@ -649,7 +649,7 @@ const GameRecorder = (() => {
         recordTsunami,
         recordBlackHole,
         recordGravity,
-        recordHailBlock,
+        recordGremlinBlock,
         recordChallengeEvent,
         captureFrame,
         stopRecording,

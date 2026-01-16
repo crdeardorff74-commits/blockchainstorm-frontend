@@ -663,12 +663,28 @@ const GamepadController = {
                 if (!collides(currentPiece, -1, 0)) {
                     currentPiece.x--;
                     playSoundEffect('move', soundToggle);
+                    // Record input for replay
+                    if (window.GameRecorder && window.GameRecorder.isActive()) {
+                        window.GameRecorder.recordInput('left', {
+                            x: currentPiece.x,
+                            y: currentPiece.y,
+                            rotation: currentPiece.rotationIndex || 0
+                        });
+                    }
                 }
                 this.lastMoveTime = now;
             } else if (rightPressed) {
                 if (!collides(currentPiece, 1, 0)) {
                     currentPiece.x++;
                     playSoundEffect('move', soundToggle);
+                    // Record input for replay
+                    if (window.GameRecorder && window.GameRecorder.isActive()) {
+                        window.GameRecorder.recordInput('right', {
+                            x: currentPiece.x,
+                            y: currentPiece.y,
+                            rotation: currentPiece.rotationIndex || 0
+                        });
+                    }
                 }
                 this.lastMoveTime = now;
             }
@@ -678,6 +694,14 @@ const GamepadController = {
                     currentPiece.y++;
                     score += 1;
                     updateStats();
+                    // Record soft drop for replay
+                    if (window.GameRecorder && window.GameRecorder.isActive()) {
+                        window.GameRecorder.recordInput('softDrop', {
+                            x: currentPiece.x,
+                            y: currentPiece.y,
+                            rotation: currentPiece.rotationIndex || 0
+                        });
+                    }
                 }
                 this.lastMoveTime = now;
             }
@@ -2169,8 +2193,6 @@ function updateAIModeIndicator() {
 let gameMode = null;
 let skillLevel = 'tempest'; // 'breeze', 'tempest', 'maelstrom'
 let lastPlayedMode = null; // Track the last played mode for menu selection
-let hailstormEnabled = false;
-let hailstormCounter = 0;
 
 const SHAPES = {
     I: [[1,1,1,1]],
@@ -6054,7 +6076,7 @@ function drawStormParticles() {
 }
 
 let board = [];
-let isRandomBlock = []; // Track which blocks are random hailstorm blocks
+let isRandomBlock = []; // Track blocks placed by Gremlins challenge (rendered with silver edges)
 let isLatticeBlock = []; // Track which blocks are pre-filled lattice blocks (immune to gravity until absorbed)
 let fadingBlocks = []; // Track blocks that are fading in with their opacity and scale
 let currentPiece = null;
@@ -6294,7 +6316,30 @@ function randomColor() {
     return currentColorSet[Math.floor(Math.random() * currentColorSet.length)];
 }
 
+// Deterministic replay piece tracking
+let replayPieceIndex = 0;
+let replayPieceQueue = []; // Recorded pieces for replay
+
 function createPiece() {
+    // In deterministic replay mode, use recorded pieces instead of random
+    if (replayActive && replayPieceQueue.length > 0) {
+        if (replayPieceIndex < replayPieceQueue.length) {
+            const recorded = replayPieceQueue[replayPieceIndex++];
+            const shapeSet = getShapeSetForType(recorded.type);
+            const shape = shapeSet[recorded.type];
+            const pieceHeight = shape.length;
+            
+            return {
+                shape: shape,
+                type: recorded.type,
+                color: recorded.color,
+                x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
+                y: -pieceHeight
+            };
+        }
+    }
+    
+    // Normal random piece generation
     let shapeSet;
     let type;
     
@@ -6336,6 +6381,14 @@ function createPiece() {
     }
     
     return piece;
+}
+
+// Helper to get the correct shape set for a piece type
+function getShapeSetForType(type) {
+    if (SHAPES[type]) return SHAPES;
+    if (typeof BLIZZARD_SHAPES !== 'undefined' && BLIZZARD_SHAPES[type]) return BLIZZARD_SHAPES;
+    if (typeof EXTENDED_SHAPES !== 'undefined' && EXTENDED_SHAPES[type]) return EXTENDED_SHAPES;
+    return SHAPES; // fallback
 }
 
 // Hexomino shapes (6 blocks) - verified block counts
@@ -6400,8 +6453,12 @@ function createGiantPiece(segmentCount) {
     return piece;
 }
 
-function createRandomHailBlock() {
-    // Find the topmost player-placed block (not random blocks)
+/**
+ * Create a random block for Gremlins challenge mode
+ * Places a block up to 4 rows above the highest player block
+ */
+function createGremlinBlock() {
+    // Find the topmost player-placed block (not random/gremlin blocks)
     let topFilledRow = ROWS - 1;
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
@@ -6429,12 +6486,12 @@ function createRandomHailBlock() {
     // Place it directly on the board if the space is empty
     if (board[y] && !board[y][x]) {
         board[y][x] = color;
-        isRandomBlock[y][x] = true; // Mark as random block
+        isRandomBlock[y][x] = true; // Mark as gremlin-placed block
         fadingBlocks[y][x] = { opacity: 0.01, scale: 0.15 }; // Start small and nearly invisible
         
-        // Record hail block for playback
+        // Record gremlin block for replay
         if (window.GameRecorder && window.GameRecorder.isActive()) {
-            window.GameRecorder.recordHailBlock(x, y, color);
+            window.GameRecorder.recordGremlinBlock(x, y, color);
         }
     }
 }
@@ -6729,7 +6786,7 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     if (useGold) {
         console.log(`✨ Drawing blob with GOLD edges! positions=${positions.length}, color=${color}`);
     }
-    // Silver edges for hail blocks - logging removed to reduce console spam
+    // Silver edges for gremlin-placed blocks
 
     ctx.save();
 
@@ -6745,7 +6802,7 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     let topColor, leftColor, bottomColor, rightColor;
     
     if (useSilver) {
-        // Silver edges for random hail blocks
+        // Silver edges for gremlin-placed blocks
         topColor = '#E8E8E8';      // Light silver
         leftColor = '#D3D3D3';     // Silver
         bottomColor = '#A9A9A9';   // Dark gray
@@ -7277,6 +7334,16 @@ function drawBoard() {
             });
         }
     }
+    
+    // During replay, also skip cells being animated by line clear
+    // Keyframes may still show these cells, but lineAnimations handles their rendering
+    if (replayActive && lineAnimations.length > 0) {
+        lineAnimations.forEach(anim => {
+            anim.cells.forEach(cell => {
+                fallingBlockSet.add(`${cell.x},${cell.y}`);
+            });
+        });
+    }
 
     const blobs = getAllBlobs();
     
@@ -7299,15 +7366,15 @@ function drawBoard() {
             return;
         }
         
-        // Filter out positions that are currently falling (to avoid duplicates)
-        if (gravityAnimating && fallingBlockSet.size > 0) {
+        // Filter out positions that are being animated (gravity or line clear)
+        if (fallingBlockSet.size > 0) {
             validPositions = validPositions.filter(p => !fallingBlockSet.has(`${p[0]},${p[1]}`));
             if (validPositions.length === 0) {
                 return;
             }
         }
         
-        // Separate random hail blocks, lattice blocks, and normal blocks
+        // Separate gremlin-placed blocks, lattice blocks, and normal blocks
         const randomBlockPositions = [];
         const latticeBlockPositions = [];
         const normalBlockPositions = [];
@@ -7385,7 +7452,7 @@ function drawBoard() {
                 });
             }
             
-            // Draw non-fading random hail blocks with silver
+            // Draw non-fading gremlin-placed blocks with silver
             const nonFadingRandomPositions = randomBlockPositions.filter(p => {
                 const [x, y] = p;
                 const fade = fadingBlocks[y] && fadingBlocks[y][x];
@@ -7552,7 +7619,7 @@ function drawBoard() {
                     ctx.restore();
                 });
             }
-            // Draw random hail blocks with silver
+            // Draw gremlin-placed blocks with silver
             if (randomBlockPositions.length > 0) {
                 const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
                 
@@ -9586,6 +9653,30 @@ function animateClearLines(completedRows) {
     return animation;
 }
 
+/**
+ * Animate line clear during replay using recorded cell data
+ * @param {Array} cells - Array of {x, y, c (color)}
+ */
+function animateReplayClearLines(cells) {
+    const animation = { cells: [], startTime: Date.now(), duration: 500 };
+    const centerX = COLS / 2;
+
+    cells.forEach(cell => {
+        animation.cells.push({
+            x: cell.x,
+            y: cell.y,
+            color: cell.c,
+            distance: Math.abs(cell.x - centerX),
+            removed: false,
+            alpha: 1
+        });
+    });
+
+    animation.cells.sort((a, b) => a.distance - b.distance);
+    lineAnimations.push(animation);
+    return animation;
+}
+
 function updateLineAnimations() {
     const now = Date.now();
     lineAnimations = lineAnimations.filter(anim => {
@@ -9865,7 +9956,7 @@ function identifyAllBlobs(phantom) {
                         !phantom.isLattice[pos.y] || !phantom.isLattice[pos.y][pos.x]
                     );
                     
-                    // Filter out random/hailstorm blocks
+                    // Filter out gremlin-placed blocks
                     const nonRandomPositions = positions.filter(pos =>
                         !phantom.isRandom[pos.y] || !phantom.isRandom[pos.y][pos.x]
                     );
@@ -10643,7 +10734,7 @@ function drawFallingBlocks() {
             return [b.x, relativeY];
         });
         
-        // Check if any blocks are random hail blocks
+        // Check if any blocks are gremlin-placed blocks
         const hasRandomBlocks = group.blocks.some(b => b.isRandom);
         
         // Use pulsing color for lava blocks
@@ -10948,12 +11039,22 @@ function clearLines() {
         lines += completedRows.length;
         
         // Record line clear event for replay (both AI and human games)
+        // Include cell data so animation can work without reading from board
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            const cellData = [];
+            completedRows.forEach(row => {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[row] && board[row][x]) {
+                        cellData.push({ x: x, y: row, c: board[row][x] });
+                    }
+                }
+            });
             GameRecorder.recordEvent('linesClear', { 
                 linesCleared: completedRows.length, 
                 totalLines: lines,
                 level: level,
-                rows: completedRows // Include which rows were cleared
+                rows: completedRows, // Include which rows were cleared
+                cells: cellData // Cell colors for animation
             });
         }
         
@@ -11470,7 +11571,7 @@ function dropPiece() {
             if (isGremlinsMode && gremlinsCounter >= gremlinsNextTarget) {
                 // 50% chance to add, 50% chance to remove
                 if (Math.random() < 0.5) {
-                    createRandomHailBlock(); // Add a block
+                    createGremlinBlock(); // Add a block
                 } else {
                     removeRandomBlocks(); // Remove a block
                 }
@@ -12041,8 +12142,19 @@ function update(time = 0) {
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
     
-    // AI Mode: Let AI control the game
-    if (aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
+    // Deterministic replay mode: process recorded inputs instead of AI or keyboard
+    if (replayActive) {
+        processReplayInputs();
+        
+        // Update replay score display
+        const scoreSpan = document.getElementById('replayScore');
+        if (scoreSpan) {
+            scoreSpan.textContent = `${formatAsBitcoin(score)} pts`;
+        }
+    }
+    
+    // AI Mode: Let AI control the game (but not during replay)
+    if (!replayActive && aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
         AIPlayer.setSkillLevel(skillLevel);
         // Pass the full queue so AI can plan ahead based on upcoming colors
         // Also pass earthquake state so AI can hold off during earthquakes
@@ -12370,35 +12482,30 @@ function startGame(mode) {
         case 'drizzle':
             // Easier mode - 4 colors (max contrast)
             COLS = 10;
-            hailstormEnabled = false;
             dropInterval = 1000;
             currentColorSet = COLOR_SETS[4];
             break;
         case 'downpour':
             // Standard mode - 6 colors (max contrast)
             COLS = 10;
-            hailstormEnabled = false;
             dropInterval = 1000;
             currentColorSet = COLOR_SETS[6];
             break;
         case 'hailstorm':
             // 8 colors - all colors
             COLS = 10;
-            hailstormEnabled = false;
             dropInterval = 1000;
             currentColorSet = COLOR_SETS[8];
             break;
         case 'blizzard':
             // 12 wide + 5-block pieces - 5 colors (max contrast)
             COLS = 12;
-            hailstormEnabled = false;
             dropInterval = 1000;
             currentColorSet = COLOR_SETS[5];
             break;
         case 'hurricane':
             // 12 wide + 5-block pieces - 7 colors (max contrast)
             COLS = 12;
-            hailstormEnabled = false;
             dropInterval = 1000;
             currentColorSet = COLOR_SETS[7];
             break;
@@ -12499,7 +12606,6 @@ function startGame(mode) {
     pendingLineCheck = false;
     yesAndSpawnedLimb = false;
     paused = false; StarfieldSystem.setPaused(false);
-    hailstormCounter = 0;
     triggeredTsunamis.clear();
     
     // Reset tornado state
@@ -12638,7 +12744,7 @@ function startGame(mode) {
             // Place blocks and mark them as lattice blocks
             positions.forEach(x => {
                 board[y][x] = randomColor();
-                isRandomBlock[y][x] = false; // Not marked as random hail blocks
+                isRandomBlock[y][x] = false; // Not marked as gremlin-placed blocks
                 isLatticeBlock[y][x] = true; // Mark as lattice block (immune to gravity)
             });
         }
@@ -12807,7 +12913,8 @@ document.addEventListener('keydown', e => {
             return;
         }
         
-        if (paused || !currentPiece) return;
+        // During replay, ignore player input (inputs come from recording)
+        if (paused || !currentPiece || replayActive) return;
 
         // Custom key repeat system - ignore browser's repeat events entirely
         if (e.repeat) {
@@ -12820,7 +12927,17 @@ document.addEventListener('keydown', e => {
         const actionHandlers = {
             'moveLeft': () => movePiece(-1),
             'moveRight': () => movePiece(1),
-            'softDrop': () => dropPiece(),
+            'softDrop': () => {
+                dropPiece();
+                // Record soft drop input for replay
+                if (window.GameRecorder && window.GameRecorder.isActive() && currentPiece) {
+                    window.GameRecorder.recordInput('softDrop', {
+                        x: currentPiece.x,
+                        y: currentPiece.y,
+                        rotation: currentPiece.rotationIndex || 0
+                    });
+                }
+            },
             'hardDrop': () => hardDrop(),
             'rotateCW': () => rotatePiece(),
             'rotateCCW': () => rotatePieceCounterClockwise()
@@ -12838,19 +12955,19 @@ document.addEventListener('keydown', e => {
         } else {
             // Fallback to hardcoded controls if ControlsConfig not available
             Object.assign(gameControlKeys, {
-                'ArrowLeft': () => movePiece(-1),
-                'ArrowRight': () => movePiece(1),
-                'ArrowDown': () => dropPiece(),
-                'ArrowUp': () => rotatePiece(),
-                '4': () => movePiece(-1),
-                '6': () => movePiece(1),
-                '2': () => dropPiece(),
-                '5': () => rotatePieceCounterClockwise(),
-                'Clear': () => rotatePieceCounterClockwise(),
-                '8': () => rotatePiece(),
-                '0': () => hardDrop(),
-                'Insert': () => hardDrop(),
-                ' ': () => hardDrop()
+                'ArrowLeft': actionHandlers.moveLeft,
+                'ArrowRight': actionHandlers.moveRight,
+                'ArrowDown': actionHandlers.softDrop,
+                'ArrowUp': actionHandlers.rotateCW,
+                '4': actionHandlers.moveLeft,
+                '6': actionHandlers.moveRight,
+                '2': actionHandlers.softDrop,
+                '5': actionHandlers.rotateCCW,
+                'Clear': actionHandlers.rotateCCW,
+                '8': actionHandlers.rotateCW,
+                '0': actionHandlers.hardDrop,
+                'Insert': actionHandlers.hardDrop,
+                ' ': actionHandlers.hardDrop
             });
         }
         
@@ -14153,41 +14270,76 @@ const handleUnpauseTap = (e) => {
 
 document.addEventListener('click', handleUnpauseTap);
 document.addEventListener('touchend', handleUnpauseTap);
-// ==================== REPLAY SYSTEM ====================
+// ==================== DETERMINISTIC REPLAY SYSTEM ====================
+// Replay runs an actual game with recorded pieces and inputs injected at timestamps
 
-// Replay state (replayActive declared at top with other state variables)
+// Core replay state
 let replayPaused = false;
 let replayData = null;
 let replaySpeed = 1.0;
-let replayMoveIndex = 0;
-let replayStartTime = 0;
-let replayAnimationFrame = null;
+let replayStartTime = 0;         // When replay started (real time)
+let replayElapsedTime = 0;       // Scaled elapsed time
+let replayLastFrameTime = 0;     // Last frame timestamp for delta calculation
 
-// Start game replay from recording
+// Input injection state  
+let replayInputs = [];           // All recorded inputs
+let replayInputIndex = 0;        // Current input index
+let replayRandomEvents = [];     // Recorded random events (gremlin blocks, etc.)
+let replayRandomEventIndex = 0;  // Current random event index
+
+// Legacy variables (kept for compatibility during transition)
+let replayMoveIndex = 0;
+let replayAnimationFrame = null;
+let replayCurrentMoveIndex = 0;
+let replayCurrentPiece = null;
+let replayPieceInputs = [];
+let replayEventIndex = 0;
+let replayGameEventIndex = 0;
+let replayAnimatingCells = new Set();
+let replayLastKeyframeTime = -1;
+let replayGravityBoardLocked = false;
+let replayPieceStartY = -2;
+
+/**
+ * Start deterministic game replay
+ * Runs an actual game with recorded pieces and inputs
+ */
 window.startGameReplay = function(recording) {
-    console.log('🎬 Starting replay:', recording.username, recording.difficulty, recording.skill_level);
+    console.log('🎬 Starting deterministic replay:', recording.username, recording.difficulty, recording.skill_level);
+    
+    const recData = recording.recording_data;
+    if (!recData) {
+        console.error('🎬 No recording data');
+        alert('This recording does not contain replay data.');
+        return;
+    }
+    
     console.log('🎬 Recording has:', 
-        (recording.recording_data?.keyframes?.length || 0), 'keyframes,',
-        (recording.recording_data?.moves?.length || 0), 'moves');
+        (recData.pieces?.length || 0), 'pieces,',
+        (recData.inputs?.length || 0), 'inputs,',
+        (recData.moves?.length || 0), 'moves,',
+        (recData.randomEvents?.length || 0), 'random events');
     
+    // Store replay data
     replayData = recording;
-    replayActive = true;
-    replayPaused = false;
-    replayMoveIndex = 0;
-    replaySpeed = 1.0;
     
-    // Reset replay animation state
-    replayCurrentMoveIndex = 0;
+    // Set up deterministic piece queue
+    replayPieceQueue = recData.pieces || [];
+    replayPieceIndex = 0;
+    
+    // Set up input injection
+    replayInputs = recData.inputs || [];
+    replayInputIndex = 0;
+    
+    // Set up random event injection
+    replayRandomEvents = recData.randomEvents || [];
+    replayRandomEventIndex = 0;
+    
+    // Reset timing
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
-    replayCurrentPiece = null;
-    replayPieceInputs = [];
-    replayInputIndex = 0;
-    replayEventIndex = 0;
-    replayGameEventIndex = 0;
-    replayAnimatingCells = new Set();
-    replayGravityBoardLocked = false;
-    replayLastKeyframeTime = -1;
+    replaySpeed = 1.0;
+    replayPaused = false;
     
     // Hide any existing overlays/menus
     if (gameOverDiv) gameOverDiv.style.display = 'none';
@@ -14199,164 +14351,297 @@ window.startGameReplay = function(recording) {
         window.leaderboard.hideLeaderboard();
     }
     
-    // Set up game for replay
-    const recData = recording.recording_data;
+    // Configure game mode from recording
     gameMode = recording.difficulty;
     skillLevel = recording.skill_level;
     window.skillLevel = recording.skill_level;
     
-    // MUST set COLS BEFORE creating board and updating canvas
-    // Blizzard and hurricane use 12 columns, others use 10
+    // Set COLS before anything else
     COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 12 : 10;
-    console.log('🎬 Setting COLS to', COLS, 'for difficulty', gameMode);
-    console.log('🎬 Canvas before resize:', canvas.width, 'x', canvas.height);
     updateCanvasSize();
-    console.log('🎬 Canvas after resize:', canvas.width, 'x', canvas.height, 'BLOCK_SIZE:', BLOCK_SIZE);
     
-    // Reset game state - now board has correct size
+    // Set challenge mode if recorded
+    challengeMode = recData.mode === 'challenge' ? (recData.challenges?.[0] || 'normal') : 'normal';
+    activeChallenges.clear();
+    if (recData.challenges) {
+        recData.challenges.forEach(c => activeChallenges.add(c));
+    }
+    
+    // Set replay active BEFORE starting game
+    // This tells createPiece() to use recorded pieces
+    replayActive = true;
+    
+    // Reset game state
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    isRandomBlock = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    isLatticeBlock = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    fadingBlocks = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     score = 0;
     lines = 0;
     level = 1;
-    gameRunning = true;
-    paused = false;
-    currentPiece = null;
-    nextPieceQueue = [];
-    
-    // Reset special event counters
     strikeCount = 0;
     tsunamiCount = 0;
     blackHoleCount = 0;
     volcanoCount = 0;
+    dropCounter = 0;
+    dropInterval = 1000;
+    gameOverPending = false;
     
-    // Reset animation states
-    gravityAnimating = false;
-    fallingBlocks = [];
+    // Clear any active animations
     tsunamiAnimating = false;
     blackHoleAnimating = false;
     blackHoleActive = false;
     volcanoAnimating = false;
+    gravityAnimating = false;
+    fallingBlocks = [];
     animatingLines = false;
     lineAnimations = [];
     
-    // Update all displays
-    scoreDisplay.textContent = formatAsBitcoin(score);
-    linesDisplay.textContent = lines;
-    levelDisplay.textContent = level;
-    strikesDisplay.textContent = strikeCount;
-    tsunamisDisplay.textContent = tsunamiCount;
-    blackHolesDisplay.textContent = blackHoleCount;
-    volcanoesDisplay.textContent = volcanoCount;
+    // Initialize piece queue with recorded pieces
+    initPieceQueue();
     
-    // Show replay controls
-    showReplayControls(recording);
+    // Set current piece
+    currentPiece = consumeNextPiece();
+    if (currentPiece) {
+        pieceSpawnTime = Date.now();
+    }
     
-    // Start the replay
+    // Start game running
+    gameRunning = true;
+    StarfieldSystem.setGameRunning(true);
+    
+    // Record start time for input timing
     replayStartTime = Date.now();
-    runReplay();
+    
+    // Show replay UI
+    showReplayUI();
+    
+    // Start the game loop
+    gameLoop = requestAnimationFrame(update);
+    
+    console.log('🎬 Deterministic replay started - game is running');
 };
+/**
+ * Process replay inputs - inject recorded inputs at their timestamps
+ * Called from the main update() loop during replay
+ */
+function processReplayInputs() {
+    if (!replayActive || replayPaused || !currentPiece) return;
+    
+    // Calculate elapsed time with speed scaling
+    const now = Date.now();
+    if (replayLastFrameTime === 0) replayLastFrameTime = now;
+    const realDelta = now - replayLastFrameTime;
+    replayLastFrameTime = now;
+    replayElapsedTime += realDelta * replaySpeed;
+    
+    // Process all inputs that should have occurred by now
+    while (replayInputIndex < replayInputs.length && 
+           replayInputs[replayInputIndex].t <= replayElapsedTime) {
+        
+        const input = replayInputs[replayInputIndex];
+        
+        // Execute the input action
+        switch (input.type) {
+            case 'left':
+                movePiece(-1);
+                break;
+            case 'right':
+                movePiece(1);
+                break;
+            case 'rotate':
+                rotatePiece();
+                break;
+            case 'rotateCCW':
+                rotatePieceCounterClockwise();
+                break;
+            case 'softDrop':
+                dropPiece();
+                break;
+            case 'hardDrop':
+                hardDrop();
+                break;
+        }
+        
+        replayInputIndex++;
+    }
+    
+    // Process random events (gremlin blocks, etc.)
+    while (replayRandomEventIndex < replayRandomEvents.length &&
+           replayRandomEvents[replayRandomEventIndex].t <= replayElapsedTime) {
+        
+        const event = replayRandomEvents[replayRandomEventIndex];
+        
+        if (event.type === 'gremlin_block' || event.type === 'hail_block') {
+            // Place gremlin block directly
+            if (board[event.y] && !board[event.y][event.x]) {
+                board[event.y][event.x] = event.color;
+                isRandomBlock[event.y][event.x] = true;
+                fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
+            }
+        }
+        // Note: Tsunamis, black holes, volcanoes, gravity happen naturally
+        // through the game logic when line clears occur
+        
+        replayRandomEventIndex++;
+    }
+    
+    // Check if replay is complete
+    // All inputs processed AND either: no more pieces to spawn OR game ended naturally
+    const allInputsProcessed = replayInputIndex >= replayInputs.length;
+    const allPiecesUsed = replayPieceIndex >= replayPieceQueue.length;
+    const gameEnded = gameOverPending || !gameRunning;
+    
+    if (allInputsProcessed && (allPiecesUsed || gameEnded)) {
+        // Give a small delay for final animations to complete
+        setTimeout(() => {
+            if (replayActive) {  // Check still active (user might have stopped)
+                console.log('🎬 Replay complete!');
+                showReplayComplete();
+            }
+        }, 500);
+        // Stop processing more inputs
+        replayActive = false;
+    }
+}
 
-// Show replay control overlay
-function showReplayControls(recording) {
-    // Remove existing if present
+/**
+ * Show replay UI controls
+ */
+function showReplayUI() {
+    // Remove existing controls if any
     const existing = document.getElementById('replayControls');
     if (existing) existing.remove();
     
     const controls = document.createElement('div');
     controls.id = 'replayControls';
-    controls.style.cssText = `
-        position: fixed;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.85);
-        border: 1px solid #444;
-        border-radius: 8px;
-        padding: 10px 20px;
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        font-family: 'Press Start 2P', monospace;
-        font-size: 10px;
-        color: #fff;
-    `;
-    
     controls.innerHTML = `
-        <span style="color: #ff6b6b;">🎬 REPLAY</span>
-        <span style="color: #aaa;">${escapeHtml(recording.username)}</span>
-        <span style="color: #6eb5ff;">${recording.score.toLocaleString()} pts</span>
-        <button id="replayPauseBtn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏸️</button>
-        <select id="replaySpeedSelect" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px;">
-            <option value="0.5">0.5x</option>
-            <option value="1" selected>1x</option>
-            <option value="2">2x</option>
-            <option value="4">4x</option>
-            <option value="8">8x</option>
-        </select>
-        <button id="replayStopBtn" style="background: #553333; border: 1px solid #885555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏹️ Stop</button>
+        <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); 
+                    background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px;
+                    display: flex; gap: 15px; align-items: center; z-index: 1000;
+                    font-family: Arial, sans-serif; color: white;">
+            <span style="color: #ff6b6b; font-weight: bold;">🎬 REPLAY</span>
+            <span id="replayPlayerName" style="color: #4ecdc4;">${replayData?.username || 'Unknown'}</span>
+            <span id="replayScore" style="color: #f7dc6f;">0 pts</span>
+            <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
+                    padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏸️</button>
+            <select id="replaySpeedSelect" style="background: #333; border: 1px solid #666; color: white;
+                    padding: 5px; border-radius: 4px;">
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="2">2x</option>
+                <option value="4">4x</option>
+            </select>
+            <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
+                    padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏹️ Stop</button>
+        </div>
     `;
-    
     document.body.appendChild(controls);
     
-    // Wire up controls
-    document.getElementById('replayPauseBtn').addEventListener('click', toggleReplayPause);
-    document.getElementById('replaySpeedSelect').addEventListener('change', (e) => {
+    // Set up control handlers
+    document.getElementById('replayPauseBtn').onclick = toggleReplayPause;
+    document.getElementById('replaySpeedSelect').onchange = (e) => {
         replaySpeed = parseFloat(e.target.value);
-    });
-    document.getElementById('replayStopBtn').addEventListener('click', stopReplay);
+    };
+    document.getElementById('replayStopBtn').onclick = stopReplay;
 }
 
+/**
+ * Toggle replay pause state
+ */
 function toggleReplayPause() {
     replayPaused = !replayPaused;
     const btn = document.getElementById('replayPauseBtn');
     if (btn) {
         btn.textContent = replayPaused ? '▶️' : '⏸️';
     }
-    if (!replayPaused) {
-        // Reset frame time tracking so delta calculation works correctly on resume
-        replayLastFrameTime = 0;
-        runReplay();
+    
+    if (replayPaused) {
+        // Pause the game
+        paused = true;
+    } else {
+        // Resume - reset frame time to avoid time jump
+        replayLastFrameTime = Date.now();
+        paused = false;
     }
 }
 
+/**
+ * Show replay complete message
+ */
+function showReplayComplete() {
+    const finalStats = replayData?.recording_data?.finalStats;
+    
+    // Update displays with final stats
+    if (finalStats) {
+        score = finalStats.score || 0;
+        lines = finalStats.lines || 0;
+        level = finalStats.level || 1;
+        strikeCount = finalStats.strikes || 0;
+        tsunamiCount = finalStats.tsunamis || 0;
+        blackHoleCount = finalStats.blackHoles || 0;
+        volcanoCount = finalStats.volcanoes || 0;
+        
+        scoreDisplay.textContent = formatAsBitcoin(score);
+        linesDisplay.textContent = lines;
+        levelDisplay.textContent = level;
+        strikesDisplay.textContent = strikeCount;
+        tsunamisDisplay.textContent = tsunamiCount;
+        blackHolesDisplay.textContent = blackHoleCount;
+        volcanoesDisplay.textContent = volcanoCount;
+    }
+    
+    // Show completion message
+    const controls = document.getElementById('replayControls');
+    if (controls) {
+        const scoreSpan = document.getElementById('replayScore');
+        if (scoreSpan) {
+            scoreSpan.textContent = `Final: ${formatAsBitcoin(score)} pts`;
+            scoreSpan.style.color = '#2ecc71';
+        }
+    }
+    
+    // Stop the game loop but keep UI visible
+    gameRunning = false;
+}
+
+/**
+ * Stop replay and return to menu
+ */
 function stopReplay() {
     replayActive = false;
     replayPaused = false;
     replayData = null;
     
-    // Reset replay state
-    replayCurrentMoveIndex = 0;
+    // Reset deterministic piece queue
+    replayPieceQueue = [];
+    replayPieceIndex = 0;
+    
+    // Reset input injection
+    replayInputs = [];
+    replayInputIndex = 0;
+    replayRandomEvents = [];
+    replayRandomEventIndex = 0;
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
-    replayCurrentPiece = null;
-    replayPieceInputs = [];
-    replayInputIndex = 0;
-    replayEventIndex = 0;
-    replayGameEventIndex = 0;
-    replayAnimatingCells = new Set();
-    replayGravityBoardLocked = false;
-    replayLastKeyframeTime = -1;
     
-    // Cancel any active special event animations
+    // Cancel any active animations
     tsunamiAnimating = false;
     blackHoleAnimating = false;
     blackHoleActive = false;
     volcanoAnimating = false;
     gravityAnimating = false;
     fallingBlocks = [];
+    animatingLines = false;
+    lineAnimations = [];
     
-    if (replayAnimationFrame) {
-        cancelAnimationFrame(replayAnimationFrame);
-        replayAnimationFrame = null;
-    }
-    
-    // Remove controls
+    // Remove replay controls
     const controls = document.getElementById('replayControls');
     if (controls) controls.remove();
     
     // Reset game state
     gameRunning = false;
+    StarfieldSystem.setGameRunning(false);
     currentPiece = null;
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     score = 0;
@@ -14387,364 +14672,14 @@ function stopReplay() {
     console.log('🎬 Replay stopped');
 }
 
-// Main replay loop - now with falling pieces!
-let replayCurrentMoveIndex = 0;
-let replayElapsedTime = 0;
-let replayLastFrameTime = 0;
-let replayCurrentPiece = null;
-let replayPieceStartY = -2; // Spawn position
-let replayPieceInputs = []; // Inputs for current piece
-let replayInputIndex = 0; // Current input index
-let replayEventIndex = 0; // Current special event index (tsunamis, black holes, volcanoes)
-let replayGameEventIndex = 0; // Current game event index (line clears, strikes)
-let replayAnimatingCells = new Set(); // Cells being animated (don't draw from board)
-let replayLastKeyframeTime = -1; // Timestamp of last applied keyframe
-let replayGravityBoardLocked = false; // Lock board state during gravity animation
-
+// Legacy runReplay function - kept for backwards compatibility but now mostly unused
 function runReplay() {
-    if (!replayActive || replayPaused) return;
-    
-    const recData = replayData.recording_data;
-    if (!recData) {
-        console.log('🎬 No recording data');
-        stopReplay();
-        return;
-    }
-    
-    const moves = recData.moves || [];
-    const keyframes = recData.keyframes || [];
-    const inputs = recData.inputs || [];
-    
-    if (moves.length === 0 && keyframes.length === 0) {
-        console.log('🎬 No moves or keyframes in recording');
-        alert('This recording does not contain replay data.');
-        stopReplay();
-        return;
-    }
-    
-    // Debug first frame
-    if (replayElapsedTime === 0) {
-        console.log('🎬 Starting replay with', moves.length, 'moves,', keyframes.length, 'keyframes,', inputs.length, 'inputs');
-        if (moves.length > 0) {
-            console.log('🎬 First move:', moves[0]);
-            console.log('🎬 Last move timestamp:', moves[moves.length - 1].t, 'ms');
-        }
-    }
-    
-    // Calculate elapsed time
-    const now = Date.now();
-    if (replayLastFrameTime === 0) replayLastFrameTime = now;
-    const deltaTime = (now - replayLastFrameTime) * replaySpeed;
-    replayLastFrameTime = now;
-    replayElapsedTime += deltaTime;
-    
-    // Find the current move based on elapsed time
-    while (replayCurrentMoveIndex < moves.length && 
-           moves[replayCurrentMoveIndex].t <= replayElapsedTime) {
-        // This move has completed - advance to next
-        replayCurrentMoveIndex++;
-        replayCurrentPiece = null; // Clear current piece, will set up next one
-        replayInputIndex = 0; // Reset input tracking for next piece
-    }
-    
-    // Process game events (line clears, strikes)
-    const gameEvents = recData.events || [];
-    while (replayGameEventIndex < gameEvents.length && 
-           gameEvents[replayGameEventIndex].t <= replayElapsedTime) {
-        const event = gameEvents[replayGameEventIndex];
-        
-        if (event.type === 'linesClear' && event.rows) {
-            // Trigger line clear animation
-            animatingLines = true;
-            animateClearLines(event.rows);
-            console.log('🎬 Replay: Line clear triggered for rows', event.rows);
-        } else if (event.type === 'strike') {
-            // Trigger strike animation (lightning)
-            triggerLightning(300);
-            console.log('🎬 Replay: Strike triggered');
-        }
-        
-        replayGameEventIndex++;
-    }
-    
-    // Process special events (tsunamis, black holes, volcanoes)
-    const randomEvents = recData.randomEvents || [];
-    while (replayEventIndex < randomEvents.length && 
-           randomEvents[replayEventIndex].t <= replayElapsedTime) {
-        const event = randomEvents[replayEventIndex];
-        
-        if (event.type === 'tsunami' && event.positions) {
-            // Trigger tsunami animation
-            const blob = {
-                positions: event.positions,
-                color: event.color
-            };
-            triggerTsunamiAnimation(blob);
-            console.log('🎬 Replay: Tsunami triggered');
-        } else if (event.type === 'blackHole' && event.innerPositions) {
-            // Trigger black hole animation
-            const innerBlob = {
-                positions: event.innerPositions,
-                color: event.innerColor
-            };
-            const outerBlob = {
-                positions: event.outerPositions,
-                color: event.outerColor
-            };
-            triggerBlackHole(innerBlob, outerBlob);
-            console.log('🎬 Replay: Black hole triggered');
-        } else if (event.type === 'volcano' && event.column !== undefined) {
-            // Trigger volcano animation if blob data is available
-            if (event.positions) {
-                const lavaBlob = {
-                    positions: event.positions,
-                    color: event.color
-                };
-                triggerVolcano(lavaBlob, event.column, event.edge);
-                console.log('🎬 Replay: Volcano triggered in column', event.column);
-            } else {
-                console.log('🎬 Replay: Volcano in column', event.column, '(no animation data)');
-            }
-        } else if (event.type === 'gravity' && event.blobs) {
-            triggerReplayGravity(event.blobs);
-            console.log('🎬 Replay: Gravity triggered with', event.blobs.length, 'blobs');
-        }
-        
-        replayEventIndex++;
-    }
-    
-    // Check if replay is complete
-    if (replayCurrentMoveIndex >= moves.length) {
-        // Show final board state from last keyframe
-        if (keyframes.length > 0) {
-            const lastKeyframe = keyframes[keyframes.length - 1];
-            if (lastKeyframe.board) {
-                board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-                lastKeyframe.board.forEach(cell => {
-                    if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
-                        board[cell.y][cell.x] = cell.c;
-                    }
-                });
-            }
-        }
-        
-        // Set final stats
-        const finalStats = recData.finalStats;
-        if (finalStats) {
-            score = finalStats.score || 0;
-            lines = finalStats.lines || 0;
-            level = finalStats.level || 1;
-            strikeCount = finalStats.strikes || 0;
-            tsunamiCount = finalStats.tsunamis || 0;
-            blackHoleCount = finalStats.blackHoles || 0;
-            volcanoCount = finalStats.volcanoes || 0;
-        }
-        
-        updateStormParticles();
-        drawBoard();
-        updateReplayDisplays();
-        
-        console.log('🎬 Replay complete!');
-        showReplayComplete();
-        return;
-    }
-    
-    // Get current move's time window
-    const currentMove = moves[replayCurrentMoveIndex];
-    const moveStartTime = replayCurrentMoveIndex > 0 ? moves[replayCurrentMoveIndex - 1].t : 0;
-    const moveEndTime = currentMove.t;
-    
-    // Set up current falling piece if needed
-    if (!replayCurrentPiece) {
-        // Skip setting up new piece while animations are still running
-        // This prevents keyframes from conflicting with ongoing animations
-        if (gravityAnimating || tsunamiAnimating || blackHoleAnimating || volcanoAnimating) {
-            // Don't set up piece yet - animations are still running
-            // Continue below to update animations and render
-        } else {
-        // Find the best keyframe for board state:
-        // We want to show the board AFTER the previous piece locked and lines cleared,
-        // but BEFORE the current piece locks.
-        // 
-        // Strategy: Find first keyframe AFTER moveStartTime (post-line-clear state)
-        // If none exists, fall back to last keyframe BEFORE moveStartTime
-        let boardKeyframe = null;
-        
-        // First try: keyframe after previous piece locked (captures post-line-clear state)
-        for (let i = 0; i < keyframes.length; i++) {
-            if (keyframes[i].t > moveStartTime && keyframes[i].t < moveEndTime) {
-                boardKeyframe = keyframes[i];
-                break; // Take first one after previous lock
-            }
-        }
-        
-        // Fallback: if no keyframe during this piece's lifetime, use last one before
-        if (!boardKeyframe) {
-            for (let i = keyframes.length - 1; i >= 0; i--) {
-                if (keyframes[i].t <= moveStartTime) {
-                    boardKeyframe = keyframes[i];
-                    break;
-                }
-            }
-        }
-        
-        // Apply board state
-        if (boardKeyframe && boardKeyframe.board) {
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-            boardKeyframe.board.forEach(cell => {
-                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
-                    board[cell.y][cell.x] = cell.c;
-                }
-            });
-        }
-        
-        // Get inputs for this piece (inputs between moveStartTime and moveEndTime)
-        replayPieceInputs = inputs.filter(inp => inp.t > moveStartTime && inp.t <= moveEndTime);
-        replayInputIndex = 0;
-        
-        // Initialize piece at spawn position (center-ish, depends on piece type)
-        const spawnX = Math.floor((COLS - 3) / 2); // Standard spawn X
-        replayCurrentPiece = {
-            type: currentMove.type,
-            color: currentMove.color,
-            x: spawnX,
-            y: replayPieceStartY,
-            rotation: 0,
-            targetX: currentMove.x,
-            targetY: currentMove.y,
-            targetRotation: currentMove.rot || 0,
-            moveStartTime: moveStartTime,
-            moveEndTime: moveEndTime
-        };
-        
-        // Get initial piece shape
-        replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
-        
-        // Calculate collision Y based on current board state (safety cap to prevent visual overlap)
-        replayCurrentPiece.collisionY = calculateReplayCollisionY(replayCurrentPiece);
-        } // Close the else block
-    }
-    
-    // Apply inputs that have occurred up to current time
-    let inputsApplied = false;
-    while (replayInputIndex < replayPieceInputs.length && 
-           replayPieceInputs[replayInputIndex].t <= replayElapsedTime) {
-        const input = replayPieceInputs[replayInputIndex];
-        
-        // Apply the input's recorded position/rotation directly
-        if (input.x !== undefined) {
-            replayCurrentPiece.x = input.x;
-            inputsApplied = true;
-        }
-        if (input.r !== undefined) {
-            replayCurrentPiece.rotation = input.r;
-            replayCurrentPiece.shape = getPieceShapeForReplay(replayCurrentPiece.type, replayCurrentPiece.rotation);
-            inputsApplied = true;
-        }
-        
-        // For hard drop, immediately set to target Y
-        if (input.type === 'hardDrop') {
-            replayCurrentPiece.y = replayCurrentPiece.targetY;
-        }
-        
-        replayInputIndex++;
-    }
-    
-    // Recalculate collision Y if inputs changed position/rotation
-    if (inputsApplied && replayCurrentPiece) {
-        replayCurrentPiece.collisionY = calculateReplayCollisionY(replayCurrentPiece);
-    }
-    
-    // Animate Y position (falling) - interpolate between current position and where piece should be
-    if (replayCurrentPiece) {
-        // Calculate how far through this piece's lifetime we are
-        const moveDuration = moveEndTime - moveStartTime;
-        const timeIntoMove = replayElapsedTime - moveStartTime;
-        const progress = moveDuration > 0 ? Math.min(1, timeIntoMove / moveDuration) : 1;
-        
-        // Calculate where Y should be based on time (smooth falling)
-        // Start at spawn Y, end at target Y
-        const startY = replayPieceStartY;
-        const endY = replayCurrentPiece.targetY;
-        
-        // Ease the fall - faster toward end
-        const easedProgress = progress * progress;
-        const animatedY = startY + (endY - startY) * easedProgress;
-        
-        // Only update Y if we haven't had a hardDrop input
-        // (hardDrop sets Y immediately, don't override it)
-        const lastProcessedInput = replayInputIndex > 0 ? replayPieceInputs[replayInputIndex - 1] : null;
-        if (!lastProcessedInput || lastProcessedInput.type !== 'hardDrop') {
-            // Cap Y at both targetY and collisionY to prevent overlap with stack
-            const maxY = Math.min(replayCurrentPiece.targetY, replayCurrentPiece.collisionY || ROWS);
-            replayCurrentPiece.y = Math.min(animatedY, maxY);
-        }
-    }
-    
-    // Update stats based on progress
-    const finalStats = recData.finalStats;
-    if (finalStats && moves.length > 0) {
-        const progress = replayCurrentMoveIndex / moves.length;
-        score = Math.floor((finalStats.score || 0) * progress);
-        lines = Math.floor((finalStats.lines || 0) * progress);
-        level = Math.max(1, Math.floor((finalStats.level || 1) * progress));
-        strikeCount = Math.floor((finalStats.strikes || 0) * progress);
-        tsunamiCount = Math.floor((finalStats.tsunamis || 0) * progress);
-        blackHoleCount = Math.floor((finalStats.blackHoles || 0) * progress);
-        volcanoCount = Math.floor((finalStats.volcanoes || 0) * progress);
-    }
-    
-    // Update board state from keyframes when not animating
-    // This ensures the board reflects the correct state after animations complete
-    if (!gravityAnimating && !tsunamiAnimating && !blackHoleAnimating && !volcanoAnimating && !animatingLines) {
-        // Find the most recent keyframe at or before current time
-        let currentKeyframe = null;
-        for (let i = keyframes.length - 1; i >= 0; i--) {
-            if (keyframes[i].t <= replayElapsedTime) {
-                currentKeyframe = keyframes[i];
-                break;
-            }
-        }
-        
-        // Apply if this is a newer keyframe than last applied
-        if (currentKeyframe && currentKeyframe.t > replayLastKeyframeTime) {
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-            currentKeyframe.board.forEach(cell => {
-                if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
-                    board[cell.y][cell.x] = cell.c;
-                }
-            });
-            replayLastKeyframeTime = currentKeyframe.t;
-        }
-    }
-    
-    // Update storm particles for animation
-    updateStormParticles();
-    
-    // Update special event animations (tsunami, black hole, volcano)
-    updateTsunamiAnimation();
-    updateBlackHoleAnimation();
-    updateVolcanoAnimation();
-    updateLineAnimations();
-    updateFallingBlocks();
-    
-    // Render board
-    drawBoard();
-    
-    // Draw falling blocks from gravity animation
-    drawFallingBlocks();
-    
-    // Draw falling piece
-    if (replayCurrentPiece && replayCurrentPiece.shape) {
-        drawReplayPiece(replayCurrentPiece);
-    }
-    
-    // Update displays
-    updateReplayDisplays();
-    
-    // Schedule next frame at 60fps
-    replayAnimationFrame = requestAnimationFrame(runReplay);
+    // The new deterministic replay uses the normal game loop
+    // This function is kept for any legacy code that might call it
+    if (!replayActive) return;
+    console.log('🎬 Legacy runReplay called - using new deterministic system');
 }
+    
 
 function updateReplayDisplays() {
     scoreDisplay.textContent = formatAsBitcoin(score);
@@ -14865,18 +14800,6 @@ function drawReplayPiece(piece) {
     drawSolidShape(ctx, positions, piece.color, BLOCK_SIZE, false, getFaceOpacity());
 }
 
-function showReplayComplete() {
-    const controls = document.getElementById('replayControls');
-    if (controls) {
-        controls.innerHTML = `
-            <span style="color: #4ecdc4;">🎬 REPLAY COMPLETE</span>
-            <span style="color: #aaa;">${escapeHtml(replayData.username)}</span>
-            <span style="color: #6eb5ff;">Final: ${replayData.score.toLocaleString()} pts</span>
-            <button id="replayStopBtn" style="background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Close</button>
-        `;
-        document.getElementById('replayStopBtn').addEventListener('click', stopReplay);
-    }
-}
 
 // Helper for replay controls
 function escapeHtml(text) {
