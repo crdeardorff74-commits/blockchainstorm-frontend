@@ -12457,6 +12457,9 @@ function startGame(mode) {
     // Save selected difficulty to localStorage for persistence
     localStorage.setItem('tantris_difficulty', mode);
     
+    // Reset replay state in case we're starting after a replay
+    replayActive = false;
+    
     // Stop any running credits animation
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
