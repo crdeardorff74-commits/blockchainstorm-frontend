@@ -1453,6 +1453,24 @@ document.addEventListener('keydown', (e) => {
 // Game code
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// Canvas click handler for AI EXIT button
+canvas.addEventListener('click', (e) => {
+    if (!aiModeEnabled || !gameRunning || !window.aiExitBounds) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    
+    const bounds = window.aiExitBounds;
+    if (x >= bounds.x && x <= bounds.x + bounds.width &&
+        y >= bounds.y && y <= bounds.y + bounds.height) {
+        exitAIGame();
+    }
+});
+
 const nextCanvas = document.getElementById('nextCanvas');
 const nextCtx = nextCanvas.getContext('2d');
 // Disable image smoothing for crisp pixels (prevents lines in fullscreen)
@@ -2203,8 +2221,9 @@ function initPaletteDropdown() {
                 e.stopPropagation();
                 console.log('🎨 Palette option clicked:', palette.id);
                 selectPalette(palette.id);
+                // Explicitly hide menu (classList removal wasn't working)
+                dropdownMenu.style.display = 'none';
                 dropdownMenu.classList.remove('open');
-                console.log('🎨 Dropdown closed, open class removed');
             });
             
             dropdownMenu.appendChild(option);
@@ -2217,13 +2236,14 @@ function initPaletteDropdown() {
     // Toggle dropdown
     dropdownBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        dropdownMenu.classList.toggle('open');
+        const isOpen = dropdownMenu.style.display === 'block';
+        dropdownMenu.style.display = isOpen ? 'none' : 'block';
     });
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
-            dropdownMenu.classList.remove('open');
+            dropdownMenu.style.display = 'none';
         }
     });
 }
@@ -2288,64 +2308,9 @@ let developerMode = false;
 // AI Mode indicator element (for developer mode)
 let aiModeIndicator = null;
 
+// AI mode indicator is now drawn directly on canvas - these functions are kept for compatibility
 function createAIModeIndicator() {
-    // Remove existing indicator to ensure we have latest styles
-    if (aiModeIndicator && aiModeIndicator.parentNode) {
-        aiModeIndicator.parentNode.removeChild(aiModeIndicator);
-        aiModeIndicator = null;
-    }
-    
-    aiModeIndicator = document.createElement('div');
-    aiModeIndicator.id = 'aiModeIndicator';
-    aiModeIndicator.style.cssText = `
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        right: 10px;
-        padding: 8px 15px;
-        background: rgba(0, 0, 0, 0.8);
-        color: #00ffff;
-        font-family: monospace;
-        font-size: 14px;
-        line-height: 1.4;
-        border-radius: 5px;
-        z-index: 9999;
-        display: none;
-        border: 1px solid #00ffff;
-        white-space: nowrap;
-        justify-content: space-between;
-        align-items: center;
-    `;
-    
-    // AI MODE label on left
-    const leftLabel = document.createElement('span');
-    leftLabel.textContent = '🤖 AI MODE';
-    leftLabel.style.cssText = 'font-weight: bold;';
-    
-    // EXIT link on right
-    const exitLink = document.createElement('span');
-    exitLink.textContent = '✕ EXIT';
-    exitLink.style.cssText = `
-        color: #ff6b6b;
-        cursor: pointer;
-        font-weight: bold;
-        padding: 2px 8px;
-        border-radius: 3px;
-        transition: background 0.2s;
-    `;
-    exitLink.addEventListener('mouseenter', () => {
-        exitLink.style.background = 'rgba(255, 107, 107, 0.2)';
-    });
-    exitLink.addEventListener('mouseleave', () => {
-        exitLink.style.background = 'transparent';
-    });
-    exitLink.addEventListener('click', () => {
-        exitAIGame();
-    });
-    
-    aiModeIndicator.appendChild(leftLabel);
-    aiModeIndicator.appendChild(exitLink);
-    document.body.appendChild(aiModeIndicator);
+    // No longer needed - AI mode indicator drawn on canvas
 }
 
 function exitAIGame() {
@@ -2358,18 +2323,10 @@ function exitAIGame() {
     modeMenu.classList.remove('hidden');
     document.body.classList.remove('game-started');
     toggleUIElements(true);
-    if (aiModeIndicator) aiModeIndicator.style.display = 'none';
 }
 
 function updateAIModeIndicator() {
-    if (!aiModeIndicator) createAIModeIndicator();
-    
-    // Show when AI mode is enabled AND game is running
-    if (aiModeEnabled && gameRunning) {
-        aiModeIndicator.style.display = 'flex';
-    } else {
-        aiModeIndicator.style.display = 'none';
-    }
+    // No longer needed - AI mode indicator drawn on canvas
 }
 
 // Game mode configuration
@@ -12132,13 +12089,28 @@ function update(time = 0) {
     if (aiModeEnabled && !paused) {
         ctx.save();
         ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.lineWidth = 2;
-        ctx.strokeText('🤖 AI MODE', canvas.width - 10, 10);
-        ctx.fillText('🤖 AI MODE', canvas.width - 10, 10);
+        
+        // Draw AI MODE on left
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+        ctx.strokeText('🤖 AI MODE', 10, 10);
+        ctx.fillText('🤖 AI MODE', 10, 10);
+        
+        // Draw EXIT on right (clickable)
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
+        ctx.strokeText('EXIT ✕', canvas.width - 10, 10);
+        ctx.fillText('EXIT ✕', canvas.width - 10, 10);
+        // Store EXIT bounds for click detection
+        window.aiExitBounds = {
+            x: canvas.width - 70,
+            y: 0,
+            width: 70,
+            height: 25
+        };
         ctx.restore();
     }
 
