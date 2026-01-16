@@ -227,7 +227,8 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     `;
     
     scores.forEach((entry, index) => {
-        const isPlayerScore = playerScore && Math.abs(entry.score - playerScore) < 100;
+        // Exact match - we just submitted this score so it should match precisely
+        const isPlayerScore = playerScore && entry.score === playerScore;
         const rowClass = isPlayerScore ? 'player-score' : '';
         
         let events = [];
