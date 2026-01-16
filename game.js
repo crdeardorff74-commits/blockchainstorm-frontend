@@ -14467,6 +14467,7 @@ window.startGameReplay = function(recording) {
     // Set replay active BEFORE starting game
     // This tells createPiece() to use recorded pieces
     replayActive = true;
+    replayCompleteShown = false;  // Reset completion flag
     
     // CRITICAL: Disable AI mode during replay - save previous state to restore later
     replaySavedAIMode = aiModeEnabled;
@@ -14624,10 +14625,13 @@ function processReplayInputs() {
             if (replayActive) {  // Check still active (user might have stopped)
                 console.log('🎬 Replay complete!');
                 showReplayComplete();
+                // Only set replayActive false AFTER showing completion
+                // This prevents the normal gameOver flow from triggering
+                replayActive = false;
             }
         }, 500);
-        // Stop processing more inputs
-        replayActive = false;
+        // Don't set replayActive = false here - let the setTimeout handle it
+        // This prevents race condition where gameOver() runs before showReplayComplete()
     }
 }
 
@@ -14695,7 +14699,13 @@ function toggleReplayPause() {
 /**
  * Show replay complete message
  */
+let replayCompleteShown = false;
+
 function showReplayComplete() {
+    // Prevent being called multiple times
+    if (replayCompleteShown) return;
+    replayCompleteShown = true;
+    
     const finalStats = replayData?.recording_data?.finalStats;
     
     // Update displays with final stats
@@ -14738,6 +14748,7 @@ function stopReplay() {
     replayActive = false;
     replayPaused = false;
     replayData = null;
+    replayCompleteShown = false;  // Reset completion flag
     
     // Restore AI mode to what it was before replay
     aiModeEnabled = replaySavedAIMode;
