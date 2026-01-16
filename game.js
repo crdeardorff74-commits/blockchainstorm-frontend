@@ -2261,25 +2261,11 @@ const COLOR_SETS = {
 
 let currentColorSet = COLORS; // Initialize after COLORS is defined
 
-// Histogram variables
-let histogramBars = {}; // Current height of each color bar
-let histogramTargets = {}; // Target heights for animation
-let histogramMaxScale = 10; // Maximum value on scale (auto-adjusts)
-let histogramDecayRate = 0.98; // How fast bars fall back down (slower than before)
-let histogramPauseFrames = {}; // Track pause frames at peak for each color
-
-// Score histogram variables
-let scoreHistogramBar = 0; // Current height of score bar
-let scoreHistogramTarget = 0; // Target height for animation
-let scoreHistogramMaxScale = 1000; // Maximum value on scale (auto-adjusts)
-let scoreHistogramPauseFrames = 0; // Track pause frames at peak for score bar
-
 // Speed Bonus tracking variables
 let speedBonusTotal = 0; // Sum of all individual piece speed bonuses
 let speedBonusPieceCount = 0; // Number of pieces placed
 let speedBonusAverage = 1.0; // Running average (displayed and applied to score)
 let pieceSpawnTime = 0; // Timestamp when current piece spawned
-let speedBonusHistogramBar = 1.0; // Animated display value for histogram
 
 // Storm Particle System
 let stormParticles = [];
@@ -8064,110 +8050,6 @@ function drawNextPiece() {
     nextCtx.imageSmoothingEnabled = wasSmoothing;
 }
 
-// Histogram functions
-function initHistogram() {
-    // Initialize all bars to 0
-    histogramBars = {};
-    histogramTargets = {};
-    histogramPauseFrames = {};
-    currentColorSet.forEach(color => {
-        histogramBars[color] = 0;
-        histogramTargets[color] = 0;
-        histogramPauseFrames[color] = 0;
-    });
-    histogramMaxScale = 10;
-    
-    // Initialize score histogram
-    scoreHistogramBar = 0;
-    scoreHistogramTarget = 0;
-    scoreHistogramMaxScale = 1000;
-    scoreHistogramPauseFrames = 0;
-    
-    // Size the canvas to fill the entire panel (accounting for devicePixelRatio)
-    const rulesPanel = histogramCanvas.parentElement;
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = rulesPanel.clientWidth - 40;
-    const displayHeight = rulesPanel.clientHeight - 40;
-    
-    // Set actual canvas size for high-DPI
-    histogramCanvas.width = displayWidth * dpr;
-    histogramCanvas.height = displayHeight * dpr;
-    
-    // Scale canvas CSS size
-    histogramCanvas.style.width = displayWidth + 'px';
-    histogramCanvas.style.height = displayHeight + 'px';
-    
-    // Scale context to account for DPI
-    histogramCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-function updateHistogramWithBlob(color, blobSize) {
-    // Set target height for this color bar
-    histogramTargets[color] = blobSize;
-    
-    // Auto-adjust scale if needed
-    if (blobSize > histogramMaxScale) {
-        histogramMaxScale = Math.ceil(blobSize / 10) * 10; // Round up to nearest 10
-    }
-}
-
-function updateHistogram() {
-    // Animate color bars toward their targets
-    Object.keys(histogramBars).forEach(color => {
-        const target = histogramTargets[color];
-        const current = histogramBars[color];
-        
-        if (current < target - 0.1) {
-            // Spring up to match 500ms line animation (slower spring)
-            histogramBars[color] = Math.min(target, current + (target - current) * 0.15);
-            // Start decaying target immediately, even while rising
-            histogramTargets[color] = Math.max(0, target * histogramDecayRate);
-        } else if (current >= target - 0.1 && (!histogramPauseFrames[color] || histogramPauseFrames[color] < 30)) {
-            // Pause at peak for 30 frames (~0.5 seconds at 60fps)
-            histogramPauseFrames[color] = (histogramPauseFrames[color] || 0) + 1;
-        } else {
-            // After pause, decay with gradually accelerating rate
-            const framesSincePeak = (histogramPauseFrames[color] || 30) - 30;
-            // Start at 0.98 and accelerate to 0.92 over 60 frames
-            const acceleration = Math.min(0.06, framesSincePeak * 0.001);
-            const currentDecayRate = histogramDecayRate - acceleration;
-            
-            histogramBars[color] = Math.max(0, current * currentDecayRate);
-            histogramTargets[color] = Math.max(0, target * currentDecayRate);
-            
-            // Reset pause counter when bar reaches near zero
-            if (histogramBars[color] < 0.1) {
-                histogramPauseFrames[color] = 0;
-            }
-        }
-    });
-    
-    // Animate score bar toward its target
-    if (scoreHistogramBar < scoreHistogramTarget - 0.1) {
-        // Spring up to match 500ms line animation (slower spring)
-        scoreHistogramBar = Math.min(scoreHistogramTarget, scoreHistogramBar + (scoreHistogramTarget - scoreHistogramBar) * 0.15);
-        // Start decaying target immediately, even while rising
-        scoreHistogramTarget = Math.max(0, scoreHistogramTarget * histogramDecayRate);
-    } else if (scoreHistogramBar >= scoreHistogramTarget - 0.1 && scoreHistogramPauseFrames < 30) {
-        // Pause at peak for 30 frames (~0.5 seconds at 60fps)
-        scoreHistogramPauseFrames++;
-    } else {
-        // After pause, decay with gradually accelerating rate
-        const framesSincePeak = scoreHistogramPauseFrames - 30;
-        // Start at 0.98 and accelerate to 0.92 over 60 frames
-        const acceleration = Math.min(0.06, framesSincePeak * 0.001);
-        const currentDecayRate = histogramDecayRate - acceleration;
-        
-        scoreHistogramBar = Math.max(0, scoreHistogramBar * currentDecayRate);
-        scoreHistogramTarget = Math.max(0, scoreHistogramTarget * currentDecayRate);
-        
-        // Reset pause counter when bar reaches near zero
-        if (scoreHistogramBar < 0.1) {
-            scoreHistogramPauseFrames = 0;
-        }
-    }
-}
-
 // Draw cascade bonus notification in the upper third of the well
 function drawCascadeBonus() {
     if (!cascadeBonusDisplay) return;
@@ -8251,436 +8133,6 @@ function showCascadeBonus(multiplier) {
     }
 }
 
-function drawHistogram() {
-    if (!gameRunning || !histogramCanvas || histogramCanvas.style.display === 'none') return;
-    
-    // Use display dimensions (not canvas.width which is scaled for DPI)
-    const dpr = window.devicePixelRatio || 1;
-    const width = histogramCanvas.width / dpr;
-    const height = histogramCanvas.height / dpr;
-    const padding = 40;
-    
-    // Reserve space for speed bonus bar at top
-    const speedBonusBarHeight = 16;
-    const speedBonusGap = 10;
-    const mainHistogramStart = speedBonusBarHeight + speedBonusGap;
-    
-    const graphHeight = height - padding * 2 - mainHistogramStart;
-    
-    // Reserve space for score histogram on the left
-    const scoreBarWidth = 20; // Width for score histogram (narrow to match Bitcoin symbol)
-    const scoreBarPadding = 40; // More space between score and color histograms for tick labels
-    const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
-    const graphWidth = width - colorGraphStart - padding;
-    
-    // Clear canvas with transparent background
-    histogramCtx.clearRect(0, 0, width, height);
-    
-    // ========== SPEED BONUS BAR (horizontal at top) ==========
-    // Animate toward current average
-    const animationSpeed = 0.05;
-    speedBonusHistogramBar += (speedBonusAverage - speedBonusHistogramBar) * animationSpeed;
-    
-    const speedBarY = 8;
-    
-    // Draw "SPEED" label first (before the bar)
-    histogramCtx.save();
-    histogramCtx.fillStyle = '#FFFFFF';
-    histogramCtx.font = 'bold 11px Arial';
-    histogramCtx.textAlign = 'left';
-    histogramCtx.textBaseline = 'middle';
-    const speedLabelX = padding;
-    const speedLabelY = speedBarY + speedBonusBarHeight / 2;
-    histogramCtx.fillText('Speed Bonus', speedLabelX, speedLabelY);
-    const speedLabelWidth = histogramCtx.measureText('Speed Bonus').width + 8;
-    histogramCtx.restore();
-    
-    // Bar starts after the label
-    const speedBarStartX = padding + speedLabelWidth;
-    const speedBarMaxWidth = width - speedBarStartX - padding - 45; // Reserve space for value at end
-    const speedBarActualWidth = Math.max(0, (speedBonusHistogramBar / 2.0) * speedBarMaxWidth); // 0-2 scale
-    
-    // Calculate color based on value: Red (0) -> Yellow (1) -> Green (2)
-    let speedColor;
-    let speedColorLight;
-    let speedColorDark;
-    if (speedBonusHistogramBar <= 1.0) {
-        // Red to Yellow (0-1)
-        const t = speedBonusHistogramBar;
-        const r = 255;
-        const g = Math.floor(200 * t);
-        const b = 0;
-        speedColor = `rgb(${r}, ${g}, ${b})`;
-        speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
-        speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
-    } else {
-        // Yellow to Green (1-2)
-        const t = speedBonusHistogramBar - 1.0;
-        const r = Math.floor(255 * (1 - t));
-        const g = Math.floor(200 + 55 * t);
-        const b = 0;
-        speedColor = `rgb(${r}, ${g}, ${b})`;
-        speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
-        speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
-    }
-    
-    // Draw speed bar with beveled edges matching other histogram bars
-    const sb = 4; // Bevel size (matching other bars)
-    
-    if (speedBarActualWidth > 0) {
-        // Main face (semi-transparent)
-        histogramCtx.save();
-        histogramCtx.globalAlpha = faceOpacity;
-        histogramCtx.fillStyle = speedColor;
-        histogramCtx.fillRect(speedBarStartX, speedBarY, speedBarActualWidth, speedBonusBarHeight);
-        histogramCtx.restore();
-        
-        // Top edge (lighter gradient)
-        const topGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY, speedBarStartX, speedBarY + sb);
-        topGrad.addColorStop(0, speedColorLight);
-        topGrad.addColorStop(1, speedColor);
-        histogramCtx.fillStyle = topGrad;
-        histogramCtx.fillRect(speedBarStartX, speedBarY, speedBarActualWidth, sb);
-        
-        // Left edge (lighter gradient)
-        const leftGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY, speedBarStartX + sb, speedBarY);
-        leftGrad.addColorStop(0, speedColorLight);
-        leftGrad.addColorStop(1, speedColor);
-        histogramCtx.fillStyle = leftGrad;
-        histogramCtx.fillRect(speedBarStartX, speedBarY, sb, speedBonusBarHeight);
-        
-        // Bottom edge (darker gradient)
-        const bottomGrad = histogramCtx.createLinearGradient(speedBarStartX, speedBarY + speedBonusBarHeight - sb, speedBarStartX, speedBarY + speedBonusBarHeight);
-        bottomGrad.addColorStop(0, speedColor);
-        bottomGrad.addColorStop(1, speedColorDark);
-        histogramCtx.fillStyle = bottomGrad;
-        histogramCtx.fillRect(speedBarStartX, speedBarY + speedBonusBarHeight - sb, speedBarActualWidth, sb);
-        
-        // Right edge (darker gradient)
-        const rightGrad = histogramCtx.createLinearGradient(speedBarStartX + speedBarActualWidth - sb, speedBarY, speedBarStartX + speedBarActualWidth, speedBarY);
-        rightGrad.addColorStop(0, speedColor);
-        rightGrad.addColorStop(1, speedColorDark);
-        histogramCtx.fillStyle = rightGrad;
-        histogramCtx.fillRect(speedBarStartX + speedBarActualWidth - sb, speedBarY, sb, speedBonusBarHeight);
-    }
-    
-    // Draw value at end of bar
-    histogramCtx.save();
-    histogramCtx.fillStyle = '#FFFFFF';
-    histogramCtx.font = 'bold 11px Arial';
-    histogramCtx.textAlign = 'left';
-    histogramCtx.textBaseline = 'middle';
-    const valueX = speedBarStartX + speedBarActualWidth + 8;
-    histogramCtx.fillText(`${speedBonusHistogramBar.toFixed(2)}x`, valueX, speedLabelY);
-    histogramCtx.restore();
-    
-    // ========== MAIN HISTOGRAM (shifted down) ==========
-    
-    // Draw tick marks and labels for SCORE HISTOGRAM on the left (skip in minimalist mode)
-    if (!minimalistMode) {
-        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        histogramCtx.font = '10px Arial';
-        histogramCtx.textAlign = 'left';
-        histogramCtx.lineWidth = 1;
-        
-        const tickCount = 5;
-        for (let i = 0; i <= tickCount; i++) {
-            const value = (scoreHistogramMaxScale / tickCount) * i;
-            const y = height - padding - (graphHeight / tickCount) * i;
-            
-            // Skip drawing tick mark and label for "0"
-            if (value > 0) {
-                // Tick mark (to the right of the score bar)
-                const tickX = padding + scoreBarWidth + 2;
-                histogramCtx.beginPath();
-                histogramCtx.moveTo(tickX, y);
-                histogramCtx.lineTo(tickX + 5, y);
-                histogramCtx.stroke();
-                
-                // Format label as Bitcoin (like main score display)
-                const btcValue = value / 10000000;
-                let labelText;
-                if (btcValue >= 1) {
-                    labelText = '₿' + btcValue.toFixed(2);
-                } else if (btcValue >= 0.01) {
-                    labelText = '₿' + btcValue.toFixed(3);
-                } else {
-                    labelText = '₿' + btcValue.toFixed(4);
-                }
-                
-                // Position label to the right of tick mark
-                histogramCtx.fillText(labelText, tickX + 7, y + 3);
-            }
-        }
-    }
-    
-    // Draw SCORE HISTOGRAM (Bitcoin bar on the left)
-    if (scoreHistogramBar > 0) {
-        // Draw gold bar
-        const goldColor = '#FFD700';
-        const b = 4; // Smaller bevel size for narrower bar
-        
-        // Minimum height is 2*b so bevels just meet
-        const minScoreBarHeight = b * 2;
-        const scoreBarHeight = Math.max(minScoreBarHeight, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
-        const scoreX = padding;
-        const scoreY = height - padding - scoreBarHeight;
-        
-        // Main face
-        histogramCtx.save();
-        histogramCtx.globalAlpha = faceOpacity;
-        histogramCtx.fillStyle = goldColor;
-        histogramCtx.fillRect(scoreX, scoreY, scoreBarWidth, scoreBarHeight);
-        histogramCtx.restore();
-        
-        // Beveled edges for gold bar
-        const topGold = '#FFED4E';
-        const leftGold = '#FFDF00';
-        const bottomGold = '#B8860B';
-        const rightGold = '#DAA520';
-        
-        // Top edge
-        const topGradient = histogramCtx.createLinearGradient(scoreX, scoreY, scoreX, scoreY + b);
-        topGradient.addColorStop(0, topGold);
-        topGradient.addColorStop(1, goldColor);
-        histogramCtx.fillStyle = topGradient;
-        histogramCtx.fillRect(scoreX, scoreY, scoreBarWidth, b);
-        
-        // Left edge
-        const leftGradient = histogramCtx.createLinearGradient(scoreX, scoreY, scoreX + b, scoreY);
-        leftGradient.addColorStop(0, leftGold);
-        leftGradient.addColorStop(1, goldColor);
-        histogramCtx.fillStyle = leftGradient;
-        histogramCtx.fillRect(scoreX, scoreY, b, scoreBarHeight);
-        
-        // Bottom edge
-        const bottomGradient = histogramCtx.createLinearGradient(scoreX, scoreY + scoreBarHeight - b, scoreX, scoreY + scoreBarHeight);
-        bottomGradient.addColorStop(0, goldColor);
-        bottomGradient.addColorStop(1, bottomGold);
-        histogramCtx.fillStyle = bottomGradient;
-        histogramCtx.fillRect(scoreX, scoreY + scoreBarHeight - b, scoreBarWidth, b);
-        
-        // Right edge
-        const rightGradient = histogramCtx.createLinearGradient(scoreX + scoreBarWidth - b, scoreY, scoreX + scoreBarWidth, scoreY);
-        rightGradient.addColorStop(0, goldColor);
-        rightGradient.addColorStop(1, rightGold);
-        histogramCtx.fillStyle = rightGradient;
-        histogramCtx.fillRect(scoreX + scoreBarWidth - b, scoreY, b, scoreBarHeight);
-        
-        // Draw Bitcoin B on top of the bar
-        const bitcoinY = scoreY - 15; // Position above the bar
-        histogramCtx.save();
-        histogramCtx.fillStyle = '#FFD700';
-        histogramCtx.strokeStyle = '#000000';
-        histogramCtx.lineWidth = 2;
-        histogramCtx.font = 'bold 20px Arial';
-        histogramCtx.textAlign = 'center';
-        histogramCtx.textBaseline = 'middle';
-        const bitcoinX = scoreX + scoreBarWidth / 2;
-        histogramCtx.strokeText('₿', bitcoinX, bitcoinY);
-        histogramCtx.fillText('₿', bitcoinX, bitcoinY);
-        histogramCtx.restore();
-    } else {
-        // No bar yet, just show Bitcoin B at bottom
-        histogramCtx.save();
-        histogramCtx.fillStyle = '#FFD700';
-        histogramCtx.strokeStyle = '#000000';
-        histogramCtx.lineWidth = 2;
-        histogramCtx.font = 'bold 20px Arial';
-        histogramCtx.textAlign = 'center';
-        histogramCtx.textBaseline = 'middle';
-        const bitcoinX = padding + scoreBarWidth / 2;
-        const bitcoinY = height - padding - 10;
-        histogramCtx.strokeText('₿', bitcoinX, bitcoinY);
-        histogramCtx.fillText('₿', bitcoinX, bitcoinY);
-        histogramCtx.restore();
-    }
-    
-    // Draw COLOR HISTOGRAM (existing bars)
-    const colors = Object.keys(histogramBars);
-    const barWidth = graphWidth / colors.length;
-    const barSpacing = barWidth * 0.15;
-    const actualBarWidth = barWidth - barSpacing;
-    
-    // Draw tick marks and labels on right side for color histogram (skip in minimalist mode)
-    if (!minimalistMode) {
-        histogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        histogramCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        histogramCtx.font = '12px Arial';
-        histogramCtx.textAlign = 'left';
-        histogramCtx.lineWidth = 1;
-        
-        const tickCount = 5;
-        for (let i = 0; i <= tickCount; i++) {
-            const value = Math.round((histogramMaxScale / tickCount) * i);
-            const y = height - padding - (graphHeight / tickCount) * i;
-            
-            // Skip drawing tick mark and label for "0"
-            if (value !== 0) {
-                // Tick mark
-                histogramCtx.beginPath();
-                histogramCtx.moveTo(colorGraphStart + graphWidth, y);
-                histogramCtx.lineTo(colorGraphStart + graphWidth + 5, y);
-                histogramCtx.stroke();
-                
-                // Label
-                histogramCtx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
-            }
-        }
-    }
-    
-    // Draw beveled bars
-    colors.forEach((color, index) => {
-        // Use exact same drawing logic as game pieces
-        const blockSize = Math.round(actualBarWidth);
-        // Use a larger bevel for histogram bars to match visual appearance of game pieces
-        // Even though bars are narrower, we want bevels to be visible
-        const b = Math.max(Math.floor(blockSize * 0.2), 6); // Minimum 6 pixels for visibility
-        
-        // Minimum bar height is 2*b so top and bottom bevels just meet (not overlap)
-        const minBarHeight = b * 2;
-        const barHeight = Math.round(Math.max(minBarHeight, (histogramBars[color] / histogramMaxScale) * graphHeight));
-        // Round positions to prevent blur
-        const x = Math.round(colorGraphStart + index * barWidth + barSpacing / 2);
-        const y = Math.round(height - padding - barHeight);
-        
-        // Create edge colors (same as game pieces)
-        const topColor = adjustBrightness(color, 1.3);
-        const leftColor = adjustBrightness(color, 1.15);
-        const bottomColor = adjustBrightness(color, 0.7);
-        const rightColor = adjustBrightness(color, 0.85);
-        
-        // Draw main face with transparency (full block size like game pieces)
-        histogramCtx.save();
-        histogramCtx.globalAlpha = faceOpacity;
-        histogramCtx.fillStyle = color;
-        histogramCtx.fillRect(x, y, blockSize, barHeight);
-        histogramCtx.restore();
-        
-        // Draw edges (full width/height like game pieces - always visible for standalone bars)
-        // Top edge
-        const topGradient = histogramCtx.createLinearGradient(x, y, x, y + b);
-        topGradient.addColorStop(0, topColor);
-        topGradient.addColorStop(1, adjustBrightness(topColor, 0.85));
-        histogramCtx.fillStyle = topGradient;
-        histogramCtx.fillRect(x, y, blockSize, b);
-        
-        // Left edge
-        const leftGradient = histogramCtx.createLinearGradient(x, y, x + b, y);
-        leftGradient.addColorStop(0, leftColor);
-        leftGradient.addColorStop(1, adjustBrightness(leftColor, 0.85));
-        histogramCtx.fillStyle = leftGradient;
-        histogramCtx.fillRect(x, y, b, barHeight);
-        
-        // Bottom edge
-        const bottomGradient = histogramCtx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
-        bottomGradient.addColorStop(0, adjustBrightness(bottomColor, 1.15));
-        bottomGradient.addColorStop(1, bottomColor);
-        histogramCtx.fillStyle = bottomGradient;
-        histogramCtx.fillRect(x, y + barHeight - b, blockSize, b);
-        
-        // Right edge
-        const rightGradient = histogramCtx.createLinearGradient(x + blockSize - b, y, x + blockSize, y);
-        rightGradient.addColorStop(0, adjustBrightness(rightColor, 1.15));
-        rightGradient.addColorStop(1, rightColor);
-        histogramCtx.fillStyle = rightGradient;
-        histogramCtx.fillRect(x + blockSize - b, y, b, barHeight);
-        
-        // Draw all four corners (always visible for standalone bars)
-        // Top-left corner
-        const topLeftTopGradient = histogramCtx.createLinearGradient(x, y, x + b, y + b);
-        topLeftTopGradient.addColorStop(0, topColor);
-        topLeftTopGradient.addColorStop(1, adjustBrightness(topColor, 0.85));
-        histogramCtx.fillStyle = topLeftTopGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x, y);
-        histogramCtx.lineTo(x + b, y);
-        histogramCtx.lineTo(x + b, y + b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        const topLeftLeftGradient = histogramCtx.createLinearGradient(x, y, x + b, y + b);
-        topLeftLeftGradient.addColorStop(0, leftColor);
-        topLeftLeftGradient.addColorStop(1, adjustBrightness(leftColor, 0.85));
-        histogramCtx.fillStyle = topLeftLeftGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x, y);
-        histogramCtx.lineTo(x, y + b);
-        histogramCtx.lineTo(x + b, y + b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        // Top-right corner
-        const topRightTopGradient = histogramCtx.createLinearGradient(x + blockSize - b, y, x + blockSize, y + b);
-        topRightTopGradient.addColorStop(0, adjustBrightness(topColor, 0.85));
-        topRightTopGradient.addColorStop(1, topColor);
-        histogramCtx.fillStyle = topRightTopGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x + blockSize, y);
-        histogramCtx.lineTo(x + blockSize - b, y);
-        histogramCtx.lineTo(x + blockSize - b, y + b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        const topRightRightGradient = histogramCtx.createLinearGradient(x + blockSize - b, y, x + blockSize, y + b);
-        topRightRightGradient.addColorStop(0, adjustBrightness(rightColor, 1.15));
-        topRightRightGradient.addColorStop(1, rightColor);
-        histogramCtx.fillStyle = topRightRightGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x + blockSize, y);
-        histogramCtx.lineTo(x + blockSize, y + b);
-        histogramCtx.lineTo(x + blockSize - b, y + b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        // Bottom-left corner
-        const bottomLeftLeftGradient = histogramCtx.createLinearGradient(x, y + barHeight - b, x + b, y + barHeight);
-        bottomLeftLeftGradient.addColorStop(0, leftColor);
-        bottomLeftLeftGradient.addColorStop(1, adjustBrightness(leftColor, 0.85));
-        histogramCtx.fillStyle = bottomLeftLeftGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x, y + barHeight);
-        histogramCtx.lineTo(x, y + barHeight - b);
-        histogramCtx.lineTo(x + b, y + barHeight - b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        const bottomLeftBottomGradient = histogramCtx.createLinearGradient(x, y + barHeight - b, x + b, y + barHeight);
-        bottomLeftBottomGradient.addColorStop(0, adjustBrightness(bottomColor, 1.15));
-        bottomLeftBottomGradient.addColorStop(1, bottomColor);
-        histogramCtx.fillStyle = bottomLeftBottomGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x, y + barHeight);
-        histogramCtx.lineTo(x + b, y + barHeight);
-        histogramCtx.lineTo(x + b, y + barHeight - b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        // Bottom-right corner
-        const bottomRightBottomGradient = histogramCtx.createLinearGradient(x + blockSize - b, y + barHeight - b, x + blockSize, y + barHeight);
-        bottomRightBottomGradient.addColorStop(0, adjustBrightness(bottomColor, 1.15));
-        bottomRightBottomGradient.addColorStop(1, bottomColor);
-        histogramCtx.fillStyle = bottomRightBottomGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x + blockSize, y + barHeight);
-        histogramCtx.lineTo(x + blockSize - b, y + barHeight);
-        histogramCtx.lineTo(x + blockSize - b, y + barHeight - b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-        
-        const bottomRightRightGradient = histogramCtx.createLinearGradient(x + blockSize - b, y + barHeight - b, x + blockSize, y + barHeight);
-        bottomRightRightGradient.addColorStop(0, adjustBrightness(rightColor, 1.15));
-        bottomRightRightGradient.addColorStop(1, rightColor);
-        histogramCtx.fillStyle = bottomRightRightGradient;
-        histogramCtx.beginPath();
-        histogramCtx.moveTo(x + blockSize, y + barHeight);
-        histogramCtx.lineTo(x + blockSize, y + barHeight - b);
-        histogramCtx.lineTo(x + blockSize - b, y + barHeight - b);
-        histogramCtx.closePath();
-        histogramCtx.fill();
-    });
-}
 
 function collides(piece, offsetX = 0, offsetY = 0) {
     if (!piece || !piece.shape) return true;
@@ -9807,11 +9259,8 @@ function checkForSpecialFormations() {
         score += finalVolcanoScore;
         
         // Update histogram only for lava blob
-        updateHistogramWithBlob(volcanoLavaColor, lavaSize);
-        scoreHistogramTarget = finalVolcanoScore;
-        if (finalVolcanoScore > scoreHistogramMaxScale) {
-            scoreHistogramMaxScale = Math.ceil(finalVolcanoScore / 1000) * 1000;
-        }
+        Histogram.updateWithBlob(volcanoLavaColor, lavaSize);
+        Histogram.updateWithScore(finalVolcanoScore);
         
         updateStats();
         
@@ -9845,12 +9294,9 @@ function checkForSpecialFormations() {
             score += finalBlackHoleScore;
             
             // Update histograms
-            updateHistogramWithBlob(bh.outerBlob.color, outerSize);
-            updateHistogramWithBlob(bh.innerBlob.color, innerSize);
-            scoreHistogramTarget = finalBlackHoleScore;
-            if (finalBlackHoleScore > scoreHistogramMaxScale) {
-                scoreHistogramMaxScale = Math.ceil(finalBlackHoleScore / 1000) * 1000;
-            }
+            Histogram.updateWithBlob(bh.outerBlob.color, outerSize);
+            Histogram.updateWithBlob(bh.innerBlob.color, innerSize);
+            Histogram.updateWithScore(finalBlackHoleScore);
             
             updateStats();
             
@@ -9884,11 +9330,8 @@ function checkForSpecialFormations() {
             score += finalTsunamiScore;
             
             // Update histograms
-            updateHistogramWithBlob(blob.color, blobSize);
-            scoreHistogramTarget = finalTsunamiScore;
-            if (finalTsunamiScore > scoreHistogramMaxScale) {
-                scoreHistogramMaxScale = Math.ceil(finalTsunamiScore / 1000) * 1000;
-            }
+            Histogram.updateWithBlob(blob.color, blobSize);
+            Histogram.updateWithScore(finalTsunamiScore);
             
             updateStats();
         }
@@ -10926,8 +10369,8 @@ function clearLines() {
             const outerSize = bh.outerBlob.positions.length;
             
             // Update histograms
-            updateHistogramWithBlob(bh.innerBlob.color, innerSize);
-            updateHistogramWithBlob(bh.outerBlob.color, outerSize);
+            Histogram.updateWithBlob(bh.innerBlob.color, innerSize);
+            Histogram.updateWithBlob(bh.outerBlob.color, outerSize);
             
             // BLACK HOLE SCORING:
             // Inner blob (black hole core): size³ × 100 × 2
@@ -10994,7 +10437,7 @@ function clearLines() {
             
             if (blocksInCompletedRows > 0) {
                 // Update histogram with blob size being cleared
-                updateHistogramWithBlob(beforeBlob.color, beforeSize);
+                Histogram.updateWithBlob(beforeBlob.color, beforeSize);
                 
                 let blobPoints;
                 
@@ -11048,10 +10491,7 @@ function clearLines() {
         GamepadController.vibrateLineClear(scoreIncrease);
         
         // Update score histogram immediately
-        scoreHistogramTarget = scoreIncrease;
-        if (scoreIncrease > scoreHistogramMaxScale) {
-            scoreHistogramMaxScale = Math.ceil(scoreIncrease / 1000) * 1000; // Round up to nearest 1000
-        }
+        Histogram.updateWithScore(scoreIncrease);
         
         lines += completedRows.length;
         
@@ -12410,10 +11850,16 @@ function update(time = 0) {
     }
     
     // Update and draw histogram
+    Histogram.updateConfig({
+        faceOpacity: faceOpacity,
+        minimalistMode: minimalistMode,
+        speedBonusAverage: speedBonusAverage,
+        gameRunning: gameRunning
+    });
     if (!paused) {
-        updateHistogram();
+        Histogram.update();
     }
-    drawHistogram();
+    Histogram.draw();
     
     // Draw pause indicator
     if (paused) {
@@ -12722,7 +12168,11 @@ function startGame(mode) {
         StarfieldSystem.showPlanetStats(sun);
     }
     
-    initHistogram(); // Initialize histogram for current color set
+    // Initialize histogram module for current color set
+    Histogram.init({
+        canvas: histogramCanvas,
+        colorSet: currentColorSet
+    });
     stormParticles = []; // Clear storm particles
     splashParticles = []; // Clear splash particles
     liquidPools = []; // Clear blood/poo rain effects
@@ -12732,7 +12182,6 @@ function startGame(mode) {
     speedBonusPieceCount = 0;
     speedBonusAverage = 1.0;
     pieceSpawnTime = 0;
-    speedBonusHistogramBar = 1.0;
     
     // Reset lock delay state
     lockDelayCounter = 0;
