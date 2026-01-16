@@ -12579,6 +12579,22 @@ document.addEventListener('keydown', e => {
             return;
         }
         
+        // Escape key - exit AI game in progress
+        if (e.key === 'Escape' && aiModeEnabled) {
+            e.preventDefault();
+            console.log('🤖 AI game cancelled by user');
+            // Stop AI auto-restart timer if pending
+            cancelAIAutoRestartTimer();
+            // Stop the game and return to menu
+            gameRunning = false;
+            stopMusic();
+            gameOverDiv.style.display = 'none';
+            modeMenu.classList.remove('hidden');
+            document.body.classList.remove('game-started');
+            toggleUIElements(true);
+            return;
+        }
+        
         // SHIFT key - Spawn tornado (developer mode only)
         if (e.key === 'Shift' && developerMode) {
             e.preventDefault();

@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.16 loaded - full pause during earthquakes");
+console.log("🎮 AI Player v3.17 loaded - position during earthquake, skip hard drop");
 
 const AIPlayer = (() => {
     // Configuration
@@ -599,22 +599,12 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
-        // FULL PAUSE during earthquake - the board is about to change dramatically
-        // Don't execute moves, don't think, just wait
-        if (duringEarthquake) {
-            // If earthquake just started, clear any queued moves
-            if (!wasInEarthquake) {
-                console.log('🌍 AI: Earthquake detected, pausing all activity');
-                moveQueue = [];
-                thinking = false;
-            }
+        // Track earthquake state transitions
+        if (duringEarthquake && !wasInEarthquake) {
+            console.log('🌍 AI: Earthquake detected, will position piece but skip hard drop');
             wasInEarthquake = true;
-            return; // Complete pause - do nothing during earthquake
-        }
-        
-        // Earthquake just ended - reset state for fresh start
-        if (wasInEarthquake && !duringEarthquake) {
-            console.log('🌍 AI: Earthquake ended, resuming');
+        } else if (!duringEarthquake && wasInEarthquake) {
+            console.log('🌍 AI: Earthquake ended, resuming normal play');
             wasInEarthquake = false;
             // Reset stuck detection since board state changed dramatically
             lastPieceKey = null;
@@ -682,6 +672,9 @@ const AIPlayer = (() => {
         // Store UFO state for this decision
         currentUfoActive = ufoActive || false;
         
+        // Store earthquake state for this decision
+        const skipDropForEarthquake = duringEarthquake;
+        
         // Handle both legacy single piece and new queue array
         if (Array.isArray(nextPieceOrQueue)) {
             pieceQueue = nextPieceOrQueue;
@@ -699,8 +692,10 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
-                    moveQueue = calculateMoves(currentPiece, bestPlacement, false);
-                } else {
+                    // During earthquake: position piece but don't hard drop (let it fall naturally)
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, skipDropForEarthquake);
+                } else if (!skipDropForEarthquake) {
+                    // Only force drop if not during earthquake
                     moveQueue = ['drop'];
                 }
                 
