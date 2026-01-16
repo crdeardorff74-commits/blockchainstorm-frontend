@@ -12147,8 +12147,12 @@ function cancelAIAutoRestartTimer() {
 function update(time = 0) {
     if (!gameRunning || gameOverPending) return;
 
-    const deltaTime = time - (update.lastTime || 0);
+    const realDeltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
+    
+    // During replay, scale game physics time by replay speed
+    // This keeps piece falling in sync with input injection
+    const deltaTime = replayActive ? realDeltaTime * replaySpeed : realDeltaTime;
     
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (replayActive) {
@@ -14424,8 +14428,12 @@ window.startGameReplay = function(recording) {
     gameRunning = true;
     StarfieldSystem.setGameRunning(true);
     
-    // Record start time for input timing
+    // Reset timing state for fresh start
     replayStartTime = Date.now();
+    update.lastTime = 0; // Reset game loop timing
+    dropCounter = 0;
+    lockDelayCounter = 0;
+    lockDelayActive = false;
     
     // Show replay UI
     showReplayUI();
@@ -14456,18 +14464,30 @@ function processReplayInputs() {
         const input = replayInputs[replayInputIndex];
         
         // Execute the input action
+        // Use recorded positions directly when available for precision
         switch (input.type) {
             case 'left':
-                movePiece(-1);
-                break;
             case 'right':
-                movePiece(1);
+                // Use recorded position directly if available
+                if (input.x !== undefined && currentPiece) {
+                    currentPiece.x = input.x;
+                    playSoundEffect('move', soundToggle);
+                } else {
+                    movePiece(input.type === 'left' ? -1 : 1);
+                }
                 break;
             case 'rotate':
-                rotatePiece();
-                break;
             case 'rotateCCW':
-                rotatePieceCounterClockwise();
+                // Apply rotation and use recorded position
+                if (input.type === 'rotate') {
+                    rotatePiece();
+                } else {
+                    rotatePieceCounterClockwise();
+                }
+                // Correct position after rotation if recorded
+                if (input.x !== undefined && currentPiece) {
+                    currentPiece.x = input.x;
+                }
                 break;
             case 'softDrop':
                 dropPiece();
