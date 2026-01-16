@@ -1,7 +1,7 @@
-// AI Worker v4.5.1 - Fixed overly permissive hole tolerance (2026-01-16)
-console.log("🤖 AI Worker v4.5.1 loaded - balanced special event building with hole discipline");
+// AI Worker v4.5.2 - 2-ply lookahead with volcano detection (2026-01-16)
+console.log("🤖 AI Worker v4.5.2 loaded - 2-ply lookahead, tsunami + volcano awareness");
 
-const AI_VERSION = "4.5.1";
+const AI_VERSION = "4.5.2";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -574,7 +574,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.tsunami.width = bestTsunamiWidth;
     breakdown.tsunami.color = bestTsunamiColor;
     
-    // Volcano detection
+    // Volcano detection (non-Breeze only)
     let volcanoPotential = { hasPotential: false, progress: 0, innerSize: 0 };
     if (!isBreeze) {
         volcanoPotential = findVolcanoPotential(board, cols, rows);
@@ -1265,66 +1265,21 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
     
     let bestPlacement;
     
-    // Use queue for 4-ply lookahead (current + 3 next pieces)
+    // Use queue for 2-ply lookahead (current + 1 next piece)
+    // Reduced from 4-ply for performance with volcano detection
     // All 4 queue pieces are still considered for tsunami potential in evaluateBoard
     const nextPiece = queue && queue.length > 0 ? queue[0] : null;
-    const thirdPiece = queue && queue.length > 1 ? queue[1] : null;
-    const fourthPiece = queue && queue.length > 2 ? queue[2] : null;
     
     if (nextPiece) {
-        // 4-ply lookahead: consider where next pieces can go
+        // 2-ply lookahead: consider where next piece can go
         for (const placement of placements) {
             const newBoard = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
             const nextPlacements = generatePlacements(newBoard, nextPiece, cols, rows);
             
             if (nextPlacements.length > 0) {
-                // Get top 5 next placements to limit computation
-                const topNext = nextPlacements.sort((a, b) => b.score - a.score).slice(0, 5);
-                
-                let bestNextScore = -Infinity;
-                
-                for (const nextPlacement of topNext) {
-                    let nextScore = nextPlacement.score;
-                    
-                    // 3-ply: look at third piece
-                    if (thirdPiece) {
-                        const nextBoard = placePiece(newBoard, nextPlacement.shape, nextPlacement.x, nextPlacement.y, nextPiece.color);
-                        const thirdPlacements = generatePlacements(nextBoard, thirdPiece, cols, rows);
-                        
-                        if (thirdPlacements.length > 0) {
-                            // Get top 4 third placements
-                            const topThird = thirdPlacements.sort((a, b) => b.score - a.score).slice(0, 4);
-                            let bestThirdScore = -Infinity;
-                            
-                            for (const thirdPlacement of topThird) {
-                                let thirdScore = thirdPlacement.score;
-                                
-                                // 4-ply: look at fourth piece
-                                if (fourthPiece) {
-                                    const thirdBoard = placePiece(nextBoard, thirdPlacement.shape, thirdPlacement.x, thirdPlacement.y, thirdPiece.color);
-                                    const fourthPlacements = generatePlacements(thirdBoard, fourthPiece, cols, rows);
-                                    
-                                    if (fourthPlacements.length > 0) {
-                                        const bestFourth = fourthPlacements.reduce((a, b) => a.score > b.score ? a : b);
-                                        thirdScore += bestFourth.score * 0.25; // 4th piece counts 25%
-                                    }
-                                }
-                                
-                                if (thirdScore > bestThirdScore) {
-                                    bestThirdScore = thirdScore;
-                                }
-                            }
-                            nextScore += bestThirdScore * 0.35; // 3rd piece counts 35%
-                        }
-                    }
-                    
-                    if (nextScore > bestNextScore) {
-                        bestNextScore = nextScore;
-                    }
-                }
-                
-                // Combined score: current + 50% of best future
-                placement.combinedScore = placement.score + bestNextScore * 0.5;
+                // Get best next placement
+                const bestNext = nextPlacements.reduce((a, b) => a.score > b.score ? a : b);
+                placement.combinedScore = placement.score + bestNext.score * 0.5; // Next piece counts 50%
             } else {
                 // Can't place next piece = bad
                 placement.combinedScore = placement.score - 100;
@@ -1384,7 +1339,7 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
                 bumpiness
             },
             lookahead: {
-                depth: fourthPiece ? 4 : (thirdPiece ? 3 : (nextPiece ? 2 : 1)),
+                depth: nextPiece ? 2 : 1,
                 queueColors: queue ? queue.map(p => p?.color || null) : []
             },
             candidatesEvaluated: placements.length,
