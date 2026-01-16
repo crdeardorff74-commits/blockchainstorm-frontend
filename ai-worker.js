@@ -1,7 +1,7 @@
-// AI Worker v4.5 - Enhanced special event building (2026-01-16)
-console.log("🤖 AI Worker v4.5 loaded - tsunami/volcano priority, cascade-aware hole tolerance");
+// AI Worker v4.5.1 - Fixed overly permissive hole tolerance (2026-01-16)
+console.log("🤖 AI Worker v4.5.1 loaded - balanced special event building with hole discipline");
 
-const AI_VERSION = "4.5";
+const AI_VERSION = "4.5.1";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -585,17 +585,21 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     const buildingSpecialEvent = tsunamiLikelyAchievable || volcanoPotential.hasPotential;
     
-    // ====== HOLE PENALTIES - CASCADE AWARE ======
-    if (buildingSpecialEvent) {
-        breakdown.holes.penalty = holes * 1;
-    } else if (hasTsunamiPotential || volcanoPotential.progress > 0.3) {
+    // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
+    if (tsunamiNearCompletion && holes <= 6) {
         breakdown.holes.penalty = holes * 3;
-    } else if (holes <= 3) {
+    } else if (buildingSpecialEvent && holes <= 8) {
         breakdown.holes.penalty = holes * 5;
-    } else if (holes <= 6) {
-        breakdown.holes.penalty = 15 + (holes - 3) * 6;
+    } else if (hasTsunamiPotential && holes <= 5) {
+        breakdown.holes.penalty = holes * 6;
     } else {
-        breakdown.holes.penalty = 33 + (holes - 6) * 10;
+        if (holes <= 2) {
+            breakdown.holes.penalty = holes * 7;
+        } else if (holes <= 5) {
+            breakdown.holes.penalty = 14 + (holes - 2) * 10;
+        } else {
+            breakdown.holes.penalty = 44 + (holes - 5) * 18;
+        }
     }
     score -= breakdown.holes.penalty;
     
@@ -643,6 +647,17 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         breakdown.criticalHeight.penalty = 15;
     }
     score -= breakdown.criticalHeight.penalty;
+    
+    // ====== EMERGENCY HOLE PENALTY ======
+    if (holes >= 15) {
+        const emergencyPenalty = (holes - 14) * 15;
+        breakdown.holes.penalty += emergencyPenalty;
+        score -= emergencyPenalty;
+    } else if (holes >= 10) {
+        const emergencyPenalty = (holes - 9) * 5;
+        breakdown.holes.penalty += emergencyPenalty;
+        score -= emergencyPenalty;
+    }
     
     // ====== LINE CLEARS ======
     let completeRows = 0;
@@ -708,7 +723,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    const canBuildBlobs = stackHeight <= 17 || buildingSpecialEvent;
+    const canBuildBlobs = (stackHeight <= 16 && holes <= 5) || 
+                          (buildingSpecialEvent && stackHeight <= 17 && holes <= 8);
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
@@ -902,22 +918,28 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // Combined "building special event" flag
     const buildingSpecialEvent = tsunamiLikelyAchievable || volcanoPotential.hasPotential;
     
-    // ====== HOLE PENALTIES - CASCADE AWARE ======
-    // Key insight: holes aren't as bad in this game because blob gravity can fill them
-    // When building special events, holes are even less concerning
+    // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
+    // Key insight: holes CAN fill via cascade, but too many holes = death spiral
+    // Slightly more tolerant than traditional Tetris, but still strict
     
-    if (buildingSpecialEvent) {
-        // Very minimal penalty - special events will clear/rearrange the board
-        score -= holes * 1;
-    } else if (hasTsunamiPotential || volcanoPotential.progress > 0.3) {
-        // Building toward something - moderate tolerance
+    if (tsunamiNearCompletion && holes <= 6) {
+        // About to complete tsunami AND holes are manageable - tolerant
         score -= holes * 3;
-    } else if (holes <= 3) {
+    } else if (buildingSpecialEvent && holes <= 8) {
+        // Achievable special event with reasonable holes - moderately tolerant
         score -= holes * 5;
-    } else if (holes <= 6) {
-        score -= 15 + (holes - 3) * 6;
+    } else if (hasTsunamiPotential && holes <= 5) {
+        // Building toward something with low holes
+        score -= holes * 6;
     } else {
-        score -= 33 + (holes - 6) * 10;
+        // Normal penalties - close to original v4.4
+        if (holes <= 2) {
+            score -= holes * 7;
+        } else if (holes <= 5) {
+            score -= 14 + (holes - 2) * 10;
+        } else {
+            score -= 44 + (holes - 5) * 18;
+        }
     }
     
     // ====== HEIGHT PENALTIES ======
@@ -953,6 +975,14 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         score -= 60;
     } else if (stackHeight >= 15) {
         score -= 15;
+    }
+    
+    // ====== EMERGENCY HOLE PENALTY ======
+    // Even when building specials, too many holes = death spiral
+    if (holes >= 15) {
+        score -= (holes - 14) * 15;  // Heavy penalty above 15 holes
+    } else if (holes >= 10) {
+        score -= (holes - 9) * 5;    // Moderate penalty above 10 holes
     }
     
     // ====== LINE CLEARS - OFTEN BAD! ======
@@ -1024,8 +1054,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    // More relaxed conditions - build blobs even with holes (cascade will help)
-    const canBuildBlobs = stackHeight <= 17 || buildingSpecialEvent;
+    // Only build blobs when board is reasonably healthy
+    const canBuildBlobs = (stackHeight <= 16 && holes <= 5) || 
+                          (buildingSpecialEvent && stackHeight <= 17 && holes <= 8);
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
