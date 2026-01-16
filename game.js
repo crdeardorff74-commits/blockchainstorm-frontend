@@ -2115,7 +2115,8 @@ let minimalistMode = false;
 
 // AI Mode
 const aiModeToggle = document.getElementById('aiModeToggle');
-let aiModeEnabled = false;
+// Initialize immediately from checkbox state (browser may have restored it)
+let aiModeEnabled = aiModeToggle ? aiModeToggle.checked : false;
 const aiSpeedSlider = document.getElementById('aiSpeedSlider');
 
 // Helper function to determine the correct leaderboard mode based on AI and challenge settings
@@ -14518,14 +14519,14 @@ function showReplayUI() {
                     background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 8px;
                     display: flex; gap: 15px; align-items: center; z-index: 1000;
                     font-family: Arial, sans-serif; color: white; font-size: 14px;">
-            <span style="color: #ff6b6b; font-weight: bold; line-height: 24px;">🎬 REPLAY</span>
-            <span id="replayPlayerName" style="color: #4ecdc4; line-height: 24px;">${replayData?.username || 'Unknown'}</span>
+            <span style="color: #ff6b6b; font-weight: bold;">🎬 REPLAY</span>
+            <span id="replayPlayerName" style="color: #4ecdc4;">${replayData?.username || 'Unknown'}</span>
             <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
-                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; 
-                    height: 24px; display: inline-flex; align-items: center; justify-content: center;">⏸️</button>
+                    padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; font-size: 14px; 
+                    height: 26px; box-sizing: border-box;">⏸️</button>
             <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
-                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px;
-                    height: 24px; display: inline-flex; align-items: center; justify-content: center;">⏹️ Stop</button>
+                    padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; font-size: 14px;
+                    height: 26px; box-sizing: border-box;">⏹️ Stop</button>
         </div>
     `;
     document.body.appendChild(controls);
