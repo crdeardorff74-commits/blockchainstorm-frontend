@@ -35,6 +35,7 @@ const GameRecorder = (() => {
             // Game events
             moves: [],          // Every piece placement
             pieces: [],         // Piece generation sequence (type, color)
+            inputs: [],         // Player inputs for deterministic replay
             events: [],         // Special events (strikes, tsunamis, etc.)
             randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
             keyframes: [],      // Periodic board snapshots
@@ -68,6 +69,21 @@ const GameRecorder = (() => {
             t: timestamp,
             type: piece.type,
             color: piece.color
+        });
+    }
+    
+    /**
+     * Record a player input for deterministic replay
+     */
+    function recordInput(inputType, data = {}) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.inputs.push({
+            t: timestamp,
+            type: inputType,
+            ...data
         });
     }
     
@@ -537,6 +553,7 @@ const GameRecorder = (() => {
     return {
         startRecording,
         recordPieceGenerated,
+        recordInput,
         recordMove,
         recordAIDecision,
         recordEvent,
@@ -546,6 +563,7 @@ const GameRecorder = (() => {
         recordEarthquake,
         recordVolcanoEruption,
         recordHailBlock,
+        recordGremlinBlock: recordHailBlock,  // Alias for renamed feature
         recordChallengeEvent,
         recordMusicTrack,
         captureFrame,
