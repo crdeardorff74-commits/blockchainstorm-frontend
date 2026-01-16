@@ -3905,6 +3905,7 @@ function spawnTornado() {
     
     tornadoActive = true;
     tornadoY = 0;
+    tornadoSpeed = 8; // Ensure consistent speed for recording and replay
     tornadoRotation = 0;
     tornadoState = 'descending';
     tornadoPickedBlob = null;
@@ -14242,13 +14243,28 @@ window.startGameReplay = function(recording) {
     // Reset tornado state completely
     tornadoActive = false;
     tornadoState = 'descending';
+    tornadoSpeed = 8; // Must match startGame() value
+    tornadoY = 0;
+    tornadoX = 0;
     tornadoPickedBlob = null;
     tornadoFinalPositions = null;
     tornadoFinalCenterX = null;
     tornadoFinalCenterY = null;
     tornadoFadeProgress = 0;
     tornadoSnakeVelocity = 0;
+    tornadoSnakeDirection = 1;
+    tornadoSnakeChangeCounter = 0;
     tornadoParticles = [];
+    tornadoLiftStartY = 0;
+    tornadoLiftHeight = 0;
+    tornadoOrbitAngle = 0;
+    tornadoOrbitRadius = 0;
+    tornadoOrbitStartTime = null;
+    tornadoBlobRotation = 0;
+    tornadoVerticalRotation = 0;
+    tornadoDropTargetX = 0;
+    tornadoDropStartY = 0;
+    tornadoDropVelocity = 0;
     if (typeof stopTornadoWind === 'function') stopTornadoWind();
     
     // Reset volcano state
