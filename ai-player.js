@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.14 loaded - shadow evaluation for human game analysis");
+console.log("🎮 AI Player v3.15 loaded - shadow evaluation for human game analysis");
 
 const AIPlayer = (() => {
     // Configuration
@@ -381,34 +381,66 @@ const AIPlayer = (() => {
         
         let score = 0;
         
-        // SURVIVAL FIRST: Strong penalties for bad board states
-        score -= holes * 10;      // Holes are devastating
-        score -= height * 0.8;    // Keep stack low
+        // CASCADE-AWARE: Holes aren't as devastating in this game
+        // Blob gravity can fill them when special events clear areas
+        score -= holes * 4;       // Reduced from 10 (cascade will help)
+        score -= height * 0.6;    // Keep stack low but not obsessively
         
-        // Line clears are always good
-        score += linesCleared * linesCleared * 5;
+        // Line clears - often BAD when building for special events
+        // Only reward them when height is dangerous
+        if (height >= 16) {
+            score += linesCleared * 30; // Emergency clear
+        } else if (height >= 14) {
+            score += linesCleared * 10;
+        } else {
+            // Penalize line clears when building blobs
+            score -= linesCleared * 5;
+        }
         
         // Compactness: reward touching existing blocks
         const touching = fallbackCountTouching(board, shape, x, y, cols, rows);
-        score += touching * 1.5;
+        score += touching * 2;
         
-        // Color adjacency bonus (only when board is healthy)
-        if (holes <= 2 && height <= 12) {
-            score += adj * 0.8;  // Increased from 0.4
-        } else if (holes <= 4 && height <= 15) {
-            score += adj * 0.3;  // Moderate bonus when not perfectly healthy
-        }
+        // Color adjacency - MORE important for special events
+        // Horizontal adjacency worth more (for tsunamis)
+        const horizAdj = fallbackHorizontalAdjacency(board, shape, x, y, color, cols, rows);
+        score += horizAdj * 5;   // Strong horizontal bonus
+        score += (adj - horizAdj) * 2;  // Vertical is worth less
         
-        // Death zone penalties
-        if (height >= 18) {
-            score -= 500;
-        } else if (height >= 16) {
+        // Death zone penalties - still important
+        if (height >= 19) {
+            score -= 200;
+        } else if (height >= 17) {
             score -= 50;
-        } else if (height >= 14) {
+        } else if (height >= 15) {
             score -= 10;
         }
         
         return score;
+    }
+    
+    /**
+     * Count horizontal same-color adjacency specifically
+     */
+    function fallbackHorizontalAdjacency(board, shape, x, y, color, cols, rows) {
+        let adj = 0;
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (!shape[py][px]) continue;
+                const bx = x + px, by = y + py;
+                // Left neighbor
+                if (bx > 0 && by >= 0 && by < rows && board[by] && board[by][bx-1] === color) {
+                    let partOfPiece = px > 0 && shape[py][px-1];
+                    if (!partOfPiece) adj++;
+                }
+                // Right neighbor
+                if (bx < cols-1 && by >= 0 && by < rows && board[by] && board[by][bx+1] === color) {
+                    let partOfPiece = px < shape[py].length-1 && shape[py][px+1];
+                    if (!partOfPiece) adj++;
+                }
+            }
+        }
+        return adj;
     }
     
     /**
