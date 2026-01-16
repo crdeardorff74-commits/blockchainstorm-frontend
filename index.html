@@ -2363,7 +2363,7 @@
         /* Color Palette Dropdown */
         .palette-dropdown {
             position: relative;
-            width: 220px;
+            width: 250px;
         }
         
         .palette-dropdown-button {
@@ -2401,8 +2401,8 @@
         .palette-dropdown-menu {
             position: absolute;
             top: 100%;
-            left: 0;
             right: 0;
+            min-width: 280px;
             margin-top: 4px;
             background: #1e1e2e;
             border: 1px solid #444;
@@ -2411,6 +2411,7 @@
             z-index: 1000;
             max-height: 300px;
             overflow-y: auto;
+            overflow-x: hidden;
             display: none;
         }
         
