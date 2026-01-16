@@ -1,7 +1,7 @@
-// AI Worker v4.5.3 - Survival-focused: earlier line clearing, stronger height penalties (2026-01-16)
-console.log("🤖 AI Worker v4.5.3 loaded - balanced survival with special event building");
+// AI Worker v4.5.4 - Aggressive survival: danger@12/8, critical@14/12, steep hole penalties (2026-01-16)
+console.log("🤖 AI Worker v4.5.4 loaded - survival-first with strict hole/height limits");
 
-const AI_VERSION = "4.5.3";
+const AI_VERSION = "4.5.4";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -534,6 +534,11 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     const isBreeze = currentSkillLevel === 'breeze';
     
+    // ====== DANGER ZONE CHECK ======
+    // More aggressive thresholds to prevent death spirals
+    const inDangerZone = stackHeight >= 12 || holes >= 8;
+    const inCriticalZone = stackHeight >= 14 || holes >= 12;
+    
     // ====== SPECIAL EVENT DETECTION ======
     const runs = getHorizontalRuns(board, cols, rows);
     const bestRuns = getBestRunsPerColor(runs);
@@ -544,7 +549,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     let bestTsunamiWidth = 0;
     let bestTsunamiColor = null;
     
-    if (!isBreeze) {
+    if (!isBreeze && !inCriticalZone) {
         for (const runColor in bestRuns) {
             const run = bestRuns[runColor];
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
@@ -558,8 +563,10 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
-                tsunamiLikelyAchievable = true;
+            if (!inDangerZone) {
+                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+                    tsunamiLikelyAchievable = true;
+                }
             }
             
             if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
@@ -574,16 +581,16 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.tsunami.width = bestTsunamiWidth;
     breakdown.tsunami.color = bestTsunamiColor;
     
-    // Volcano detection (non-Breeze only)
+    // Volcano detection - skip in danger zone
     let volcanoPotential = { hasPotential: false, progress: 0, innerSize: 0 };
-    if (!isBreeze) {
+    if (!isBreeze && !inDangerZone) {
         volcanoPotential = findVolcanoPotential(board, cols, rows);
     }
     breakdown.volcano.potential = volcanoPotential.hasPotential;
     breakdown.volcano.progress = volcanoPotential.progress;
     breakdown.volcano.innerSize = volcanoPotential.innerSize;
     
-    const buildingSpecialEvent = tsunamiLikelyAchievable || volcanoPotential.hasPotential;
+    const buildingSpecialEvent = !inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential);
     
     // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
     if (tsunamiNearCompletion && holes <= 6) {
@@ -651,12 +658,17 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.criticalHeight.penalty;
     
     // ====== EMERGENCY HOLE PENALTY ======
-    if (holes >= 15) {
-        const emergencyPenalty = (holes - 14) * 15;
+    // Steep penalties to prevent death spirals
+    if (holes >= 12) {
+        const emergencyPenalty = (holes - 11) * 25;
         breakdown.holes.penalty += emergencyPenalty;
         score -= emergencyPenalty;
-    } else if (holes >= 10) {
-        const emergencyPenalty = (holes - 9) * 5;
+    } else if (holes >= 8) {
+        const emergencyPenalty = (holes - 7) * 10;
+        breakdown.holes.penalty += emergencyPenalty;
+        score -= emergencyPenalty;
+    } else if (holes >= 5) {
+        const emergencyPenalty = (holes - 4) * 4;
         breakdown.holes.penalty += emergencyPenalty;
         score -= emergencyPenalty;
     }
@@ -734,8 +746,12 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    const canBuildBlobs = (stackHeight <= 14 && holes <= 5) || 
-                          (buildingSpecialEvent && stackHeight <= 16 && holes <= 8);
+    // Only focus on blob building when board is healthy
+    // Disabled when in danger zone
+    const canBuildBlobs = !inDangerZone && (
+        (stackHeight <= 10 && holes <= 4) || 
+        (buildingSpecialEvent && stackHeight <= 12 && holes <= 6)
+    );
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
@@ -882,18 +898,24 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     const isBreeze = currentSkillLevel === 'breeze';
     
+    // ====== DANGER ZONE CHECK ======
+    // More aggressive thresholds to prevent death spirals
+    const inDangerZone = stackHeight >= 12 || holes >= 8;
+    const inCriticalZone = stackHeight >= 14 || holes >= 12;
+    
     // ====== SPECIAL EVENT DETECTION ======
     const runs = getHorizontalRuns(board, cols, rows);
     const bestRuns = getBestRunsPerColor(runs);
     
-    // Tsunami detection
+    // Tsunami detection - but only if not in critical danger
     let hasTsunamiPotential = false;
     let tsunamiLikelyAchievable = false;
-    let tsunamiNearCompletion = false;  // NEW: width >= 9
+    let tsunamiNearCompletion = false;
     let bestTsunamiWidth = 0;
     let bestTsunamiColor = null;
     
-    if (!isBreeze) {
+    // Only consider tsunami building if we're not in critical danger
+    if (!isBreeze && !inCriticalZone) {
         for (const runColor in bestRuns) {
             const run = bestRuns[runColor];
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
@@ -908,26 +930,28 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            // Achievable = high confidence we can complete
-            if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
-                tsunamiLikelyAchievable = true;
+            // Achievable = high confidence we can complete (only if not in danger zone)
+            if (!inDangerZone) {
+                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+                    tsunamiLikelyAchievable = true;
+                }
             }
             
-            // Near completion = should be top priority
+            // Near completion = should be top priority (allow even in danger if width >= 9)
             if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
                 tsunamiNearCompletion = true;
             }
         }
     }
     
-    // Volcano detection (non-Breeze only)
+    // Volcano detection - skip in danger zone
     let volcanoPotential = { hasPotential: false, progress: 0, innerSize: 0 };
-    if (!isBreeze) {
+    if (!isBreeze && !inDangerZone) {
         volcanoPotential = findVolcanoPotential(board, cols, rows);
     }
     
-    // Combined "building special event" flag
-    const buildingSpecialEvent = tsunamiLikelyAchievable || volcanoPotential.hasPotential;
+    // Combined "building special event" flag - disabled in critical zone
+    const buildingSpecialEvent = !inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential);
     
     // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
     // Key insight: holes CAN fill via cascade, but too many holes = death spiral
@@ -991,11 +1015,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== EMERGENCY HOLE PENALTY ======
-    // Even when building specials, too many holes = death spiral
-    if (holes >= 15) {
-        score -= (holes - 14) * 15;  // Heavy penalty above 15 holes
-    } else if (holes >= 10) {
-        score -= (holes - 9) * 5;    // Moderate penalty above 10 holes
+    // Steep penalties to prevent death spirals - kicks in early
+    if (holes >= 12) {
+        score -= (holes - 11) * 25;  // Very heavy penalty above 12 holes
+    } else if (holes >= 8) {
+        score -= (holes - 7) * 10;   // Heavy penalty above 8 holes
+    } else if (holes >= 5) {
+        score -= (holes - 4) * 4;    // Moderate penalty above 5 holes
     }
     
     // ====== LINE CLEARS ======
@@ -1077,9 +1103,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== BLOB BUILDING ======
     // Only focus on blob building when board is healthy
-    // At higher stacks, prioritize survival over blob building
-    const canBuildBlobs = (stackHeight <= 14 && holes <= 5) || 
-                          (buildingSpecialEvent && stackHeight <= 16 && holes <= 8);
+    // Disabled when in danger zone
+    const canBuildBlobs = !inDangerZone && (
+        (stackHeight <= 10 && holes <= 4) || 
+        (buildingSpecialEvent && stackHeight <= 12 && holes <= 6)
+    );
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
