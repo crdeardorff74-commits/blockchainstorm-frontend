@@ -2223,9 +2223,12 @@ function initPaletteDropdown() {
 
 function updatePalettePreview() {
     const palettePreview = document.getElementById('palettePreview');
+    const paletteNameDisplay = document.getElementById('paletteNameDisplay');
     if (!palettePreview || typeof ColorPalettes === 'undefined') return;
     
     const colors = ColorPalettes.getColors(currentPaletteId);
+    const paletteName = ColorPalettes.getPaletteName(currentPaletteId);
+    
     palettePreview.innerHTML = '';
     colors.forEach(color => {
         const swatch = document.createElement('div');
@@ -2233,6 +2236,10 @@ function updatePalettePreview() {
         swatch.style.backgroundColor = color;
         palettePreview.appendChild(swatch);
     });
+    
+    if (paletteNameDisplay) {
+        paletteNameDisplay.textContent = paletteName;
+    }
 }
 
 function selectPalette(paletteId) {
