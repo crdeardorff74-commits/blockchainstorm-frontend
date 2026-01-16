@@ -315,6 +315,52 @@ const GameRecorder = (() => {
     }
     
     /**
+     * Record tsunami event (for analysis - replays naturally, not injected)
+     */
+    function recordTsunami(blob) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.events.push({
+            t: timestamp,
+            type: 'tsunami',
+            blobSize: blob?.positions?.length || 0
+        });
+    }
+    
+    /**
+     * Record black hole event (for analysis - replays naturally, not injected)
+     */
+    function recordBlackHole(innerBlob, outerBlob) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.events.push({
+            t: timestamp,
+            type: 'blackhole',
+            innerSize: innerBlob?.positions?.length || 0,
+            outerSize: outerBlob?.positions?.length || 0
+        });
+    }
+    
+    /**
+     * Record gravity animation data (for analysis - replays naturally, not injected)
+     */
+    function recordGravity(animations) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.events.push({
+            t: timestamp,
+            type: 'gravity',
+            blobCount: animations?.length || 0
+        });
+    }
+    
+    /**
      * Capture periodic board state (call from game loop)
      */
     function captureFrame(board) {
@@ -566,6 +612,9 @@ const GameRecorder = (() => {
         recordGremlinBlock: recordHailBlock,  // Alias for renamed feature
         recordChallengeEvent,
         recordMusicTrack,
+        recordTsunami,
+        recordBlackHole,
+        recordGravity,
         captureFrame,
         stopRecording,
         submitRecording,
