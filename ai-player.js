@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.15 loaded - shadow evaluation for human game analysis");
+console.log("🎮 AI Player v3.16 loaded - full pause during earthquakes");
 
 const AIPlayer = (() => {
     // Configuration
@@ -25,6 +25,7 @@ const AIPlayer = (() => {
     let currentMode = 'colorBuilding'; // Track mode for display/logging
     let currentStackHeight = 0; // Track stack height for debugging
     let currentUfoActive = false; // Track UFO state for 42 lines easter egg
+    let wasInEarthquake = false; // Track earthquake state for transition handling
     
     // Stuck detection - prevents infinite rotation/movement loops
     let lastPieceKey = null; // Track piece identity (x, y, rotation, shape hash)
@@ -598,6 +599,30 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
+        // FULL PAUSE during earthquake - the board is about to change dramatically
+        // Don't execute moves, don't think, just wait
+        if (duringEarthquake) {
+            // If earthquake just started, clear any queued moves
+            if (!wasInEarthquake) {
+                console.log('🌍 AI: Earthquake detected, pausing all activity');
+                moveQueue = [];
+                thinking = false;
+            }
+            wasInEarthquake = true;
+            return; // Complete pause - do nothing during earthquake
+        }
+        
+        // Earthquake just ended - reset state for fresh start
+        if (wasInEarthquake && !duringEarthquake) {
+            console.log('🌍 AI: Earthquake ended, resuming');
+            wasInEarthquake = false;
+            // Reset stuck detection since board state changed dramatically
+            lastPieceKey = null;
+            samePositionCount = 0;
+            lastCalculatedPieceId = null;
+            samePieceCount = 0;
+        }
+        
         // Generate piece identity based on color (new piece = new color in this game)
         const currentPieceId = currentPiece.color;
         
@@ -632,26 +657,23 @@ const AIPlayer = (() => {
         }
         
         // Stuck detection: check if piece is in same position as last calculation
-        // Skip stuck detection during earthquake since we're intentionally not dropping
         const pieceKey = getPieceKey(currentPiece);
-        if (!duringEarthquake) {
-            if (pieceKey === lastPieceKey) {
-                samePositionCount++;
-                if (samePositionCount >= STUCK_THRESHOLD) {
-                    // Piece hasn't moved after multiple attempts - force immediate drop
-                    console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
-                    moveQueue = ['drop'];
-                    lastMoveTime = Date.now();
-                    samePositionCount = 0; // Reset after forcing drop
-                    lastPieceKey = null;
-                    lastCalculatedPieceId = null;
-                    return;
-                }
-            } else {
-                // Piece moved or new piece - reset counter
-                samePositionCount = 0;
-                lastPieceKey = pieceKey;
+        if (pieceKey === lastPieceKey) {
+            samePositionCount++;
+            if (samePositionCount >= STUCK_THRESHOLD) {
+                // Piece hasn't moved after multiple attempts - force immediate drop
+                console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
+                moveQueue = ['drop'];
+                lastMoveTime = Date.now();
+                samePositionCount = 0; // Reset after forcing drop
+                lastPieceKey = null;
+                lastCalculatedPieceId = null;
+                return;
             }
+        } else {
+            // Piece moved or new piece - reset counter
+            samePositionCount = 0;
+            lastPieceKey = pieceKey;
         }
         
         thinking = true;
@@ -677,11 +699,9 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
-                    // During earthquake: position piece but don't hard drop (let it fall naturally)
-                    moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, false);
                 } else {
-                    // Only drop if not during earthquake
-                    moveQueue = duringEarthquake ? [] : ['drop'];
+                    moveQueue = ['drop'];
                 }
                 
                 thinking = false;
@@ -729,6 +749,9 @@ const AIPlayer = (() => {
         samePositionCount = 0;
         lastCalculatedPieceId = null;
         samePieceCount = 0;
+        
+        // Reset earthquake tracking
+        wasInEarthquake = false;
         
         // Also reset worker's mode
         if (worker && workerReady) {
