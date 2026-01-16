@@ -2965,22 +2965,39 @@ function spawnLavaProjectile() {
     // Spawn from top of lava blob (or the eruption column)
     const spawnX = volcanoEruptionColumn * BLOCK_SIZE + BLOCK_SIZE / 2;
     
-    // Determine horizontal direction based on which edge the volcano is against
-    let direction;
-    if (volcanoEdgeType.includes('left') && !volcanoEdgeType.includes('right')) {
-        // Against left wall - shoot right only
-        direction = 1;
-    } else if (volcanoEdgeType.includes('right') && !volcanoEdgeType.includes('left')) {
-        // Against right wall - shoot left only
-        direction = -1;
-    } else {
-        // Against bottom only, or in a corner - random direction
-        direction = Math.random() < 0.5 ? -1 : 1;
-    }
+    let direction, vx, vy;
     
-    // Launch velocity - high arcing trajectories with lots of variation
-    const vx = direction * (0.5 + Math.random() * 2.5); // 0.5-3 pixels/frame horizontal (narrower arcs)
-    const vy = -(11 + Math.random() * 6); // -11 to -17 pixels/frame vertical (reduced from -16 to -26)
+    // During replay, use recorded projectile values
+    if (replayActive && replayLavaProjectileIndex < replayLavaProjectiles.length) {
+        const projData = replayLavaProjectiles[replayLavaProjectileIndex];
+        direction = projData.direction;
+        vx = projData.vx;
+        vy = projData.vy;
+        replayLavaProjectileIndex++;
+        console.log('🌋 Replay: Using recorded projectile', replayLavaProjectileIndex, 'vx:', vx.toFixed(2), 'vy:', vy.toFixed(2));
+    } else {
+        // Normal gameplay: generate random values
+        // Determine horizontal direction based on which edge the volcano is against
+        if (volcanoEdgeType.includes('left') && !volcanoEdgeType.includes('right')) {
+            // Against left wall - shoot right only
+            direction = 1;
+        } else if (volcanoEdgeType.includes('right') && !volcanoEdgeType.includes('left')) {
+            // Against right wall - shoot left only
+            direction = -1;
+        } else {
+            // Against bottom only, or in a corner - random direction
+            direction = Math.random() < 0.5 ? -1 : 1;
+        }
+        
+        // Launch velocity - high arcing trajectories with lots of variation
+        vx = direction * (0.5 + Math.random() * 2.5); // 0.5-3 pixels/frame horizontal (narrower arcs)
+        vy = -(11 + Math.random() * 6); // -11 to -17 pixels/frame vertical (reduced from -16 to -26)
+        
+        // Record the projectile for replay
+        if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
+            GameRecorder.recordLavaProjectile(direction, vx, vy);
+        }
+    }
     
     volcanoProjectiles.push({
         x: spawnX,
@@ -13813,6 +13830,8 @@ let replayEarthquakes = [];        // Earthquake crack/shift data
 let replayEarthquakeIndex = 0;
 let replayVolcanoes = [];          // Volcano eruption data
 let replayVolcanoIndex = 0;
+let replayLavaProjectiles = [];    // Lava projectile spawn data
+let replayLavaProjectileIndex = 0;
 let replayMusicTracks = [];        // Music track sequence
 let replayMusicIndex = 0;
 
@@ -13862,6 +13881,8 @@ window.startGameReplay = function(recording) {
     replayEarthquakeIndex = 0;
     replayVolcanoes = [];
     replayVolcanoIndex = 0;
+    replayLavaProjectiles = [];
+    replayLavaProjectileIndex = 0;
     replayMusicTracks = recData.musicTracks || [];
     replayMusicIndex = 0;
     
@@ -13881,6 +13902,9 @@ window.startGameReplay = function(recording) {
                 break;
             case 'volcano':
                 replayVolcanoes.push(event);
+                break;
+            case 'lava_projectile':
+                replayLavaProjectiles.push(event);
                 break;
         }
     });
@@ -14251,15 +14275,41 @@ function stopReplay() {
     replayEarthquakeIndex = 0;
     replayVolcanoes = [];
     replayVolcanoIndex = 0;
+    replayLavaProjectiles = [];
+    replayLavaProjectileIndex = 0;
     
     // Cancel any active animations
     tsunamiAnimating = false;
     blackHoleAnimating = false;
     blackHoleActive = false;
     volcanoAnimating = false;
+    volcanoActive = false;
+    volcanoProjectiles = [];
     gravityAnimating = false;
-    tornadoActive = false;
     earthquakeActive = false;
+    
+    // Full earthquake state reset
+    earthquakePhase = 'shake';
+    earthquakeShakeProgress = 0;
+    earthquakeShakeIntensity = 0;
+    earthquakeCrack = [];
+    earthquakeCrackProgress = 0;
+    earthquakeCrackMap.clear();
+    earthquakeShiftProgress = 0;
+    earthquakeLeftBlocks = [];
+    earthquakeRightBlocks = [];
+    
+    // Full tornado state reset
+    tornadoActive = false;
+    tornadoState = 'descending';
+    tornadoPickedBlob = null;
+    tornadoFinalPositions = null;
+    tornadoFinalCenterX = null;
+    tornadoFinalCenterY = null;
+    tornadoFadeProgress = 0;
+    tornadoSnakeVelocity = 0;
+    tornadoParticles = [];
+    
     stopTornadoWind(); // Stop any tornado wind sound
     fallingBlocks = [];
     animatingLines = false;

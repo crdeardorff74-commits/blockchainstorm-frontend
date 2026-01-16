@@ -213,8 +213,8 @@ const GameRecorder = (() => {
         recording.randomEvents.push({
             t: timestamp,
             type: 'tornado_direction',
-            direction: newDirection,
-            counter: newCounter
+            newDirection: newDirection,
+            newCounter: newCounter
         });
     }
     
@@ -262,6 +262,23 @@ const GameRecorder = (() => {
             type: 'volcano',
             column: column,
             edge: edgeType
+        });
+    }
+    
+    /**
+     * Record lava projectile spawn (for volcano determinism)
+     */
+    function recordLavaProjectile(direction, vx, vy) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.randomEvents.push({
+            t: timestamp,
+            type: 'lava_projectile',
+            direction: direction,
+            vx: vx,
+            vy: vy
         });
     }
     
@@ -608,6 +625,7 @@ const GameRecorder = (() => {
         recordTornadoDrop,
         recordEarthquake,
         recordVolcanoEruption,
+        recordLavaProjectile,
         recordHailBlock,
         recordGremlinBlock: recordHailBlock,  // Alias for renamed feature
         recordChallengeEvent,
