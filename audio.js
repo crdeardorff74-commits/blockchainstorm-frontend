@@ -203,6 +203,11 @@ let creditsShuffleQueue = [];
 let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
+// Replay mode - play specific tracks in order instead of shuffle
+let replayModeActive = false;
+let replayTrackList = [];       // Array of {trackId, trackName} from recording
+let replayTrackIndex = 0;       // Current position in replay track list
+
 // Track recently played song families (base names before parentheses)
 // This prevents variants of the same song from playing too close together
 let recentlyPlayedFamilies = []; // Stores last 4 song families
@@ -583,6 +588,40 @@ function initShuffleQueues() {
     console.log('🎵 Initialized credits shuffle queue:', creditsShuffleQueue);
 }
 
+// Reset shuffle queue (for replay consistency)
+function resetShuffleQueue() {
+    gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+    lastPlayedGameplaySong = null;
+    console.log('🎵 Reset gameplay shuffle queue for replay');
+}
+
+// Set replay mode with specific track list from recording
+function setReplayTracks(trackList) {
+    replayModeActive = true;
+    replayTrackList = trackList || [];
+    replayTrackIndex = 0;
+    console.log('🎵 Replay mode enabled with', replayTrackList.length, 'tracks:', replayTrackList.map(t => t.trackName || t.trackId));
+}
+
+// Clear replay mode (return to normal shuffle)
+function clearReplayTracks() {
+    replayModeActive = false;
+    replayTrackList = [];
+    replayTrackIndex = 0;
+    console.log('🎵 Replay mode disabled, returning to shuffle');
+}
+
+// Get next track from replay list (returns null if exhausted)
+function getNextReplayTrack() {
+    if (!replayModeActive || replayTrackIndex >= replayTrackList.length) {
+        return null;
+    }
+    const track = replayTrackList[replayTrackIndex];
+    replayTrackIndex++;
+    console.log('🎵 Replay track', replayTrackIndex, 'of', replayTrackList.length, ':', track.trackName || track.trackId);
+    return track.trackId;
+}
+
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     if (queue.length === 0) {
@@ -814,12 +853,28 @@ function startMusic(gameMode, musicSelect) {
     let trackId;
     let song;
     
-    // Check for UFO-delivered song override
+    // Check for UFO-delivered song override (works in both normal and replay mode)
     if (nextSongOverride) {
         trackId = nextSongOverride.id;
         song = nextSongOverride;
         nextSongOverride = null; // Clear after use
         console.log('🛸 Playing UFO-delivered song:', song.name);
+    } else if (replayModeActive && selection === 'shuffle') {
+        // Replay mode: use tracks from recording in order
+        trackId = getNextReplayTrack();
+        if (trackId) {
+            song = allSongs.find(s => s.id === trackId);
+            if (!song) {
+                console.warn('🎵 Replay track not found:', trackId, '- falling back to shuffle');
+                trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+                song = allSongs.find(s => s.id === trackId);
+            }
+        } else {
+            // Replay tracks exhausted, fall back to shuffle
+            console.log('🎵 Replay tracks exhausted, continuing with shuffle');
+            trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+            song = allSongs.find(s => s.id === trackId);
+        }
     } else if (selection === 'shuffle') {
         // Shuffle mode: use persistent queue (no repeats until all played)
         trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
@@ -2395,6 +2450,9 @@ function getEffectiveSfxVolume(effectId) {
         skipToNextSong,
         skipToPreviousSong,
         hasPreviousSong,
+        resetShuffleQueue,
+        setReplayTracks,
+        clearReplayTracks,
         pauseCurrentMusic,
         resumeCurrentMusic,
         toggleMusicPause,

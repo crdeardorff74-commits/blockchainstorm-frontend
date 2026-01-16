@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.10 loaded - AI shadow evaluation for human game recordings");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -720,12 +720,12 @@ const GamepadController = {
         }
         
         // === MUSIC CONTROLS ===
-        // Next song (uses configured buttons)
-        if (this.wasActionJustPressed(gp, 'nextSong')) {
+        // Next song (uses configured buttons) - not during replay
+        if (this.wasActionJustPressed(gp, 'nextSong') && !replayActive) {
             skipToNextSong();
         }
-        // Previous song (uses configured buttons)
-        if (this.wasActionJustPressed(gp, 'prevSong')) {
+        // Previous song (uses configured buttons) - not during replay
+        if (this.wasActionJustPressed(gp, 'prevSong') && !replayActive) {
             skipToPreviousSong();
         }
         
@@ -1876,6 +1876,7 @@ function createSongInfoElement() {
     
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
+            if (replayActive) return; // Don't allow during replay
             if (typeof skipToPreviousSong === 'function') {
                 skipToPreviousSong();
             }
@@ -1909,6 +1910,7 @@ function createSongInfoElement() {
     
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
+            if (replayActive) return; // Don't allow during replay
             if (typeof skipToNextSong === 'function') {
                 skipToNextSong();
             }
@@ -12392,6 +12394,9 @@ document.addEventListener('keydown', e => {
         // Music controls: SHIFT+Arrow or CTRL+Arrow to skip songs
         if ((e.shiftKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
             e.preventDefault();
+            // Don't allow manual skips during replay
+            if (replayActive) return;
+            
             if (e.key === 'ArrowRight') {
                 skipToNextSong();
             } else if (e.key === 'ArrowLeft') {
@@ -13966,7 +13971,19 @@ window.startGameReplay = function(recording) {
     toggleUIElements(false); // Hide How to Play panel, show histogram
     stopMenuMusic();
     
-    // Start gameplay music for replay
+    // Initialize histogram for replay
+    Histogram.init({
+        canvas: histogramCanvas,
+        colorSet: currentColorSet
+    });
+    
+    // Set up recorded music tracks for replay, then start gameplay music
+    if (replayMusicTracks && replayMusicTracks.length > 0) {
+        setReplayTracks(replayMusicTracks);
+    } else {
+        // No recorded tracks, fall back to shuffle
+        resetShuffleQueue();
+    }
     startMusic(gameMode, musicSelect);
     
     // Reset timing state for fresh start
@@ -14058,6 +14075,22 @@ function processReplayInputs() {
         // through the game logic when line clears occur
         
         replayRandomEventIndex++;
+    }
+    
+    // Process music track changes at their recorded timestamps
+    while (replayMusicIndex < replayMusicTracks.length &&
+           replayMusicTracks[replayMusicIndex].t <= replayElapsedTime) {
+        
+        const musicEvent = replayMusicTracks[replayMusicIndex];
+        
+        // Skip to next song (which will get the correct track from replay list)
+        // The first track is started when replay begins, so skip index 0
+        if (replayMusicIndex > 0) {
+            console.log('🎬 Replay: Triggering music change to', musicEvent.trackName, 'at', musicEvent.t, 'ms');
+            skipToNextSong();
+        }
+        
+        replayMusicIndex++;
     }
     
     // Check if replay is complete
@@ -14186,6 +14219,9 @@ function stopReplay() {
     replayPaused = false;
     replayData = null;
     replayCompleteShown = false;  // Reset completion flag
+    
+    // Clear replay music tracks (return to normal shuffle)
+    clearReplayTracks();
     
     // Restore AI mode to what it was before replay
     aiModeEnabled = replaySavedAIMode;
