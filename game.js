@@ -12118,7 +12118,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.10',
+            gameVersion: '3.11',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
@@ -12126,7 +12126,13 @@ function startGame(mode) {
             mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
             challenges: challengeMode === 'combo' ? Array.from(activeChallenges) : 
                         challengeMode !== 'normal' ? [challengeMode] : [],
-            speedBonus: 1.0
+            speedBonus: 1.0,
+            // Visual settings for accurate playback
+            faceOpacity: faceOpacity,
+            stormEffects: stormEffectsToggle ? stormEffectsToggle.checked : true,
+            cameraReversed: cameraReversed,
+            starSpeed: starSpeedSlider ? parseFloat(starSpeedSlider.value) : 1.0,
+            minimalistMode: minimalistMode
         });
     }
     
@@ -13968,6 +13974,15 @@ document.addEventListener('touchend', handleUnpauseTap);
 let replayPaused = false;
 let replayData = null;
 let replaySavedAIMode = false; // Store AI mode state to restore after replay
+// Visual settings saved state for replay
+let replaySavedVisualSettings = {
+    faceOpacity: 0.42,
+    stormEffects: true,
+    cameraReversed: false,
+    starSpeed: 1.0,
+    minimalistMode: false,
+    palette: 'classic'
+};
 let replayStartTime = 0;         // When replay started (real time)
 let replayElapsedTime = 0;       // Elapsed replay time
 let replayLastFrameTime = 0;     // Last frame timestamp for delta calculation
@@ -14103,8 +14118,64 @@ window.startGameReplay = function(recording) {
     
     // Set palette from recording (fallback to current if not recorded)
     if (recData.palette && typeof ColorPalettes !== 'undefined') {
+        // Save current palette first
+        replaySavedVisualSettings.palette = currentPaletteId;
         initColorsFromPalette(recData.palette);
         updatePalettePreview();
+    }
+    
+    // Save current visual settings before applying replay settings
+    replaySavedVisualSettings.faceOpacity = faceOpacity;
+    replaySavedVisualSettings.stormEffects = stormEffectsToggle ? stormEffectsToggle.checked : true;
+    replaySavedVisualSettings.cameraReversed = cameraReversed;
+    replaySavedVisualSettings.starSpeed = starSpeedSlider ? parseFloat(starSpeedSlider.value) : 1.0;
+    replaySavedVisualSettings.minimalistMode = minimalistMode;
+    
+    // Apply recorded visual settings if present
+    const visualSettings = recData.visualSettings || {};
+    
+    // Face opacity
+    if (visualSettings.faceOpacity !== undefined) {
+        faceOpacity = visualSettings.faceOpacity;
+        if (opacitySlider) opacitySlider.value = Math.round(faceOpacity * 100);
+    }
+    
+    // Storm effects
+    if (visualSettings.stormEffects !== undefined && stormEffectsToggle) {
+        stormEffectsToggle.checked = visualSettings.stormEffects;
+    }
+    
+    // Camera reversed
+    if (visualSettings.cameraReversed !== undefined) {
+        cameraReversed = visualSettings.cameraReversed;
+        if (typeof StarfieldSystem !== 'undefined') {
+            StarfieldSystem.setCameraReversed(cameraReversed);
+        }
+        const cameraToggle = document.getElementById('cameraOrientationToggle');
+        if (cameraToggle) cameraToggle.checked = cameraReversed;
+    }
+    
+    // Star speed
+    if (visualSettings.starSpeed !== undefined) {
+        if (starSpeedSlider) starSpeedSlider.value = visualSettings.starSpeed;
+        if (typeof StarfieldSystem !== 'undefined') {
+            if (visualSettings.starSpeed === 0) {
+                StarfieldSystem.setStarsEnabled(false);
+            } else {
+                StarfieldSystem.setStarsEnabled(true);
+                StarfieldSystem.setStarSpeed(visualSettings.starSpeed);
+            }
+        }
+    }
+    
+    // Minimalist mode
+    if (visualSettings.minimalistMode !== undefined) {
+        minimalistMode = visualSettings.minimalistMode;
+        if (minimalistToggle) minimalistToggle.checked = minimalistMode;
+        if (typeof applyMinimalistMode === 'function') applyMinimalistMode();
+        if (typeof StarfieldSystem !== 'undefined') {
+            StarfieldSystem.setMinimalistMode(minimalistMode);
+        }
     }
     
     // Set COLS before anything else
@@ -14455,6 +14526,46 @@ function stopReplay() {
     
     // Restore AI mode to what it was before replay
     aiModeEnabled = replaySavedAIMode;
+    
+    // Restore visual settings to what they were before replay
+    faceOpacity = replaySavedVisualSettings.faceOpacity;
+    if (opacitySlider) opacitySlider.value = Math.round(faceOpacity * 100);
+    
+    if (stormEffectsToggle) {
+        stormEffectsToggle.checked = replaySavedVisualSettings.stormEffects;
+    }
+    
+    cameraReversed = replaySavedVisualSettings.cameraReversed;
+    if (typeof StarfieldSystem !== 'undefined') {
+        StarfieldSystem.setCameraReversed(cameraReversed);
+    }
+    const cameraToggle = document.getElementById('cameraOrientationToggle');
+    if (cameraToggle) cameraToggle.checked = cameraReversed;
+    
+    if (starSpeedSlider) {
+        starSpeedSlider.value = replaySavedVisualSettings.starSpeed;
+        if (typeof StarfieldSystem !== 'undefined') {
+            if (replaySavedVisualSettings.starSpeed === 0) {
+                StarfieldSystem.setStarsEnabled(false);
+            } else {
+                StarfieldSystem.setStarsEnabled(true);
+                StarfieldSystem.setStarSpeed(replaySavedVisualSettings.starSpeed);
+            }
+        }
+    }
+    
+    minimalistMode = replaySavedVisualSettings.minimalistMode;
+    if (minimalistToggle) minimalistToggle.checked = minimalistMode;
+    if (typeof applyMinimalistMode === 'function') applyMinimalistMode();
+    if (typeof StarfieldSystem !== 'undefined') {
+        StarfieldSystem.setMinimalistMode(minimalistMode);
+    }
+    
+    // Restore palette
+    if (replaySavedVisualSettings.palette && typeof ColorPalettes !== 'undefined') {
+        initColorsFromPalette(replaySavedVisualSettings.palette);
+        updatePalettePreview();
+    }
     
     // Reset deterministic piece queue
     replayPieceQueue = [];
