@@ -12510,7 +12510,8 @@ document.addEventListener('keydown', e => {
     // GAME CONTROLS - Only when game is running
     if (gameRunning) {
         // If paused, any key (except F11/PageUp/PageDown) unpauses
-        if (paused) {
+        // But NOT during replay - use replay controls instead
+        if (paused && !replayActive) {
             e.preventDefault();
             paused = false; StarfieldSystem.setPaused(false);
             settingsBtn.classList.add('hidden-during-play');
@@ -12526,6 +12527,15 @@ document.addEventListener('keydown', e => {
                 } else {
                     startMusic(gameMode, musicSelect);
                 }
+            }
+            return;
+        }
+        
+        // During replay pause, only allow spacebar to toggle pause
+        if (replayActive && replayPaused) {
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                toggleReplayPause();
             }
             return;
         }
@@ -13951,15 +13961,22 @@ const handleUnpauseTap = (e) => {
     if (!gameRunning || !paused || justPaused) return;
     if (unpauseHandled) return;
     
-    // Don't unpause if clicking on settings button, settings overlay, or pause button
+    // Don't unpause if clicking on settings button, settings overlay, pause button, or replay controls
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsOverlay = document.getElementById('settingsOverlay');
     const pauseBtn = document.getElementById('pauseBtn');
+    const replayPauseBtn = document.getElementById('replayPauseBtn');
+    const replayStopBtn = document.getElementById('replayStopBtn');
     
     if (settingsBtn && settingsBtn.contains(e.target)) return;
     if (settingsOverlay && settingsOverlay.contains(e.target)) return;
     if (settingsOverlay && settingsOverlay.style.display === 'flex') return;
     if (pauseBtn && pauseBtn.contains(e.target)) return;
+    if (replayPauseBtn && replayPauseBtn.contains(e.target)) return;
+    if (replayStopBtn && replayStopBtn.contains(e.target)) return;
+    
+    // During replay, don't allow tap-to-unpause (use replay controls instead)
+    if (replayActive) return;
     
     // Prevent double-firing from both touchend and click
     unpauseHandled = true;
@@ -14488,10 +14505,20 @@ function toggleReplayPause() {
     if (replayPaused) {
         // Pause the game
         paused = true;
+        StarfieldSystem.setPaused(true);
+        // Pause music
+        if (typeof pauseCurrentMusic === 'function') {
+            pauseCurrentMusic();
+        }
     } else {
         // Resume - reset frame time to avoid time jump
         replayLastFrameTime = Date.now();
         paused = false;
+        StarfieldSystem.setPaused(false);
+        // Resume music
+        if (typeof resumeCurrentMusic === 'function') {
+            resumeCurrentMusic();
+        }
     }
 }
 
