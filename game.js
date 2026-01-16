@@ -14144,6 +14144,34 @@ window.startGameReplay = function(recording) {
     animatingLines = false;
     lineAnimations = [];
     
+    // Reset earthquake state completely
+    earthquakeActive = false;
+    earthquakePhase = 'shake';
+    earthquakeShakeProgress = 0;
+    earthquakeShakeIntensity = 0;
+    earthquakeCrack = [];
+    earthquakeCrackProgress = 0;
+    earthquakeCrackMap.clear();
+    earthquakeShiftProgress = 0;
+    earthquakeLeftBlocks = [];
+    earthquakeRightBlocks = [];
+    
+    // Reset tornado state completely
+    tornadoActive = false;
+    tornadoState = 'descending';
+    tornadoPickedBlob = null;
+    tornadoFinalPositions = null;
+    tornadoFinalCenterX = null;
+    tornadoFinalCenterY = null;
+    tornadoFadeProgress = 0;
+    tornadoSnakeVelocity = 0;
+    tornadoParticles = [];
+    if (typeof stopTornadoWind === 'function') stopTornadoWind();
+    
+    // Reset volcano state
+    volcanoActive = false;
+    volcanoProjectiles = [];
+    
     // Initialize piece queue with recorded pieces
     initPieceQueue();
     
