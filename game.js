@@ -14324,10 +14324,9 @@ document.addEventListener('touchend', handleUnpauseTap);
 // Core replay state
 let replayPaused = false;
 let replayData = null;
-let replaySpeed = 1.0;
 let replaySavedAIMode = false; // Store AI mode state to restore after replay
 let replayStartTime = 0;         // When replay started (real time)
-let replayElapsedTime = 0;       // Scaled elapsed time
+let replayElapsedTime = 0;       // Elapsed replay time
 let replayLastFrameTime = 0;     // Last frame timestamp for delta calculation
 
 // Input injection state  
@@ -14435,7 +14434,6 @@ window.startGameReplay = function(recording) {
     // Reset timing
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
-    replaySpeed = 1.0;
     replayPaused = false;
     
     // Hide any existing overlays/menus
@@ -14549,7 +14547,7 @@ function processReplayInputs() {
     if (replayLastFrameTime === 0) replayLastFrameTime = now;
     const realDelta = now - replayLastFrameTime;
     replayLastFrameTime = now;
-    replayElapsedTime += realDelta * replaySpeed;
+    replayElapsedTime += realDelta;
     
     // Process all inputs that should have occurred by now
     while (replayInputIndex < replayInputs.length && 
@@ -14655,13 +14653,6 @@ function showReplayUI() {
             <span id="replayScore" style="color: #f7dc6f;">0 pts</span>
             <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
                     padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏸️</button>
-            <select id="replaySpeedSelect" style="background: #333; border: 1px solid #666; color: white;
-                    padding: 5px; border-radius: 4px;">
-                <option value="0.5">0.5x</option>
-                <option value="1" selected>1x</option>
-                <option value="2">2x</option>
-                <option value="4">4x</option>
-            </select>
             <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
                     padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏹️ Stop</button>
         </div>
@@ -14670,9 +14661,6 @@ function showReplayUI() {
     
     // Set up control handlers
     document.getElementById('replayPauseBtn').onclick = toggleReplayPause;
-    document.getElementById('replaySpeedSelect').onchange = (e) => {
-        replaySpeed = parseFloat(e.target.value);
-    };
     document.getElementById('replayStopBtn').onclick = stopReplay;
 }
 
