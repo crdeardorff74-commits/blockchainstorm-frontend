@@ -11354,9 +11354,19 @@ function toggleUIElements(show) {
     
     if (show) {
         // Show instructions and controls, hide histogram, show title
-        // But only show instructions if leaderboard is not visible
-        if (!leaderboardVisible) {
-            rulesInstructions.style.display = 'block';
+        // Respect user's saved preference for which panel to show
+        const savedView = localStorage.getItem('rulesPanelView') || 'instructions';
+        if (savedView === 'leaderboard') {
+            // Show leaderboard
+            rulesInstructions.style.display = 'none';
+            if (window.leaderboard) {
+                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, getLeaderboardMode(), skillLevel);
+            }
+        } else {
+            // Show instructions (default)
+            if (!leaderboardVisible) {
+                rulesInstructions.style.display = 'block';
+            }
         }
         if (controls) controls.classList.remove('hidden-during-play');
         if (controllerControls) controllerControls.classList.remove('hidden-during-play');
@@ -11810,12 +11820,6 @@ function update(time = 0) {
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (replayActive) {
         processReplayInputs();
-        
-        // Update replay score display
-        const scoreSpan = document.getElementById('replayScore');
-        if (scoreSpan) {
-            scoreSpan.textContent = `${formatAsBitcoin(score)} pts`;
-        }
     }
     
     // AI Mode: Let AI control the game (but not during replay)
@@ -12803,12 +12807,30 @@ createVolumeControls();
 // Rules panel view toggle handler
 const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
 if (rulesPanelViewSelect) {
+    // Restore saved preference
+    const savedView = localStorage.getItem('rulesPanelView');
+    if (savedView) {
+        rulesPanelViewSelect.value = savedView;
+        // Trigger the view change immediately
+        if (savedView === 'leaderboard') {
+            const rulesInstructions = document.querySelector('.rules-instructions');
+            if (rulesInstructions) rulesInstructions.style.display = 'none';
+            if (window.leaderboard) {
+                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+            }
+        }
+    }
+    
     rulesPanelViewSelect.addEventListener('change', () => {
         const view = rulesPanelViewSelect.value;
         const rulesInstructions = document.querySelector('.rules-instructions');
         const leaderboardContent = document.getElementById('leaderboardContent');
         const panelTitle = document.getElementById('rulesPanelTitle');
         const skillLevelLabel = document.getElementById('skillLevelLabel');
+        
+        // Save preference
+        localStorage.setItem('rulesPanelView', view);
         
         if (view === 'leaderboard') {
             // Show leaderboard, hide rules
@@ -14473,16 +14495,17 @@ function showReplayUI() {
     controls.id = 'replayControls';
     controls.innerHTML = `
         <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); 
-                    background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px;
+                    background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 8px;
                     display: flex; gap: 15px; align-items: center; z-index: 1000;
                     font-family: Arial, sans-serif; color: white;">
             <span style="color: #ff6b6b; font-weight: bold;">🎬 REPLAY</span>
             <span id="replayPlayerName" style="color: #4ecdc4;">${replayData?.username || 'Unknown'}</span>
-            <span id="replayScore" style="color: #f7dc6f;">0 pts</span>
             <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
-                    padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏸️</button>
+                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1; 
+                    display: inline-flex; align-items: center; justify-content: center;">⏸️</button>
             <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
-                    padding: 5px 10px; border-radius: 4px; cursor: pointer;">⏹️ Stop</button>
+                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1;
+                    display: inline-flex; align-items: center; justify-content: center;">⏹️ Stop</button>
         </div>
     `;
     document.body.appendChild(controls);
@@ -14551,16 +14574,6 @@ function showReplayComplete() {
         tsunamisDisplay.textContent = tsunamiCount;
         blackHolesDisplay.textContent = blackHoleCount;
         volcanoesDisplay.textContent = volcanoCount;
-    }
-    
-    // Show completion message
-    const controls = document.getElementById('replayControls');
-    if (controls) {
-        const scoreSpan = document.getElementById('replayScore');
-        if (scoreSpan) {
-            scoreSpan.textContent = `Final: ${formatAsBitcoin(score)} pts`;
-            scoreSpan.style.color = '#2ecc71';
-        }
     }
     
     // Stop the game loop but keep UI visible
