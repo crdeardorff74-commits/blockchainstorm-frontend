@@ -14235,8 +14235,22 @@ function stopReplay() {
     replayInputIndex = 0;
     replayRandomEvents = [];
     replayRandomEventIndex = 0;
+    replayMusicTracks = [];
+    replayMusicIndex = 0;
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
+    
+    // Reset tornado/earthquake/volcano replay events
+    replayTornadoSpawns = [];
+    replayTornadoSpawnIndex = 0;
+    replayTornadoDirChanges = [];
+    replayTornadoDirIndex = 0;
+    replayTornadoDrops = [];
+    replayTornadoDropIndex = 0;
+    replayEarthquakes = [];
+    replayEarthquakeIndex = 0;
+    replayVolcanoes = [];
+    replayVolcanoIndex = 0;
     
     // Cancel any active animations
     tsunamiAnimating = false;
@@ -14244,6 +14258,9 @@ function stopReplay() {
     blackHoleActive = false;
     volcanoAnimating = false;
     gravityAnimating = false;
+    tornadoActive = false;
+    earthquakeActive = false;
+    stopTornadoWind(); // Stop any tornado wind sound
     fallingBlocks = [];
     animatingLines = false;
     lineAnimations = [];
@@ -14282,6 +14299,16 @@ function stopReplay() {
     setGameInProgress(false);
     stopMusic();
     startMenuMusic(musicSelect); // Resume menu music
+    
+    // Hide planet stats
+    StarfieldSystem.hidePlanetStats();
+    const planetStats = document.getElementById('planetStats');
+    const planetStatsLeft = document.getElementById('planetStatsLeft');
+    if (planetStats) planetStats.style.display = 'none';
+    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+    
+    // Hide AI mode indicator (shouldn't be visible during replay anyway)
+    if (aiModeIndicator) aiModeIndicator.style.display = 'none';
     
     // Reset canvas to standard width
     COLS = 10;
