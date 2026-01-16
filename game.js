@@ -4870,8 +4870,10 @@ function generateEarthquakeCrack() {
     if (replayActive && replayEarthquakeIndex < replayEarthquakes.length) {
         const recorded = replayEarthquakes[replayEarthquakeIndex];
         // Don't increment index yet - splitBlocksByCrack will use it for shiftType
-        if (recorded.crackPath) {
-            earthquakeCrack = recorded.crackPath;
+        // Check both 'crack' (new format) and 'crackPath' (legacy) 
+        const crackData = recorded.crack || recorded.crackPath;
+        if (crackData) {
+            earthquakeCrack = crackData;
             earthquakeCrackMap.clear();
             earthquakeCrack.forEach(pt => {
                 earthquakeCrackMap.set(pt.y, pt.x);
@@ -10886,8 +10888,9 @@ function clearLines() {
             // Check for tornado/earthquake with difficulty-based probability
             // Only in Maelstrom skill level
             // Wait 1 second after lines clear, then check probability
+            // Skip during replay - random events are replayed from recording
             setTimeout(() => {
-                if (!gameRunning || paused) return;
+                if (!gameRunning || paused || replayActive) return;
                 
                 // Tornadoes and earthquakes only occur in Maelstrom mode
                 if (skillLevel !== 'maelstrom') return;
@@ -12118,7 +12121,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.11',
+            gameVersion: '3.12',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
@@ -14347,7 +14350,7 @@ function processReplayInputs() {
         replayInputIndex++;
     }
     
-    // Process random events (gremlin blocks, etc.)
+    // Process random events (gremlin blocks, tornados, earthquakes, etc.)
     while (replayRandomEventIndex < replayRandomEvents.length &&
            replayRandomEvents[replayRandomEventIndex].t <= replayElapsedTime) {
         
@@ -14371,9 +14374,18 @@ function processReplayInputs() {
                 isRandomBlock[event.y][event.x] = true;
                 fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
             }
+        } else if (event.type === 'tornado_spawn') {
+            // Spawn tornado at recorded time
+            console.log('🎬 Replay: Spawning tornado at', event.t);
+            spawnTornado();
+        } else if (event.type === 'earthquake') {
+            // Spawn earthquake at recorded time
+            console.log('🎬 Replay: Spawning earthquake at', event.t);
+            spawnEarthquake();
         }
         // Note: Tsunamis, black holes, volcanoes, gravity happen naturally
         // through the game logic when line clears occur
+        // tornado_direction and tornado_drop are handled by updateTornado()
         
         replayRandomEventIndex++;
     }
