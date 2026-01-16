@@ -13009,6 +13009,26 @@ function applyMinimalistMode() {
 
 // AI Mode toggle
 if (aiModeToggle) {
+    // Initialize from toggle's current state (browser may restore checkbox state)
+    aiModeEnabled = aiModeToggle.checked;
+    if (typeof AIPlayer !== 'undefined') {
+        AIPlayer.setEnabled(aiModeEnabled);
+    }
+    // Show/hide speed slider based on initial state
+    const aiSpeedOptionInit = document.getElementById('aiSpeedOption');
+    if (aiSpeedOptionInit) {
+        aiSpeedOptionInit.style.display = aiModeEnabled ? 'block' : 'none';
+    }
+    if (aiModeEnabled) {
+        console.log('🤖 AI Mode: ENABLED (restored from settings)');
+        // Refresh leaderboard if visible to show AI leaderboard
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+            const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        }
+    }
+    
     aiModeToggle.addEventListener('change', (e) => {
         aiModeEnabled = e.target.checked;
         if (typeof AIPlayer !== 'undefined') {
@@ -14497,15 +14517,15 @@ function showReplayUI() {
         <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); 
                     background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 8px;
                     display: flex; gap: 15px; align-items: center; z-index: 1000;
-                    font-family: Arial, sans-serif; color: white;">
-            <span style="color: #ff6b6b; font-weight: bold;">🎬 REPLAY</span>
-            <span id="replayPlayerName" style="color: #4ecdc4;">${replayData?.username || 'Unknown'}</span>
+                    font-family: Arial, sans-serif; color: white; font-size: 14px;">
+            <span style="color: #ff6b6b; font-weight: bold; line-height: 24px;">🎬 REPLAY</span>
+            <span id="replayPlayerName" style="color: #4ecdc4; line-height: 24px;">${replayData?.username || 'Unknown'}</span>
             <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
-                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1; 
-                    display: inline-flex; align-items: center; justify-content: center;">⏸️</button>
+                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; 
+                    height: 24px; display: inline-flex; align-items: center; justify-content: center;">⏸️</button>
             <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
-                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1;
-                    display: inline-flex; align-items: center; justify-content: center;">⏹️ Stop</button>
+                    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px;
+                    height: 24px; display: inline-flex; align-items: center; justify-content: center;">⏹️ Stop</button>
         </div>
     `;
     document.body.appendChild(controls);
