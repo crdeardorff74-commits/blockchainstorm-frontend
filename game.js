@@ -2877,6 +2877,20 @@ function updateVolcanoAnimation() {
             // Eruption haptic burst
             GamepadController.vibrateVolcanoEruption();
             
+            // === VOLCANO SCORING - Applied when eruption starts ===
+            // This timing gives visual feedback (lava shooting) before score jumps
+            const lavaSize = volcanoLavaBlob.positions.length;
+            const lavaPoints = lavaSize * lavaSize * lavaSize * 500;
+            const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
+            score += finalVolcanoScore;
+            
+            // Update histogram
+            Histogram.updateWithBlob(volcanoLavaColor, lavaSize);
+            Histogram.updateWithScore(finalVolcanoScore);
+            
+            updateStats();
+            // === END VOLCANO SCORING ===
+            
             // Clear the eruption column above lava (but keep lava blob visible)
             const colX = volcanoEruptionColumn;
             const lavaMaxY = Math.max(...volcanoLavaBlob.positions.map(p => p[1]));
@@ -9437,20 +9451,8 @@ function checkForSpecialFormations() {
             GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType, v.lavaBlob);
         }
         
-        // Score calculation - VOLCANO SCORING:
-        // Inner lava blob: size³ × 500
-        // Outer surrounding blob: No points (just the trigger)
-        const lavaSize = v.lavaBlob.positions.length;
-        const lavaPoints = lavaSize * lavaSize * lavaSize * 500;
-        
-        const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
-        score += finalVolcanoScore;
-        
-        // Update histogram only for lava blob
-        Histogram.updateWithBlob(volcanoLavaColor, lavaSize);
-        Histogram.updateWithScore(finalVolcanoScore);
-        
-        updateStats();
+        // NOTE: Score and histogram update delayed until eruption phase starts
+        // This gives visual feedback (lava shooting out) before score jumps
         
     } else if (foundBlackHole) {
             // Trigger black hole animation for the first one
