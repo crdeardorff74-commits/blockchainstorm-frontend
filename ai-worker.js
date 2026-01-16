@@ -1,7 +1,7 @@
-// AI Worker v4.5.4 - Aggressive survival: danger@12/8, critical@14/12, steep hole penalties (2026-01-16)
-console.log("🤖 AI Worker v4.5.4 loaded - survival-first with strict hole/height limits");
+// AI Worker v4.6.1 - Separate speculative building (height-scaled) from completion (queue-aware, stays strong)
+console.log("🤖 AI Worker v4.6.1 loaded - speculative building scales with height, completion stays strong");
 
-const AI_VERSION = "4.5.4";
+const AI_VERSION = "4.6.1";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -512,7 +512,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         wells: { count: 0, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
-        tsunami: { potential: false, achievable: false, nearCompletion: false, width: 0, color: null, bonus: 0 },
+        tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0 },
         volcano: { potential: false, progress: 0, innerSize: 0, bonus: 0 },
         blob: { horizontalAdj: 0, verticalAdj: 0, bonus: 0 },
         runs: { bonus: 0 },
@@ -535,42 +535,69 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     const isBreeze = currentSkillLevel === 'breeze';
     
     // ====== DANGER ZONE CHECK ======
-    // More aggressive thresholds to prevent death spirals
+    // Height-based zones for different behaviors
     const inDangerZone = stackHeight >= 12 || holes >= 8;
-    const inCriticalZone = stackHeight >= 14 || holes >= 12;
+    const inCriticalZone = stackHeight >= 15 || holes >= 12; // Last 1/4 of well (15+ of 20)
+    const inDeathZone = stackHeight >= 17 || holes >= 15;
     
     // ====== SPECIAL EVENT DETECTION ======
     const runs = getHorizontalRuns(board, cols, rows);
     const bestRuns = getBestRunsPerColor(runs);
     
     let hasTsunamiPotential = false;
-    let tsunamiLikelyAchievable = false;
-    let tsunamiNearCompletion = false;
+    let tsunamiLikelyAchievable = false;  // Speculative - need more pieces
+    let tsunamiNearCompletion = false;    // Opportunistic - can see pieces to finish
+    let tsunamiImminent = false;          // Can complete with current + visible queue
     let bestTsunamiWidth = 0;
     let bestTsunamiColor = null;
     
-    if (!isBreeze && !inCriticalZone) {
+    // Tsunami detection - different rules for completion vs building
+    if (!isBreeze) {
         for (const runColor in bestRuns) {
             const run = bestRuns[runColor];
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
-            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            const blocksNeeded = 10 - run.width;  // Need 10-wide for tsunami
             
-            if (run.width >= effectiveThreshold) {
-                hasTsunamiPotential = true;
-                if (run.width > bestTsunamiWidth) {
-                    bestTsunamiWidth = run.width;
-                    bestTsunamiColor = runColor;
+            // IMMINENT: Can complete with visible queue pieces
+            // This is ALWAYS worth doing unless in death zone
+            if (!inDeathZone) {
+                if (run.width >= 10) {
+                    tsunamiImminent = true;
+                    tsunamiNearCompletion = true;
+                } else if (run.width >= 8 && queueMatches >= blocksNeeded) {
+                    // Width 8 + 2 matching in queue, or width 9 + 1 matching
+                    tsunamiImminent = true;
+                    tsunamiNearCompletion = true;
+                } else if (run.width >= 9 && queueMatches >= 1) {
+                    tsunamiImminent = true;
+                    tsunamiNearCompletion = true;
                 }
             }
             
+            // NEAR COMPLETION: Very close, worth prioritizing even at moderate height
+            // Allowed up to critical zone (height 15)
+            if (!inCriticalZone) {
+                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
+                    tsunamiNearCompletion = true;
+                }
+            }
+            
+            // ACHIEVABLE: Good chance with a few more pieces - only at safe heights
+            // This is speculative building, scale with height
             if (!inDangerZone) {
                 if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
                     tsunamiLikelyAchievable = true;
                 }
             }
             
-            if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
-                tsunamiNearCompletion = true;
+            // POTENTIAL: Could become tsunami - most speculative
+            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            if (run.width >= effectiveThreshold && !inCriticalZone) {
+                hasTsunamiPotential = true;
+                if (run.width > bestTsunamiWidth) {
+                    bestTsunamiWidth = run.width;
+                    bestTsunamiColor = runColor;
+                }
             }
         }
     }
@@ -578,10 +605,11 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.tsunami.potential = hasTsunamiPotential;
     breakdown.tsunami.achievable = tsunamiLikelyAchievable;
     breakdown.tsunami.nearCompletion = tsunamiNearCompletion;
+    breakdown.tsunami.imminent = tsunamiImminent;
     breakdown.tsunami.width = bestTsunamiWidth;
     breakdown.tsunami.color = bestTsunamiColor;
     
-    // Volcano detection - skip in danger zone
+    // Volcano detection - skip in danger zone (speculative building)
     let volcanoPotential = { hasPotential: false, progress: 0, innerSize: 0 };
     if (!isBreeze && !inDangerZone) {
         volcanoPotential = findVolcanoPotential(board, cols, rows);
@@ -590,10 +618,15 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.volcano.progress = volcanoPotential.progress;
     breakdown.volcano.innerSize = volcanoPotential.innerSize;
     
-    const buildingSpecialEvent = !inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential);
+    // Building special event - includes imminent tsunamis even at higher heights
+    const buildingSpecialEvent = tsunamiImminent || 
+        (!inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential));
     
     // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
-    if (tsunamiNearCompletion && holes <= 6) {
+    // Imminent tsunamis (can see the pieces) get most lenient treatment
+    if (tsunamiImminent && holes <= 8) {
+        breakdown.holes.penalty = holes * 2;  // Very lenient - we're about to score big
+    } else if (tsunamiNearCompletion && holes <= 6) {
         breakdown.holes.penalty = holes * 3;
     } else if (buildingSpecialEvent && holes <= 8) {
         breakdown.holes.penalty = holes * 5;
@@ -644,27 +677,42 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= wellPenalty;
     
     // ====== CRITICAL HEIGHT ======
-    if (stackHeight >= 18) {
-        breakdown.criticalHeight.penalty = 300;
-        breakdown.classification = 'survival';
-    } else if (stackHeight >= 16) {
-        breakdown.criticalHeight.penalty = 100;
-        breakdown.classification = 'defensive';
-    } else if (stackHeight >= 14) {
-        breakdown.criticalHeight.penalty = 30;
-    } else if (stackHeight >= 12) {
-        breakdown.criticalHeight.penalty = 10;
+    // Less severe when tsunami is imminent - we're about to clear the board
+    if (tsunamiImminent) {
+        // Reduce penalties when we can see tsunami completion
+        if (stackHeight >= 18) {
+            breakdown.criticalHeight.penalty = 150;  // Still dangerous, but reduced
+            breakdown.classification = 'survival';
+        } else if (stackHeight >= 16) {
+            breakdown.criticalHeight.penalty = 50;
+        } else if (stackHeight >= 14) {
+            breakdown.criticalHeight.penalty = 15;
+        }
+    } else {
+        if (stackHeight >= 18) {
+            breakdown.criticalHeight.penalty = 300;
+            breakdown.classification = 'survival';
+        } else if (stackHeight >= 16) {
+            breakdown.criticalHeight.penalty = 100;
+            breakdown.classification = 'defensive';
+        } else if (stackHeight >= 14) {
+            breakdown.criticalHeight.penalty = 30;
+        } else if (stackHeight >= 12) {
+            breakdown.criticalHeight.penalty = 10;
+        }
     }
     score -= breakdown.criticalHeight.penalty;
     
     // ====== EMERGENCY HOLE PENALTY ======
     // Steep penalties to prevent death spirals
+    // But reduce if tsunami is imminent - we're about to cascade-fill anyway
+    const holeEmergencyMultiplier = tsunamiImminent ? 0.5 : 1.0;
     if (holes >= 12) {
-        const emergencyPenalty = (holes - 11) * 25;
+        const emergencyPenalty = Math.round((holes - 11) * 25 * holeEmergencyMultiplier);
         breakdown.holes.penalty += emergencyPenalty;
         score -= emergencyPenalty;
     } else if (holes >= 8) {
-        const emergencyPenalty = (holes - 7) * 10;
+        const emergencyPenalty = Math.round((holes - 7) * 10 * holeEmergencyMultiplier);
         breakdown.holes.penalty += emergencyPenalty;
         score -= emergencyPenalty;
     } else if (holes >= 5) {
@@ -684,8 +732,13 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     if (completeRows > 0) {
         if (stackHeight >= 17) {
+            // Survival mode - always clear lines at extreme height
             breakdown.lineClears.bonus = completeRows * 200;
             breakdown.classification = 'survival';
+        } else if (tsunamiImminent) {
+            // DON'T clear lines that would break our imminent tsunami!
+            // Strong penalty unless we're in extreme danger
+            breakdown.lineClears.bonus = -completeRows * 100;
         } else if (stackHeight >= 15) {
             breakdown.lineClears.bonus = completeRows * 80;
             breakdown.classification = 'defensive';
@@ -708,7 +761,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         } else if (volcanoPotential.hasPotential) {
             breakdown.lineClears.bonus = -completeRows * 30;
         } else {
-            breakdown.lineClears.bonus = completeRows * 10;
+            // No special event building - reward line clears
+            breakdown.lineClears.bonus = completeRows * 15;
         }
         score += breakdown.lineClears.bonus;
     }
@@ -746,12 +800,29 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    // Only focus on blob building when board is healthy
-    // Disabled when in danger zone
-    const canBuildBlobs = !inDangerZone && (
-        (stackHeight <= 10 && holes <= 4) || 
-        (buildingSpecialEvent && stackHeight <= 12 && holes <= 6)
-    );
+    // Two types of bonuses:
+    // 1. COMPLETION bonuses - for extending near-complete formations when queue supports it
+    //    These should stay strong even at moderate heights (up to 15)
+    // 2. SPECULATIVE bonuses - building blobs hoping good pieces come
+    //    These should decrease with height
+    
+    // Speculative multiplier - decreases with height
+    let speculativeMultiplier = 1.0;
+    if (stackHeight >= 15) {
+        speculativeMultiplier = 0;  // No speculative building in last 1/4
+    } else if (stackHeight >= 13) {
+        speculativeMultiplier = 0.25;
+    } else if (stackHeight >= 10) {
+        speculativeMultiplier = 0.5;
+    } else if (stackHeight >= 7) {
+        speculativeMultiplier = 0.75;
+    }
+    
+    // Completion multiplier - stays strong when we can see pieces to finish
+    // Only drops in death zone (height 17+)
+    let completionMultiplier = inDeathZone ? 0.3 : 1.0;
+    
+    const canBuildBlobs = holes <= 10 && !inDeathZone;
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
@@ -790,17 +861,28 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         breakdown.blob.verticalAdj = verticalAdj;
         
         if (isBreeze) {
-            breakdown.blob.bonus = horizontalAdj * 5 + verticalAdj * 5;
+            breakdown.blob.bonus = Math.round((horizontalAdj * 5 + verticalAdj * 5) * speculativeMultiplier);
             for (const run of runsAfter) {
                 if (run.width >= 3 && run.color === color) {
-                    breakdown.blob.bonus += run.width * 3;
+                    breakdown.blob.bonus += Math.round(run.width * 3 * speculativeMultiplier);
                 }
             }
         } else {
-            breakdown.blob.bonus = horizontalAdj * 8 + verticalAdj * 2;
+            // SPECULATIVE: General adjacency bonuses (building blobs hoping for future pieces)
+            breakdown.blob.bonus = Math.round((horizontalAdj * 8 + verticalAdj * 2) * speculativeMultiplier);
             
             for (const run of runsAfter) {
                 if (run.width >= 4) {
+                    const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
+                    const blocksToComplete = 10 - run.width;
+                    
+                    // Is this run completable with visible queue?
+                    const isCompletable = run.width >= 8 && queueMatchesForRun >= blocksToComplete;
+                    const isNearComplete = run.width >= 7 && queueMatchesForRun >= 2;
+                    
+                    // Use completion multiplier for completable runs, speculative for others
+                    const runMult = (isCompletable || isNearComplete) ? completionMultiplier : speculativeMultiplier;
+                    
                     let runBonus = run.width * 3;
                     if (run.touchesLeft) runBonus += run.width * 2;
                     if (run.touchesRight) runBonus += run.width * 2;
@@ -816,13 +898,18 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                     } else if (run.width >= 8) {
                         runBonus += 15;
                     }
-                    breakdown.runs.bonus += runBonus;
+                    breakdown.runs.bonus += Math.round(runBonus * runMult);
                 }
             }
             
+            // Edge extension bonuses - use completion multiplier for near-complete runs
             const ourRuns = runsAfter.filter(r => r.color === color);
             for (const run of ourRuns) {
                 if (run.width >= 4) {
+                    const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
+                    const isCompletable = run.width >= 7 && queueMatchesForRun >= (10 - run.width);
+                    const edgeMult = isCompletable ? completionMultiplier : speculativeMultiplier;
+                    
                     let atRunEdge = false;
                     for (let py = 0; py < shape.length; py++) {
                         for (let px = 0; px < shape[py].length; px++) {
@@ -836,34 +923,42 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                     }
                     
                     if (atRunEdge) {
-                        breakdown.edge.bonus += run.width * 5;
+                        breakdown.edge.bonus += Math.round(run.width * 5 * edgeMult);
                     }
                 }
             }
             
+            // Strategic edge placement and queue bonuses
             const ourBestRun = bestRuns[color];
             if (ourBestRun && ourBestRun.width >= 5) {
                 const pieceMinX = x;
                 const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
                 
+                const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                const blocksNeeded = 10 - ourBestRun.width;
+                const isCompletable = ourBestRun.width >= 7 && queueMatches >= blocksNeeded;
+                
+                // Edge extension uses completion multiplier if completable
+                const edgeMult = isCompletable ? completionMultiplier : speculativeMultiplier;
+                
                 if (ourBestRun.touchesLeft && !ourBestRun.touchesRight && pieceMaxX >= ourBestRun.endX) {
-                    breakdown.edge.bonus += 25 + (ourBestRun.width * 3);
+                    breakdown.edge.bonus += Math.round((25 + ourBestRun.width * 3) * edgeMult);
                 } else if (ourBestRun.touchesRight && !ourBestRun.touchesLeft && pieceMinX <= ourBestRun.startX) {
-                    breakdown.edge.bonus += 25 + (ourBestRun.width * 3);
+                    breakdown.edge.bonus += Math.round((25 + ourBestRun.width * 3) * edgeMult);
                 } else if (!ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
                     if (pieceMinX <= ourBestRun.startX || pieceMaxX >= ourBestRun.endX) {
-                        breakdown.edge.bonus += 15 + ourBestRun.width;
+                        breakdown.edge.bonus += Math.round((15 + ourBestRun.width) * edgeMult);
                     }
                 }
                 
-                const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                // Queue bonus - ALWAYS uses completion multiplier (it's about finishing tsunamis)
                 breakdown.queue.matchingPieces = queueMatches;
                 if (queueMatches >= 3) {
-                    breakdown.queue.bonus = ourBestRun.width * 6;
+                    breakdown.queue.bonus = Math.round(ourBestRun.width * 6 * completionMultiplier);
                 } else if (queueMatches >= 2) {
-                    breakdown.queue.bonus = ourBestRun.width * 4;
+                    breakdown.queue.bonus = Math.round(ourBestRun.width * 4 * completionMultiplier);
                 } else if (queueMatches >= 1) {
-                    breakdown.queue.bonus = ourBestRun.width * 2;
+                    breakdown.queue.bonus = Math.round(ourBestRun.width * 2 * completionMultiplier);
                 }
             }
         }
@@ -899,47 +994,61 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const isBreeze = currentSkillLevel === 'breeze';
     
     // ====== DANGER ZONE CHECK ======
-    // More aggressive thresholds to prevent death spirals
+    // Height-based zones for different behaviors
     const inDangerZone = stackHeight >= 12 || holes >= 8;
-    const inCriticalZone = stackHeight >= 14 || holes >= 12;
+    const inCriticalZone = stackHeight >= 15 || holes >= 12; // Last 1/4 of well
+    const inDeathZone = stackHeight >= 17 || holes >= 15;
     
     // ====== SPECIAL EVENT DETECTION ======
     const runs = getHorizontalRuns(board, cols, rows);
     const bestRuns = getBestRunsPerColor(runs);
     
-    // Tsunami detection - but only if not in critical danger
+    // Tsunami detection - separate imminent from speculative
     let hasTsunamiPotential = false;
     let tsunamiLikelyAchievable = false;
     let tsunamiNearCompletion = false;
+    let tsunamiImminent = false;
     let bestTsunamiWidth = 0;
     let bestTsunamiColor = null;
     
-    // Only consider tsunami building if we're not in critical danger
-    if (!isBreeze && !inCriticalZone) {
+    if (!isBreeze) {
         for (const runColor in bestRuns) {
             const run = bestRuns[runColor];
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
-            // Lower threshold with queue support
-            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            const blocksNeeded = 10 - run.width;
             
-            if (run.width >= effectiveThreshold) {
-                hasTsunamiPotential = true;
-                if (run.width > bestTsunamiWidth) {
-                    bestTsunamiWidth = run.width;
-                    bestTsunamiColor = runColor;
+            // IMMINENT: Can complete with visible queue (always allowed except death zone)
+            if (!inDeathZone) {
+                if (run.width >= 10 || 
+                    (run.width >= 8 && queueMatches >= blocksNeeded) ||
+                    (run.width >= 9 && queueMatches >= 1)) {
+                    tsunamiImminent = true;
+                    tsunamiNearCompletion = true;
                 }
             }
             
-            // Achievable = high confidence we can complete (only if not in danger zone)
+            // NEAR COMPLETION: Very close (allowed up to critical zone)
+            if (!inCriticalZone) {
+                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
+                    tsunamiNearCompletion = true;
+                }
+            }
+            
+            // ACHIEVABLE: Speculative (only at safe heights)
             if (!inDangerZone) {
                 if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
                     tsunamiLikelyAchievable = true;
                 }
             }
             
-            // Near completion = should be top priority (allow even in danger if width >= 9)
-            if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
-                tsunamiNearCompletion = true;
+            // POTENTIAL: Most speculative
+            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            if (run.width >= effectiveThreshold && !inCriticalZone) {
+                hasTsunamiPotential = true;
+                if (run.width > bestTsunamiWidth) {
+                    bestTsunamiWidth = run.width;
+                    bestTsunamiColor = runColor;
+                }
             }
         }
     }
@@ -950,24 +1059,20 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         volcanoPotential = findVolcanoPotential(board, cols, rows);
     }
     
-    // Combined "building special event" flag - disabled in critical zone
-    const buildingSpecialEvent = !inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential);
+    // Building special event - includes imminent tsunamis
+    const buildingSpecialEvent = tsunamiImminent || 
+        (!inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential));
     
     // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
-    // Key insight: holes CAN fill via cascade, but too many holes = death spiral
-    // Slightly more tolerant than traditional Tetris, but still strict
-    
-    if (tsunamiNearCompletion && holes <= 6) {
-        // About to complete tsunami AND holes are manageable - tolerant
+    if (tsunamiImminent && holes <= 8) {
+        score -= holes * 2;  // Very lenient for imminent completion
+    } else if (tsunamiNearCompletion && holes <= 6) {
         score -= holes * 3;
     } else if (buildingSpecialEvent && holes <= 8) {
-        // Achievable special event with reasonable holes - moderately tolerant
         score -= holes * 5;
     } else if (hasTsunamiPotential && holes <= 5) {
-        // Building toward something with low holes
         score -= holes * 6;
     } else {
-        // Normal penalties - close to original v4.4
         if (holes <= 2) {
             score -= holes * 7;
         } else if (holes <= 5) {
@@ -979,7 +1084,6 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== HEIGHT PENALTIES ======
     if (buildingSpecialEvent && stackHeight < 17) {
-        // Relaxed height penalty when building specials
         score -= stackHeight * 0.6;
     } else {
         score -= stackHeight * 1.0;
@@ -1004,28 +1108,39 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== CRITICAL HEIGHT ======
-    if (stackHeight >= 18) {
-        score -= 300;
-    } else if (stackHeight >= 16) {
-        score -= 100;
-    } else if (stackHeight >= 14) {
-        score -= 30;
-    } else if (stackHeight >= 12) {
-        score -= 10;
+    // Less severe when tsunami is imminent
+    if (tsunamiImminent) {
+        if (stackHeight >= 18) {
+            score -= 150;
+        } else if (stackHeight >= 16) {
+            score -= 50;
+        } else if (stackHeight >= 14) {
+            score -= 15;
+        }
+    } else {
+        if (stackHeight >= 18) {
+            score -= 300;
+        } else if (stackHeight >= 16) {
+            score -= 100;
+        } else if (stackHeight >= 14) {
+            score -= 30;
+        } else if (stackHeight >= 12) {
+            score -= 10;
+        }
     }
     
     // ====== EMERGENCY HOLE PENALTY ======
-    // Steep penalties to prevent death spirals - kicks in early
+    // Steep penalties, but reduced if tsunami is imminent
+    const holeEmergencyMult = tsunamiImminent ? 0.5 : 1.0;
     if (holes >= 12) {
-        score -= (holes - 11) * 25;  // Very heavy penalty above 12 holes
+        score -= Math.round((holes - 11) * 25 * holeEmergencyMult);
     } else if (holes >= 8) {
-        score -= (holes - 7) * 10;   // Heavy penalty above 8 holes
+        score -= Math.round((holes - 7) * 10 * holeEmergencyMult);
     } else if (holes >= 5) {
-        score -= (holes - 4) * 4;    // Moderate penalty above 5 holes
+        score -= Math.round((holes - 4) * 4 * holeEmergencyMult);
     }
     
     // ====== LINE CLEARS ======
-    // Key insight: survival matters - don't avoid line clears when stack is growing
     let completeRows = 0;
     for (let row = 0; row < rows; row++) {
         if (board[row] && board[row].every(cell => cell !== null)) {
@@ -1037,36 +1152,33 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         if (stackHeight >= 17) {
             // Critical emergency - must clear
             score += completeRows * 200;
+        } else if (tsunamiImminent) {
+            // DON'T clear lines that would break imminent tsunami!
+            score -= completeRows * 100;
         } else if (stackHeight >= 15) {
             // Dangerous - clearing is strongly encouraged
             score += completeRows * 80;
         } else if (stackHeight >= 13) {
-            // Getting risky - clearing is good unless building something
             if (tsunamiNearCompletion) {
-                score -= completeRows * 30;  // Still penalize if near tsunami
+                score -= completeRows * 30;
             } else if (tsunamiLikelyAchievable) {
                 score -= completeRows * 15;
             } else {
-                score += completeRows * 30;  // Encourage clearing
+                score += completeRows * 30;
             }
         } else if (currentUfoActive) {
-            // UFO easter egg - avoid clears (only when safe)
             score -= completeRows * 50;
         } else if (tsunamiNearCompletion) {
-            // STRONG penalty - we're about to complete a tsunami!
             score -= completeRows * 80;
         } else if (tsunamiLikelyAchievable) {
-            // Significant penalty - we have a good tsunami in progress
             score -= completeRows * 50;
         } else if (hasTsunamiPotential) {
-            // Moderate penalty - building toward tsunami
             score -= completeRows * 20;
         } else if (volcanoPotential.hasPotential) {
-            // Penalty - don't disrupt volcano
             score -= completeRows * 30;
         } else {
-            // No special event building - modest bonus for clearing
-            score += completeRows * 10;
+            // No special event building - reward line clears
+            score += completeRows * 15;
         }
     }
     
@@ -1102,17 +1214,26 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BLOB BUILDING ======
-    // Only focus on blob building when board is healthy
-    // Disabled when in danger zone
-    const canBuildBlobs = !inDangerZone && (
-        (stackHeight <= 10 && holes <= 4) || 
-        (buildingSpecialEvent && stackHeight <= 12 && holes <= 6)
-    );
+    // Separate speculative building (decreases with height) from completion (stays strong)
+    let speculativeMultiplier = 1.0;
+    if (stackHeight >= 15) {
+        speculativeMultiplier = 0;
+    } else if (stackHeight >= 13) {
+        speculativeMultiplier = 0.25;
+    } else if (stackHeight >= 10) {
+        speculativeMultiplier = 0.5;
+    } else if (stackHeight >= 7) {
+        speculativeMultiplier = 0.75;
+    }
+    
+    let completionMultiplier = inDeathZone ? 0.3 : 1.0;
+    
+    const canBuildBlobs = holes <= 10 && !inDeathZone;
     
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
         
-        // Adjacency bonuses
+        // Adjacency bonuses (speculative)
         let horizontalAdj = 0;
         let verticalAdj = 0;
         
@@ -1122,25 +1243,21 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 const bx = x + px;
                 const by = y + py;
                 
-                // Left neighbor
                 if (bx > 0 && board[by] && board[by][bx - 1] === color) {
                     let partOfPiece = px > 0 && shape[py][px - 1];
                     if (!partOfPiece) horizontalAdj++;
                 }
                 
-                // Right neighbor
                 if (bx < cols - 1 && board[by] && board[by][bx + 1] === color) {
                     let partOfPiece = px < shape[py].length - 1 && shape[py][px + 1];
                     if (!partOfPiece) horizontalAdj++;
                 }
                 
-                // Top neighbor
                 if (by > 0 && board[by - 1] && board[by - 1][bx] === color) {
                     let partOfPiece = py > 0 && shape[py - 1] && shape[py - 1][px];
                     if (!partOfPiece) verticalAdj++;
                 }
                 
-                // Bottom neighbor
                 if (by < rows - 1 && board[by + 1] && board[by + 1][bx] === color) {
                     let partOfPiece = py < shape.length - 1 && shape[py + 1] && shape[py + 1][px];
                     if (!partOfPiece) verticalAdj++;
@@ -1149,39 +1266,34 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         }
         
         if (isBreeze) {
-            // Breeze: all adjacency equal for blob size
-            score += horizontalAdj * 5;
-            score += verticalAdj * 5;
-            
+            score += Math.round((horizontalAdj * 5 + verticalAdj * 5) * speculativeMultiplier);
             for (const run of runsAfter) {
                 if (run.width >= 3 && run.color === color) {
-                    score += run.width * 3;
+                    score += Math.round(run.width * 3 * speculativeMultiplier);
                 }
             }
         } else {
-            // Non-Breeze: Horizontal adjacency worth more (tsunami building)
-            score += horizontalAdj * 8;  // Increased from 6
-            score += verticalAdj * 2;
+            // Speculative adjacency
+            score += Math.round((horizontalAdj * 8 + verticalAdj * 2) * speculativeMultiplier);
         
-            // Wide horizontal run bonuses
+            // Wide horizontal run bonuses - use appropriate multiplier
             for (const run of runsAfter) {
                 if (run.width >= 4) {
-                    let runBonus = run.width * 3;  // Increased from 2
+                    const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
+                    const blocksToComplete = 10 - run.width;
+                    const isCompletable = run.width >= 8 && queueMatchesForRun >= blocksToComplete;
+                    const isNearComplete = run.width >= 7 && queueMatchesForRun >= 2;
+                    const runMult = (isCompletable || isNearComplete) ? completionMultiplier : speculativeMultiplier;
                     
-                    // Edge bonuses
+                    let runBonus = run.width * 3;
                     if (run.touchesLeft) runBonus += run.width * 2;
                     if (run.touchesRight) runBonus += run.width * 2;
                     if (run.touchesLeft && run.touchesRight) {
-                        // FULL SPAN = TSUNAMI!
                         runBonus += 400 + run.width * 15;
                     }
-                    
-                    // Same color bonus
                     if (run.color === color) {
                         runBonus *= 1.5;
                     }
-                    
-                    // Near-completion bonuses
                     if (run.width >= 10) {
                         runBonus += (run.width - 9) * 40;
                     } else if (run.width >= 9) {
@@ -1190,7 +1302,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                         runBonus += 15;
                     }
                     
-                    score += runBonus;
+                    score += Math.round(runBonus * runMult);
                 }
             }
             
@@ -1198,6 +1310,10 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             const ourRuns = runsAfter.filter(r => r.color === color);
             for (const run of ourRuns) {
                 if (run.width >= 4) {
+                    const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
+                    const isCompletable = run.width >= 7 && queueMatchesForRun >= (10 - run.width);
+                    const edgeMult = isCompletable ? completionMultiplier : speculativeMultiplier;
+                    
                     let atRunEdge = false;
                     for (let py = 0; py < shape.length; py++) {
                         for (let px = 0; px < shape[py].length; px++) {
@@ -1211,38 +1327,39 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                     }
                     
                     if (atRunEdge) {
-                        score += run.width * 5;  // Increased from 4
+                        score += Math.round(run.width * 5 * edgeMult);
                     }
                 }
             }
             
-            // Strategic edge placement
+            // Strategic edge placement and queue bonuses
             const pieceMinX = x;
             const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
             
             const ourBestRun = bestRuns[color];
             if (ourBestRun && ourBestRun.width >= 5) {
-                // Reward extending toward missing edge
+                const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                const blocksNeeded = 10 - ourBestRun.width;
+                const isCompletable = ourBestRun.width >= 7 && queueMatches >= blocksNeeded;
+                const edgeMult = isCompletable ? completionMultiplier : speculativeMultiplier;
+                
                 if (ourBestRun.touchesLeft && !ourBestRun.touchesRight && pieceMaxX >= ourBestRun.endX) {
-                    score += 25 + (ourBestRun.width * 3);
+                    score += Math.round((25 + ourBestRun.width * 3) * edgeMult);
                 } else if (ourBestRun.touchesRight && !ourBestRun.touchesLeft && pieceMinX <= ourBestRun.startX) {
-                    score += 25 + (ourBestRun.width * 3);
+                    score += Math.round((25 + ourBestRun.width * 3) * edgeMult);
                 } else if (!ourBestRun.touchesLeft && !ourBestRun.touchesRight) {
                     if (pieceMinX <= ourBestRun.startX || pieceMaxX >= ourBestRun.endX) {
-                        score += 15 + ourBestRun.width;
+                        score += Math.round((15 + ourBestRun.width) * edgeMult);
                     }
                 }
-            }
-            
-            // Queue awareness
-            if (ourBestRun && ourBestRun.width >= 5) {
-                const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
+                
+                // Queue bonus always uses completion multiplier
                 if (queueMatches >= 3) {
-                    score += ourBestRun.width * 6;
+                    score += Math.round(ourBestRun.width * 6 * completionMultiplier);
                 } else if (queueMatches >= 2) {
-                    score += ourBestRun.width * 4;
+                    score += Math.round(ourBestRun.width * 4 * completionMultiplier);
                 } else if (queueMatches >= 1) {
-                    score += ourBestRun.width * 2;
+                    score += Math.round(ourBestRun.width * 2 * completionMultiplier);
                 }
             }
             
@@ -1250,16 +1367,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             const pieceMinY = y;
             const pieceMaxY = y + shape.length - 1;
             
-            // If piece touches bottom
             if (pieceMaxY === rows - 1) {
-                // And touches a side edge
                 if (pieceMinX === 0 || pieceMaxX === cols - 1) {
-                    // This is good for volcano potential
-                    score += 10;
-                    
-                    // Extra bonus if we're already building a volcano
+                    score += Math.round(10 * speculativeMultiplier);
                     if (volcanoPotential.progress > 0.2) {
-                        score += 15;
+                        score += Math.round(15 * speculativeMultiplier);
                     }
                 }
             }
