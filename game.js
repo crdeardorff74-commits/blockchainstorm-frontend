@@ -7320,28 +7320,9 @@ function drawBoard() {
     // Create a set of falling block positions to skip during board rendering
     const fallingBlockSet = new Set();
     if (gravityAnimating) {
-        if (replayActive) {
-            // During replay, skip BOTH start AND end positions
-            // Keyframes may show post-gravity state, so we need to hide destinations too
-            fallingBlocks.forEach(fb => {
-                fallingBlockSet.add(`${fb.x},${fb.startY}`);  // Hide start position
-                fallingBlockSet.add(`${fb.x},${fb.targetY}`); // Hide end position (keyframe may show it)
-            });
-        } else {
-            // During normal gameplay, skip target positions (blocks cleared from board already)
-            fallingBlocks.forEach(fb => {
-                fallingBlockSet.add(`${fb.x},${fb.targetY}`);
-            });
-        }
-    }
-    
-    // During replay, also skip cells being animated by line clear
-    // Keyframes may still show these cells, but lineAnimations handles their rendering
-    if (replayActive && lineAnimations.length > 0) {
-        lineAnimations.forEach(anim => {
-            anim.cells.forEach(cell => {
-                fallingBlockSet.add(`${cell.x},${cell.y}`);
-            });
+        // During gravity animation, skip target positions (blocks cleared from board already)
+        fallingBlocks.forEach(fb => {
+            fallingBlockSet.add(`${fb.x},${fb.targetY}`);
         });
     }
 
@@ -10560,15 +10541,6 @@ function updateFallingBlocks() {
     
     // Animation complete - NOW place ALL blocks at once
     if (allDone) {
-        // Skip board modification during replay - keyframes handle final state
-        if (replayActive) {
-            gravityAnimating = false;
-            fallingBlocks = [];
-            replayAnimatingCells = new Set(); // Clear the animated cells set
-            replayGravityBoardLocked = false; // Unlock board for keyframe updates
-            return;
-        }
-        
         // Place all landed blocks on the board simultaneously
         fallingBlocks.forEach(block => {
             board[block.targetY][block.x] = block.color;
@@ -12147,12 +12119,8 @@ function cancelAIAutoRestartTimer() {
 function update(time = 0) {
     if (!gameRunning || gameOverPending) return;
 
-    const realDeltaTime = time - (update.lastTime || 0);
+    const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
-    
-    // During replay, scale game physics time by replay speed
-    // This keeps piece falling in sync with input injection
-    const deltaTime = replayActive ? realDeltaTime * replaySpeed : realDeltaTime;
     
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (replayActive) {
@@ -14464,30 +14432,18 @@ function processReplayInputs() {
         const input = replayInputs[replayInputIndex];
         
         // Execute the input action
-        // Use recorded positions directly when available for precision
         switch (input.type) {
             case 'left':
+                movePiece(-1);
+                break;
             case 'right':
-                // Use recorded position directly if available
-                if (input.x !== undefined && currentPiece) {
-                    currentPiece.x = input.x;
-                    playSoundEffect('move', soundToggle);
-                } else {
-                    movePiece(input.type === 'left' ? -1 : 1);
-                }
+                movePiece(1);
                 break;
             case 'rotate':
+                rotatePiece();
+                break;
             case 'rotateCCW':
-                // Apply rotation and use recorded position
-                if (input.type === 'rotate') {
-                    rotatePiece();
-                } else {
-                    rotatePieceCounterClockwise();
-                }
-                // Correct position after rotation if recorded
-                if (input.x !== undefined && currentPiece) {
-                    currentPiece.x = input.x;
-                }
+                rotatePieceCounterClockwise();
                 break;
             case 'softDrop':
                 dropPiece();
