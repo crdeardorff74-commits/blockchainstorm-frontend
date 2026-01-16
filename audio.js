@@ -242,6 +242,14 @@ function notifySongChange() {
     // Update media session metadata for lock screens and media controls
     updateMediaSessionMetadata();
     updateMediaSessionState();
+    
+    // Record music track change for replay
+    if (window.GameRecorder && window.GameRecorder.isActive()) {
+        const songInfo = getCurrentSongInfo();
+        if (songInfo) {
+            window.GameRecorder.recordMusicTrack(songInfo.id, songInfo.name);
+        }
+    }
 }
 
 // Get current song information

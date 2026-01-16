@@ -38,7 +38,7 @@ const GameRecorder = (() => {
             events: [],         // Special events (strikes, tsunamis, etc.)
             randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
             keyframes: [],      // Periodic board snapshots
-            inputs: [],         // Every input for exact replay (move, rotate, drop, hardDrop)
+            musicTracks: [],    // Music track sequence for replay
             
             // AI decision metadata (only populated for AI games)
             aiDecisions: [],
@@ -125,31 +125,6 @@ const GameRecorder = (() => {
         }
         
         recording.moves.push(pieceData);
-    }
-    
-    /**
-     * Record a player input for exact replay
-     * @param {string} inputType - 'left', 'right', 'rotate', 'rotateCCW', 'softDrop', 'hardDrop'
-     * @param {object} pieceState - Current piece state {x, y, rotation}
-     */
-    function recordInput(inputType, pieceState = null) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        const input = {
-            t: timestamp,
-            type: inputType
-        };
-        
-        // Optionally include piece state for verification during replay
-        if (pieceState) {
-            input.x = pieceState.x;
-            input.y = pieceState.y;
-            if (pieceState.rotation !== undefined) input.r = pieceState.rotation;
-        }
-        
-        recording.inputs.push(input);
     }
     
     /**
@@ -261,122 +236,30 @@ const GameRecorder = (() => {
     /**
      * Record volcano eruption column selection
      */
-    function recordVolcanoEruption(column, edgeType, lavaBlob = null) {
+    function recordVolcanoEruption(column, edgeType) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
-        const volcanoData = {
+        recording.randomEvents.push({
             t: timestamp,
             type: 'volcano',
             column: column,
             edge: edgeType
-        };
-        
-        // Include lava blob data if provided (for replay animation)
-        if (lavaBlob && lavaBlob.positions) {
-            volcanoData.positions = lavaBlob.positions;
-            volcanoData.color = lavaBlob.color;
-        }
-        
-        recording.randomEvents.push(volcanoData);
+        });
     }
     
     /**
-     * Record tsunami event with blob data for replay
+     * Record random hail block spawn (for Hailstorm/Hurricane modes)
      */
-    function recordTsunami(blobData) {
+    function recordHailBlock(x, y, color) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
         recording.randomEvents.push({
             t: timestamp,
-            type: 'tsunami',
-            positions: blobData.positions, // Array of [x, y] coordinates
-            color: blobData.color,
-            size: blobData.positions.length
-        });
-    }
-    
-    /**
-     * Record black hole event with inner and outer blob data for replay
-     */
-    function recordBlackHole(innerBlob, outerBlob) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        // Calculate center
-        const innerXs = innerBlob.positions.map(p => p[0]);
-        const innerYs = innerBlob.positions.map(p => p[1]);
-        const centerX = (Math.min(...innerXs) + Math.max(...innerXs)) / 2;
-        const centerY = (Math.min(...innerYs) + Math.max(...innerYs)) / 2;
-        
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'blackHole',
-            innerPositions: innerBlob.positions,
-            innerColor: innerBlob.color,
-            outerPositions: outerBlob.positions,
-            outerColor: outerBlob.color,
-            centerX: centerX,
-            centerY: centerY
-        });
-    }
-    
-    /**
-     * Record gravity animation data for replay
-     * @param {Array} animations - Array of animation objects with startPositions, endPositions, color
-     */
-    function recordGravity(animations) {
-        if (!isRecording || !recording) return;
-        if (!animations || animations.length === 0) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        // Preserve blob structure for proper replay animation
-        const blobs = [];
-        animations.forEach((anim, blobIndex) => {
-            const positions = [];
-            anim.startPositions.forEach((startPos, idx) => {
-                const endPos = anim.endPositions[idx];
-                positions.push({
-                    x: startPos.x,
-                    sy: startPos.y,  // start Y
-                    ey: endPos.y     // end Y
-                });
-            });
-            
-            if (positions.length > 0) {
-                blobs.push({
-                    id: anim.blobId || blobIndex,
-                    color: anim.color,
-                    positions: positions
-                });
-            }
-        });
-        
-        if (blobs.length > 0) {
-            recording.randomEvents.push({
-                t: timestamp,
-                type: 'gravity',
-                blobs: blobs  // New format: array of blobs with positions
-            });
-        }
-    }
-    
-    /**
-     * Record gremlin block spawn (for Gremlins challenge mode)
-     */
-    function recordGremlinBlock(x, y, color) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'gremlin_block',
+            type: 'hail_block',
             x: x,
             y: y,
             color: color
@@ -396,6 +279,23 @@ const GameRecorder = (() => {
             type: 'challenge_' + challengeType,
             ...data
         });
+    }
+    
+    /**
+     * Record music track change for replay
+     */
+    function recordMusicTrack(trackId, trackName) {
+        if (!isRecording || !recording) return;
+        
+        const timestamp = Date.now() - recording.startTime;
+        
+        recording.musicTracks.push({
+            t: timestamp,
+            trackId: trackId,
+            trackName: trackName
+        });
+        
+        console.log(`📹 Music track recorded: ${trackName} at ${timestamp}ms`);
     }
     
     /**
@@ -638,7 +538,6 @@ const GameRecorder = (() => {
         startRecording,
         recordPieceGenerated,
         recordMove,
-        recordInput,
         recordAIDecision,
         recordEvent,
         recordTornadoSpawn,
@@ -646,11 +545,9 @@ const GameRecorder = (() => {
         recordTornadoDrop,
         recordEarthquake,
         recordVolcanoEruption,
-        recordTsunami,
-        recordBlackHole,
-        recordGravity,
-        recordGremlinBlock,
+        recordHailBlock,
         recordChallengeEvent,
+        recordMusicTrack,
         captureFrame,
         stopRecording,
         submitRecording,

@@ -3716,8 +3716,6 @@ function spawnTornado() {
     
     tornadoActive = true;
     tornadoY = 0;
-    // Start at a random X position
-    tornadoX = (Math.random() * (COLS - 2) + 1) * BLOCK_SIZE + BLOCK_SIZE / 2;
     tornadoRotation = 0;
     tornadoState = 'descending';
     tornadoPickedBlob = null;
@@ -3726,8 +3724,6 @@ function spawnTornado() {
     tornadoBlobRotation = 0;
     tornadoVerticalRotation = 0;
     tornadoSnakeVelocity = 0;
-    tornadoSnakeDirection = Math.random() < 0.5 ? 1 : -1;
-    tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20); // Change every 20-50 frames
     tornadoOrbitStartTime = null;
     tornadoOrbitRadius = 0;
     tornadoOrbitAngle = 0;
@@ -3739,13 +3735,26 @@ function spawnTornado() {
     tornadoFinalCenterY = null;
     tornadoFadeProgress = 0;
     
-    // Record tornado spawn for playback
-    if (window.GameRecorder && window.GameRecorder.isActive()) {
-        window.GameRecorder.recordTornadoSpawn({
-            x: tornadoX,
-            snakeDirection: tornadoSnakeDirection,
-            snakeChangeCounter: tornadoSnakeChangeCounter
-        });
+    // During replay, use recorded values; otherwise generate random
+    if (replayActive && replayTornadoSpawnIndex < replayTornadoSpawns.length) {
+        const recorded = replayTornadoSpawns[replayTornadoSpawnIndex++];
+        tornadoX = recorded.x;
+        tornadoSnakeDirection = recorded.snakeDirection;
+        tornadoSnakeChangeCounter = recorded.snakeChangeCounter;
+    } else {
+        // Start at a random X position
+        tornadoX = (Math.random() * (COLS - 2) + 1) * BLOCK_SIZE + BLOCK_SIZE / 2;
+        tornadoSnakeDirection = Math.random() < 0.5 ? 1 : -1;
+        tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20); // Change every 20-50 frames
+        
+        // Record tornado spawn for playback
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordTornadoSpawn({
+                x: tornadoX,
+                snakeDirection: tornadoSnakeDirection,
+                snakeChangeCounter: tornadoSnakeChangeCounter
+            });
+        }
     }
     
     // Create initial swirling particles
@@ -3882,15 +3891,22 @@ function updateTornado() {
         tornadoSnakeChangeCounter--;
         
         if (tornadoSnakeChangeCounter <= 0) {
-            // Randomly change direction
-            if (Math.random() < 0.3) {
-                tornadoSnakeDirection *= -1;
-            }
-            tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20);
-            
-            // Record direction change for playback
-            if (window.GameRecorder && window.GameRecorder.isActive()) {
-                window.GameRecorder.recordTornadoDirectionChange(tornadoSnakeDirection, tornadoSnakeChangeCounter);
+            // During replay, use recorded values; otherwise generate random
+            if (replayActive && replayTornadoDirIndex < replayTornadoDirChanges.length) {
+                const recorded = replayTornadoDirChanges[replayTornadoDirIndex++];
+                tornadoSnakeDirection = recorded.newDirection;
+                tornadoSnakeChangeCounter = recorded.newCounter;
+            } else {
+                // Randomly change direction
+                if (Math.random() < 0.3) {
+                    tornadoSnakeDirection *= -1;
+                }
+                tornadoSnakeChangeCounter = Math.floor(Math.random() * 30 + 20);
+                
+                // Record direction change for playback
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordTornadoDirectionChange(tornadoSnakeDirection, tornadoSnakeChangeCounter);
+                }
             }
         }
         
@@ -4019,17 +4035,23 @@ function updateTornado() {
         if (liftProgress >= 1.0) {
             // Reached top - fling free!
             tornadoState = 'carrying';
-            // Pick random drop column INSIDE the well
-            const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - 
-                             Math.min(...tornadoPickedBlob.positions.map(p => p[0])) + 1;
-            const maxDropCol = COLS - blobWidth;
-            tornadoDropTargetX = Math.floor(Math.random() * maxDropCol + blobWidth / 2) * BLOCK_SIZE + BLOCK_SIZE / 2;
-            tornadoOrbitStartTime = Date.now();
             
-            // Record drop target for playback
-            if (window.GameRecorder && window.GameRecorder.isActive()) {
-                window.GameRecorder.recordTornadoDrop(tornadoDropTargetX);
+            // During replay, use recorded drop target; otherwise generate random
+            if (replayActive && replayTornadoDropIndex < replayTornadoDrops.length) {
+                tornadoDropTargetX = replayTornadoDrops[replayTornadoDropIndex++].targetX;
+            } else {
+                // Pick random drop column INSIDE the well
+                const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - 
+                                 Math.min(...tornadoPickedBlob.positions.map(p => p[0])) + 1;
+                const maxDropCol = COLS - blobWidth;
+                tornadoDropTargetX = Math.floor(Math.random() * maxDropCol + blobWidth / 2) * BLOCK_SIZE + BLOCK_SIZE / 2;
+                
+                // Record drop target for playback
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordTornadoDrop(tornadoDropTargetX);
+                }
             }
+            tornadoOrbitStartTime = Date.now();
         }
     } else if (tornadoState === 'carrying') {
         // Blob flung free - moves to drop target while still orbiting (but orbit fades out)
@@ -4655,6 +4677,21 @@ function updateEarthquake() {
 }
 
 function generateEarthquakeCrack() {
+    // During replay, use recorded crack instead of generating new one
+    if (replayActive && replayEarthquakeIndex < replayEarthquakes.length) {
+        const recorded = replayEarthquakes[replayEarthquakeIndex];
+        // Don't increment index yet - splitBlocksByCrack will use it for shiftType
+        if (recorded.crackPath) {
+            earthquakeCrack = recorded.crackPath;
+            earthquakeCrackMap.clear();
+            earthquakeCrack.forEach(pt => {
+                earthquakeCrackMap.set(pt.y, pt.x);
+            });
+            console.log('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
+            return;
+        }
+    }
+    
     // Find the bottom and top of the stack
     let bottomY = ROWS - 1;
     let topY = 0;
@@ -4795,20 +4832,27 @@ function splitBlocksByCrack() {
     earthquakeLeftBlocks = [];
     earthquakeRightBlocks = [];
     
-    // Randomly decide shift type: 1/3 both sides, 1/3 left only, 1/3 right only
-    const rand = Math.random();
-    if (rand < 0.333) {
-        earthquakeShiftType = 'both';
-    } else if (rand < 0.666) {
-        earthquakeShiftType = 'left';
+    // During replay, use recorded shift type; otherwise generate random
+    if (replayActive && replayEarthquakeIndex < replayEarthquakes.length) {
+        const recorded = replayEarthquakes[replayEarthquakeIndex++];
+        earthquakeShiftType = recorded.shiftType || 'both';
+        console.log('🌍 Earthquake shift type from recording:', earthquakeShiftType);
     } else {
-        earthquakeShiftType = 'right';
-    }
-    console.log('🌍 Earthquake shift type:', earthquakeShiftType);
-    
-    // Record earthquake for playback (crack path + shift type)
-    if (window.GameRecorder && window.GameRecorder.isActive()) {
-        window.GameRecorder.recordEarthquake(earthquakeCrack, earthquakeShiftType);
+        // Randomly decide shift type: 1/3 both sides, 1/3 left only, 1/3 right only
+        const rand = Math.random();
+        if (rand < 0.333) {
+            earthquakeShiftType = 'both';
+        } else if (rand < 0.666) {
+            earthquakeShiftType = 'left';
+        } else {
+            earthquakeShiftType = 'right';
+        }
+        console.log('🌍 Earthquake shift type:', earthquakeShiftType);
+        
+        // Record earthquake for playback (crack path + shift type)
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordEarthquake(earthquakeCrack, earthquakeShiftType);
+        }
     }
     
     // Build a map of which column the crack is at for each row
@@ -12403,6 +12447,9 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // Save selected difficulty to localStorage for persistence
+    localStorage.setItem('tantris_difficulty', mode);
+    
     // Stop any running credits animation
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
@@ -13044,8 +13091,18 @@ modeButtons.forEach(button => {
 });
 
 // Keyboard navigation setup for mode menu
+// Load saved difficulty preference from localStorage
+const savedDifficulty = localStorage.getItem('tantris_difficulty');
 let selectedModeIndex = 0;
 const modeButtonsArray = Array.from(modeButtons);
+
+// If a saved difficulty exists, find its index
+if (savedDifficulty) {
+    const savedIndex = modeButtonsArray.findIndex(btn => btn.getAttribute('data-mode') === savedDifficulty);
+    if (savedIndex >= 0) {
+        selectedModeIndex = savedIndex;
+    }
+}
 
 function updateSelectedMode() {
     modeButtonsArray.forEach((btn, index) => {
@@ -14282,6 +14339,20 @@ let replayLastKeyframeTime = -1;
 let replayGravityBoardLocked = false;
 let replayPieceStartY = -2;
 
+// Random event injection for replay - indexed by type for quick lookup
+let replayTornadoSpawns = [];      // Tornado spawn data
+let replayTornadoSpawnIndex = 0;
+let replayTornadoDirChanges = [];  // Tornado direction changes
+let replayTornadoDirIndex = 0;
+let replayTornadoDrops = [];       // Tornado drop positions
+let replayTornadoDropIndex = 0;
+let replayEarthquakes = [];        // Earthquake crack/shift data
+let replayEarthquakeIndex = 0;
+let replayVolcanoes = [];          // Volcano eruption data
+let replayVolcanoIndex = 0;
+let replayMusicTracks = [];        // Music track sequence
+let replayMusicIndex = 0;
+
 /**
  * Start deterministic game replay
  * Runs an actual game with recorded pieces and inputs
@@ -14316,6 +14387,40 @@ window.startGameReplay = function(recording) {
     // Set up random event injection
     replayRandomEvents = recData.randomEvents || [];
     replayRandomEventIndex = 0;
+    
+    // Parse random events by type for targeted injection
+    replayTornadoSpawns = [];
+    replayTornadoSpawnIndex = 0;
+    replayTornadoDirChanges = [];
+    replayTornadoDirIndex = 0;
+    replayTornadoDrops = [];
+    replayTornadoDropIndex = 0;
+    replayEarthquakes = [];
+    replayEarthquakeIndex = 0;
+    replayVolcanoes = [];
+    replayVolcanoIndex = 0;
+    replayMusicTracks = recData.musicTracks || [];
+    replayMusicIndex = 0;
+    
+    replayRandomEvents.forEach(event => {
+        switch (event.type) {
+            case 'tornado_spawn':
+                replayTornadoSpawns.push(event);
+                break;
+            case 'tornado_direction':
+                replayTornadoDirChanges.push(event);
+                break;
+            case 'tornado_drop':
+                replayTornadoDrops.push(event);
+                break;
+            case 'earthquake':
+                replayEarthquakes.push(event);
+                break;
+            case 'volcano':
+                replayVolcanoes.push(event);
+                break;
+        }
+    });
     
     // Reset timing
     replayElapsedTime = 0;
@@ -14464,6 +14569,17 @@ function processReplayInputs() {
         
         if (event.type === 'gremlin_block' || event.type === 'hail_block') {
             // Place gremlin block directly
+            if (board[event.y] && !board[event.y][event.x]) {
+                board[event.y][event.x] = event.color;
+                isRandomBlock[event.y][event.x] = true;
+                fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
+            }
+        } else if (event.type === 'challenge_sorandom_switch') {
+            // Apply So Random mode switch
+            soRandomCurrentMode = event.newMode || 'normal';
+            console.log('🎬 Replay: So Random switched to', soRandomCurrentMode);
+        } else if (event.type === 'challenge_gremlin') {
+            // Place challenge gremlin block
             if (board[event.y] && !board[event.y][event.x]) {
                 board[event.y][event.x] = event.color;
                 isRandomBlock[event.y][event.x] = true;
