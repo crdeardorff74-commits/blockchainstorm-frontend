@@ -2328,7 +2328,10 @@ function updateAIModeIndicator() {
 
 // Game mode configuration
 let gameMode = null;
-let skillLevel = 'tempest'; // 'breeze', 'tempest', 'maelstrom'
+// Initialize skillLevel from select element if browser restored it
+const skillLevelSelectInit = document.getElementById('skillLevelSelect');
+let skillLevel = skillLevelSelectInit ? skillLevelSelectInit.value : 'tempest'; // 'breeze', 'tempest', 'maelstrom'
+window.skillLevel = skillLevel; // Expose globally for AI
 let lastPlayedMode = null; // Track the last played mode for menu selection
 
 const SHAPES = {
