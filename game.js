@@ -14510,6 +14510,16 @@ window.startGameReplay = function(recording) {
     // Start game running
     gameRunning = true;
     StarfieldSystem.setGameRunning(true);
+    setGameInProgress(true); // Notify audio system game is in progress
+    document.body.classList.add('game-running');
+    document.body.classList.add('game-started');
+    gameOverDiv.style.display = 'none';
+    modeMenu.classList.add('hidden');
+    toggleUIElements(false); // Hide How to Play panel, show histogram
+    stopMenuMusic();
+    
+    // Start gameplay music for replay
+    startMusic(gameMode, musicSelect);
     
     // Reset timing state for fresh start
     replayStartTime = Date.now();
@@ -14782,6 +14792,12 @@ function stopReplay() {
     
     // Show mode menu
     modeMenu.classList.remove('hidden');
+    document.body.classList.remove('game-running');
+    document.body.classList.remove('game-started');
+    toggleUIElements(true); // Restore How to Play panel
+    setGameInProgress(false);
+    stopMusic();
+    startMenuMusic(musicSelect); // Resume menu music
     
     // Reset canvas to standard width
     COLS = 10;
