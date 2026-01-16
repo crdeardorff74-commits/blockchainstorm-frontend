@@ -41,7 +41,8 @@ const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, play
             width: 95px;
         }
         .controls.hidden-during-play,
-        #controllerControls.hidden-during-play {
+        #controllerControls.hidden-during-play,
+        select.hidden-during-play {
             display: none !important;
         }
         #planetStats {
@@ -11711,6 +11712,8 @@ function toggleUIElements(show) {
     const titles = document.querySelectorAll('.title');
     const pauseBtn = document.getElementById('pauseBtn');
     const planetStatsLeft = document.getElementById('planetStatsLeft');
+    const skillLevelSelect = document.getElementById('skillLevelSelect');
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
     
     // Check if leaderboard is currently visible
     const leaderboardVisible = leaderboardContent && leaderboardContent.style.display !== 'none';
@@ -11724,6 +11727,8 @@ function toggleUIElements(show) {
         if (controls) controls.classList.remove('hidden-during-play');
         if (controllerControls) controllerControls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
+        if (skillLevelSelect) skillLevelSelect.classList.remove('hidden-during-play');
+        if (rulesPanelViewSelect) rulesPanelViewSelect.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         titles.forEach(title => title.style.display = '');
         
@@ -11738,6 +11743,8 @@ function toggleUIElements(show) {
         if (controls) controls.classList.add('hidden-during-play');
         if (controllerControls) controllerControls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
+        if (skillLevelSelect) skillLevelSelect.classList.add('hidden-during-play');
+        if (rulesPanelViewSelect) rulesPanelViewSelect.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         titles.forEach(title => title.style.display = 'none');
         
