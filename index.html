@@ -2339,6 +2339,104 @@
             color: #666;
             cursor: not-allowed;
         }
+        
+        /* Color Palette Dropdown */
+        .palette-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        
+        .palette-dropdown-button {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .palette-dropdown-button:hover {
+            border-color: #777;
+        }
+        
+        .palette-color-row {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .palette-color-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.2);
+            flex-shrink: 0;
+        }
+        
+        .palette-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: #1e1e2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .palette-dropdown-menu.open {
+            display: block;
+        }
+        
+        .palette-category-header {
+            padding: 6px 12px;
+            background: #252535;
+            color: #888;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: sticky;
+            top: 0;
+        }
+        
+        .palette-option {
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .palette-option:hover {
+            background: #2a2a3e;
+        }
+        
+        .palette-option.selected {
+            background: #3a3a4e;
+        }
+        
+        .palette-option-name {
+            color: #ddd;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        .settings-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.15);
+            margin: 12px 0;
+        }
     </style>
 	<!-- Google tag (gtag.js) -->
 	<script async src="https://www.googletagmanager.com/gtag/js?id=AW-17791773957">
@@ -3058,16 +3156,22 @@
                 </label>
             </div>
             
-            <div class="settings-option">
-                <label class="toggle-label">
-                    <span class="toggle-label-text">Background Storm Effects</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="stormEffectsToggle" checked>
-                        <span class="toggle-slider"></span>
-                    </div>
+            <div class="settings-divider"></div>
+            
+            <div class="settings-option" style="border-bottom: none;">
+                <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #ccc;">
+                    Color Palette
                 </label>
-                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
-                    Shows rain/sleet/snow in the background.
+                <div class="palette-dropdown" id="paletteDropdown">
+                    <button type="button" class="palette-dropdown-button" id="paletteDropdownBtn">
+                        <div class="palette-color-row" id="palettePreview">
+                            <!-- Colors populated by JS -->
+                        </div>
+                        <span style="font-size: 10px; color: #888;">▼</span>
+                    </button>
+                    <div class="palette-dropdown-menu" id="paletteDropdownMenu">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
             
@@ -3080,6 +3184,19 @@
                 <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
                     <span>Transparent</span>
                     <span>Opaque</span>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Background Storm Effects</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="stormEffectsToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <div class="settings-desc" style="font-size: 11px; color: #888; margin-top: 4px; margin-left: 48px;">
+                    Shows rain/sleet/snow in the background.
                 </div>
             </div>
             
@@ -3121,7 +3238,7 @@
                 </div>
             </div>
             
-            <div class="settings-option" id="aiModeOption">
+            <div class="settings-option" id="aiModeOption" style="border-bottom: none;">
                 <label class="toggle-label">
                     <span class="toggle-label-text">🤖 AI Mode</span>
                     <div class="toggle-switch">
@@ -3462,6 +3579,7 @@
 	<script src="controls-config.js"></script>
 	<script src="game-recorder.js"></script>
 	<script src="histogram.js"></script>
+	<script src="color-palettes.js"></script>
 	<script src="ai-player.js"></script>
 	<script src="game.js"></script>
 	<script src="settings-sync.js"></script>

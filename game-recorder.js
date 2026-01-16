@@ -28,6 +28,7 @@ const GameRecorder = (() => {
             playerType: config.playerType || 'human',
             difficulty: config.difficulty || 'drizzle',
             skillLevel: config.skillLevel || 'tempest',
+            palette: config.palette || 'classic',
             mode: config.mode || 'normal',
             challenges: config.challenges || [],
             speedBonus: config.speedBonus || 1.0,

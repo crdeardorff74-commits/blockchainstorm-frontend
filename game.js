@@ -2142,6 +2142,132 @@ StarfieldSystem.setUFOSwoopCallback(() => {
     console.log('🛸 UFO delivered special song!');
 });
 
+// Initialize Color Palette Dropdown
+function initPaletteDropdown() {
+    const dropdownBtn = document.getElementById('paletteDropdownBtn');
+    const dropdownMenu = document.getElementById('paletteDropdownMenu');
+    const palettePreview = document.getElementById('palettePreview');
+    
+    if (!dropdownBtn || !dropdownMenu || !palettePreview || typeof ColorPalettes === 'undefined') {
+        console.warn('Palette dropdown elements not found or ColorPalettes not loaded');
+        return;
+    }
+    
+    // Populate dropdown menu
+    const categories = ColorPalettes.getPalettesByCategory();
+    const categoryOrder = ColorPalettes.getCategoryOrder();
+    
+    dropdownMenu.innerHTML = '';
+    categoryOrder.forEach(category => {
+        const palettes = categories[category];
+        if (!palettes || palettes.length === 0) return;
+        
+        // Category header
+        const header = document.createElement('div');
+        header.className = 'palette-category-header';
+        header.textContent = category;
+        dropdownMenu.appendChild(header);
+        
+        // Palette options
+        palettes.forEach(palette => {
+            const option = document.createElement('div');
+            option.className = 'palette-option';
+            if (palette.id === currentPaletteId) {
+                option.classList.add('selected');
+            }
+            option.dataset.paletteId = palette.id;
+            
+            // Color swatches
+            const colorRow = document.createElement('div');
+            colorRow.className = 'palette-color-row';
+            palette.colors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'palette-color-swatch';
+                swatch.style.backgroundColor = color;
+                colorRow.appendChild(swatch);
+            });
+            
+            // Name
+            const name = document.createElement('span');
+            name.className = 'palette-option-name';
+            name.textContent = palette.name;
+            
+            option.appendChild(colorRow);
+            option.appendChild(name);
+            
+            option.addEventListener('click', () => {
+                selectPalette(palette.id);
+                dropdownMenu.classList.remove('open');
+            });
+            
+            dropdownMenu.appendChild(option);
+        });
+    });
+    
+    // Update preview for current palette
+    updatePalettePreview();
+    
+    // Toggle dropdown
+    dropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('open');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+            dropdownMenu.classList.remove('open');
+        }
+    });
+}
+
+function updatePalettePreview() {
+    const palettePreview = document.getElementById('palettePreview');
+    if (!palettePreview || typeof ColorPalettes === 'undefined') return;
+    
+    const colors = ColorPalettes.getColors(currentPaletteId);
+    palettePreview.innerHTML = '';
+    colors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'palette-color-swatch';
+        swatch.style.backgroundColor = color;
+        palettePreview.appendChild(swatch);
+    });
+}
+
+function selectPalette(paletteId) {
+    // Update selection in dropdown
+    const dropdownMenu = document.getElementById('paletteDropdownMenu');
+    if (dropdownMenu) {
+        dropdownMenu.querySelectorAll('.palette-option').forEach(opt => {
+            opt.classList.toggle('selected', opt.dataset.paletteId === paletteId);
+        });
+    }
+    
+    // Update colors
+    initColorsFromPalette(paletteId);
+    
+    // Update preview
+    updatePalettePreview();
+    
+    // Update histogram if it exists
+    if (typeof Histogram !== 'undefined' && Histogram.init) {
+        const histogramCanvas = document.getElementById('histogramCanvas');
+        if (histogramCanvas) {
+            Histogram.init({ canvas: histogramCanvas, colorSet: currentColorSet });
+        }
+    }
+    
+    console.log('🎨 Palette changed to:', paletteId);
+}
+
+// Initialize palette dropdown when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPaletteDropdown);
+} else {
+    initPaletteDropdown();
+}
+
 // Developer mode (activated by center-clicking "Don't Panic!")
 let developerMode = false;
 
@@ -2236,30 +2362,66 @@ const BLIZZARD_SHAPES = {
     V: [[1,0,0],[1,0,0],[1,1,1]]          // V shape
 };
 
-const COLORS = [
-    '#FF6B6B', // Red (pastel)
-    '#FFA07A', // Orange (pastel)
-    '#F7DC6F', // Yellow (pastel)
-    '#52B788', // Green (pastel)
-    '#45B7D1', // Blue (pastel)
-    '#85C1E2', // Light Blue/Indigo (pastel)
-    '#BB8FCE', // Violet (pastel)
-    '#FFB3D9'  // Pink (pastel)
-];
+// Current palette ID - stored in localStorage
+let currentPaletteId = localStorage.getItem('tantris_palette') || 'classic';
 
-// Optimized color subsets for maximum contrast
-const COLOR_SETS = {
-    // 4 colors: Red, Yellow, Green, Blue - maximally spread across color wheel
-    4: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1'],
-    // 5 colors: Red, Yellow, Green, Blue, Violet - skip adjacent colors
-    5: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-    // 6 colors: Red, Orange, Yellow, Green, Blue, Violet - skip Light Blue (too close to Blue)
-    6: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-    // 7 colors: Add Pink to 6-color set
-    7: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE', '#FFB3D9'],
-    // 8 colors: All colors
-    8: COLORS
-};
+// Dynamic COLORS and COLOR_SETS based on selected palette
+let COLORS = [];
+let COLOR_SETS = {};
+
+// Initialize colors from palette
+function initColorsFromPalette(paletteId) {
+    if (typeof ColorPalettes === 'undefined') {
+        // Fallback to classic colors if ColorPalettes not loaded yet
+        COLORS = ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#85C1E2', '#BB8FCE', '#FFB3D9'];
+        COLOR_SETS = {
+            4: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1'],
+            5: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
+            6: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
+            7: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE', '#FFB3D9'],
+            8: COLORS
+        };
+        return;
+    }
+    
+    currentPaletteId = paletteId;
+    COLORS = ColorPalettes.getColors(paletteId);
+    COLOR_SETS = ColorPalettes.getColorSets(paletteId);
+    
+    // Save to localStorage
+    localStorage.setItem('tantris_palette', paletteId);
+    
+    // Update currentColorSet based on current game mode
+    updateCurrentColorSet();
+}
+
+// Initialize with saved palette
+initColorsFromPalette(currentPaletteId);
+
+// Update currentColorSet based on current game mode
+function updateCurrentColorSet() {
+    if (!gameMode) return;
+    
+    switch(gameMode) {
+        case 'drizzle':
+            currentColorSet = COLOR_SETS[4];
+            break;
+        case 'downpour':
+            currentColorSet = COLOR_SETS[6];
+            break;
+        case 'hailstorm':
+            currentColorSet = COLOR_SETS[8];
+            break;
+        case 'blizzard':
+            currentColorSet = COLOR_SETS[5];
+            break;
+        case 'hurricane':
+            currentColorSet = COLOR_SETS[7];
+            break;
+        default:
+            currentColorSet = COLORS;
+    }
+}
 
 let currentColorSet = COLORS; // Initialize after COLORS is defined
 
@@ -11951,6 +12113,7 @@ function startGame(mode) {
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
+            palette: currentPaletteId,
             mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
             challenges: challengeMode === 'combo' ? Array.from(activeChallenges) : 
                         challengeMode !== 'normal' ? [challengeMode] : [],
@@ -13928,6 +14091,12 @@ window.startGameReplay = function(recording) {
     gameMode = recording.difficulty;
     skillLevel = recording.skill_level;
     window.skillLevel = recording.skill_level;
+    
+    // Set palette from recording (fallback to current if not recorded)
+    if (recData.palette && typeof ColorPalettes !== 'undefined') {
+        initColorsFromPalette(recData.palette);
+        updatePalettePreview();
+    }
     
     // Set COLS before anything else
     COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 12 : 10;
