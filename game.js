@@ -11734,6 +11734,14 @@ function toggleUIElements(show) {
 }
 
 async function gameOver() {
+    // During replay, just show completion - don't submit scores or record
+    if (replayActive) {
+        console.log('🎬 Game over during replay - showing completion');
+        gameRunning = false;
+        showReplayComplete();
+        return;
+    }
+    
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
@@ -12173,7 +12181,8 @@ function update(time = 0) {
     }
     
     // Update AI mode indicator (developer mode only) - update every frame
-    if (aiModeEnabled && typeof AIPlayer !== 'undefined') {
+    // Don't show during replay
+    if (!replayActive && aiModeEnabled && typeof AIPlayer !== 'undefined') {
         updateAIModeIndicator();
     }
     
@@ -14277,6 +14286,7 @@ document.addEventListener('touchend', handleUnpauseTap);
 let replayPaused = false;
 let replayData = null;
 let replaySpeed = 1.0;
+let replaySavedAIMode = false; // Store AI mode state to restore after replay
 let replayStartTime = 0;         // When replay started (real time)
 let replayElapsedTime = 0;       // Scaled elapsed time
 let replayLastFrameTime = 0;     // Last frame timestamp for delta calculation
@@ -14370,6 +14380,10 @@ window.startGameReplay = function(recording) {
     // Set replay active BEFORE starting game
     // This tells createPiece() to use recorded pieces
     replayActive = true;
+    
+    // CRITICAL: Disable AI mode during replay - save previous state to restore later
+    replaySavedAIMode = aiModeEnabled;
+    aiModeEnabled = false;
     
     // Reset game state
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -14612,6 +14626,9 @@ function stopReplay() {
     replayActive = false;
     replayPaused = false;
     replayData = null;
+    
+    // Restore AI mode to what it was before replay
+    aiModeEnabled = replaySavedAIMode;
     
     // Reset deterministic piece queue
     replayPieceQueue = [];
