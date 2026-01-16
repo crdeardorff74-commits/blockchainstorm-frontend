@@ -2340,11 +2340,25 @@ function exitAIGame() {
     cancelAIAutoRestartTimer();
     stopMusic();
     
+    // Hide sun/planets and planet stats
+    if (typeof StarfieldSystem !== 'undefined') {
+        StarfieldSystem.setGameRunning(false);
+        StarfieldSystem.hidePlanetStats();
+    }
+    const planetStats = document.getElementById('planetStats');
+    const planetStatsLeft = document.getElementById('planetStatsLeft');
+    if (planetStats) planetStats.style.display = 'none';
+    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+    
     // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Reset board
     initBoard();
+    
+    // Clear pieces
+    currentPiece = null;
+    nextPieceQueue = [];
     
     // Hide game over, show menu
     gameOverDiv.style.display = 'none';
