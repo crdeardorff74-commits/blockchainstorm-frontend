@@ -2363,12 +2363,12 @@
         /* Color Palette Dropdown */
         .palette-dropdown {
             position: relative;
-            width: 100%;
+            width: 220px;
         }
         
         .palette-dropdown-button {
             width: 100%;
-            padding: 6px 10px;
+            padding: 5px 10px;
             background: rgba(0,0,0,0.5);
             border: 1px solid #555;
             border-radius: 4px;
@@ -3179,23 +3179,23 @@
             <div class="settings-divider"></div>
             
             <div class="settings-option" style="border-bottom: none;">
-                <label style="display: block; margin-bottom: 1px; font-size: 14px; color: #ccc;">
-                    Color Palette
-                </label>
-                <div class="palette-dropdown" id="paletteDropdown">
-                    <button type="button" class="palette-dropdown-button" id="paletteDropdownBtn">
-                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-                            <div class="palette-color-row" id="palettePreview">
-                                <!-- Colors populated by JS -->
+                <label class="toggle-label">
+                    <span class="toggle-label-text">Color Palette</span>
+                    <div class="palette-dropdown" id="paletteDropdown" style="margin-left: auto;">
+                        <button type="button" class="palette-dropdown-button" id="paletteDropdownBtn">
+                            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                                <div class="palette-color-row" id="palettePreview">
+                                    <!-- Colors populated by JS -->
+                                </div>
+                                <span id="paletteNameDisplay" style="font-size: 12px; color: #aaa; white-space: nowrap;">Classic</span>
                             </div>
-                            <span id="paletteNameDisplay" style="font-size: 12px; color: #aaa; white-space: nowrap;">Classic</span>
+                            <span style="font-size: 10px; color: #888;">▼</span>
+                        </button>
+                        <div class="palette-dropdown-menu" id="paletteDropdownMenu">
+                            <!-- Populated by JS -->
                         </div>
-                        <span style="font-size: 10px; color: #888;">▼</span>
-                    </button>
-                    <div class="palette-dropdown-menu" id="paletteDropdownMenu">
-                        <!-- Populated by JS -->
                     </div>
-                </div>
+                </label>
             </div>
             
             <div class="settings-option">
