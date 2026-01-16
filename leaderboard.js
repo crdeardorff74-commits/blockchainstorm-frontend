@@ -150,6 +150,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     currentLeaderboardGameMode = mode; // Track current game mode (normal/challenge)
     currentLeaderboardSkillLevel = skillLevel; // Track current skill level
     
+    // Remember the player's score for highlighting when redisplaying
+    if (playerScore !== null) {
+        lastPlayerScore = playerScore;
+    }
+    
     // Hide instructions and histogram
     if (rulesInstructions) rulesInstructions.style.display = 'none';
     if (histogramCanvas) histogramCanvas.style.display = 'none';
@@ -228,9 +233,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     scores.forEach((entry, index) => {
         // Type-safe exact match - convert both to numbers for comparison
+        // Use lastPlayerScore if playerScore wasn't explicitly passed
         const entryScore = Number(entry.score);
-        const targetScore = Number(playerScore);
-        const isPlayerScore = playerScore && entryScore === targetScore;
+        const scoreToHighlight = playerScore !== null ? playerScore : lastPlayerScore;
+        const targetScore = Number(scoreToHighlight);
+        const isPlayerScore = scoreToHighlight && entryScore === targetScore;
         if (isPlayerScore) {
             console.log(`🎯 Highlighting score at rank ${index + 1}: ${entryScore}`);
         }
@@ -1209,6 +1216,11 @@ async function submitAIScore(scoreData) {
     }
 }
 
+// Clear the last player score (call when starting a new game)
+function clearLastPlayerScore() {
+    lastPlayerScore = null;
+}
+
 // Export functions for use in game.js
 window.leaderboard = {
     displayLeaderboard,
@@ -1220,5 +1232,6 @@ window.leaderboard = {
     getLeaderboard,
     fetchLeaderboard,
     getModeDisplayName,
-    notifyGameCompletion
+    notifyGameCompletion,
+    clearLastPlayerScore
 };

@@ -2201,8 +2201,10 @@ function initPaletteDropdown() {
             
             option.addEventListener('click', (e) => {
                 e.stopPropagation();
+                console.log('🎨 Palette option clicked:', palette.id);
                 selectPalette(palette.id);
                 dropdownMenu.classList.remove('open');
+                console.log('🎨 Dropdown closed, open class removed');
             });
             
             dropdownMenu.appendChild(option);
@@ -2298,9 +2300,10 @@ function createAIModeIndicator() {
     aiModeIndicator.style.cssText = `
         position: fixed;
         top: 10px;
+        left: 10px;
         right: 10px;
-        padding: 8px 12px;
-        background: rgba(0, 0, 0, 0.7);
+        padding: 8px 15px;
+        background: rgba(0, 0, 0, 0.8);
         color: #00ffff;
         font-family: monospace;
         font-size: 14px;
@@ -2310,21 +2313,60 @@ function createAIModeIndicator() {
         display: none;
         border: 1px solid #00ffff;
         white-space: nowrap;
+        justify-content: space-between;
+        align-items: center;
     `;
+    
+    // AI MODE label on left
+    const leftLabel = document.createElement('span');
+    leftLabel.textContent = '🤖 AI MODE';
+    leftLabel.style.cssText = 'font-weight: bold;';
+    
+    // EXIT link on right
+    const exitLink = document.createElement('span');
+    exitLink.textContent = '✕ EXIT';
+    exitLink.style.cssText = `
+        color: #ff6b6b;
+        cursor: pointer;
+        font-weight: bold;
+        padding: 2px 8px;
+        border-radius: 3px;
+        transition: background 0.2s;
+    `;
+    exitLink.addEventListener('mouseenter', () => {
+        exitLink.style.background = 'rgba(255, 107, 107, 0.2)';
+    });
+    exitLink.addEventListener('mouseleave', () => {
+        exitLink.style.background = 'transparent';
+    });
+    exitLink.addEventListener('click', () => {
+        exitAIGame();
+    });
+    
+    aiModeIndicator.appendChild(leftLabel);
+    aiModeIndicator.appendChild(exitLink);
     document.body.appendChild(aiModeIndicator);
+}
+
+function exitAIGame() {
+    if (!aiModeEnabled || !gameRunning) return;
+    console.log('🤖 AI game cancelled by user');
+    cancelAIAutoRestartTimer();
+    gameRunning = false;
+    stopMusic();
+    gameOverDiv.style.display = 'none';
+    modeMenu.classList.remove('hidden');
+    document.body.classList.remove('game-started');
+    toggleUIElements(true);
+    if (aiModeIndicator) aiModeIndicator.style.display = 'none';
 }
 
 function updateAIModeIndicator() {
     if (!aiModeIndicator) createAIModeIndicator();
     
-    // Set to true to show AI debug indicator in upper right
-    const showAIDebugIndicator = false;
-    
     // Show when AI mode is enabled AND game is running
-    if (showAIDebugIndicator && aiModeEnabled && gameRunning && typeof AIPlayer !== 'undefined') {
-        const stackHeight = AIPlayer.getStackHeight ? AIPlayer.getStackHeight() : '?';
-        aiModeIndicator.innerHTML = `🤖 AI Playing<br><span style="font-size: 11px; color: #888;">Stack: ${stackHeight}</span>`;
-        aiModeIndicator.style.display = 'block';
+    if (aiModeEnabled && gameRunning) {
+        aiModeIndicator.style.display = 'flex';
     } else {
         aiModeIndicator.style.display = 'none';
     }
@@ -12112,6 +12154,11 @@ function startGame(mode) {
     // Save selected difficulty to localStorage for persistence
     localStorage.setItem('tantris_difficulty', mode);
     
+    // Clear the highlighted score from previous game
+    if (window.leaderboard && window.leaderboard.clearLastPlayerScore) {
+        window.leaderboard.clearLastPlayerScore();
+    }
+    
     // Reset replay state in case we're starting after a replay
     replayActive = false;
     
@@ -12583,16 +12630,7 @@ document.addEventListener('keydown', e => {
         // Escape key - exit AI game in progress
         if (e.key === 'Escape' && aiModeEnabled) {
             e.preventDefault();
-            console.log('🤖 AI game cancelled by user');
-            // Stop AI auto-restart timer if pending
-            cancelAIAutoRestartTimer();
-            // Stop the game and return to menu
-            gameRunning = false;
-            stopMusic();
-            gameOverDiv.style.display = 'none';
-            modeMenu.classList.remove('hidden');
-            document.body.classList.remove('game-started');
-            toggleUIElements(true);
+            exitAIGame();
             return;
         }
         
