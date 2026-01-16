@@ -2115,8 +2115,11 @@ let minimalistMode = false;
 
 // AI Mode
 const aiModeToggle = document.getElementById('aiModeToggle');
-// Initialize immediately from checkbox state (browser may have restored it)
-let aiModeEnabled = aiModeToggle ? aiModeToggle.checked : false;
+// Initialize from localStorage (more reliable than browser form restoration)
+const savedAiMode = localStorage.getItem('aiModeEnabled');
+let aiModeEnabled = savedAiMode === 'true';
+// Sync checkbox to match
+if (aiModeToggle) aiModeToggle.checked = aiModeEnabled;
 const aiSpeedSlider = document.getElementById('aiSpeedSlider');
 
 // Helper function to determine the correct leaderboard mode based on AI and challenge settings
@@ -2328,10 +2331,13 @@ function updateAIModeIndicator() {
 
 // Game mode configuration
 let gameMode = null;
-// Initialize skillLevel from select element if browser restored it
-const skillLevelSelectInit = document.getElementById('skillLevelSelect');
-let skillLevel = skillLevelSelectInit ? skillLevelSelectInit.value : 'tempest'; // 'breeze', 'tempest', 'maelstrom'
+// Initialize skillLevel from localStorage (more reliable than browser form restoration)
+const savedSkillLevel = localStorage.getItem('skillLevel');
+let skillLevel = savedSkillLevel || 'tempest'; // 'breeze', 'tempest', 'maelstrom'
 window.skillLevel = skillLevel; // Expose globally for AI
+// Sync select to match
+const skillLevelSelectInit = document.getElementById('skillLevelSelect');
+if (skillLevelSelectInit) skillLevelSelectInit.value = skillLevel;
 let lastPlayedMode = null; // Track the last played mode for menu selection
 
 const SHAPES = {
@@ -13013,28 +13019,21 @@ function applyMinimalistMode() {
 
 // AI Mode toggle
 if (aiModeToggle) {
-    // Initialize from toggle's current state (browser may restore checkbox state)
-    aiModeEnabled = aiModeToggle.checked;
-    if (typeof AIPlayer !== 'undefined') {
-        AIPlayer.setEnabled(aiModeEnabled);
-    }
-    // Show/hide speed slider based on initial state
+    // Show/hide speed slider based on initial state (aiModeEnabled already set from localStorage)
     const aiSpeedOptionInit = document.getElementById('aiSpeedOption');
     if (aiSpeedOptionInit) {
         aiSpeedOptionInit.style.display = aiModeEnabled ? 'block' : 'none';
     }
+    if (typeof AIPlayer !== 'undefined') {
+        AIPlayer.setEnabled(aiModeEnabled);
+    }
     if (aiModeEnabled) {
         console.log('🤖 AI Mode: ENABLED (restored from settings)');
-        // Refresh leaderboard if visible to show AI leaderboard
-        const leaderboardContent = document.getElementById('leaderboardContent');
-        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
-            const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
-        }
     }
     
     aiModeToggle.addEventListener('change', (e) => {
         aiModeEnabled = e.target.checked;
+        localStorage.setItem('aiModeEnabled', aiModeEnabled);
         if (typeof AIPlayer !== 'undefined') {
             AIPlayer.setEnabled(aiModeEnabled);
         }
@@ -13821,6 +13820,11 @@ if (startOverlay) {
     const skillLevelSelect = document.getElementById('skillLevelSelect');
     const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
     
+    // Sync all selects to the saved skill level from localStorage
+    if (introSkillLevelSelect) introSkillLevelSelect.value = skillLevel;
+    if (skillLevelSelect) skillLevelSelect.value = skillLevel;
+    if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = skillLevel;
+    
     // Function to update rules display based on skill level
     function updateRulesForSkillLevel(level) {
         const goalText = document.getElementById('rulesGoalText');
@@ -13869,6 +13873,7 @@ if (startOverlay) {
     function setSkillLevel(level) {
         skillLevel = level;
         window.skillLevel = level; // Expose globally for AI
+        localStorage.setItem('skillLevel', level);
         if (introSkillLevelSelect) introSkillLevelSelect.value = level;
         if (skillLevelSelect) skillLevelSelect.value = level;
         if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = level;
@@ -13896,8 +13901,9 @@ if (startOverlay) {
         });
     }
     
-    // Initialize with default skill level
-    setSkillLevel('tempest');
+    // Initialize with saved skill level (updates rules display and special events)
+    updateRulesForSkillLevel(skillLevel);
+    updateSpecialEventsDisplay(skillLevel);
     
     // Check login status and show/hide login button
     function checkIntroLoginStatus() {
