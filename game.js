@@ -11037,8 +11037,8 @@ function clearLines() {
 function rotatePiece() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
-    // Prevent rotation during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
+    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -11091,8 +11091,8 @@ function rotatePiece() {
 function rotatePieceCounterClockwise() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
-    // Prevent rotation during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
+    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -11148,8 +11148,8 @@ function rotatePieceCounterClockwise() {
 
 function movePiece(dir) {
     if (!currentPiece) return;
-    // Prevent movement during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    // Prevent movement during earthquake shift phase (but allow during replay - board syncs at next piece)
+    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
     // Check if controls should be swapped (Stranger XOR Dyslexic)
     const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
@@ -11181,8 +11181,8 @@ function movePiece(dir) {
 
 function dropPiece() {
     if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape || gameOverPending) return;
-    // Prevent dropping during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    // Prevent dropping during earthquake shift phase (but allow during replay - board syncs at next piece)
+    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
     // Check if piece is already resting (would collide if moved down)
     const wasAlreadyResting = collides(currentPiece, 0, 1);
@@ -11389,8 +11389,8 @@ let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
     if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
-    // Prevent hard drop during earthquake shift phase
-    if (earthquakeActive && earthquakePhase === 'shift') return;
+    // Prevent hard drop during earthquake shift phase (but allow during replay - board syncs at next piece)
+    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
     // Record input for replay BEFORE starting drop
     if (window.GameRecorder && window.GameRecorder.isActive()) {
@@ -12005,7 +12005,8 @@ function update(time = 0) {
     }
     
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
-    const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift';
+    // (But during replay, allow auto-drop - board syncs at next piece)
+    const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift' && !replayActive;
     if (!paused && !animatingLines && !gravityAnimating && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
         // Check if piece is resting on the stack (would collide if moved down)
         const isResting = collides(currentPiece, 0, 1);
