@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.17 loaded - position during earthquake, skip hard drop");
+console.log("🎮 AI Player v3.18 loaded - fix earthquake stuck detection");
 
 const AIPlayer = (() => {
     // Configuration
@@ -25,7 +25,6 @@ const AIPlayer = (() => {
     let currentMode = 'colorBuilding'; // Track mode for display/logging
     let currentStackHeight = 0; // Track stack height for debugging
     let currentUfoActive = false; // Track UFO state for 42 lines easter egg
-    let wasInEarthquake = false; // Track earthquake state for transition handling
     
     // Stuck detection - prevents infinite rotation/movement loops
     let lastPieceKey = null; // Track piece identity (x, y, rotation, shape hash)
@@ -382,66 +381,34 @@ const AIPlayer = (() => {
         
         let score = 0;
         
-        // CASCADE-AWARE: Holes aren't as devastating in this game
-        // Blob gravity can fill them when special events clear areas
-        score -= holes * 4;       // Reduced from 10 (cascade will help)
-        score -= height * 0.6;    // Keep stack low but not obsessively
+        // SURVIVAL FIRST: Strong penalties for bad board states
+        score -= holes * 10;      // Holes are devastating
+        score -= height * 0.8;    // Keep stack low
         
-        // Line clears - often BAD when building for special events
-        // Only reward them when height is dangerous
-        if (height >= 16) {
-            score += linesCleared * 30; // Emergency clear
-        } else if (height >= 14) {
-            score += linesCleared * 10;
-        } else {
-            // Penalize line clears when building blobs
-            score -= linesCleared * 5;
-        }
+        // Line clears are always good
+        score += linesCleared * linesCleared * 5;
         
         // Compactness: reward touching existing blocks
         const touching = fallbackCountTouching(board, shape, x, y, cols, rows);
-        score += touching * 2;
+        score += touching * 1.5;
         
-        // Color adjacency - MORE important for special events
-        // Horizontal adjacency worth more (for tsunamis)
-        const horizAdj = fallbackHorizontalAdjacency(board, shape, x, y, color, cols, rows);
-        score += horizAdj * 5;   // Strong horizontal bonus
-        score += (adj - horizAdj) * 2;  // Vertical is worth less
+        // Color adjacency bonus (only when board is healthy)
+        if (holes <= 2 && height <= 12) {
+            score += adj * 0.8;  // Increased from 0.4
+        } else if (holes <= 4 && height <= 15) {
+            score += adj * 0.3;  // Moderate bonus when not perfectly healthy
+        }
         
-        // Death zone penalties - still important
-        if (height >= 19) {
-            score -= 200;
-        } else if (height >= 17) {
+        // Death zone penalties
+        if (height >= 18) {
+            score -= 500;
+        } else if (height >= 16) {
             score -= 50;
-        } else if (height >= 15) {
+        } else if (height >= 14) {
             score -= 10;
         }
         
         return score;
-    }
-    
-    /**
-     * Count horizontal same-color adjacency specifically
-     */
-    function fallbackHorizontalAdjacency(board, shape, x, y, color, cols, rows) {
-        let adj = 0;
-        for (let py = 0; py < shape.length; py++) {
-            for (let px = 0; px < shape[py].length; px++) {
-                if (!shape[py][px]) continue;
-                const bx = x + px, by = y + py;
-                // Left neighbor
-                if (bx > 0 && by >= 0 && by < rows && board[by] && board[by][bx-1] === color) {
-                    let partOfPiece = px > 0 && shape[py][px-1];
-                    if (!partOfPiece) adj++;
-                }
-                // Right neighbor
-                if (bx < cols-1 && by >= 0 && by < rows && board[by] && board[by][bx+1] === color) {
-                    let partOfPiece = px < shape[py].length-1 && shape[py][px+1];
-                    if (!partOfPiece) adj++;
-                }
-            }
-        }
-        return adj;
     }
     
     /**
@@ -599,20 +566,6 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
-        // Track earthquake state transitions
-        if (duringEarthquake && !wasInEarthquake) {
-            console.log('🌍 AI: Earthquake detected, will position piece but skip hard drop');
-            wasInEarthquake = true;
-        } else if (!duringEarthquake && wasInEarthquake) {
-            console.log('🌍 AI: Earthquake ended, resuming normal play');
-            wasInEarthquake = false;
-            // Reset stuck detection since board state changed dramatically
-            lastPieceKey = null;
-            samePositionCount = 0;
-            lastCalculatedPieceId = null;
-            samePieceCount = 0;
-        }
-        
         // Generate piece identity based on color (new piece = new color in this game)
         const currentPieceId = currentPiece.color;
         
@@ -631,7 +584,8 @@ const AIPlayer = (() => {
         
         // If we already calculated for this piece and have no moves, force drop
         // This handles the case where calculation completed but moves didn't execute
-        if (lastCalculatedPieceId === currentPieceId) {
+        // But NOT during earthquake - we're intentionally waiting for natural fall
+        if (lastCalculatedPieceId === currentPieceId && !duringEarthquake) {
             samePieceCount++;
             if (samePieceCount >= STUCK_THRESHOLD) {
                 console.log(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
@@ -641,29 +595,32 @@ const AIPlayer = (() => {
                 lastCalculatedPieceId = null;
                 return;
             }
-        } else {
+        } else if (lastCalculatedPieceId !== currentPieceId) {
             // New piece - reset counter
             samePieceCount = 0;
         }
         
         // Stuck detection: check if piece is in same position as last calculation
+        // Skip stuck detection during earthquake since we're intentionally not dropping
         const pieceKey = getPieceKey(currentPiece);
-        if (pieceKey === lastPieceKey) {
-            samePositionCount++;
-            if (samePositionCount >= STUCK_THRESHOLD) {
-                // Piece hasn't moved after multiple attempts - force immediate drop
-                console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
-                moveQueue = ['drop'];
-                lastMoveTime = Date.now();
-                samePositionCount = 0; // Reset after forcing drop
-                lastPieceKey = null;
-                lastCalculatedPieceId = null;
-                return;
+        if (!duringEarthquake) {
+            if (pieceKey === lastPieceKey) {
+                samePositionCount++;
+                if (samePositionCount >= STUCK_THRESHOLD) {
+                    // Piece hasn't moved after multiple attempts - force immediate drop
+                    console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
+                    moveQueue = ['drop'];
+                    lastMoveTime = Date.now();
+                    samePositionCount = 0; // Reset after forcing drop
+                    lastPieceKey = null;
+                    lastCalculatedPieceId = null;
+                    return;
+                }
+            } else {
+                // Piece moved or new piece - reset counter
+                samePositionCount = 0;
+                lastPieceKey = pieceKey;
             }
-        } else {
-            // Piece moved or new piece - reset counter
-            samePositionCount = 0;
-            lastPieceKey = pieceKey;
         }
         
         thinking = true;
@@ -671,9 +628,6 @@ const AIPlayer = (() => {
         
         // Store UFO state for this decision
         currentUfoActive = ufoActive || false;
-        
-        // Store earthquake state for this decision
-        const skipDropForEarthquake = duringEarthquake;
         
         // Handle both legacy single piece and new queue array
         if (Array.isArray(nextPieceOrQueue)) {
@@ -693,10 +647,10 @@ const AIPlayer = (() => {
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
                     // During earthquake: position piece but don't hard drop (let it fall naturally)
-                    moveQueue = calculateMoves(currentPiece, bestPlacement, skipDropForEarthquake);
-                } else if (!skipDropForEarthquake) {
-                    // Only force drop if not during earthquake
-                    moveQueue = ['drop'];
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
+                } else {
+                    // Only drop if not during earthquake
+                    moveQueue = duringEarthquake ? [] : ['drop'];
                 }
                 
                 thinking = false;
@@ -744,9 +698,6 @@ const AIPlayer = (() => {
         samePositionCount = 0;
         lastCalculatedPieceId = null;
         samePieceCount = 0;
-        
-        // Reset earthquake tracking
-        wasInEarthquake = false;
         
         // Also reset worker's mode
         if (worker && workerReady) {
