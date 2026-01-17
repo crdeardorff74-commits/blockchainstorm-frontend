@@ -1,7 +1,7 @@
-// AI Worker v5.3.0 - Add tsunami blocking penalty + I-piece dependency penalty
-console.log("🤖 AI Worker v5.3.0 loaded - non-matching pieces now penalized for blocking tsunami path");
+// AI Worker v5.4.0 - Tsunami expansion strategy: delay completion when more matching pieces are coming
+console.log("🤖 AI Worker v5.4.0 loaded - tsunami expansion: prefers growing blob over early completion");
 
-const AI_VERSION = "5.3.0";
+const AI_VERSION = "5.4.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -599,7 +599,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
-        tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0, blockingPenalty: 0 },
+        tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0, blockingPenalty: 0, expanding: false, earlyCompletion: false },
         volcano: { potential: false, progress: 0, innerSize: 0, bonus: 0 },
         blob: { horizontalAdj: 0, verticalAdj: 0, bonus: 0 },
         runs: { bonus: 0 },
@@ -1075,6 +1075,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // ====== TSUNAMI BUILDING BONUS ======
     if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor) {
         const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+        const tsunamiRun = bestRuns[bestTsunamiColor];
         let tsunamiBonus = 15;
         
         if (bestTsunamiWidth >= 9) {
@@ -1086,6 +1087,64 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         }
         
         tsunamiBonus += matchingInQueue * 8;
+        
+        // ====== TSUNAMI EXPANSION STRATEGY ======
+        // If we COULD complete the tsunami now, but there are more matching pieces coming,
+        // prefer to EXPAND the blob (add rows) rather than complete immediately.
+        // This maximizes the tsunami score since it's based on blob size.
+        if (tsunamiRun && bestTsunamiWidth >= 9 && matchingInQueue >= 1 && !inDangerZone) {
+            // Determine if this placement would COMPLETE the tsunami (extend to width 10)
+            // vs EXPAND it (add to existing run area without completing)
+            
+            const extensionCols = [];
+            if (tsunamiRun.startX > 0) extensionCols.push(tsunamiRun.startX - 1);
+            if (tsunamiRun.endX < cols - 1) extensionCols.push(tsunamiRun.endX + 1);
+            
+            // Check where piece cells land
+            let cellsInExtension = 0;  // Would complete tsunami
+            let cellsOnRun = 0;        // Would expand tsunami (same columns as run, adjacent rows)
+            
+            for (let py = 0; py < shape.length; py++) {
+                for (let px = 0; px < shape[py].length; px++) {
+                    if (shape[py][px]) {
+                        const cellCol = x + px;
+                        const cellRow = y + py;
+                        
+                        // Check if in extension column (would complete)
+                        if (extensionCols.includes(cellCol) && 
+                            Math.abs(cellRow - tsunamiRun.row) <= 1) {
+                            cellsInExtension++;
+                        }
+                        
+                        // Check if on top of run (would expand)
+                        // Cell is in run's column range and adjacent to run row
+                        if (cellCol >= tsunamiRun.startX && cellCol <= tsunamiRun.endX &&
+                            (cellRow === tsunamiRun.row - 1 || cellRow === tsunamiRun.row + 1)) {
+                            cellsOnRun++;
+                        }
+                    }
+                }
+            }
+            
+            // If this placement would COMPLETE and there are more pieces coming,
+            // apply a penalty to encourage waiting/expanding instead
+            if (cellsInExtension > 0 && matchingInQueue >= 1) {
+                // Penalty for completing early - we want to expand first
+                // Scale with how many pieces are waiting (more pieces = bigger potential tsunami)
+                const earlyCompletionPenalty = matchingInQueue * 20;
+                tsunamiBonus -= earlyCompletionPenalty;
+                breakdown.tsunami.earlyCompletion = true;
+            }
+            
+            // If this placement would EXPAND the blob (not complete), give bonus
+            if (cellsOnRun > 0 && cellsInExtension === 0) {
+                // Reward expanding the tsunami blob
+                const expansionBonus = cellsOnRun * 15 + matchingInQueue * 10;
+                tsunamiBonus += expansionBonus;
+                breakdown.tsunami.expanding = true;
+            }
+        }
+        
         breakdown.tsunami.bonus = tsunamiBonus;
         score += breakdown.tsunami.bonus;
         
@@ -1751,6 +1810,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // ====== TSUNAMI BUILDING BONUSES ======
     if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor) {
         const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+        const tsunamiRun = bestRuns[bestTsunamiColor];
         
         // Base bonus for matching color
         let tsunamiBonus = 15;
@@ -1766,6 +1826,46 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         
         // Queue support bonus
         tsunamiBonus += matchingInQueue * 8;
+        
+        // ====== TSUNAMI EXPANSION STRATEGY ======
+        // If we could complete now but more matching pieces are coming, expand instead
+        if (tsunamiRun && bestTsunamiWidth >= 9 && matchingInQueue >= 1 && !inDangerZone) {
+            const extensionCols = [];
+            if (tsunamiRun.startX > 0) extensionCols.push(tsunamiRun.startX - 1);
+            if (tsunamiRun.endX < cols - 1) extensionCols.push(tsunamiRun.endX + 1);
+            
+            let cellsInExtension = 0;
+            let cellsOnRun = 0;
+            
+            for (let py = 0; py < shape.length; py++) {
+                for (let px = 0; px < shape[py].length; px++) {
+                    if (shape[py][px]) {
+                        const cellCol = x + px;
+                        const cellRow = y + py;
+                        
+                        if (extensionCols.includes(cellCol) && 
+                            Math.abs(cellRow - tsunamiRun.row) <= 1) {
+                            cellsInExtension++;
+                        }
+                        
+                        if (cellCol >= tsunamiRun.startX && cellCol <= tsunamiRun.endX &&
+                            (cellRow === tsunamiRun.row - 1 || cellRow === tsunamiRun.row + 1)) {
+                            cellsOnRun++;
+                        }
+                    }
+                }
+            }
+            
+            // Penalize early completion when more pieces are coming
+            if (cellsInExtension > 0 && matchingInQueue >= 1) {
+                tsunamiBonus -= matchingInQueue * 20;
+            }
+            
+            // Reward expanding the blob
+            if (cellsOnRun > 0 && cellsInExtension === 0) {
+                tsunamiBonus += cellsOnRun * 15 + matchingInQueue * 10;
+            }
+        }
         
         score += tsunamiBonus;
     }
