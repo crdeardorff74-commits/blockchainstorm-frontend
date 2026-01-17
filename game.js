@@ -11153,6 +11153,19 @@ function dropPiece() {
             return;
         }
         
+        // During replay, don't lock if there are still inputs pending for this piece
+        if (replayActive && replayPieceIndex < replayPieceData.length) {
+            const pieceEntry = replayPieceData[replayPieceIndex];
+            if (pieceEntry && replayInputIndex < pieceEntry.inputs.length) {
+                // Still have inputs to process - activate lock delay to wait
+                if (!lockDelayActive) {
+                    lockDelayActive = true;
+                    lockDelayCounter = 0;
+                }
+                return; // Don't lock yet
+            }
+        }
+        
         // Check if any block of the piece extends beyond the top of the well
         const extendsAboveTop = currentPiece.shape.some((row, dy) => {
             return row.some((value, dx) => {
@@ -11165,6 +11178,10 @@ function dropPiece() {
         });
         
         if (extendsAboveTop) {
+            // During replay, check if we should resync instead of ending
+            if (tryReplayResyncOnGameOver()) {
+                return; // Resync successful, continue replay
+            }
             // Merge visible parts of the piece to the board so they remain visible
             mergePiece();
             currentPiece = null;
@@ -11175,6 +11192,10 @@ function dropPiece() {
         // Check if piece at current position still overlaps with existing blocks
         // This triggers game over if the piece couldn't escape the spawn collision
         if (collides(currentPiece)) {
+            // During replay, check if we should resync instead of ending
+            if (tryReplayResyncOnGameOver()) {
+                return; // Resync successful, continue replay
+            }
             // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
             mergePiece();
             currentPiece = null;
@@ -11306,6 +11327,10 @@ function dropPiece() {
                 gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
             }
         } else {
+            // During replay, check if we should resync instead of ending
+            if (tryReplayResyncOnGameOver()) {
+                return; // Resync successful, continue replay
+            }
             currentPiece = null; // Clear piece before game over
             gameOver();
         }
@@ -11952,6 +11977,17 @@ function update(time = 0) {
             
             // Only lock after lock delay time has elapsed
             if (lockDelayCounter >= LOCK_DELAY_TIME) {
+                // During replay, don't lock if there are still inputs pending for this piece
+                if (replayActive && replayPieceIndex < replayPieceData.length) {
+                    const pieceEntry = replayPieceData[replayPieceIndex];
+                    if (pieceEntry && replayInputIndex < pieceEntry.inputs.length) {
+                        // Still have inputs to process - don't lock yet
+                        // Cap lock delay counter to prevent runaway values
+                        lockDelayCounter = LOCK_DELAY_TIME;
+                        return; // Skip the lock, let inputs process
+                    }
+                }
+                
                 // Reset lock delay state BEFORE calling dropPiece
                 // (otherwise dropPiece sees lockDelayActive=true and returns early)
                 lockDelayActive = false;
@@ -14658,6 +14694,32 @@ function advanceReplayPiece() {
     } else {
         console.log('🎬 All pieces replayed');
     }
+}
+
+/**
+ * Check if replay should continue despite apparent game over
+ * Returns true if we resynced and should NOT call gameOver()
+ */
+function tryReplayResyncOnGameOver() {
+    if (!replayActive) return false;
+    
+    // Check if there are more pieces in the recording
+    if (replayPieceIndex + 1 < replayPieceData.length) {
+        console.log('🎬 DESYNC DETECTED: Game over triggered but recording has more pieces.');
+        console.log('🎬 Resyncing to piece', replayPieceIndex + 1, 'of', replayPieceData.length);
+        
+        // Clear the board position where the "game over" piece would have been
+        // (the board snapshot at next piece will fix everything anyway)
+        
+        // Advance to next piece (this will resync the board from snapshot)
+        replayPieceIndex++;
+        spawnReplayPiece();
+        
+        return true; // Replay continues - don't call gameOver()
+    }
+    
+    // This is the actual end of the recording
+    return false;
 }
 
 // Replay earthquake data (set before spawnEarthquake during replay)
