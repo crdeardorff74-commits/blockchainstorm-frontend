@@ -13753,7 +13753,10 @@ function spawnReplayPiece() {
     const pieceEntry = replayPieceData[replayPieceIndex];
     
     // Sync board state from snapshot (ensures perfect sync at each piece)
-    if (pieceEntry.boardSnapshot) {
+    // SKIP sync if volcano animation is in progress - the lava blocks will land
+    // naturally using recorded velocities, and we'll sync at the next piece after
+    // the volcano completes. This prevents the visual "snap" of lava blocks.
+    if (pieceEntry.boardSnapshot && !volcanoAnimating) {
         const snapshotBoard = decompressKeyframeBoard(pieceEntry.boardSnapshot, ROWS, COLS);
         let differences = 0;
         for (let y = 0; y < ROWS; y++) {
@@ -13767,6 +13770,8 @@ function spawnReplayPiece() {
         if (differences > 0) {
             console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
         }
+    } else if (pieceEntry.boardSnapshot && volcanoAnimating) {
+        console.log('🎬 Skipping board sync - volcano animation in progress');
     }
     
     // Create piece from recorded data
@@ -13922,12 +13927,32 @@ function processReplayInputs() {
             console.log('🎬 Replay: Volcano event at column', event.column);
             // Volcano eruptions are triggered by the volcano system itself
             // The recording just logs when it happened for debugging
+            
+            // IMPORTANT: Pre-queue ALL lava_projectile events for this piece NOW
+            // The volcano animation runs over several seconds, but the piece may lock
+            // and advance before all projectile events would naturally be processed.
+            // We need all projectile data available before the animation runs.
+            for (let i = replayRandomEventIndex + 1; i < pieceEntry.randomEvents.length; i++) {
+                const futureEvent = pieceEntry.randomEvents[i];
+                if (futureEvent.type === 'lava_projectile') {
+                    replayLavaProjectiles.push({
+                        vx: futureEvent.vx,
+                        vy: futureEvent.vy
+                    });
+                    console.log('🎬 Replay: Pre-queued lava projectile', replayLavaProjectiles.length);
+                }
+            }
         } else if (event.type === 'lava_projectile') {
             // Queue lava projectile velocity for spawnLavaProjectile to use
-            replayLavaProjectiles.push({
-                vx: event.vx,
-                vy: event.vy
-            });
+            // (This may have already been pre-queued by volcano event handler above,
+            //  but we check to avoid duplicates)
+            const alreadyQueued = replayLavaProjectiles.length > replayLavaProjectileIndex;
+            if (!alreadyQueued) {
+                replayLavaProjectiles.push({
+                    vx: event.vx,
+                    vy: event.vy
+                });
+            }
         }
         
         replayRandomEventIndex++;
