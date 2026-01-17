@@ -1,7 +1,7 @@
-// AI Worker v5.2.0 - Add I-piece dependency penalty for single-column wells
-console.log("🤖 AI Worker v5.2.0 loaded - penalizes single-column wells that require I-pieces");
+// AI Worker v5.3.0 - Add tsunami blocking penalty + I-piece dependency penalty
+console.log("🤖 AI Worker v5.3.0 loaded - non-matching pieces now penalized for blocking tsunami path");
 
-const AI_VERSION = "5.2.0";
+const AI_VERSION = "5.3.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -599,7 +599,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
-        tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0 },
+        tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0, blockingPenalty: 0 },
         volcano: { potential: false, progress: 0, innerSize: 0, bonus: 0 },
         blob: { horizontalAdj: 0, verticalAdj: 0, bonus: 0 },
         runs: { bonus: 0 },
@@ -1091,6 +1091,77 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         
         if (!breakdown.classification || breakdown.classification === 'neutral') {
             breakdown.classification = 'offensive';
+        }
+    }
+    
+    // ====== TSUNAMI BLOCKING PENALTY ======
+    // If we're building a tsunami and this piece is NOT the tsunami color,
+    // penalize placements that block the extension path
+    if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color !== bestTsunamiColor) {
+        const tsunamiRun = bestRuns[bestTsunamiColor];
+        if (tsunamiRun) {
+            const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+            
+            // Only apply blocking penalty if we have pieces to continue the tsunami
+            if (matchingInQueue >= 1 || bestTsunamiWidth >= 8) {
+                const tsunamiRow = tsunamiRun.row;
+                
+                // Extension columns are those adjacent to the run that could extend it
+                const extensionCols = [];
+                if (tsunamiRun.startX > 0) {
+                    // Can extend left
+                    for (let col = tsunamiRun.startX - 1; col >= 0; col--) {
+                        extensionCols.push(col);
+                        // Only consider 2-3 columns of extension path
+                        if (extensionCols.length >= 3) break;
+                    }
+                }
+                if (tsunamiRun.endX < cols - 1) {
+                    // Can extend right
+                    for (let col = tsunamiRun.endX + 1; col < cols; col++) {
+                        extensionCols.push(col);
+                        if (extensionCols.length >= 6) break; // Max 3 on each side
+                    }
+                }
+                
+                // Check if piece cells block extension columns at or near tsunami row
+                let blockingCells = 0;
+                for (let py = 0; py < shape.length; py++) {
+                    for (let px = 0; px < shape[py].length; px++) {
+                        if (shape[py][px]) {
+                            const cellCol = x + px;
+                            const cellRow = y + py;
+                            
+                            // Check if this cell is in an extension column
+                            // Allow some vertical tolerance (±2 rows) since pieces can stack
+                            if (extensionCols.includes(cellCol) && 
+                                Math.abs(cellRow - tsunamiRow) <= 2) {
+                                blockingCells++;
+                            }
+                        }
+                    }
+                }
+                
+                if (blockingCells > 0) {
+                    // Penalty scales with how important the tsunami is
+                    let blockingPenalty = blockingCells * 8;
+                    
+                    if (tsunamiImminent || tsunamiNearCompletion) {
+                        // Very bad to block an almost-complete tsunami
+                        blockingPenalty = blockingCells * 25;
+                    } else if (tsunamiLikelyAchievable) {
+                        blockingPenalty = blockingCells * 15;
+                    } else if (bestTsunamiWidth >= 7) {
+                        blockingPenalty = blockingCells * 12;
+                    }
+                    
+                    // Extra penalty if there are matching pieces waiting in queue
+                    blockingPenalty += matchingInQueue * blockingCells * 5;
+                    
+                    breakdown.tsunami.blockingPenalty = blockingPenalty;
+                    score -= blockingPenalty;
+                }
+            }
         }
     }
     
@@ -1697,6 +1768,60 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         tsunamiBonus += matchingInQueue * 8;
         
         score += tsunamiBonus;
+    }
+    
+    // ====== TSUNAMI BLOCKING PENALTY ======
+    // Penalize non-tsunami-color pieces that block extension path
+    if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color !== bestTsunamiColor) {
+        const tsunamiRun = bestRuns[bestTsunamiColor];
+        if (tsunamiRun) {
+            const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+            
+            if (matchingInQueue >= 1 || bestTsunamiWidth >= 8) {
+                const tsunamiRow = tsunamiRun.row;
+                
+                // Extension columns
+                const extensionCols = [];
+                if (tsunamiRun.startX > 0) {
+                    for (let col = tsunamiRun.startX - 1; col >= 0 && extensionCols.length < 3; col--) {
+                        extensionCols.push(col);
+                    }
+                }
+                if (tsunamiRun.endX < cols - 1) {
+                    for (let col = tsunamiRun.endX + 1; col < cols && extensionCols.length < 6; col++) {
+                        extensionCols.push(col);
+                    }
+                }
+                
+                // Check if piece blocks extension
+                let blockingCells = 0;
+                for (let py = 0; py < shape.length; py++) {
+                    for (let px = 0; px < shape[py].length; px++) {
+                        if (shape[py][px]) {
+                            const cellCol = x + px;
+                            const cellRow = y + py;
+                            if (extensionCols.includes(cellCol) && 
+                                Math.abs(cellRow - tsunamiRow) <= 2) {
+                                blockingCells++;
+                            }
+                        }
+                    }
+                }
+                
+                if (blockingCells > 0) {
+                    let blockingPenalty = blockingCells * 8;
+                    if (tsunamiImminent || tsunamiNearCompletion) {
+                        blockingPenalty = blockingCells * 25;
+                    } else if (tsunamiLikelyAchievable) {
+                        blockingPenalty = blockingCells * 15;
+                    } else if (bestTsunamiWidth >= 7) {
+                        blockingPenalty = blockingCells * 12;
+                    }
+                    blockingPenalty += matchingInQueue * blockingCells * 5;
+                    score -= blockingPenalty;
+                }
+            }
+        }
     }
     
     // ====== VOLCANO BUILDING BONUSES ======
