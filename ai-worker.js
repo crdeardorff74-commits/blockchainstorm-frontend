@@ -1,7 +1,7 @@
-// AI Worker v4.9.0 - Smart edge vertical detection: only penalize when creating overhangs, not filling gaps
-console.log("🤖 AI Worker v4.9.0 loaded - edge vertical Z/S now encouraged when filling gaps");
+// AI Worker v5.0.0 - Add edge fill bonus to actively reward filling edge gaps
+console.log("🤖 AI Worker v5.0.0 loaded - edge fill bonus rewards touching low edges");
 
-const AI_VERSION = "4.9.0";
+const AI_VERSION = "5.0.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -594,7 +594,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         height: { value: 0, penalty: 0 },
         bumpiness: { value: 0, penalty: 0 },
         wells: { count: 0, penalty: 0 },
-        edgeWells: { leftDepth: 0, rightDepth: 0, penalty: 0 },
+        edgeWells: { leftDepth: 0, rightDepth: 0, penalty: 0, fillBonus: 0 },
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
@@ -811,6 +811,50 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     breakdown.edgeWells.penalty = edgeWellPenalty;
     score -= edgeWellPenalty;
+    
+    // ====== EDGE FILL BONUS ======
+    // Actively reward placements that touch edge columns when they need filling
+    // This complements the edge well penalty by making edge placements attractive
+    let edgeFillBonus = 0;
+    
+    // Check which columns the piece touches
+    let touchesCol0 = false;
+    let touchesCol9 = false;
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const col = x + px;
+                if (col === 0) touchesCol0 = true;
+                if (col === cols - 1) touchesCol9 = true;
+            }
+        }
+    }
+    
+    // Bonus for filling left edge when it's lower than middle
+    if (touchesCol0 && leftEdgeDepth > 2) {
+        // Progressive bonus based on how much lower the edge is
+        if (leftEdgeDepth > 8) {
+            edgeFillBonus += 40 + (leftEdgeDepth - 8) * 5;  // Strong incentive for deep gaps
+        } else if (leftEdgeDepth > 5) {
+            edgeFillBonus += 20 + (leftEdgeDepth - 5) * 4;
+        } else {
+            edgeFillBonus += (leftEdgeDepth - 2) * 4;
+        }
+    }
+    
+    // Bonus for filling right edge when it's lower than middle
+    if (touchesCol9 && rightEdgeDepth > 2) {
+        if (rightEdgeDepth > 8) {
+            edgeFillBonus += 40 + (rightEdgeDepth - 8) * 5;
+        } else if (rightEdgeDepth > 5) {
+            edgeFillBonus += 20 + (rightEdgeDepth - 5) * 4;
+        } else {
+            edgeFillBonus += (rightEdgeDepth - 2) * 4;
+        }
+    }
+    
+    breakdown.edgeWells.fillBonus = edgeFillBonus;
+    score += edgeFillBonus;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
@@ -1336,6 +1380,47 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     score -= edgeWellPenalty;
+    
+    // ====== EDGE FILL BONUS ======
+    // Actively reward placements that touch edge columns when they need filling
+    let edgeFillBonus = 0;
+    
+    // Check which columns the piece touches
+    let touchesCol0 = false;
+    let touchesCol9 = false;
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const col = x + px;
+                if (col === 0) touchesCol0 = true;
+                if (col === cols - 1) touchesCol9 = true;
+            }
+        }
+    }
+    
+    // Bonus for filling left edge when it's lower than middle
+    if (touchesCol0 && leftEdgeDepth > 2) {
+        if (leftEdgeDepth > 8) {
+            edgeFillBonus += 40 + (leftEdgeDepth - 8) * 5;
+        } else if (leftEdgeDepth > 5) {
+            edgeFillBonus += 20 + (leftEdgeDepth - 5) * 4;
+        } else {
+            edgeFillBonus += (leftEdgeDepth - 2) * 4;
+        }
+    }
+    
+    // Bonus for filling right edge when it's lower than middle
+    if (touchesCol9 && rightEdgeDepth > 2) {
+        if (rightEdgeDepth > 8) {
+            edgeFillBonus += 40 + (rightEdgeDepth - 8) * 5;
+        } else if (rightEdgeDepth > 5) {
+            edgeFillBonus += 20 + (rightEdgeDepth - 5) * 4;
+        } else {
+            edgeFillBonus += (rightEdgeDepth - 2) * 4;
+        }
+    }
+    
+    score += edgeFillBonus;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
