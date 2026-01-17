@@ -3277,7 +3277,7 @@ function spawnLavaProjectile() {
         
         // Record the projectile for replay
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
-            GameRecorder.recordLavaProjectile(direction, vx, vy);
+            GameRecorder.recordLavaProjectile(vx, vy);
         }
     }
     
@@ -4190,7 +4190,7 @@ function updateTornado() {
                 
                 // Record direction change for playback
                 if (window.GameRecorder && window.GameRecorder.isActive()) {
-                    window.GameRecorder.recordTornadoDirectionChange(tornadoSnakeDirection, tornadoSnakeChangeCounter);
+                    window.GameRecorder.recordTornadoDirection(tornadoSnakeDirection, tornadoSnakeChangeCounter);
                 }
             }
         }
@@ -6749,11 +6749,6 @@ function createGiantPiece(segmentCount) {
         x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
         y: -pieceHeight  // Spawn completely above the well
     };
-    
-    // Record piece generation for playback
-    if (window.GameRecorder && window.GameRecorder.isActive()) {
-        window.GameRecorder.recordPieceGenerated(piece);
-    }
     
     return piece;
 }
@@ -9520,7 +9515,7 @@ function checkForSpecialFormations() {
         // Record detailed volcano data for replay (both AI and human games)
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length });
-            GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType, v.lavaBlob);
+            GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType);
         }
         
         // NOTE: Score and histogram update delayed until eruption phase starts
@@ -9539,7 +9534,6 @@ function checkForSpecialFormations() {
             // Record detailed black hole data for replay (both AI and human games)
             if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
-                GameRecorder.recordBlackHole(bh.innerBlob, bh.outerBlob);
             }
             
             // Score calculation - BLACK HOLE SCORING:
@@ -9581,7 +9575,6 @@ function checkForSpecialFormations() {
             // Record detailed tsunami data for replay (both AI and human games)
             if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordEvent('tsunami', { count: tsunamiCount, blobSize: blob.positions.length });
-                GameRecorder.recordTsunami(blob);
             }
             
             // Score calculation - TSUNAMI SCORING:
@@ -10096,11 +10089,6 @@ function createAnimations(blobs) {
  */
 function startGravityAnimation(animations) {
     console.log('🎬 Starting gravity animation...');
-    
-    // Record gravity event for replay
-    if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
-        GameRecorder.recordGravity(animations);
-    }
     
     // Clear blocks from their original positions on the real board
     animations.forEach(anim => {
@@ -12193,11 +12181,6 @@ function update(time = 0) {
             height: 25
         };
         ctx.restore();
-    }
-
-    // Capture frame for game recording (keyframes for replay)
-    if (window.GameRecorder && window.GameRecorder.isActive()) {
-        window.GameRecorder.captureFrame(board);
     }
 
     gameLoop = requestAnimationFrame(update);
