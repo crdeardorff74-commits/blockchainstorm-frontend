@@ -14472,6 +14472,10 @@ window.startGameReplay = function(recording) {
     
     // Start game running
     gameRunning = true;
+    currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey
+    console.log('🎬 Resetting StarfieldSystem for replay');
+    StarfieldSystem.reset(); // Reset all starfield state (planets, asteroids, journey)
+    StarfieldSystem.hidePlanetStats(); // Hide any lingering planet info
     StarfieldSystem.setGameRunning(true);
     setGameInProgress(true); // Notify audio system game is in progress
     document.body.classList.add('game-running');
