@@ -3262,7 +3262,6 @@ function spawnLavaProjectile() {
     // During replay, use recorded projectile values
     if (replayActive && replayLavaProjectileIndex < replayLavaProjectiles.length) {
         const projData = replayLavaProjectiles[replayLavaProjectileIndex];
-        direction = projData.direction;
         vx = projData.vx;
         vy = projData.vy;
         replayLavaProjectileIndex++;
@@ -14270,6 +14269,21 @@ window.startGameReplay = function(recording) {
     // F Word song selection (easter egg)
     replayFWordSongId = recData.fWordSongId || null;
     
+    // Clear tornado replay arrays (populated as events are processed)
+    replayTornadoSpawnData = null;
+    replayTornadoDirChanges = [];
+    replayTornadoDirIndex = 0;
+    replayTornadoDrops = [];
+    replayTornadoDropIndex = 0;
+    
+    // Clear lava projectile replay arrays
+    replayLavaProjectiles = [];
+    replayLavaProjectileIndex = 0;
+    
+    // Clear earthquake replay data
+    replayEarthquakeCrack = null;
+    replayEarthquakeShiftType = null;
+    
     replayPaused = false;
     
     // Hide any existing overlays/menus
@@ -14634,6 +14648,17 @@ function processReplayInputs() {
                 snakeChangeCounter: event.snakeChangeCounter || 30
             };
             spawnTornado();
+        } else if (event.type === 'tornado_direction') {
+            // Queue tornado direction change for updateTornado to use
+            replayTornadoDirChanges.push({
+                newDirection: event.direction,
+                newCounter: event.velocity || 30
+            });
+        } else if (event.type === 'tornado_drop') {
+            // Queue tornado drop target for updateTornado to use
+            replayTornadoDrops.push({
+                targetX: event.targetX
+            });
         } else if (event.type === 'earthquake') {
             console.log('🎬 Replay: Spawning earthquake');
             // Load crack data for replay
@@ -14643,9 +14668,15 @@ function processReplayInputs() {
             }
             spawnEarthquake();
         } else if (event.type === 'volcano') {
-            console.log('🎬 Replay: Volcano event');
+            console.log('🎬 Replay: Volcano event at column', event.column);
+            // Volcano eruptions are triggered by the volcano system itself
+            // The recording just logs when it happened for debugging
         } else if (event.type === 'lava_projectile') {
-            console.log('🎬 Replay: Lava projectile');
+            // Queue lava projectile velocity for spawnLavaProjectile to use
+            replayLavaProjectiles.push({
+                vx: event.vx,
+                vy: event.vy
+            });
         }
         
         replayRandomEventIndex++;
@@ -14734,6 +14765,14 @@ let replayEarthquakeShiftType = null;
 
 // Replay tornado data (set before spawnTornado during replay)
 let replayTornadoSpawnData = null;
+// Tornado direction changes and drops (collected from all pieces at replay start)
+let replayTornadoDirChanges = [];
+let replayTornadoDirIndex = 0;
+let replayTornadoDrops = [];
+let replayTornadoDropIndex = 0;
+// Lava projectile velocities (collected as events are processed)
+let replayLavaProjectiles = [];
+let replayLavaProjectileIndex = 0;
 
 /**
  * Show replay UI controls
@@ -14968,6 +15007,12 @@ function stopReplay() {
     replayEarthquakeCrack = null;
     replayEarthquakeShiftType = null;
     replayTornadoSpawnData = null;
+    replayTornadoDirChanges = [];
+    replayTornadoDirIndex = 0;
+    replayTornadoDrops = [];
+    replayTornadoDropIndex = 0;
+    replayLavaProjectiles = [];
+    replayLavaProjectileIndex = 0;
     
     // Cancel any active animations
     tsunamiAnimating = false;

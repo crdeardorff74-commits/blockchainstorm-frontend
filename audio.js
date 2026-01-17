@@ -307,9 +307,16 @@ function getCurrentSongInfo() {
         return null;
     }
     
+    // Strip the parenthesized number from F Word songs for display
+    // "F Word (3)" -> "F Word"
+    let displayName = song.name;
+    if (currentPlayingTrack.startsWith('f_word_')) {
+        displayName = 'F Word';
+    }
+    
     return {
         id: currentPlayingTrack,
-        name: song.name,
+        name: displayName,
         duration: audio.duration || 0,
         currentTime: audio.currentTime || 0,
         file: song.file
@@ -649,6 +656,7 @@ function setReplayTracks(trackList) {
     replayModeActive = true;
     replayTrackList = trackList || [];
     replayTrackIndex = 0;
+    nextSongOverride = null; // Clear any leftover queued F Word song
     console.log('🎵 Replay mode enabled with', replayTrackList.length, 'tracks:', replayTrackList.map(t => t.trackName || t.trackId));
 }
 
@@ -657,6 +665,7 @@ function clearReplayTracks() {
     replayModeActive = false;
     replayTrackList = [];
     replayTrackIndex = 0;
+    nextSongOverride = null; // Clear any queued F Word song
     console.log('🎵 Replay mode disabled, returning to shuffle');
 }
 
@@ -1657,6 +1666,9 @@ function stopMusic() {
     
     // Reset shuffle mode state
     currentMusicSelection = 'none';
+    
+    // Clear any queued F Word song override
+    nextSongOverride = null;
     
     // Stop MP3 playback
     if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
