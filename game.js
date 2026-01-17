@@ -8772,15 +8772,6 @@ function wouldTriggerSpecialEvent(piece) {
         return true; // Would trigger black hole
     }
     
-    // Check for volcanoes (L-shaped lava blob) - DISABLED: isLShape function not defined
-    // const lavaBlobs = blobs.filter(b => b.color === volcanoLavaColor);
-    // for (const lavaBlob of lavaBlobs) {
-    //     if (isLShape(lavaBlob)) {
-    //         console.log('🚫 Bounce prevented: Would trigger volcano');
-    //         return true; // Would trigger volcano
-    //     }
-    // }
-    
     return false; // No special events would trigger
 }
 
@@ -15154,14 +15145,7 @@ function stopReplay() {
     console.log('🎬 Replay stopped');
 }
 
-// Legacy runReplay function - kept for backwards compatibility but now mostly unused
-function runReplay() {
-    // The new deterministic replay uses the normal game loop
-    // This function is kept for any legacy code that might call it
-    if (!replayActive) return;
-    console.log('🎬 Legacy runReplay called - using new deterministic system');
-}
-    
+
 
 function updateReplayDisplays() {
     scoreDisplay.textContent = formatAsBitcoin(score);
@@ -15171,57 +15155,6 @@ function updateReplayDisplays() {
     tsunamisDisplay.textContent = tsunamiCount;
     blackHolesDisplay.textContent = blackHoleCount;
     volcanoesDisplay.textContent = volcanoCount;
-}
-
-function getPieceShapeForReplay(type, rotation) {
-    // Standard tetromino shapes
-    const shapes = {
-        'I': [[[1,1,1,1]], [[1],[1],[1],[1]]],
-        'O': [[[1,1],[1,1]]],
-        'T': [[[1,1,1],[0,1,0]], [[1,0],[1,1],[1,0]], [[0,1,0],[1,1,1]], [[0,1],[1,1],[0,1]]],
-        'S': [[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]],
-        'Z': [[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]],
-        'J': [[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]],
-        'L': [[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]
-    };
-    
-    const typeShapes = shapes[type] || shapes['T'];
-    return typeShapes[rotation % typeShapes.length];
-}
-
-// Calculate highest Y where piece can be without overlapping board
-function calculateReplayCollisionY(piece) {
-    if (!piece || !piece.shape) return ROWS;
-    
-    // For each column the piece occupies, find the highest occupied cell
-    // Then calculate the highest Y where the piece fits
-    let maxY = ROWS; // Start with bottom of board
-    
-    piece.shape.forEach((row, py) => {
-        row.forEach((val, px) => {
-            if (val) {
-                const boardX = piece.x + px;
-                if (boardX < 0 || boardX >= COLS) return;
-                
-                // Find highest occupied cell in this column
-                let highestOccupied = ROWS;
-                for (let y = 0; y < ROWS; y++) {
-                    if (board[y] && board[y][boardX]) {
-                        highestOccupied = y;
-                        break;
-                    }
-                }
-                
-                // The piece block at (px, py) can't go below highestOccupied - 1
-                // So piece.y + py must be < highestOccupied
-                // Therefore piece.y must be < highestOccupied - py
-                const maxYForThisBlock = highestOccupied - py - 1;
-                maxY = Math.min(maxY, maxYForThisBlock);
-            }
-        });
-    });
-    
-    return maxY;
 }
 
 /**
@@ -15282,13 +15215,5 @@ function drawReplayPiece(piece) {
     drawSolidShape(ctx, positions, piece.color, BLOCK_SIZE, false, getFaceOpacity());
 }
 
-
-// Helper for replay controls
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 console.log('🎬 Replay system initialized');

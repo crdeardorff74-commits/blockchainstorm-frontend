@@ -1043,19 +1043,10 @@ async function submitScore(gameData) {
     }
 }
 
-// Fetch leaderboard
+// Fetch leaderboard (deprecated - use fetchLeaderboard for full features)
+// Kept for backwards compatibility
 async function getLeaderboard(difficulty = 'downpour', mode = 'normal') {
-    try {
-        const response = await fetch(
-            `${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}`
-        );
-        if (response.ok) {
-            return await response.json();
-        }
-    } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-    }
-    return [];
+    return fetchLeaderboard(difficulty, mode, 'tempest');
 }
 
 // HTML escape utility

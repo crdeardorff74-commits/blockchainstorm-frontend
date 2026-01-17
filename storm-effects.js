@@ -1,5 +1,18 @@
 // Storm Particle System Module
 // Handles weather effects for different game modes
+//
+// NOTE: This module is NOT CURRENTLY USED. The game.js file contains its own
+// storm particle implementations (createStormParticle, updateStormParticles, 
+// drawStormParticles). This module was created for future modularization but
+// was never integrated. Consider either:
+// 1. Completing the integration by having game.js use this module
+// 2. Removing this file entirely
+// 
+// If integrating, game.js would need to:
+// - Call StormEffects.init() with config during initialization
+// - Call StormEffects.updateGameState() when game state changes
+// - Call StormEffects.update() and StormEffects.draw() in the game loop
+// - Remove its own storm particle implementations
 
 const StormEffects = (() => {
     // Storm particle arrays
