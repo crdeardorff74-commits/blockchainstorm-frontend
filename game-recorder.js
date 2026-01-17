@@ -22,7 +22,7 @@ const GameRecorder = (() => {
      */
     function startRecording(config) {
         recording = {
-            version: '1.3',
+            version: '1.2',
             gameVersion: config.gameVersion || 'unknown',
             startTime: Date.now(),
             playerType: config.playerType || 'human',
@@ -32,15 +32,6 @@ const GameRecorder = (() => {
             mode: config.mode || 'normal',
             challenges: config.challenges || [],
             speedBonus: config.speedBonus || 1.0,
-            
-            // Visual settings for accurate playback
-            visualSettings: {
-                faceOpacity: config.faceOpacity ?? 0.42,
-                stormEffects: config.stormEffects ?? true,
-                cameraReversed: config.cameraReversed ?? false,
-                starSpeed: config.starSpeed ?? 1.0,
-                minimalistMode: config.minimalistMode ?? false
-            },
             
             // Game events
             moves: [],          // Every piece placement

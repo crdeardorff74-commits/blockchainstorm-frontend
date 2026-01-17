@@ -4967,10 +4967,8 @@ function updateEarthquake() {
 
 function generateEarthquakeCrack() {
     // During replay, use recorded crack instead of generating new one
-    console.log('🌍 generateEarthquakeCrack called, replayActive:', replayActive, 'replayEarthquakeIndex:', replayEarthquakeIndex, 'replayEarthquakes.length:', replayEarthquakes.length);
     if (replayActive && replayEarthquakeIndex < replayEarthquakes.length) {
         const recorded = replayEarthquakes[replayEarthquakeIndex];
-        console.log('🌍 Recorded earthquake data:', recorded);
         // Don't increment index yet - splitBlocksByCrack will use it for shiftType
         // Check both 'crack' (new format) and 'crackPath' (legacy) 
         const crackData = recorded.crack || recorded.crackPath;
@@ -4982,8 +4980,6 @@ function generateEarthquakeCrack() {
             });
             console.log('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
             return;
-        } else {
-            console.log('🌍 No crack data found in recording (crack:', recorded.crack, 'crackPath:', recorded.crackPath, ')');
         }
     }
     
@@ -5153,7 +5149,8 @@ function splitBlocksByCrack() {
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
     earthquakeCrack.forEach(pt => {
-        if (pt.edge === 'vertical') {
+        // Accept points with edge='vertical' OR missing edge (for backwards compatibility with old recordings)
+        if (pt.edge === 'vertical' || pt.edge === undefined) {
             // For vertical edges, the crack separates columns at x-1 (left) and x (right)
             if (!crackPositions.has(pt.y)) {
                 crackPositions.set(pt.y, pt.x);
@@ -14216,6 +14213,8 @@ let replayEventIndex = 0;
 let replayGameEventIndex = 0;
 let replayAnimatingCells = new Set();
 let replayLastKeyframeTime = -1;
+let replayKeyframes = [];           // Board state keyframes for resync
+let replayKeyframeIndex = 0;
 let replayGravityBoardLocked = false;
 let replayPieceStartY = -2;
 
@@ -14286,6 +14285,13 @@ window.startGameReplay = function(recording) {
     replayMusicTracks = recData.musicTracks || [];
     replayMusicIndex = 0;
     
+    // Load keyframes for board state resync
+    replayKeyframes = recData.keyframes || [];
+    replayKeyframeIndex = 0;
+    if (replayKeyframes.length > 0) {
+        console.log('🎬 Loaded', replayKeyframes.length, 'keyframes for board resync');
+    }
+    
     replayRandomEvents.forEach(event => {
         switch (event.type) {
             case 'tornado_spawn':
@@ -14298,7 +14304,6 @@ window.startGameReplay = function(recording) {
                 replayTornadoDrops.push(event);
                 break;
             case 'earthquake':
-                console.log('🎬 Parsing earthquake event:', event);
                 replayEarthquakes.push(event);
                 break;
             case 'volcano':
@@ -14308,13 +14313,6 @@ window.startGameReplay = function(recording) {
                 replayLavaProjectiles.push(event);
                 break;
         }
-    });
-    
-    console.log('🎬 Replay random events parsed:', {
-        totalEvents: replayRandomEvents.length,
-        earthquakes: replayEarthquakes.length,
-        tornadoSpawns: replayTornadoSpawns.length,
-        volcanoes: replayVolcanoes.length
     });
     
     // Reset timing
@@ -14542,6 +14540,73 @@ window.startGameReplay = function(recording) {
     console.log('🎬 Deterministic replay started - game is running');
 };
 /**
+ * Decompress a keyframe board state into a full board array
+ */
+function decompressKeyframeBoard(compressed, rows, cols) {
+    const board = Array.from({ length: rows }, () => Array(cols).fill(null));
+    if (!compressed) return board;
+    
+    compressed.forEach(cell => {
+        if (cell.y >= 0 && cell.y < rows && cell.x >= 0 && cell.x < cols) {
+            board[cell.y][cell.x] = cell.c;
+        }
+    });
+    return board;
+}
+
+/**
+ * Compare current board to a keyframe and return number of differences
+ */
+function compareBoardToKeyframe(currentBoard, keyframeBoard) {
+    let differences = 0;
+    const rows = currentBoard.length;
+    const cols = currentBoard[0]?.length || 0;
+    
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const current = currentBoard[y]?.[x];
+            const expected = keyframeBoard[y]?.[x];
+            if (current !== expected) {
+                differences++;
+            }
+        }
+    }
+    return differences;
+}
+
+/**
+ * Check keyframes and resync board if needed
+ */
+function checkKeyframeResync() {
+    if (!replayActive || replayKeyframes.length === 0) return;
+    if (replayKeyframeIndex >= replayKeyframes.length) return;
+    
+    // Don't resync during animations
+    if (gravityAnimating || tsunamiAnimating || blackHoleAnimating || earthquakeActive || tornadoActive) return;
+    
+    // Check if we've passed the next keyframe timestamp
+    const keyframe = replayKeyframes[replayKeyframeIndex];
+    if (replayElapsedTime >= keyframe.t) {
+        const keyframeBoard = decompressKeyframeBoard(keyframe.board, ROWS, COLS);
+        const differences = compareBoardToKeyframe(board, keyframeBoard);
+        
+        if (differences > 0) {
+            console.log('⚠️ Board desync detected at keyframe', replayKeyframeIndex, 
+                        '- differences:', differences, '- resyncing board');
+            
+            // Resync the board to the keyframe state
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    board[y][x] = keyframeBoard[y][x];
+                }
+            }
+        }
+        
+        replayKeyframeIndex++;
+    }
+}
+
+/**
  * Process replay inputs - inject recorded inputs at their timestamps
  * Called from the main update() loop during replay
  */
@@ -14616,7 +14681,7 @@ function processReplayInputs() {
             spawnTornado();
         } else if (event.type === 'earthquake') {
             // Spawn earthquake at recorded time
-            console.log('🎬 Replay: Spawning earthquake at', event.t, '- event data:', event);
+            console.log('🎬 Replay: Spawning earthquake at', event.t);
             spawnEarthquake();
         }
         // Note: Tsunamis, black holes, volcanoes, gravity happen naturally
@@ -14641,6 +14706,9 @@ function processReplayInputs() {
         
         replayMusicIndex++;
     }
+    
+    // Check keyframes and resync board if drifted
+    checkKeyframeResync();
     
     // Check if replay is complete
     // All inputs processed AND either: no more pieces to spawn OR game ended naturally
@@ -14844,6 +14912,8 @@ function stopReplay() {
     replayVolcanoIndex = 0;
     replayLavaProjectiles = [];
     replayLavaProjectileIndex = 0;
+    replayKeyframes = [];
+    replayKeyframeIndex = 0;
     
     // Cancel any active animations
     tsunamiAnimating = false;
