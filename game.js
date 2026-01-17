@@ -4967,8 +4967,10 @@ function updateEarthquake() {
 
 function generateEarthquakeCrack() {
     // During replay, use recorded crack instead of generating new one
+    console.log('🌍 generateEarthquakeCrack called, replayActive:', replayActive, 'replayEarthquakeIndex:', replayEarthquakeIndex, 'replayEarthquakes.length:', replayEarthquakes.length);
     if (replayActive && replayEarthquakeIndex < replayEarthquakes.length) {
         const recorded = replayEarthquakes[replayEarthquakeIndex];
+        console.log('🌍 Recorded earthquake data:', recorded);
         // Don't increment index yet - splitBlocksByCrack will use it for shiftType
         // Check both 'crack' (new format) and 'crackPath' (legacy) 
         const crackData = recorded.crack || recorded.crackPath;
@@ -4980,6 +4982,8 @@ function generateEarthquakeCrack() {
             });
             console.log('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
             return;
+        } else {
+            console.log('🌍 No crack data found in recording (crack:', recorded.crack, 'crackPath:', recorded.crackPath, ')');
         }
     }
     
@@ -14294,6 +14298,7 @@ window.startGameReplay = function(recording) {
                 replayTornadoDrops.push(event);
                 break;
             case 'earthquake':
+                console.log('🎬 Parsing earthquake event:', event);
                 replayEarthquakes.push(event);
                 break;
             case 'volcano':
@@ -14303,6 +14308,13 @@ window.startGameReplay = function(recording) {
                 replayLavaProjectiles.push(event);
                 break;
         }
+    });
+    
+    console.log('🎬 Replay random events parsed:', {
+        totalEvents: replayRandomEvents.length,
+        earthquakes: replayEarthquakes.length,
+        tornadoSpawns: replayTornadoSpawns.length,
+        volcanoes: replayVolcanoes.length
     });
     
     // Reset timing
@@ -14604,7 +14616,7 @@ function processReplayInputs() {
             spawnTornado();
         } else if (event.type === 'earthquake') {
             // Spawn earthquake at recorded time
-            console.log('🎬 Replay: Spawning earthquake at', event.t);
+            console.log('🎬 Replay: Spawning earthquake at', event.t, '- event data:', event);
             spawnEarthquake();
         }
         // Note: Tsunamis, black holes, volcanoes, gravity happen naturally
