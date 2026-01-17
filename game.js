@@ -14671,10 +14671,10 @@ function processReplayInputs() {
     
     if (allPiecesDone && gameEnded) {
         setTimeout(() => {
-            if (replayActive) {
+            if (replayActive && !replayCompleteShown) {
                 console.log('🎬 Replay complete!');
                 showReplayComplete();
-                replayActive = false;
+                // Keep replayActive true so restart works
             }
         }, 500);
     }
@@ -14693,6 +14693,12 @@ function advanceReplayPiece() {
         spawnReplayPiece();
     } else {
         console.log('🎬 All pieces replayed');
+        // All pieces done - show completion after a brief delay
+        setTimeout(() => {
+            if (replayActive && !replayCompleteShown) {
+                showReplayComplete();
+            }
+        }, 500);
     }
 }
 
@@ -14825,6 +14831,72 @@ function showReplayComplete() {
     // Stop the game loop but keep UI visible
     gameRunning = false;
     GamepadController.stopVibration(); // Stop any controller haptic feedback
+    
+    // Stop music
+    stopMusic();
+    stopTornadoWind();
+    
+    // Update replay controls for completion state
+    const pauseBtn = document.getElementById('replayPauseBtn');
+    const stopBtn = document.getElementById('replayStopBtn');
+    
+    if (pauseBtn) {
+        pauseBtn.disabled = true;
+        pauseBtn.style.opacity = '0.5';
+        pauseBtn.style.cursor = 'not-allowed';
+    }
+    
+    if (stopBtn) {
+        // Change Stop to Replay
+        stopBtn.innerHTML = '🔄 Replay';
+        stopBtn.style.background = '#27ae60';
+        stopBtn.onclick = restartReplay;
+    }
+    
+    // Add Exit button if not already present
+    if (!document.getElementById('replayExitBtn')) {
+        const controlsContainer = document.querySelector('#replayControls > div');
+        if (controlsContainer) {
+            const exitBtn = document.createElement('button');
+            exitBtn.id = 'replayExitBtn';
+            exitBtn.innerHTML = '✕ Exit';
+            exitBtn.style.cssText = `
+                background: #c0392b; border: none; color: white;
+                padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; 
+                font-size: 14px; height: 26px; box-sizing: border-box;
+            `;
+            exitBtn.onclick = stopReplay;
+            controlsContainer.appendChild(exitBtn);
+        }
+    }
+    
+    console.log('🎬 Replay complete');
+}
+
+/**
+ * Restart the current replay from the beginning
+ */
+function restartReplay() {
+    if (!replayData) return;
+    
+    console.log('🎬 Restarting replay...');
+    
+    // Store the recording data
+    const recording = replayData;
+    
+    // Stop current replay state
+    replayActive = false;
+    replayCompleteShown = false;
+    gameRunning = false;
+    
+    // Remove old replay controls
+    const existing = document.getElementById('replayControls');
+    if (existing) existing.remove();
+    
+    // Small delay to ensure clean state, then restart
+    setTimeout(() => {
+        window.startGameReplay(recording);
+    }, 100);
 }
 
 /**
