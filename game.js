@@ -2596,6 +2596,10 @@ let earthquakeLeftBlocks = []; // Blocks on left side of crack
 let earthquakeRightBlocks = []; // Blocks on right side of crack
 let earthquakeShiftType = 'both'; // 'both', 'left', 'right' - determines which side(s) move
 
+// Weather event grace period - lines cleared since last tornado/earthquake ended
+let weatherEventGracePeriod = 0;
+const WEATHER_GRACE_LINES = 4; // Lines that must be cleared before next weather event
+
 // Black Hole Animation System
 let blackHoleActive = false;
 let blackHoleAnimating = false;
@@ -4011,6 +4015,18 @@ function drawTsunami() {
 function spawnTornado() {
     if (tornadoActive || !gameRunning || paused) return;
     
+    // During normal play (not replay), also check for earthquake and grace period
+    if (!replayActive) {
+        if (earthquakeActive) {
+            console.log('🌪️ Tornado blocked - earthquake in progress');
+            return;
+        }
+        if (weatherEventGracePeriod > 0) {
+            console.log('🌪️ Tornado blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
+            return;
+        }
+    }
+    
     tornadoActive = true;
     tornadoY = 0;
     tornadoSpeed = 8; // Ensure consistent speed for recording and replay
@@ -4128,6 +4144,18 @@ function advanceToNextPlanet() {
 // Earthquake effect
 function spawnEarthquake() {
     if (earthquakeActive || !gameRunning || paused) return;
+    
+    // During normal play (not replay), also check for tornado and grace period
+    if (!replayActive) {
+        if (tornadoActive) {
+            console.log('🌍 Earthquake blocked - tornado in progress');
+            return;
+        }
+        if (weatherEventGracePeriod > 0) {
+            console.log('🌍 Earthquake blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
+            return;
+        }
+    }
     
     // Check if there's enough of a stack (tallest block must be above row 15, i.e., row 0-15)
     let tallestRow = ROWS;
@@ -4266,6 +4294,7 @@ function updateTornado() {
             GamepadController.vibrateTornadoImpact(false); // Touchdown celebration
             setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
             tornadoActive = false;
+            weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             stopTornadoWind(); // Stop the wind sound
             return;
         }
@@ -4589,6 +4618,7 @@ function updateTornado() {
         
         if (tornadoFadeProgress >= 1.0) {
             tornadoActive = false;
+            weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             stopTornadoWind(); // Stop the wind sound
         }
     }
@@ -4987,6 +5017,7 @@ function updateEarthquake() {
             applyGravity();
             
             earthquakeActive = false;
+            weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             console.log('🌍 Earthquake finished, earthquakeActive = false');
             
             // Stop controller haptic feedback
@@ -10760,6 +10791,14 @@ function clearLines() {
         
         lines += completedRows.length;
         
+        // Decrement weather event grace period
+        if (weatherEventGracePeriod > 0) {
+            weatherEventGracePeriod = Math.max(0, weatherEventGracePeriod - completedRows.length);
+            if (weatherEventGracePeriod === 0) {
+                console.log('🌤️ Weather event grace period ended');
+            }
+        }
+        
         // Record line clear event for replay (both AI and human games)
         // Include cell data so animation can work without reading from board
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
@@ -12484,6 +12523,9 @@ function startGame(mode) {
     earthquakeRightBlocks = [];
     tornadoFadeProgress = 0;
     tornadoParticles = [];
+    
+    // Reset weather event grace period
+    weatherEventGracePeriod = 0;
     
     // Reset black hole state
     blackHoleActive = false;
