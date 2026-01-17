@@ -1627,50 +1627,7 @@ function stopCreditsAnimation() {
     }
 }
 
-// Pre-render blurred snowflakes for performance
-const snowflakeBitmaps = [];
-function createSnowflakeBitmaps() {
-    const sizes = [5, 7.5, 10]; // Three different sizes (1/4 of original)
-    const blurLevels = [1, 1.5, 2]; // Three blur levels
-    
-    sizes.forEach(size => {
-        blurLevels.forEach(blur => {
-            const tempCanvas = document.createElement('canvas');
-            const tempSize = size + blur * 4; // Extra space for blur
-            tempCanvas.width = tempSize;
-            tempCanvas.height = tempSize;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            // Apply blur filter
-            tempCtx.filter = `blur(${blur}px)`;
-            
-            // Draw snowflake at center
-            tempCtx.save();
-            tempCtx.translate(tempSize / 2, tempSize / 2);
-            tempCtx.strokeStyle = 'rgba(240, 248, 255, 1)';
-            tempCtx.lineWidth = 1.5;
-            tempCtx.lineCap = 'round';
-            
-            // 6-pointed snowflake
-            for (let i = 0; i < 6; i++) {
-                tempCtx.save();
-                tempCtx.rotate((Math.PI / 3) * i);
-                tempCtx.beginPath();
-                tempCtx.moveTo(0, 0);
-                tempCtx.lineTo(size / 2, 0);
-                tempCtx.stroke();
-                tempCtx.restore();
-            }
-            tempCtx.restore();
-            
-            snowflakeBitmaps.push({
-                canvas: tempCanvas,
-                size: tempSize
-            });
-        });
-    });
-}
-createSnowflakeBitmaps();
+// Snowflake bitmaps now handled by StormEffects module (storm-effects.js)
 
 // Dynamic canvas sizing based on viewport
 let BLOCK_SIZE = 35;
@@ -2162,6 +2119,17 @@ if (typeof setOnPauseStateChangeCallback === 'function') {
 }
 // trainingWheelsToggle removed - shadow is now standard (use Shadowless challenge for +4% bonus)
 const stormEffectsToggle = document.getElementById('stormEffectsToggle');
+
+// Initialize StormEffects module (board reference passed later via updateGameState)
+if (typeof StormEffects !== 'undefined') {
+    StormEffects.init({
+        canvas: canvas,
+        ctx: ctx,
+        board: null, // Will be set via updateGameState when game starts
+        stormEffectsToggle: stormEffectsToggle
+    });
+}
+
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const settingsCloseBtn = document.getElementById('settingsCloseBtn');
@@ -2547,12 +2515,8 @@ let speedBonusPieceCount = 0; // Number of pieces placed
 let speedBonusAverage = 1.0; // Running average (displayed and applied to score)
 let pieceSpawnTime = 0; // Timestamp when current piece spawned
 
-// Storm Particle System
-let stormParticles = [];
-let liquidPools = []; // For Carrie/No Kings modes - pools that accumulate and drip
-let frameCount = 0; // Frame counter for liquid pooling timing
-const MAX_STORM_PARTICLES = 800; // Maximum number of particles at once (increased for hurricane deluge)
-let splashParticles = []; // Separate array for splash effects
+// Storm Particle System - Now handled by StormEffects module (storm-effects.js)
+// Variables stormParticles, liquidPools, splashParticles, MAX_STORM_PARTICLES moved to module
 
 // Tornado System
 let tornadoActive = false;
@@ -5295,7 +5259,7 @@ function drawEarthquake() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Draw storm particles behind gameplay
-        drawStormParticles();
+        StormEffects.draw();
         
         if (earthquakePhase === 'crack') {
         // During crack phase, render as SEGMENTED BLOBS
@@ -5704,749 +5668,10 @@ function mergeInterlockedBlobs(blobs) {
     return merged;
 }
 
-
-function createStormParticle() {
-    const particle = {
-        x: Math.random() * canvas.width,
-        y: -10, // Start above canvas
-        vx: 0,
-        vy: 0,
-        size: 2,
-        opacity: 0.7,
-        type: 'rain', // 'rain', 'hail', 'snow', 'wind'
-        rotation: 0,
-        rotationSpeed: 0,
-        color: 'rgba(255, 255, 255, 0.7)'
-    };
-    
-    // Check for special challenge modes first (Carrie and No Kings)
-    const isCarrieMode = challengeMode === 'carrie' || activeChallenges.has('carrie') || soRandomCurrentMode === 'carrie';
-    const isNoKingsMode = challengeMode === 'nokings' || activeChallenges.has('nokings') || soRandomCurrentMode === 'nokings';
-    
-    if (isCarrieMode || isNoKingsMode) {
-        // Special liquid rain that will drip down the stack
-        particle.type = 'liquid';
-        particle.vx = 0;
-        particle.vy = Math.random() * 6 + 8; // Medium-fast falling
-        particle.size = Math.random() * 4 + 4; // Much bigger drops (4-8 instead of 2-4)
-        particle.opacity = Math.random() * 0.3 + 0.5; // Slightly less opaque for performance
-        
-        // Determine color based on mode (or mix if both active)
-        if (isCarrieMode && isNoKingsMode) {
-            // Both modes - alternate between blood and brown - 90% opaque
-            particle.liquidType = Math.random() < 0.5 ? 'blood' : 'brown';
-            particle.color = particle.liquidType === 'blood' ? 
-                'rgba(180, 0, 0, 0.9)' : 
-                'rgba(101, 67, 33, 0.9)';
-        } else if (isCarrieMode) {
-            particle.liquidType = 'blood';
-            particle.color = 'rgba(180, 0, 0, 0.9)'; // Dark red - 90% opaque
-        } else {
-            particle.liquidType = 'brown';
-            particle.color = 'rgba(101, 67, 33, 0.9)'; // Brown - 90% opaque
-        }
-        
-        return particle;
-    }
-    
-    // Configure particle based on game mode
-    if (!gameMode || gameMode === 'drizzle') {
-        // Light rain - simple drops falling straight down
-        particle.type = 'rain';
-        particle.vx = 0;
-        particle.vy = Math.random() * 3 + 5; // 5-8 speed (increased from 4-6)
-        particle.size = Math.random() * 1 + 1; // Small drops
-        particle.opacity = Math.random() * 0.3 + 0.2;
-        particle.color = `rgba(180, 200, 255, ${particle.opacity})`;
-    } else if (gameMode === 'downpour') {
-        // Heavy rain - thicker drops, faster, with splashes
-        particle.type = 'rain';
-        particle.vx = 0;
-        particle.vy = Math.random() * 6 + 12; // 12-18 speed (DOUBLED from 6-9)
-        particle.size = Math.random() * 1.5 + 1.5; // Bigger drops
-        particle.opacity = Math.random() * 0.4 + 0.3;
-        particle.color = `rgba(180, 200, 255, ${particle.opacity})`;
-    } else if (gameMode === 'hailstorm') {
-        // Hail - solid ice chunks falling straight down VERY FAST
-        particle.type = 'hail';
-        particle.vx = 0; // Straight down, no horizontal drift
-        particle.vy = Math.random() * 6 + 12; // 12-18 speed (VERY heavy and fast)
-        particle.size = Math.random() * 3 + 3; // 3-6 size (solid chunks)
-        particle.opacity = Math.random() * 0.3 + 0.5; // More opaque
-        particle.rotation = Math.random() * Math.PI * 2;
-        particle.rotationSpeed = (Math.random() - 0.5) * 0.3; // Even faster rotation
-        particle.color = `rgba(200, 230, 255, ${particle.opacity})`;
-    } else if (gameMode === 'blizzard') {
-        // Intense blizzard - heavy diagonal snow/wind whipping across entire well
-        particle.type = 'blizzard';
-        
-        // Assign random pre-rendered snowflake bitmap
-        particle.snowflakeBitmap = snowflakeBitmaps[Math.floor(Math.random() * snowflakeBitmaps.length)];
-        
-        // Spawn from left side or top to cover entire well
-        if (Math.random() < 0.7) {
-            // Spawn from left side (70% of time)
-            particle.x = -20;
-            particle.y = Math.random() * canvas.height;
-        } else {
-            // Spawn from top (30% of time)
-            particle.x = Math.random() * canvas.width;
-            particle.y = -20;
-        }
-        
-        particle.vx = Math.random() * 7 + 9; // Very strong horizontal wind (9-16) - EVEN FASTER
-        particle.vy = Math.random() * 4 + 2; // Some vertical (2-6)
-        particle.size = Math.random() * 3.5 + 1.5; // Larger flakes
-        particle.opacity = Math.random() * 0.6 + 0.4;
-        particle.rotation = Math.random() * Math.PI * 2;
-        particle.rotationSpeed = (Math.random() - 0.5) * 0.12;
-        particle.color = `rgba(240, 248, 255, ${particle.opacity})`;
-    } else if (gameMode === 'hurricane') {
-        // Hurricane - extreme horizontal wall of rain
-        particle.type = 'hurricane';
-        
-        // Spawn from left side or top to cover entire well
-        if (Math.random() < 0.8) {
-            // Spawn from left side (80% of time)
-            particle.x = -20;
-            particle.y = Math.random() * canvas.height;
-        } else {
-            // Spawn from top-left area (20% of time)
-            particle.x = Math.random() * (canvas.width * 0.3);
-            particle.y = -20;
-        }
-        
-        particle.vx = Math.random() * 16 + 28; // INSANELY fast horizontal (28-44) - DOUBLED
-        particle.vy = Math.random() * 1 + 0.5; // Minimal vertical, no fluttering (0.5-1.5)
-        particle.size = Math.random() * 2.5 + 1.5;
-        particle.opacity = Math.random() * 0.5 + 0.4;
-        particle.color = `rgba(220, 240, 255, ${particle.opacity})`;
-    }
-    
-    return particle;
-}
-
-function createSplash(x, y, size) {
-    // Create splash particles that radiate outward
-    const numDroplets = Math.floor(Math.random() * 3) + 3; // 3-5 droplets
-    for (let i = 0; i < numDroplets; i++) {
-        const angle = Math.random() * Math.PI - Math.PI / 2; // Upward hemisphere
-        const speed = Math.random() * 2 + 1;
-        splashParticles.push({
-            x: x,
-            y: y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - 2, // Initial upward velocity
-            gravity: 0.2,
-            size: size * 0.5,
-            opacity: 0.6,
-            life: 15, // Frames to live
-            maxLife: 15
-        });
-    }
-}
-
-function checkCollisionWithBlocks(x, y) {
-    // Check if position collides with any block or bottom of well
-    const gridX = Math.floor(x / BLOCK_SIZE);
-    const gridY = Math.floor(y / BLOCK_SIZE);
-    
-    // Check bottom of well - trigger at the actual bottom
-    if (y >= canvas.height) {
-        return { collision: true, y: canvas.height };
-    }
-    
-    // Check if there's a block at the next position down
-    const nextGridY = Math.floor((y + BLOCK_SIZE * 0.1) / BLOCK_SIZE);
-    if (nextGridY >= 0 && nextGridY < ROWS && gridX >= 0 && gridX < COLS) {
-        if (board[nextGridY] && board[nextGridY][gridX]) {
-            // Hit the top of this block
-            return { collision: true, y: nextGridY * BLOCK_SIZE };
-        }
-    }
-    
-    return { collision: false };
-}
-
-function createHailBounce(x, y, size, vy) {
-    // Create a bouncing hail particle
-    return {
-        x: x,
-        y: y,
-        vx: 0,
-        vy: -Math.abs(vy) * 0.5, // Bounce up at half the impact velocity
-        gravity: 0.3,
-        size: size,
-        opacity: 0.7,
-        bounces: 0,
-        maxBounces: 2,
-        rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.15,
-        type: 'bouncing',
-        life: 60, // Frames to live
-        color: `rgba(220, 240, 255, 0.8)`
-    };
-}
-
-function createLiquidDrip(x, y, liquidType, color) {
-    // Find the TOP surface of the stack at this X position
-    const blockX = Math.floor(x / BLOCK_SIZE);
-    if (blockX < 0 || blockX >= COLS) return;
-    
-    // Find the topmost block in this column
-    let topBlockY = -1;
-    for (let checkY = 0; checkY < ROWS; checkY++) {
-        if (board[checkY] && board[checkY][blockX]) {
-            topBlockY = checkY;
-            break; // Found the top block
-        }
-    }
-    
-    // If no blocks found, don't create pool in mid-air
-    if (topBlockY === -1) {
-        return; // No surface to pool on
-    }
-    
-    // Convert to pixel coordinates (top of the block)
-    const poolY = topBlockY * BLOCK_SIZE;
-    const poolX = blockX * BLOCK_SIZE + BLOCK_SIZE / 2;
-    
-    // Check for existing pool at this location
-    let foundPool = false;
-    for (let pool of liquidPools) {
-        if (pool.blockX === blockX && pool.blockY === topBlockY) {
-            // Add to existing pool at same location
-            pool.volume = Math.min(pool.volume + 2, 25); // Cap volume
-            pool.lastAddedFrame = frameCount;
-            foundPool = true;
-            break;
-        }
-    }
-    
-    if (!foundPool) {
-        // Determine max pools based on active modes
-        const isCarrieMode = challengeMode === 'carrie' || activeChallenges.has('carrie') || soRandomCurrentMode === 'carrie';
-        const isNoKingsMode = challengeMode === 'nokings' || activeChallenges.has('nokings') || soRandomCurrentMode === 'nokings';
-        const maxPools = (isCarrieMode && isNoKingsMode) ? 60 : 30; // Double max pools when both active
-        
-        if (liquidPools.length < maxPools) {
-            // Create new pool on the top surface
-            liquidPools.push({
-                blockX: blockX,
-                blockY: topBlockY,
-                x: poolX,
-                y: poolY,
-                volume: 4,
-                color: color,
-                liquidType: liquidType,
-                opacity: 0.9, // 90% opaque
-                dripping: false,
-                dripStreaks: [], // Multiple drip streams
-                lastAddedFrame: frameCount,
-                age: 0
-            });
-        }
-    }
-}
-
-function updateLiquidPoolsAfterGravity() {
-    // Called after blocks fall to update liquid pool positions
-    liquidPools = liquidPools.filter(pool => {
-        // Check if the block the pool was on still exists
-        if (pool.blockY >= 0 && pool.blockY < ROWS) {
-            // Find the new top block in this column
-            let newTopBlockY = -1;
-            for (let checkY = 0; checkY < ROWS; checkY++) {
-                if (board[checkY] && board[checkY][pool.blockX]) {
-                    newTopBlockY = checkY;
-                    break;
-                }
-            }
-            
-            if (newTopBlockY === -1) {
-                // No blocks in this column anymore, remove pool
-                return false;
-            }
-            
-            // Calculate how much the pool moved
-            const poolShift = (newTopBlockY - pool.blockY) * BLOCK_SIZE;
-            
-            // Update pool position to new block top
-            pool.blockY = newTopBlockY;
-            pool.y = newTopBlockY * BLOCK_SIZE;
-            
-            // Shift drip streaks by the same amount (don't reset them)
-            // This keeps drips flowing naturally when blocks fall
-            if (poolShift !== 0) {
-                pool.dripStreaks.forEach(streak => {
-                    streak.y += poolShift;
-                });
-            }
-            
-            return true;
-        } else {
-            // Pool was in invalid position, remove it
-            return false;
-        }
-    });
-}
-
-function updateDrippingLiquids() {
-    liquidPools = liquidPools.filter(pool => {
-        pool.age++;
-        
-        // Slowly evaporate old pools
-        if (frameCount - pool.lastAddedFrame > 250) {
-            pool.volume -= 0.015;
-            pool.opacity = Math.max(0, pool.opacity - 0.0003);
-        }
-        
-        // Start dripping when pool is large enough
-        if (pool.volume > 3) {
-            pool.dripping = true;
-            
-            // Create multiple drip streams for FULL coverage
-            if (pool.dripStreaks.length === 0) {
-                // Create wider, more numerous streams
-                const numStreaks = Math.min(5, Math.floor(pool.volume / 4) + 2);
-                for (let i = 0; i < numStreaks; i++) {
-                    const spacing = BLOCK_SIZE / (numStreaks + 1);
-                    pool.dripStreaks.push({
-                        offsetX: -BLOCK_SIZE/2 + spacing * (i + 1),
-                        y: pool.y + 5,
-                        width: Math.random() * 8 + 6, // Much wider streams
-                        speed: Math.random() * 0.4 + 0.5,
-                        wobble: Math.random() * Math.PI
-                    });
-                }
-            }
-        }
-        
-        // Update drip streams
-        if (pool.dripping) {
-            pool.dripStreaks.forEach(streak => {
-                streak.y += streak.speed;
-                // Slight movement for organic look
-                streak.wobble += 0.02;
-                
-                // Reset drip if it goes too far
-                if (streak.y > canvas.height) {
-                    streak.y = pool.y + 5;
-                }
-            });
-            
-            pool.volume -= 0.008;
-            
-            // Stop dripping if volume too low
-            if (pool.volume < 1) {
-                pool.dripping = false;
-                pool.dripStreaks = [];
-            }
-        }
-        
-        // Remove depleted pools
-        return pool.volume > 0 && pool.opacity > 0;
-    });
-}
-
-function drawDrippingLiquids() {
-    if (liquidPools.length === 0) return;
-    
-    ctx.save();
-    
-    liquidPools.forEach(pool => {
-        // Use 90% opacity for all pool rendering
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = pool.color;
-        
-        // Draw pool as irregular blob shape (non-rectangular)
-        const poolWidth = Math.min(BLOCK_SIZE, Math.sqrt(pool.volume) * 7);
-        const poolHeight = Math.min(10, Math.sqrt(pool.volume) * 2.5);
-        
-        // Organic pool shape using quadratic curves
-        ctx.beginPath();
-        
-        // Top edge - wavy
-        ctx.moveTo(pool.x - poolWidth/2, pool.y);
-        const wave1 = Math.sin(pool.age * 0.03) * 2;
-        const wave2 = Math.cos(pool.age * 0.04) * 1.5;
-        
-        ctx.quadraticCurveTo(
-            pool.x - poolWidth/4, pool.y - wave1,
-            pool.x, pool.y - poolHeight/2
-        );
-        ctx.quadraticCurveTo(
-            pool.x + poolWidth/4, pool.y - wave2,
-            pool.x + poolWidth/2, pool.y
-        );
-        
-        // Bottom edge - slightly curved
-        ctx.lineTo(pool.x + poolWidth/2, pool.y + poolHeight/2);
-        ctx.quadraticCurveTo(
-            pool.x, pool.y + poolHeight,
-            pool.x - poolWidth/2, pool.y + poolHeight/2
-        );
-        
-        ctx.closePath();
-        ctx.fill();
-        
-        // Draw drip streams for MAXIMUM coverage
-        if (pool.dripping && pool.dripStreaks.length > 0) {
-            pool.dripStreaks.forEach(streak => {
-                // 90% opaque for better look
-                ctx.globalAlpha = 0.9;
-                ctx.fillStyle = pool.color;
-                
-                const wobbleX = Math.sin(streak.wobble) * 2;
-                
-                // Calculate drop dimensions (teardrop shape) - 150% bigger
-                const dropWidth = streak.width * 0.6 * 1.5;  // Width at widest point (150% bigger)
-                const dropHeight = streak.width * 1.2 * 1.5; // Height (taller than wide, 150% bigger)
-                
-                // Stream tapers from pool width down to drop top width
-                const streamStartWidth = streak.width;
-                const streamEndWidth = dropWidth * 0.4; // Narrow top of drop
-                const streamLength = streak.y - pool.y;
-                
-                // Draw tapering stream with organic wavy edges
-                ctx.beginPath();
-                
-                // Left side - tapering down
-                ctx.moveTo(pool.x + streak.offsetX - streamStartWidth/2, pool.y);
-                
-                const segments = Math.max(5, Math.floor(streamLength / 15));
-                for (let i = 1; i <= segments; i++) {
-                    const progress = i / segments;
-                    const segY = pool.y + streamLength * progress;
-                    const currentWidth = streamStartWidth + (streamEndWidth - streamStartWidth) * progress;
-                    const wave = Math.sin(i * 0.5 + streak.wobble) * 2;
-                    ctx.lineTo(pool.x + streak.offsetX - currentWidth/2 + wave + wobbleX, segY);
-                }
-                
-                // Connect to top of drop
-                ctx.lineTo(pool.x + streak.offsetX + wobbleX, streak.y);
-                
-                // Right side - back up with taper
-                for (let i = segments; i >= 0; i--) {
-                    const progress = i / segments;
-                    const segY = pool.y + streamLength * progress;
-                    const currentWidth = streamStartWidth + (streamEndWidth - streamStartWidth) * progress;
-                    const wave = Math.sin(i * 0.5 + streak.wobble + Math.PI) * 2;
-                    ctx.lineTo(pool.x + streak.offsetX + currentWidth/2 + wave + wobbleX, segY);
-                }
-                
-                ctx.closePath();
-                ctx.fill();
-                
-                // Draw teardrop-shaped bulb (matching mockup)
-                // Pointed at top, rounded and wider at bottom
-                const dropCenterX = pool.x + streak.offsetX + wobbleX;
-                // Move drop up by 1/3 of its height to overlap with streak
-                const dropTopY = streak.y - (dropHeight / 3);
-                const dropBottomY = dropTopY + dropHeight * 0.7; // Bottom of drop
-                
-                ctx.beginPath();
-                
-                // Start at pointed top
-                ctx.moveTo(dropCenterX, dropTopY);
-                
-                // Right curve - gets wider as it goes down
-                ctx.bezierCurveTo(
-                    dropCenterX + dropWidth * 0.15, dropTopY + dropHeight * 0.15,  // Narrow near top
-                    dropCenterX + dropWidth * 0.5, dropTopY + dropHeight * 0.5,    // Widest point
-                    dropCenterX, dropBottomY  // Bottom center (rounded)
-                );
-                
-                // Left curve - symmetric
-                ctx.bezierCurveTo(
-                    dropCenterX - dropWidth * 0.5, dropTopY + dropHeight * 0.5,    // Widest point
-                    dropCenterX - dropWidth * 0.15, dropTopY + dropHeight * 0.15,  // Narrow near top
-                    dropCenterX, dropTopY  // Back to pointed top
-                );
-                
-                ctx.closePath();
-                ctx.fill();
-            });
-        }
-    });
-    
-    ctx.restore();
-}
-
-function updateStormParticles() {
-    if (!stormEffectsToggle.checked) {
-        stormParticles = [];
-        splashParticles = [];
-        return;
-    }
-    
-    // Add new particles if below max
-    if (stormParticles.length < MAX_STORM_PARTICLES && gameRunning && !paused) {
-        // Check for special liquid modes first
-        const isCarrieMode = challengeMode === 'carrie' || activeChallenges.has('carrie') || soRandomCurrentMode === 'carrie';
-        const isNoKingsMode = challengeMode === 'nokings' || activeChallenges.has('nokings') || soRandomCurrentMode === 'nokings';
-        
-        // Spawn rate varies by mode
-        let spawnChance = 0.3;
-        
-        // Double spawn rate for liquid modes
-        if (isCarrieMode || isNoKingsMode) {
-            spawnChance = 1.6; // Base rate for one liquid mode
-            if (isCarrieMode && isNoKingsMode) {
-                spawnChance = 3.2; // TRUE DOUBLE when both modes active (1.6 × 2)
-            }
-        } else if (gameMode === 'downpour') spawnChance = 2.0; // DOUBLED AGAIN - 2 particles per frame
-        else if (gameMode === 'hailstorm') spawnChance = 0.4;
-        else if (gameMode === 'blizzard') spawnChance = 28.8; // 150% increase - spawns ~29 particles per frame!
-        else if (gameMode === 'hurricane') spawnChance = 30.0; // EXTREME wall of rain - 30 particles per frame!
-        
-        // Handle spawn rates > 1 (spawn multiple particles per frame)
-        const numToSpawn = Math.floor(spawnChance);
-        const fractionalChance = spawnChance - numToSpawn;
-        
-        for (let i = 0; i < numToSpawn; i++) {
-            stormParticles.push(createStormParticle());
-        }
-        
-        if (Math.random() < fractionalChance) {
-            stormParticles.push(createStormParticle());
-        }
-    }
-    
-    // Update existing particles
-    stormParticles = stormParticles.filter(particle => {
-        // Update position
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        
-        // Rotation for hail and blizzard
-        if (particle.type === 'hail' || particle.type === 'blizzard') {
-            particle.rotation += particle.rotationSpeed;
-        }
-        
-        // Check for collision and splash (only for rain types in downpour mode)
-        if (particle.type === 'rain' && gameMode === 'downpour') {
-            const collision = checkCollisionWithBlocks(particle.x, particle.y);
-            if (collision.collision) {
-                createSplash(particle.x, collision.y, particle.size);
-                return false; // Remove particle
-            }
-        }
-        
-        // Check for collision and bounce (for hail)
-        if (particle.type === 'hail') {
-            const collision = checkCollisionWithBlocks(particle.x, particle.y);
-            if (collision.collision) {
-                // Create bouncing hail
-                splashParticles.push(createHailBounce(particle.x, collision.y, particle.size, particle.vy));
-                return false; // Remove falling particle
-            }
-        }
-        
-        // Check for collision and create drips (for liquid types - Carrie/No Kings)
-        if (particle.type === 'liquid') {
-            const collision = checkCollisionWithBlocks(particle.x, particle.y);
-            if (collision.collision) {
-                // Create dripping liquid that will run down the stack
-                createLiquidDrip(particle.x, collision.y, particle.liquidType, particle.color);
-                return false; // Remove particle
-            }
-        }
-        
-        // Remove if off screen
-        return particle.y < canvas.height + 20 && particle.x > -20 && particle.x < canvas.width + 20;
-    });
-    
-    // Update splash/bounce particles
-    splashParticles = splashParticles.filter(splash => {
-        splash.x += splash.vx;
-        splash.y += splash.vy;
-        splash.vy += splash.gravity; // Apply gravity
-        
-        // Handle bouncing hail
-        if (splash.type === 'bouncing') {
-            splash.rotation += splash.rotationSpeed;
-            splash.life--;
-            
-            // Check for another bounce
-            if (splash.vy > 0) { // Moving downward
-                const collision = checkCollisionWithBlocks(splash.x, splash.y);
-                if (collision.collision && splash.bounces < splash.maxBounces) {
-                    splash.vy = -Math.abs(splash.vy) * 0.4; // Weaker bounce
-                    splash.y = collision.y; // Position at collision point
-                    splash.bounces++;
-                }
-            }
-            
-            return splash.life > 0 && splash.y < canvas.height + 20;
-        } else {
-            // Regular splash droplets
-            splash.life--;
-            splash.opacity = (splash.life / splash.maxLife) * 0.6;
-            return splash.life > 0;
-        }
-    });
-}
-
-function drawStormParticles() {
-    if (!stormEffectsToggle.checked || (stormParticles.length === 0 && splashParticles.length === 0)) return;
-    
-    ctx.save();
-    
-    // Draw main storm particles
-    stormParticles.forEach(particle => {
-        ctx.globalAlpha = particle.opacity;
-        
-        if (particle.type === 'rain') {
-            // Rain drops - simple streaks falling straight down
-            ctx.strokeStyle = particle.color;
-            ctx.lineWidth = particle.size;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(particle.x, particle.y - particle.vy * 2); // Streak based on velocity
-            ctx.stroke();
-        } else if (particle.type === 'liquid') {
-            // Liquid drops (blood/brown) - teardrop shaped
-            ctx.fillStyle = particle.color;
-            ctx.save();
-            ctx.translate(particle.x, particle.y);
-            
-            // Draw teardrop shape
-            ctx.beginPath();
-            // Top point
-            ctx.moveTo(0, -particle.size * 1.5);
-            // Curve down to rounded bottom
-            ctx.quadraticCurveTo(-particle.size * 0.7, 0, 0, particle.size);
-            ctx.quadraticCurveTo(particle.size * 0.7, 0, 0, -particle.size * 1.5);
-            ctx.fill();
-            
-            // Add a trailing streak
-            ctx.globalAlpha = particle.opacity * 0.3;
-            ctx.strokeStyle = particle.color;
-            ctx.lineWidth = particle.size * 0.5;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(0, -particle.size * 1.5);
-            ctx.lineTo(0, -particle.size * 1.5 - particle.vy * 2);
-            ctx.stroke();
-            
-            ctx.restore();
-        } else if (particle.type === 'hail') {
-            // Solid ice chunks - irregular polygons with shine
-            ctx.save();
-            ctx.translate(particle.x, particle.y);
-            ctx.rotate(particle.rotation);
-            
-            // Draw irregular chunk shape
-            ctx.fillStyle = particle.color;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${particle.opacity})`;
-            ctx.lineWidth = 1;
-            
-            // Irregular polygon (5-7 sides)
-            const sides = 5 + Math.floor(Math.random() * 3);
-            ctx.beginPath();
-            for (let i = 0; i < sides; i++) {
-                const angle = (Math.PI * 2 / sides) * i;
-                const radius = particle.size * (0.8 + Math.random() * 0.4); // Irregular
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            
-            // Add highlight for icy shine
-            ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity * 0.5})`;
-            ctx.beginPath();
-            ctx.arc(-particle.size * 0.2, -particle.size * 0.2, particle.size * 0.3, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.restore();
-        } else if (particle.type === 'blizzard') {
-            // Heavy blowing snow - use pre-rendered blurred bitmap
-            if (!particle.snowflakeBitmap) return; // Safety check
-            
-            ctx.save();
-            // Use opacity with safety check
-            const opacity = (typeof particle.opacity === 'number' && !isNaN(particle.opacity)) ? particle.opacity : 1;
-            ctx.globalAlpha = opacity;
-            ctx.translate(particle.x, particle.y);
-            ctx.rotate(particle.rotation);
-            
-            // Draw the pre-rendered snowflake bitmap
-            const bitmap = particle.snowflakeBitmap;
-            ctx.drawImage(
-                bitmap.canvas,
-                -bitmap.size / 2,
-                -bitmap.size / 2,
-                bitmap.size,
-                bitmap.size
-            );
-            
-            ctx.restore();
-        } else if (particle.type === 'hurricane') {
-            // Nearly horizontal rain streaks - pure horizontal motion
-            ctx.strokeStyle = particle.color;
-            ctx.lineWidth = particle.size;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            // Long horizontal streak based on velocity, minimal vertical component
-            ctx.lineTo(particle.x - particle.vx * 3, particle.y - particle.vy * 0.5);
-            ctx.stroke();
-        }
-    });
-    
-    // Draw splash particles
-    splashParticles.forEach(splash => {
-        ctx.globalAlpha = splash.opacity;
-        
-        if (splash.type === 'bouncing') {
-            // Bouncing hail chunks
-            ctx.save();
-            ctx.translate(splash.x, splash.y);
-            ctx.rotate(splash.rotation);
-            
-            ctx.fillStyle = splash.color;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${splash.opacity})`;
-            ctx.lineWidth = 1;
-            
-            // Irregular polygon
-            const sides = 5 + Math.floor(Math.random() * 3);
-            ctx.beginPath();
-            for (let i = 0; i < sides; i++) {
-                const angle = (Math.PI * 2 / sides) * i;
-                const radius = splash.size * (0.8 + Math.random() * 0.4);
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            
-            // Highlight
-            ctx.fillStyle = `rgba(255, 255, 255, ${splash.opacity * 0.5})`;
-            ctx.beginPath();
-            ctx.arc(-splash.size * 0.2, -splash.size * 0.2, splash.size * 0.3, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.restore();
-        } else {
-            // Regular splash droplets
-            ctx.fillStyle = 'rgba(180, 220, 255, 1)';
-            ctx.beginPath();
-            ctx.arc(splash.x, splash.y, splash.size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-    
-    ctx.restore();
-}
+// Storm particle system moved to StormEffects module (storm-effects.js)
+// Functions: createStormParticle, createSplash, checkCollisionWithBlocks, createHailBounce,
+// createLiquidDrip, updateLiquidPoolsAfterGravity, updateDrippingLiquids, drawDrippingLiquids,
+// updateStormParticles, drawStormParticles
 
 let board = [];
 let isRandomBlock = []; // Track blocks placed by Gremlins challenge (rendered with silver edges)
@@ -7584,7 +6809,7 @@ function drawBoard() {
     }
     
     // Draw storm particles BEFORE blocks (behind gameplay)
-    drawStormParticles();
+    StormEffects.draw();
     
     // If game is paused, skip drawing the stack (but still draw background effects above)
     if (paused) {
@@ -10190,7 +9415,7 @@ function runTwoPhaseGravity() {
         console.log('═══════════════════════════════════════════════════════════\n');
         
         // Update liquid pools even if no gravity
-        updateLiquidPoolsAfterGravity();
+        StormEffects.updateLiquidPoolsAfterGravity();
         
         // Check for special formations
         checkForSpecialFormations();
@@ -10235,7 +9460,7 @@ function runTwoPhaseGravity() {
         }
         
         // Update liquid pools
-        updateLiquidPoolsAfterGravity();
+        StormEffects.updateLiquidPoolsAfterGravity();
         
         // Check for special formations
         checkForSpecialFormations();
@@ -10326,7 +9551,7 @@ function updateFallingBlocks() {
         fallingBlocks = [];
         
         // Update liquid pools after blocks have fallen
-        updateLiquidPoolsAfterGravity();
+        StormEffects.updateLiquidPoolsAfterGravity();
         
         // SAFETY CHECK: Detect pathological floating blocks (complete empty rows)
         // If detected, gravity will be re-run asynchronously
@@ -10949,30 +10174,8 @@ function clearLines() {
                 }
             });
             
-            // SECOND: Adjust liquidPools for cleared rows
-            // Remove pools that were on cleared rows
-            liquidPools = liquidPools.filter(pool => {
-                return !sortedRows.includes(pool.blockY);
-            });
-            
-            // Shift down pools that were above the cleared rows
-            // sortedRows is sorted high to low (bottom to top)
-            const numRowsCleared = sortedRows.length;
-            liquidPools.forEach(pool => {
-                // Count how many cleared rows were below this pool
-                const rowsBelowPool = sortedRows.filter(row => row > pool.blockY).length;
-                if (rowsBelowPool > 0) {
-                    // Shift the pool down by the number of rows cleared below it
-                    const shiftAmount = rowsBelowPool * BLOCK_SIZE;
-                    pool.blockY += rowsBelowPool;
-                    pool.y = pool.blockY * BLOCK_SIZE;
-                    
-                    // Also shift drip streaks down by the same amount
-                    pool.dripStreaks.forEach(streak => {
-                        streak.y += shiftAmount;
-                    });
-                }
-            });
+            // SECOND: Adjust liquidPools for cleared rows (handled by StormEffects module)
+            StormEffects.adjustPoolsForClearedRows(sortedRows);
             
             // Use the shared two-phase gravity system
             runTwoPhaseGravity();
@@ -12082,8 +11285,6 @@ function update(time = 0) {
 
     updateLineAnimations();
     if (!paused) {
-        frameCount++; // Increment frame counter for liquid pooling timing
-        
         // Mercurial mode: Change piece color every 2-4 seconds
         const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial') || soRandomCurrentMode === 'mercurial';
         if (isMercurialMode && currentPiece && !hardDropping) {
@@ -12101,8 +11302,8 @@ function update(time = 0) {
         
         updateFadingBlocks();
         updateGremlinFadingBlocks(); // Update gremlin fading blocks
-        updateStormParticles();
-        updateDrippingLiquids(); // Update dripping liquids for Carrie/No Kings
+        StormEffects.updateGameState({ gameRunning, paused, board }); // Pass current state
+        StormEffects.update(); // Update storm particles (includes dripping liquids)
         updateTornado(); // Update tornado
         StarfieldSystem.updateUFO(); // Update UFO animation (42 lines easter egg)
         updateEarthquake(); // Update earthquake
@@ -12186,7 +11387,7 @@ function update(time = 0) {
     }
     
     // Draw dripping liquids ON TOP of everything (obscuring the stack)
-    drawDrippingLiquids();
+    StormEffects.drawLiquidsOnTop();
     
     // Remove tsunami wobble transform
     if (tsunamiAnimating && tsunamiWobbleIntensity > 0) {
@@ -12561,9 +11762,19 @@ function startGame(mode) {
         canvas: histogramCanvas,
         colorSet: currentColorSet
     });
-    stormParticles = []; // Clear storm particles
-    splashParticles = []; // Clear splash particles
-    liquidPools = []; // Clear blood/poo rain effects
+    StormEffects.reset(); // Clear storm particles, splash particles, and liquid pools
+    StormEffects.updateGameState({
+        gameMode: gameMode,
+        challengeMode: challengeMode,
+        activeChallenges: activeChallenges,
+        soRandomCurrentMode: soRandomCurrentMode,
+        gameRunning: true,
+        paused: false,
+        BLOCK_SIZE: BLOCK_SIZE,
+        ROWS: ROWS,
+        COLS: COLS,
+        board: board
+    });
     
     // Reset speed bonus tracking
     speedBonusTotal = 0;
@@ -13552,7 +12763,7 @@ function applyChallengeMode(mode) {
     }
     phantomOpacity = 1.0; // Reset to visible
     nervousVibrateOffset = 0; // Reset vibration
-    liquidPools = []; // Clear blood/poo rain effects
+    StormEffects.reset(); // Clear blood/poo rain effects
     
     // Clear activeChallenges if not in combo mode
     if (mode !== 'combo') {
