@@ -1,7 +1,7 @@
-// AI Worker v4.8.0 - Fix run bonuses + add overhang penalty + edge well disparity penalty
-console.log("🤖 AI Worker v4.8.0 loaded - prevents I-piece dependency from edge well buildup");
+// AI Worker v4.9.0 - Smart edge vertical detection: only penalize when creating overhangs, not filling gaps
+console.log("🤖 AI Worker v4.9.0 loaded - edge vertical Z/S now encouraged when filling gaps");
 
-const AI_VERSION = "4.8.0";
+const AI_VERSION = "4.9.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -434,8 +434,10 @@ function countCompleteLines(board) {
  * Count how many cells of the placed piece are "overhanging" - 
  * i.e., placed over empty space that could trap holes.
  * Also detects problematic patterns like vertical Z/S at edges.
+ * 
+ * @param colHeights - optional array of column heights to determine if edge placement helps or hurts
  */
-function analyzeOverhangs(board, shape, x, y, cols, rows) {
+function analyzeOverhangs(board, shape, x, y, cols, rows, colHeights = null) {
     let overhangCount = 0;
     let severeOverhangs = 0;  // Cells with 2+ empty spaces below them
     let edgeVerticalProblem = false;
@@ -447,10 +449,24 @@ function analyzeOverhangs(board, shape, x, y, cols, rows) {
     // Z/S pieces in vertical orientation have height=3, width=2
     const isVerticalZS = shapeHeight === 3 && shapeWidth === 2;
     
-    // Check if this vertical Z/S is at an edge
-    if (isVerticalZS) {
+    // Check if this vertical Z/S is at an edge AND would create a problem
+    // Key insight: only penalize if edge is HIGHER than adjacent (creates overhang)
+    // Don't penalize if edge is LOWER (fills a gap - that's good!)
+    if (isVerticalZS && colHeights) {
+        if (x === 0) {
+            // Left edge - only a problem if col 0 >= col 1 (would create overhang)
+            if (colHeights[0] >= colHeights[1]) {
+                edgeVerticalProblem = true;
+            }
+        } else if (x === cols - 2) {
+            // Right edge - only a problem if col 9 >= col 8
+            if (colHeights[cols - 1] >= colHeights[cols - 2]) {
+                edgeVerticalProblem = true;
+            }
+        }
+    } else if (isVerticalZS && !colHeights) {
+        // Fallback if no height info - be conservative
         if (x === 0 || x === cols - 2) {
-            // Vertical Z/S at edge - this often creates trapped holes
             edgeVerticalProblem = true;
         }
     }
@@ -799,7 +815,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
     // This catches problematic vertical Z/S pieces at edges
-    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows);
+    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows, colHeights);
     breakdown.overhangs.count = overhangInfo.overhangCount;
     breakdown.overhangs.severe = overhangInfo.severeOverhangs;
     breakdown.overhangs.edgeVertical = overhangInfo.edgeVerticalProblem;
@@ -1323,7 +1339,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
-    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows);
+    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows, colHeights);
     
     let overhangPenalty = overhangInfo.overhangCount * 8;
     overhangPenalty += overhangInfo.severeOverhangs * 15;
