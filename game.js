@@ -11517,13 +11517,13 @@ async function gameOver() {
             endCause: 'game_over'
         };
         const recording = GameRecorder.stopRecording(finalStats);
-        if (recording && recording.moves && recording.moves.length > 0 && score > 0) {
+        // v2.0 uses pieceData instead of moves
+        const hasPieceData = recording && recording.pieceData && recording.pieceData.length > 0;
+        if (hasPieceData && score > 0) {
             const playerTypeLabel = aiModeEnabled ? 'AI' : 'Human';
             const shadowInfo = recording.finalStats?.humanVsAI ? 
-                ` (${recording.finalStats.humanVsAI.matchRate}% AI match)` : '';
-            const aiDecisionInfo = recording.aiDecisions?.length ? 
-                `, ${recording.aiDecisions.length} AI decisions` : '';
-            console.log(`📹 ${playerTypeLabel} Recording complete: ${recording.moves.length} moves${aiDecisionInfo}${shadowInfo}`);
+                ` (${recording.finalStats.humanVsAI.matchRate} AI match)` : '';
+            console.log(`📹 ${playerTypeLabel} Recording complete: ${recording.pieceData.length} pieces${shadowInfo}`);
             
             if (aiModeEnabled) {
                 // AI games: submit immediately with auto-generated username
