@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.10 loaded - AI shadow evaluation for human game recordings");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -2197,11 +2197,21 @@ StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
 
 // Set up UFO swoop callback for 42 lines easter egg
 StarfieldSystem.setUFOSwoopCallback(() => {
-    // Play banjo sound effect
-    playMP3SoundEffect('banjo', soundToggle);
-    // Queue a random F Word song as the next track
-    insertFWordSong();
-    console.log('🛸 UFO delivered special song!');
+    // Play banjo sound effect (pauses music until banjo finishes)
+    playBanjoWithMusicPause(soundToggle);
+    
+    // During replay, use the recorded F Word song; otherwise pick random and record it
+    if (replayActive && replayFWordSongId) {
+        insertFWordSongById(replayFWordSongId);
+        console.log('🛸 UFO delivered recorded song:', replayFWordSongId);
+    } else {
+        // Queue a random F Word song and record which one was selected
+        const selectedSong = insertFWordSong();
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordFWordSong(selectedSong.id);
+        }
+        console.log('🛸 UFO delivered special song!');
+    }
 });
 
 // Initialize Color Palette Dropdown
@@ -11486,6 +11496,7 @@ async function gameOver() {
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
+    stopTornadoWind(); // Stop tornado wind sound if active
     GamepadController.stopVibration(); // Stop any controller haptic feedback
     setHasPlayedGame(true); // Switch menu music to End Credits version
     playSoundEffect('gameover', soundToggle);
@@ -12231,11 +12242,13 @@ function startGame(mode) {
                         challengeMode !== 'normal' ? [challengeMode] : [],
             speedBonus: 1.0,
             // Visual settings for accurate playback
-            faceOpacity: faceOpacity,
-            stormEffects: stormEffectsToggle ? stormEffectsToggle.checked : true,
-            cameraReversed: cameraReversed,
-            starSpeed: starSpeedSlider ? parseFloat(starSpeedSlider.value) : 1.0,
-            minimalistMode: minimalistMode
+            visualSettings: {
+                faceOpacity: faceOpacity,
+                stormEffects: stormEffectsToggle ? stormEffectsToggle.checked : true,
+                cameraReversed: cameraReversed,
+                starSpeed: starSpeedSlider ? parseFloat(starSpeedSlider.value) : 1.0,
+                minimalistMode: minimalistMode
+            }
         });
     }
     
@@ -14175,6 +14188,7 @@ let replayRandomEventIndex = 0;  // Current random event index within current pi
 let replayMusicTracks = [];      // Music track sequence (global timing)
 let replayMusicIndex = 0;
 let replayGameStartTime = 0;     // When replay started (for music timing)
+let replayFWordSongId = null;    // Which F Word song was used (easter egg)
 
 /**
  * Start deterministic game replay (v2.0 piece-indexed)
@@ -14216,6 +14230,9 @@ window.startGameReplay = function(recording) {
     replayMusicTracks = recData.musicTracks || [];
     replayMusicIndex = 0;
     replayGameStartTime = 0;
+    
+    // F Word song selection (easter egg)
+    replayFWordSongId = recData.fWordSongId || null;
     
     replayPaused = false;
     
@@ -14813,6 +14830,7 @@ function stopReplay() {
     replayMusicTracks = [];
     replayMusicIndex = 0;
     replayGameStartTime = 0;
+    replayFWordSongId = null;
     replayEarthquakeCrack = null;
     replayEarthquakeShiftType = null;
     replayTornadoSpawnData = null;

@@ -35,6 +35,7 @@ const GameRecorder = (() => {
             
             // Global events (not piece-specific)
             musicTracks: [],
+            fWordSongId: null,  // Which F Word song was used (if easter egg triggered)
             
             // Final stats (filled at end)
             finalStats: null
@@ -310,15 +311,32 @@ const GameRecorder = (() => {
     /**
      * Record a music track change
      */
-    function recordMusicTrack(trackName) {
+    function recordMusicTrack(trackId, trackName) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
         recording.musicTracks.push({
             t: timestamp,
+            trackId,
             trackName
         });
+    }
+    
+    /**
+     * Record which F Word song was used (easter egg)
+     */
+    function recordFWordSong(songId) {
+        if (!isRecording || !recording) return;
+        recording.fWordSongId = songId;
+        console.log('📹 F Word song recorded:', songId);
+    }
+    
+    /**
+     * Get the recorded F Word song ID (for replay)
+     */
+    function getFWordSongId() {
+        return recording?.fWordSongId || null;
     }
     
     /**
@@ -530,6 +548,7 @@ const GameRecorder = (() => {
         recordAIDecision,
         recordEvent,
         recordMusicTrack,
+        recordFWordSong,
         recordTornadoSpawn,
         recordTornadoDirection,
         recordTornadoDrop,

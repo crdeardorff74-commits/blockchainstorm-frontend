@@ -76,6 +76,43 @@ function playMP3SoundEffect(effectId, soundToggle) {
     }
 }
 
+// Play banjo sound effect while pausing music, resume when done (UFO easter egg)
+function playBanjoWithMusicPause(soundToggle) {
+    if (!soundToggle || !soundToggle.checked) return;
+    if (sfxMuted) return;
+    
+    const audio = soundEffectElements['banjo'];
+    if (!audio) return;
+    
+    // Pause current music
+    const wasPaused = musicPaused;
+    if (!wasPaused) {
+        pauseCurrentMusic();
+    }
+    
+    // Clone and play banjo
+    const clone = audio.cloneNode();
+    clone.volume = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
+    
+    // Resume music when banjo finishes (unless it was already paused)
+    clone.onended = () => {
+        if (!wasPaused) {
+            resumeCurrentMusic();
+            console.log('🎵 Music resumed after banjo');
+        }
+    };
+    
+    clone.play().catch(e => {
+        console.log('Banjo autoplay prevented:', e);
+        // Resume music if banjo couldn't play
+        if (!wasPaused) {
+            resumeCurrentMusic();
+        }
+    });
+    
+    console.log('🪕 Banjo playing, music paused');
+}
+
 // Initialize sound effects on load
 initSoundEffects();
 
@@ -192,7 +229,7 @@ for (let i = 1; i <= 21; i++) {
 let nextSongOverride = null;
 
 // All songs combined for audio element initialization
-const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs];
+const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordSongs];
 
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
@@ -287,6 +324,18 @@ function insertFWordSong() {
     nextSongOverride = selectedSong;
     console.log('🛸 F Word song queued:', selectedSong.name);
     return selectedSong;
+}
+
+// Insert a specific F Word song by ID (for replay)
+function insertFWordSongById(songId) {
+    const selectedSong = fWordSongs.find(s => s.id === songId);
+    if (selectedSong) {
+        nextSongOverride = selectedSong;
+        console.log('🛸 F Word song queued (replay):', selectedSong.name);
+        return selectedSong;
+    }
+    // Fallback to random if not found
+    return insertFWordSong();
 }
 
 function skipToNextSong() {
@@ -2461,6 +2510,8 @@ function getEffectiveSfxVolume(effectId) {
         setOnSongChangeCallback,
         setOnPauseStateChangeCallback,
         insertFWordSong,
+        insertFWordSongById,
+        playBanjoWithMusicPause,
         // Volume controls
         setMusicVolume,
         getMusicVolume,
