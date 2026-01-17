@@ -5149,8 +5149,9 @@ function splitBlocksByCrack() {
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
     earthquakeCrack.forEach(pt => {
-        if (pt.edge === 'vertical') {
-            // For vertical edges, the crack separates columns at x-1 (left) and x (right)
+        // Accept points with edge='vertical' or no edge property (legacy recordings)
+        if (!pt.edge || pt.edge === 'vertical') {
+            // The crack separates columns at x-1 (left) and x (right)
             if (!crackPositions.has(pt.y)) {
                 crackPositions.set(pt.y, pt.x);
             }

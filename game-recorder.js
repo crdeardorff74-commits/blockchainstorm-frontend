@@ -254,7 +254,7 @@ const GameRecorder = (() => {
         recording.randomEvents.push({
             t: timestamp,
             type: 'earthquake',
-            crack: crackPath.map(pt => ({ x: pt.x, y: pt.y })),
+            crack: crackPath.map(pt => ({ x: pt.x, y: pt.y, edge: pt.edge })),
             shiftType: shiftType
         });
     }
