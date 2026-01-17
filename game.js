@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.10 loaded - AI shadow evaluation for human game recordings");
+console.log("🎮 Game v3.11 loaded - Replay timing fix + keyframe sync");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
@@ -11926,7 +11926,7 @@ function update(time = 0) {
     
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (replayActive) {
-        processReplayInputs();
+        processReplayInputs(time);
     }
     
     // AI Mode: Let AI control the game (but not during replay)
@@ -14231,6 +14231,10 @@ let replayLavaProjectiles = [];    // Lava projectile spawn data
 let replayLavaProjectileIndex = 0;
 let replayMusicTracks = [];        // Music track sequence
 let replayMusicIndex = 0;
+let replayKeyframes = [];          // Board state keyframes for sync
+let replayKeyframeIndex = 0;
+let replayLastSyncTime = 0;        // Last time we checked for sync
+const REPLAY_SYNC_CHECK_INTERVAL = 500; // Check sync every 500ms
 
 /**
  * Start deterministic game replay
@@ -14282,6 +14286,11 @@ window.startGameReplay = function(recording) {
     replayLavaProjectileIndex = 0;
     replayMusicTracks = recData.musicTracks || [];
     replayMusicIndex = 0;
+    
+    // Set up keyframes for board state sync
+    replayKeyframes = recData.keyframes || [];
+    replayKeyframeIndex = 0;
+    replayLastSyncTime = 0;
     
     replayRandomEvents.forEach(event => {
         switch (event.type) {
@@ -14533,43 +14542,49 @@ window.startGameReplay = function(recording) {
 /**
  * Process replay inputs - inject recorded inputs at their timestamps
  * Called from the main update() loop during replay
+ * @param {number} frameTime - requestAnimationFrame timestamp for consistent timing
  */
-function processReplayInputs() {
-    if (!replayActive || replayPaused || !currentPiece) return;
+function processReplayInputs(frameTime) {
+    // Always update elapsed time first, even if we can't process inputs yet
+    // This prevents time jumps when returning from animations
+    if (replayLastFrameTime === 0) replayLastFrameTime = frameTime;
+    const deltaTime = frameTime - replayLastFrameTime;
+    replayLastFrameTime = frameTime;
+    replayElapsedTime += deltaTime;
     
-    // Calculate elapsed time with speed scaling
-    const now = Date.now();
-    if (replayLastFrameTime === 0) replayLastFrameTime = now;
-    const realDelta = now - replayLastFrameTime;
-    replayLastFrameTime = now;
-    replayElapsedTime += realDelta;
+    // Now check if we can actually process inputs
+    if (!replayActive || replayPaused) return;
     
     // Process all inputs that should have occurred by now
+    // Note: We process inputs even without currentPiece for some actions,
+    // but movement/rotation require a piece
     while (replayInputIndex < replayInputs.length && 
            replayInputs[replayInputIndex].t <= replayElapsedTime) {
         
         const input = replayInputs[replayInputIndex];
         
-        // Execute the input action
-        switch (input.type) {
-            case 'left':
-                movePiece(-1);
-                break;
-            case 'right':
-                movePiece(1);
-                break;
-            case 'rotate':
-                rotatePiece();
-                break;
-            case 'rotateCCW':
-                rotatePieceCounterClockwise();
-                break;
-            case 'softDrop':
-                dropPiece();
-                break;
-            case 'hardDrop':
-                hardDrop();
-                break;
+        // Execute the input action (only if we have a piece for piece-related inputs)
+        if (currentPiece) {
+            switch (input.type) {
+                case 'left':
+                    movePiece(-1);
+                    break;
+                case 'right':
+                    movePiece(1);
+                    break;
+                case 'rotate':
+                    rotatePiece();
+                    break;
+                case 'rotateCCW':
+                    rotatePieceCounterClockwise();
+                    break;
+                case 'softDrop':
+                    dropPiece();
+                    break;
+                case 'hardDrop':
+                    hardDrop();
+                    break;
+            }
         }
         
         replayInputIndex++;
@@ -14631,6 +14646,11 @@ function processReplayInputs() {
         replayMusicIndex++;
     }
     
+    // Check keyframe sync periodically (not during animations)
+    if (!animatingLines && !gravityAnimating && !tsunamiAnimating && !blackHoleAnimating && !earthquakeActive) {
+        checkReplayKeyframeSync();
+    }
+    
     // Check if replay is complete
     // All inputs processed AND either: no more pieces to spawn OR game ended naturally
     const allInputsProcessed = replayInputIndex >= replayInputs.length;
@@ -14651,6 +14671,165 @@ function processReplayInputs() {
         // Don't set replayActive = false here - let the setTimeout handle it
         // This prevents race condition where gameOver() runs before showReplayComplete()
     }
+}
+
+/**
+ * Check if current board state matches the nearest keyframe
+ * If not, resync to the keyframe state
+ */
+function checkReplayKeyframeSync() {
+    if (!replayActive || replayKeyframes.length === 0) return;
+    
+    // Don't check too frequently
+    if (replayElapsedTime - replayLastSyncTime < REPLAY_SYNC_CHECK_INTERVAL) return;
+    replayLastSyncTime = replayElapsedTime;
+    
+    // Find the most recent keyframe that we should have passed
+    let targetKeyframe = null;
+    while (replayKeyframeIndex < replayKeyframes.length &&
+           replayKeyframes[replayKeyframeIndex].t <= replayElapsedTime) {
+        targetKeyframe = replayKeyframes[replayKeyframeIndex];
+        replayKeyframeIndex++;
+    }
+    
+    if (!targetKeyframe) return;
+    
+    // Compare current board state to keyframe
+    const keyframeBoard = targetKeyframe.board || [];
+    const differences = compareBoards(board, keyframeBoard);
+    
+    // Only resync if there are significant differences (more than 2 cells)
+    // Small differences can occur due to timing variations
+    if (differences > 2) {
+        console.log(`🎬 Replay sync: ${differences} cell differences detected at ${replayElapsedTime}ms, resyncing to keyframe from ${targetKeyframe.t}ms`);
+        
+        // Resync board to keyframe state
+        resyncBoardToKeyframe(keyframeBoard);
+        
+        // Show visual indicator
+        showReplaySyncIndicator();
+    }
+}
+
+/**
+ * Compare current board state to keyframe board
+ * Returns number of differences
+ */
+function compareBoards(currentBoard, keyframeBoard) {
+    let differences = 0;
+    
+    // Build a set of keyframe cells for quick lookup
+    const keyframeCells = new Set();
+    keyframeBoard.forEach(cell => {
+        keyframeCells.add(`${cell.x},${cell.y},${cell.c}`);
+    });
+    
+    // Count current board cells
+    let currentCellCount = 0;
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (currentBoard[y] && currentBoard[y][x]) {
+                currentCellCount++;
+                const cellKey = `${x},${y},${currentBoard[y][x]}`;
+                if (!keyframeCells.has(cellKey)) {
+                    differences++;
+                }
+            }
+        }
+    }
+    
+    // Also count if keyframe has cells we don't have
+    const currentCells = new Set();
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (currentBoard[y] && currentBoard[y][x]) {
+                currentCells.add(`${x},${y},${currentBoard[y][x]}`);
+            }
+        }
+    }
+    
+    keyframeBoard.forEach(cell => {
+        const cellKey = `${cell.x},${cell.y},${cell.c}`;
+        if (!currentCells.has(cellKey)) {
+            differences++;
+        }
+    });
+    
+    return differences;
+}
+
+/**
+ * Resync board state to match keyframe
+ */
+function resyncBoardToKeyframe(keyframeBoard) {
+    // Clear the board
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            board[y][x] = null;
+            if (isRandomBlock[y]) isRandomBlock[y][x] = false;
+            if (isLatticeBlock && isLatticeBlock[y]) isLatticeBlock[y][x] = false;
+        }
+    }
+    
+    // Apply keyframe state
+    keyframeBoard.forEach(cell => {
+        if (cell.y >= 0 && cell.y < ROWS && cell.x >= 0 && cell.x < COLS) {
+            board[cell.y][cell.x] = cell.c;
+        }
+    });
+    
+    console.log(`🎬 Replay: Board resynced to ${keyframeBoard.length} cells`);
+}
+
+/**
+ * Show visual indicator that replay was resynced
+ */
+function showReplaySyncIndicator() {
+    // Remove any existing indicator
+    const existing = document.getElementById('replaySyncIndicator');
+    if (existing) existing.remove();
+    
+    const indicator = document.createElement('div');
+    indicator.id = 'replaySyncIndicator';
+    indicator.innerHTML = '🔄 RESYNCING';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 165, 0, 0.9);
+        color: #000;
+        padding: 1vh 2vw;
+        border-radius: 1vh;
+        font-family: Arial, sans-serif;
+        font-size: 2vh;
+        font-weight: bold;
+        z-index: 1001;
+        animation: replaySyncPulse 0.5s ease-out;
+        pointer-events: none;
+    `;
+    
+    // Add animation keyframes if not already present
+    if (!document.getElementById('replaySyncStyles')) {
+        const style = document.createElement('style');
+        style.id = 'replaySyncStyles';
+        style.textContent = `
+            @keyframes replaySyncPulse {
+                0% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(indicator);
+    
+    // Fade out and remove after delay
+    setTimeout(() => {
+        indicator.style.transition = 'opacity 0.3s ease-out';
+        indicator.style.opacity = '0';
+        setTimeout(() => indicator.remove(), 300);
+    }, 700);
 }
 
 /**
@@ -14704,8 +14883,8 @@ function toggleReplayPause() {
             pauseCurrentMusic();
         }
     } else {
-        // Resume - reset frame time to avoid time jump
-        replayLastFrameTime = Date.now();
+        // Resume - reset frame time to 0 so next frame reinitializes with 0 delta
+        replayLastFrameTime = 0;
         paused = false;
         StarfieldSystem.setPaused(false);
         // Resume music
@@ -14759,6 +14938,12 @@ function stopReplay() {
     replayPaused = false;
     replayData = null;
     replayCompleteShown = false;  // Reset completion flag
+    
+    // Remove replay UI elements
+    const controls = document.getElementById('replayControls');
+    if (controls) controls.remove();
+    const syncIndicator = document.getElementById('replaySyncIndicator');
+    if (syncIndicator) syncIndicator.remove();
     
     // Clear replay music tracks (return to normal shuffle)
     clearReplayTracks();
@@ -14817,6 +15002,9 @@ function stopReplay() {
     replayRandomEventIndex = 0;
     replayMusicTracks = [];
     replayMusicIndex = 0;
+    replayKeyframes = [];
+    replayKeyframeIndex = 0;
+    replayLastSyncTime = 0;
     replayElapsedTime = 0;
     replayLastFrameTime = 0;
     
