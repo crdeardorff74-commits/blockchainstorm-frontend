@@ -1496,8 +1496,11 @@ aiModeMenuOverlay.style.cssText = `
     z-index: 100;
     display: none;
 `;
-canvas.parentElement.style.position = 'relative';
-canvas.parentElement.appendChild(aiModeMenuOverlay);
+// Append to main-area (the container with the canvas)
+const mainAreaElement = document.querySelector('.main-area');
+if (mainAreaElement) {
+    mainAreaElement.appendChild(aiModeMenuOverlay);
+}
 
 function updateAIModeMenuOverlay() {
     // Show overlay on menu when AI mode enabled, hide during gameplay
