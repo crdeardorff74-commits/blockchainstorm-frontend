@@ -1821,7 +1821,6 @@ const StarfieldSystem = (function() {
         
         // Reset function for new game
         reset: () => {
-            console.log('⭐ StarfieldSystem.reset() called - journeyProgress was:', journeyProgress);
             currentGameLevel = 1;
             journeyProgress = 0;
             planetAnimations = {};
@@ -1831,7 +1830,6 @@ const StarfieldSystem = (function() {
             asteroids = [];
             ufoActive = false;
             ufoCompletedCircle = false;
-            console.log('⭐ StarfieldSystem.reset() complete - journeyProgress now:', journeyProgress);
         },
         
         // Access to planets data (for developer mode)

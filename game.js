@@ -11440,6 +11440,8 @@ function toggleUIElements(show) {
     const pauseBtn = document.getElementById('pauseBtn');
     const planetStatsLeft = document.getElementById('planetStatsLeft');
     const skillLevelSelect = document.getElementById('skillLevelSelect');
+    const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
+    const skillLevelLabel = document.getElementById('skillLevelLabel');
     const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
     
     // Check if leaderboard is currently visible
@@ -11465,6 +11467,8 @@ function toggleUIElements(show) {
         if (controllerControls) controllerControls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         if (skillLevelSelect) skillLevelSelect.classList.remove('hidden-during-play');
+        if (rulesSkillLevelSelect) rulesSkillLevelSelect.classList.remove('hidden-during-play');
+        if (skillLevelLabel) skillLevelLabel.classList.remove('hidden-during-play');
         if (rulesPanelViewSelect) rulesPanelViewSelect.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         titles.forEach(title => title.style.display = '');
@@ -11481,6 +11485,8 @@ function toggleUIElements(show) {
         if (controllerControls) controllerControls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         if (skillLevelSelect) skillLevelSelect.classList.add('hidden-during-play');
+        if (rulesSkillLevelSelect) rulesSkillLevelSelect.classList.add('hidden-during-play');
+        if (skillLevelLabel) skillLevelLabel.classList.add('hidden-during-play');
         if (rulesPanelViewSelect) rulesPanelViewSelect.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         titles.forEach(title => title.style.display = 'none');
@@ -14473,7 +14479,6 @@ window.startGameReplay = function(recording) {
     // Start game running
     gameRunning = true;
     currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey
-    console.log('🎬 Resetting StarfieldSystem for replay');
     StarfieldSystem.reset(); // Reset all starfield state (planets, asteroids, journey)
     StarfieldSystem.hidePlanetStats(); // Hide any lingering planet info
     StarfieldSystem.setGameRunning(true);
