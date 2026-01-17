@@ -1,7 +1,7 @@
-// AI Worker v4.6.1 - Separate speculative building (height-scaled) from completion (queue-aware, stays strong)
-console.log("🤖 AI Worker v4.6.1 loaded - speculative building scales with height, completion stays strong");
+// AI Worker v4.7.0 - Fix run bonuses to only reward contributions + add overhang penalty
+console.log("🤖 AI Worker v4.7.0 loaded - run bonuses now require piece contribution, overhang penalty added");
 
-const AI_VERSION = "4.6.1";
+const AI_VERSION = "4.7.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -429,6 +429,74 @@ function countCompleteLines(board) {
     return count;
 }
 
+// ==================== OVERHANG DETECTION ====================
+/**
+ * Count how many cells of the placed piece are "overhanging" - 
+ * i.e., placed over empty space that could trap holes.
+ * Also detects problematic patterns like vertical Z/S at edges.
+ */
+function analyzeOverhangs(board, shape, x, y, cols, rows) {
+    let overhangCount = 0;
+    let severeOverhangs = 0;  // Cells with 2+ empty spaces below them
+    let edgeVerticalProblem = false;
+    
+    // Detect the piece type by shape signature
+    const shapeHeight = shape.length;
+    const shapeWidth = shape[0] ? shape[0].length : 0;
+    
+    // Z/S pieces in vertical orientation have height=3, width=2
+    const isVerticalZS = shapeHeight === 3 && shapeWidth === 2;
+    
+    // Check if this vertical Z/S is at an edge
+    if (isVerticalZS) {
+        if (x === 0 || x === cols - 2) {
+            // Vertical Z/S at edge - this often creates trapped holes
+            edgeVerticalProblem = true;
+        }
+    }
+    
+    // Check each cell of the placed piece
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (!shape[py][px]) continue;
+            
+            const bx = x + px;
+            const by = y + py;
+            
+            // Skip cells at the bottom of the board
+            if (by >= rows - 1) continue;
+            
+            // Count empty cells directly below this piece cell
+            let emptyBelow = 0;
+            for (let checkY = by + 1; checkY < rows; checkY++) {
+                // Check if this column position has support from the piece itself
+                let pieceSupport = false;
+                for (let ppy = py + 1; ppy < shape.length; ppy++) {
+                    if (shape[ppy] && shape[ppy][px]) {
+                        pieceSupport = true;
+                        break;
+                    }
+                }
+                if (pieceSupport) break;
+                
+                // Check board - if there's a block, stop counting
+                if (board[checkY] && board[checkY][bx]) break;
+                
+                emptyBelow++;
+            }
+            
+            if (emptyBelow > 0) {
+                overhangCount++;
+                if (emptyBelow >= 2) {
+                    severeOverhangs++;
+                }
+            }
+        }
+    }
+    
+    return { overhangCount, severeOverhangs, edgeVerticalProblem };
+}
+
 // ==================== HORIZONTAL CONNECTIVITY ANALYSIS ====================
 
 /**
@@ -510,6 +578,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         height: { value: 0, penalty: 0 },
         bumpiness: { value: 0, penalty: 0 },
         wells: { count: 0, penalty: 0 },
+        overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
         tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0 },
@@ -676,6 +745,35 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.wells.penalty = wellPenalty;
     score -= wellPenalty;
     
+    // ====== OVERHANG PENALTY ======
+    // Penalize piece placements that create overhangs (cells over empty space)
+    // This catches problematic vertical Z/S pieces at edges
+    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows);
+    breakdown.overhangs.count = overhangInfo.overhangCount;
+    breakdown.overhangs.severe = overhangInfo.severeOverhangs;
+    breakdown.overhangs.edgeVertical = overhangInfo.edgeVerticalProblem;
+    
+    // Base overhang penalty
+    let overhangPenalty = overhangInfo.overhangCount * 8;
+    
+    // Extra penalty for severe overhangs (2+ empty below)
+    overhangPenalty += overhangInfo.severeOverhangs * 15;
+    
+    // Significant extra penalty for vertical Z/S at edges - these almost always cause problems
+    if (overhangInfo.edgeVerticalProblem) {
+        overhangPenalty += 40;
+    }
+    
+    // Don't apply full overhang penalty if tsunami is imminent and we're extending it
+    if (tsunamiImminent && color === bestTsunamiColor) {
+        overhangPenalty = Math.round(overhangPenalty * 0.3);
+    } else if (buildingSpecialEvent) {
+        overhangPenalty = Math.round(overhangPenalty * 0.6);
+    }
+    
+    breakdown.overhangs.penalty = overhangPenalty;
+    score -= overhangPenalty;
+    
     // ====== CRITICAL HEIGHT ======
     // Less severe when tsunami is imminent - we're about to clear the board
     if (tsunamiImminent) {
@@ -827,6 +925,17 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
         
+        // Get the rows that the piece occupies
+        const pieceRows = new Set();
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    pieceRows.add(y + py);
+                }
+            }
+        }
+        
+        // Adjacency bonuses (speculative)
         let horizontalAdj = 0;
         let verticalAdj = 0;
         
@@ -850,6 +959,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                     let partOfPiece = py > 0 && shape[py - 1] && shape[py - 1][px];
                     if (!partOfPiece) verticalAdj++;
                 }
+                
                 if (by < rows - 1 && board[by + 1] && board[by + 1][bx] === color) {
                     let partOfPiece = py < shape.length - 1 && shape[py + 1] && shape[py + 1][px];
                     if (!partOfPiece) verticalAdj++;
@@ -863,7 +973,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         if (isBreeze) {
             breakdown.blob.bonus = Math.round((horizontalAdj * 5 + verticalAdj * 5) * speculativeMultiplier);
             for (const run of runsAfter) {
-                if (run.width >= 3 && run.color === color) {
+                if (run.width >= 3 && run.color === color && pieceRows.has(run.row)) {
                     breakdown.blob.bonus += Math.round(run.width * 3 * speculativeMultiplier);
                 }
             }
@@ -871,8 +981,19 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
             // SPECULATIVE: General adjacency bonuses (building blobs hoping for future pieces)
             breakdown.blob.bonus = Math.round((horizontalAdj * 8 + verticalAdj * 2) * speculativeMultiplier);
             
+            // Wide horizontal run bonuses - ONLY for runs the piece actually contributes to
+            // A piece contributes if: same color AND on the same row AND adjacent to or part of the run
             for (const run of runsAfter) {
                 if (run.width >= 4) {
+                    // Check if piece actually contributes to this run
+                    const pieceContributesToRun = run.color === color && pieceRows.has(run.row);
+                    
+                    // Also check if piece is adjacent to a run of different color (blocking/extending consideration)
+                    const pieceOnRunRow = pieceRows.has(run.row);
+                    
+                    // Only give bonuses if piece is same color AND on the run's row
+                    if (!pieceContributesToRun) continue;
+                    
                     const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
                     const blocksToComplete = 10 - run.width;
                     
@@ -890,7 +1011,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                         runBonus += 400 + run.width * 15;
                         breakdown.classification = 'opportunistic';
                     }
-                    if (run.color === color) runBonus *= 1.5;
+                    // Already filtered to same color, so always apply the 1.5x
+                    runBonus *= 1.5;
                     if (run.width >= 10) {
                         runBonus += (run.width - 9) * 40;
                     } else if (run.width >= 9) {
@@ -902,8 +1024,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            // Edge extension bonuses - use completion multiplier for near-complete runs
-            const ourRuns = runsAfter.filter(r => r.color === color);
+            // Edge extension bonuses - only for runs of the piece's color that the piece touches
+            const ourRuns = runsAfter.filter(r => r.color === color && pieceRows.has(r.row));
             for (const run of ourRuns) {
                 if (run.width >= 4) {
                     const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
@@ -928,9 +1050,9 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            // Strategic edge placement and queue bonuses
+            // Strategic edge placement and queue bonuses - only if piece is on the run's row
             const ourBestRun = bestRuns[color];
-            if (ourBestRun && ourBestRun.width >= 5) {
+            if (ourBestRun && ourBestRun.width >= 5 && pieceRows.has(ourBestRun.row)) {
                 const pieceMinX = x;
                 const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
                 
@@ -951,7 +1073,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                     }
                 }
                 
-                // Queue bonus - ALWAYS uses completion multiplier (it's about finishing tsunamis)
+                // Queue bonus - only if piece is contributing to this run
                 breakdown.queue.matchingPieces = queueMatches;
                 if (queueMatches >= 3) {
                     breakdown.queue.bonus = Math.round(ourBestRun.width * 6 * completionMultiplier);
@@ -1107,6 +1229,27 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         }
     }
     
+    // ====== OVERHANG PENALTY ======
+    // Penalize piece placements that create overhangs (cells over empty space)
+    const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows);
+    
+    let overhangPenalty = overhangInfo.overhangCount * 8;
+    overhangPenalty += overhangInfo.severeOverhangs * 15;
+    
+    // Significant extra penalty for vertical Z/S at edges
+    if (overhangInfo.edgeVerticalProblem) {
+        overhangPenalty += 40;
+    }
+    
+    // Reduce penalty if building toward imminent tsunami
+    if (tsunamiImminent && color === bestTsunamiColor) {
+        overhangPenalty = Math.round(overhangPenalty * 0.3);
+    } else if (buildingSpecialEvent) {
+        overhangPenalty = Math.round(overhangPenalty * 0.6);
+    }
+    
+    score -= overhangPenalty;
+    
     // ====== CRITICAL HEIGHT ======
     // Less severe when tsunami is imminent
     if (tsunamiImminent) {
@@ -1233,6 +1376,16 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     if (canBuildBlobs) {
         const runsAfter = getHorizontalRuns(board, cols, rows);
         
+        // Get the rows that the piece occupies
+        const pieceRows = new Set();
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    pieceRows.add(y + py);
+                }
+            }
+        }
+        
         // Adjacency bonuses (speculative)
         let horizontalAdj = 0;
         let verticalAdj = 0;
@@ -1268,7 +1421,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         if (isBreeze) {
             score += Math.round((horizontalAdj * 5 + verticalAdj * 5) * speculativeMultiplier);
             for (const run of runsAfter) {
-                if (run.width >= 3 && run.color === color) {
+                if (run.width >= 3 && run.color === color && pieceRows.has(run.row)) {
                     score += Math.round(run.width * 3 * speculativeMultiplier);
                 }
             }
@@ -1276,9 +1429,12 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             // Speculative adjacency
             score += Math.round((horizontalAdj * 8 + verticalAdj * 2) * speculativeMultiplier);
         
-            // Wide horizontal run bonuses - use appropriate multiplier
+            // Wide horizontal run bonuses - ONLY for runs the piece actually contributes to
             for (const run of runsAfter) {
                 if (run.width >= 4) {
+                    // Only give bonuses if piece is same color AND on the run's row
+                    if (run.color !== color || !pieceRows.has(run.row)) continue;
+                    
                     const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
                     const blocksToComplete = 10 - run.width;
                     const isCompletable = run.width >= 8 && queueMatchesForRun >= blocksToComplete;
@@ -1291,9 +1447,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                     if (run.touchesLeft && run.touchesRight) {
                         runBonus += 400 + run.width * 15;
                     }
-                    if (run.color === color) {
-                        runBonus *= 1.5;
-                    }
+                    // Already filtered to same color, so always apply the 1.5x
+                    runBonus *= 1.5;
                     if (run.width >= 10) {
                         runBonus += (run.width - 9) * 40;
                     } else if (run.width >= 9) {
@@ -1306,8 +1461,8 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            // Edge extension bonuses
-            const ourRuns = runsAfter.filter(r => r.color === color);
+            // Edge extension bonuses - only for runs of piece's color that piece touches
+            const ourRuns = runsAfter.filter(r => r.color === color && pieceRows.has(r.row));
             for (const run of ourRuns) {
                 if (run.width >= 4) {
                     const queueMatchesForRun = pieceQueue.filter(p => p && p.color === run.color).length;
@@ -1332,12 +1487,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 }
             }
             
-            // Strategic edge placement and queue bonuses
+            // Strategic edge placement and queue bonuses - only if piece is on the run's row
             const pieceMinX = x;
             const pieceMaxX = x + (shape[0] ? shape[0].length - 1 : 0);
             
             const ourBestRun = bestRuns[color];
-            if (ourBestRun && ourBestRun.width >= 5) {
+            // Only give bonuses if the piece is actually on the run's row
+            if (ourBestRun && ourBestRun.width >= 5 && pieceRows.has(ourBestRun.row)) {
                 const queueMatches = pieceQueue.filter(p => p && p.color === color).length;
                 const blocksNeeded = 10 - ourBestRun.width;
                 const isCompletable = ourBestRun.width >= 7 && queueMatches >= blocksNeeded;
@@ -1353,7 +1509,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                     }
                 }
                 
-                // Queue bonus always uses completion multiplier
+                // Queue bonus only if piece is contributing to this run
                 if (queueMatches >= 3) {
                     score += Math.round(ourBestRun.width * 6 * completionMultiplier);
                 } else if (queueMatches >= 2) {
