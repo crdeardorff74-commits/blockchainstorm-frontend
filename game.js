@@ -4159,7 +4159,34 @@ function spawnEarthquake() {
     earthquakeLeftBlocks = [];
     earthquakeRightBlocks = [];
     
-    // Crack will be generated after shake delay completes
+    // Pre-generate crack and shift type at spawn time (for deterministic replay)
+    // generateEarthquakeCrack() handles replay by using recorded data if available
+    generateEarthquakeCrack();
+    
+    if (replayActive) {
+        // During replay, use recorded shift type
+        if (replayEarthquakeShiftType) {
+            earthquakeShiftType = replayEarthquakeShiftType;
+            console.log('🌍 Earthquake shift type from recording:', earthquakeShiftType);
+            replayEarthquakeShiftType = null; // Clear after use
+        }
+    } else {
+        // Not replaying - generate random shift type
+        const rand = Math.random();
+        if (rand < 0.333) {
+            earthquakeShiftType = 'both';
+        } else if (rand < 0.666) {
+            earthquakeShiftType = 'left';
+        } else {
+            earthquakeShiftType = 'right';
+        }
+        console.log('🌍 Pre-generated shift type:', earthquakeShiftType);
+        
+        // Record earthquake at spawn time with all data
+        if (window.GameRecorder && window.GameRecorder.isActive()) {
+            window.GameRecorder.recordEarthquake(earthquakeCrack, earthquakeShiftType);
+        }
+    }
     
     // Play continuous rumble sound to indicate earthquake starting
     playEarthquakeRumble(soundToggle);
@@ -4915,10 +4942,8 @@ function updateEarthquake() {
             earthquakePhase = 'crack';
             earthquakeShakeProgress = 0;
             
-            // Generate the crack path from bottom to top
-            generateEarthquakeCrack();
-            
-            // Play prolonged cracking sound as crack begins to form
+            // Crack path was pre-generated at spawn time
+            // Just play the crack sound as animation begins
             playEarthquakeCrack(soundToggle);
         }
     } else if (earthquakePhase === 'crack') {
@@ -5123,28 +5148,9 @@ function splitBlocksByCrack() {
     earthquakeLeftBlocks = [];
     earthquakeRightBlocks = [];
     
-    // During replay (v2.0), use recorded shift type
-    if (replayActive && replayEarthquakeShiftType) {
-        earthquakeShiftType = replayEarthquakeShiftType;
-        console.log('🌍 Earthquake shift type from recording:', earthquakeShiftType);
-        replayEarthquakeShiftType = null; // Clear after use
-    } else if (!replayActive) {
-        // Not replaying - generate random shift type and record it
-        const rand = Math.random();
-        if (rand < 0.333) {
-            earthquakeShiftType = 'both';
-        } else if (rand < 0.666) {
-            earthquakeShiftType = 'left';
-        } else {
-            earthquakeShiftType = 'right';
-        }
-        console.log('🌍 Earthquake shift type:', earthquakeShiftType);
-        
-        // Record earthquake for playback (crack path + shift type)
-        if (window.GameRecorder && window.GameRecorder.isActive()) {
-            window.GameRecorder.recordEarthquake(earthquakeCrack, earthquakeShiftType);
-        }
-    }
+    // Shift type is already set at spawn time (in spawnEarthquake)
+    // Just use the pre-determined earthquakeShiftType
+    console.log('🌍 Using earthquake shift type:', earthquakeShiftType);
     
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
