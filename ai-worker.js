@@ -1,7 +1,7 @@
-// AI Worker v5.0.0 - Add edge fill bonus to actively reward filling edge gaps
-console.log("🤖 AI Worker v5.0.0 loaded - edge fill bonus rewards touching low edges");
+// AI Worker v5.1.0 - Fix tsunami detection: include current piece + lower threshold for edge runs
+console.log("🤖 AI Worker v5.1.0 loaded - tsunami detection now considers current piece color");
 
-const AI_VERSION = "5.0.0";
+const AI_VERSION = "5.1.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -644,17 +644,21 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
             const blocksNeeded = 10 - run.width;  // Need 10-wide for tsunami
             
-            // IMMINENT: Can complete with visible queue pieces
+            // IMPORTANT: Current piece counts as a match if it's the same color!
+            const currentPieceMatches = (color === runColor) ? 1 : 0;
+            const totalMatches = queueMatches + currentPieceMatches;
+            
+            // IMMINENT: Can complete with current piece + visible queue pieces
             // This is ALWAYS worth doing unless in death zone
             if (!inDeathZone) {
                 if (run.width >= 10) {
                     tsunamiImminent = true;
                     tsunamiNearCompletion = true;
-                } else if (run.width >= 8 && queueMatches >= blocksNeeded) {
-                    // Width 8 + 2 matching in queue, or width 9 + 1 matching
+                } else if (run.width >= 8 && totalMatches >= blocksNeeded) {
+                    // Width 8 + 2 matching (current + queue), or width 9 + 1 matching
                     tsunamiImminent = true;
                     tsunamiNearCompletion = true;
-                } else if (run.width >= 9 && queueMatches >= 1) {
+                } else if (run.width >= 9 && totalMatches >= 1) {
                     tsunamiImminent = true;
                     tsunamiNearCompletion = true;
                 }
@@ -663,7 +667,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
             // NEAR COMPLETION: Very close, worth prioritizing even at moderate height
             // Allowed up to critical zone (height 15)
             if (!inCriticalZone) {
-                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
+                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
                     tsunamiNearCompletion = true;
                 }
             }
@@ -671,17 +675,29 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
             // ACHIEVABLE: Good chance with a few more pieces - only at safe heights
             // This is speculative building, scale with height
             if (!inDangerZone) {
-                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 1) || (run.width >= 7 && totalMatches >= 2)) {
                     tsunamiLikelyAchievable = true;
                 }
             }
             
             // POTENTIAL: Could become tsunami - most speculative
-            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            // Lower threshold for edge-touching runs - they're more valuable
+            // Also lower threshold when current piece matches
+            let effectiveThreshold;
+            if (run.touchesRight || run.touchesLeft) {
+                // Edge-touching runs are more valuable - lower threshold
+                effectiveThreshold = totalMatches >= 2 ? 4 : (totalMatches >= 1 ? 5 : 6);
+            } else {
+                effectiveThreshold = totalMatches >= 2 ? 5 : (totalMatches >= 1 ? 6 : 7);
+            }
+            
             if (run.width >= effectiveThreshold && !inCriticalZone) {
                 hasTsunamiPotential = true;
-                if (run.width > bestTsunamiWidth) {
-                    bestTsunamiWidth = run.width;
+                // Prefer runs where current piece matches (we can extend it NOW)
+                const currentBonus = currentPieceMatches ? 0.5 : 0;
+                const effectiveWidth = run.width + currentBonus;
+                if (effectiveWidth > bestTsunamiWidth) {
+                    bestTsunamiWidth = run.width;  // Store actual width
                     bestTsunamiColor = runColor;
                 }
             }
@@ -1250,11 +1266,15 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             const queueMatches = pieceQueue.filter(p => p && p.color === runColor).length;
             const blocksNeeded = 10 - run.width;
             
-            // IMMINENT: Can complete with visible queue (always allowed except death zone)
+            // IMPORTANT: Current piece counts as a match if it's the same color!
+            const currentPieceMatches = (color === runColor) ? 1 : 0;
+            const totalMatches = queueMatches + currentPieceMatches;
+            
+            // IMMINENT: Can complete with current piece + visible queue (always allowed except death zone)
             if (!inDeathZone) {
                 if (run.width >= 10 || 
-                    (run.width >= 8 && queueMatches >= blocksNeeded) ||
-                    (run.width >= 9 && queueMatches >= 1)) {
+                    (run.width >= 8 && totalMatches >= blocksNeeded) ||
+                    (run.width >= 9 && totalMatches >= 1)) {
                     tsunamiImminent = true;
                     tsunamiNearCompletion = true;
                 }
@@ -1262,23 +1282,33 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             
             // NEAR COMPLETION: Very close (allowed up to critical zone)
             if (!inCriticalZone) {
-                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 2)) {
+                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
                     tsunamiNearCompletion = true;
                 }
             }
             
             // ACHIEVABLE: Speculative (only at safe heights)
             if (!inDangerZone) {
-                if (run.width >= 9 || (run.width >= 8 && queueMatches >= 1) || (run.width >= 7 && queueMatches >= 2)) {
+                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 1) || (run.width >= 7 && totalMatches >= 2)) {
                     tsunamiLikelyAchievable = true;
                 }
             }
             
             // POTENTIAL: Most speculative
-            const effectiveThreshold = queueMatches >= 2 ? 5 : (queueMatches >= 1 ? 6 : 7);
+            // Lower threshold for edge-touching runs
+            let effectiveThreshold;
+            if (run.touchesRight || run.touchesLeft) {
+                effectiveThreshold = totalMatches >= 2 ? 4 : (totalMatches >= 1 ? 5 : 6);
+            } else {
+                effectiveThreshold = totalMatches >= 2 ? 5 : (totalMatches >= 1 ? 6 : 7);
+            }
+            
             if (run.width >= effectiveThreshold && !inCriticalZone) {
                 hasTsunamiPotential = true;
-                if (run.width > bestTsunamiWidth) {
+                // Prefer runs where current piece matches
+                const currentBonus = currentPieceMatches ? 0.5 : 0;
+                const effectiveWidth = run.width + currentBonus;
+                if (effectiveWidth > bestTsunamiWidth) {
                     bestTsunamiWidth = run.width;
                     bestTsunamiColor = runColor;
                 }
