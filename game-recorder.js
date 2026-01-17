@@ -398,23 +398,44 @@ const GameRecorder = (() => {
      * Submit recording to server
      */
     async function submitRecording(recordingData, gameData = {}) {
+        // Guard against null/undefined recording data
+        if (!recordingData) {
+            console.error('📹 submitRecording called with null/undefined recordingData!');
+            return { success: false, error: 'No recording data' };
+        }
+        
         try {
             const payload = {
+                // From gameData
                 username: gameData.username || 'anonymous',
-                difficulty: recordingData.difficulty,
-                skill_level: recordingData.skillLevel,
-                score: recordingData.finalStats?.score || 0,
-                lines: recordingData.finalStats?.lines || 0,
-                level: recordingData.finalStats?.level || 1,
-                strikes: recordingData.finalStats?.strikes || 0,
-                tsunamis: recordingData.finalStats?.tsunamis || 0,
-                black_holes: recordingData.finalStats?.blackHoles || 0,
-                volcanoes: recordingData.finalStats?.volcanoes || 0,
-                is_ai: recordingData.playerType === 'ai',
-                recording_data: recordingData
+                game: gameData.game || 'blockchainstorm',
+                playerType: gameData.playerType || recordingData.playerType || 'human',
+                difficulty: gameData.difficulty || recordingData.difficulty,
+                skillLevel: gameData.skillLevel || recordingData.skillLevel || 'tempest',
+                mode: gameData.mode || recordingData.mode || 'normal',
+                challenges: gameData.challenges || recordingData.challenges || [],
+                speedBonus: gameData.speedBonus || 1.0,
+                durationSeconds: gameData.durationSeconds || Math.floor((recordingData.finalStats?.duration || 0) / 1000),
+                endCause: gameData.endCause || 'game_over',
+                debugLog: gameData.debugLog || null,
+                gameVersion: recordingData.gameVersion || 'unknown',
+                
+                // Stats
+                score: gameData.score || recordingData.finalStats?.score || 0,
+                lines: gameData.lines || recordingData.finalStats?.lines || 0,
+                level: gameData.level || recordingData.finalStats?.level || 1,
+                strikes: gameData.strikes || recordingData.finalStats?.strikes || 0,
+                tsunamis: gameData.tsunamis || recordingData.finalStats?.tsunamis || 0,
+                blackholes: gameData.blackholes || recordingData.finalStats?.blackHoles || 0,
+                volcanoes: gameData.volcanoes || recordingData.finalStats?.volcanoes || 0,
+                
+                // The actual recording data - server expects 'recording' key
+                recording: recordingData
             };
             
             console.log('📹 Submitting recording to server...');
+            console.log('📹 Payload size:', JSON.stringify(payload).length, 'bytes');
+            console.log('📹 Recording has', recordingData.pieceData?.length || 0, 'pieces');
             
             const response = await fetch(`${API_URL}/recording`, {
                 method: 'POST',
