@@ -1480,6 +1480,13 @@ nextCtx.mozImageSmoothingEnabled = false;
 nextCtx.msImageSmoothingEnabled = false;
 
 // AI Mode menu overlay (shows on main menu when AI mode enabled)
+// Create a wrapper around the canvas for proper positioning
+const canvasWrapper = document.createElement('div');
+canvasWrapper.id = 'canvasWrapper';
+canvasWrapper.style.cssText = 'position: relative; display: inline-block;';
+canvas.parentNode.insertBefore(canvasWrapper, canvas);
+canvasWrapper.appendChild(canvas);
+
 const aiModeMenuOverlay = document.createElement('div');
 aiModeMenuOverlay.id = 'aiModeMenuOverlay';
 aiModeMenuOverlay.textContent = '🤖 AI MODE';
@@ -1496,11 +1503,7 @@ aiModeMenuOverlay.style.cssText = `
     z-index: 100;
     display: none;
 `;
-// Append to main-area (the container with the canvas)
-const mainAreaElement = document.querySelector('.main-area');
-if (mainAreaElement) {
-    mainAreaElement.appendChild(aiModeMenuOverlay);
-}
+canvasWrapper.appendChild(aiModeMenuOverlay);
 
 function updateAIModeMenuOverlay() {
     // Show overlay on menu when AI mode enabled, hide during gameplay
