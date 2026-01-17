@@ -1,10 +1,9 @@
 /**
  * Game Recorder Module for TaNTЯiS / BLOCKCHaiNSTORM
  * Records human gameplay for analysis and playback
- * Similar structure to AI recording but captures human decisions
- * v1.3: Added AI shadow mode - records what AI would do during human games
+ * v2.0: Piece-relative timing - all events indexed by piece for perfect sync
  */
-console.log("📹 Game Recorder v1.3 loaded - AI shadow mode for human vs AI comparison");
+console.log("📹 Game Recorder v2.0 loaded - piece-relative timing for accurate replay");
 
 const GameRecorder = (() => {
     const API_URL = 'https://blockchainstorm.onrender.com/api';
@@ -12,17 +11,15 @@ const GameRecorder = (() => {
     // Recording state
     let recording = null;
     let isRecording = false;
-    let lastBoardState = null;
-    let lastPiece = null;
-    let framesSinceLastCapture = 0;
-    const CAPTURE_INTERVAL = 30; // Capture board state every N frames
+    let currentPieceIndex = -1;
+    let currentPieceSpawnTime = 0;
     
     /**
      * Start recording a new game
      */
     function startRecording(config) {
         recording = {
-            version: '1.2',
+            version: '2.0',
             gameVersion: config.gameVersion || 'unknown',
             startTime: Date.now(),
             playerType: config.playerType || 'human',
@@ -31,375 +28,315 @@ const GameRecorder = (() => {
             palette: config.palette || 'classic',
             mode: config.mode || 'normal',
             challenges: config.challenges || [],
-            speedBonus: config.speedBonus || 1.0,
+            visualSettings: config.visualSettings || {},
             
-            // Game events
-            moves: [],          // Every piece placement
-            pieces: [],         // Piece generation sequence (type, color)
-            inputs: [],         // Player inputs for deterministic replay
-            events: [],         // Special events (strikes, tsunamis, etc.)
-            randomEvents: [],   // Random events for replay (tornadoes, earthquakes)
-            keyframes: [],      // Periodic board snapshots
-            musicTracks: [],    // Music track sequence for replay
+            // Piece-indexed data structure - each piece has its own events
+            pieceData: [],
             
-            // AI decision metadata (only populated for AI games)
-            aiDecisions: [],
+            // Global events (not piece-specific)
+            musicTracks: [],
             
             // Final stats (filled at end)
             finalStats: null
         };
         
         isRecording = true;
-        lastBoardState = null;
-        lastPiece = null;
-        framesSinceLastCapture = 0;
+        currentPieceIndex = -1;
+        currentPieceSpawnTime = 0;
         
-        console.log('📹 Recording started');
+        console.log('📹 Recording started (v2.0 piece-relative)');
         return true;
     }
     
     /**
-     * Record a piece being generated (for replay)
+     * Called when a new piece spawns - creates a new piece entry
+     * This MUST be called before any inputs for that piece are recorded
      */
-    function recordPieceGenerated(piece) {
+    function recordPieceSpawn(piece, board) {
         if (!isRecording || !recording) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        currentPieceIndex++;
+        currentPieceSpawnTime = Date.now();
         
-        recording.pieces.push({
-            t: timestamp,
+        // Create new piece entry with board snapshot
+        recording.pieceData.push({
             type: piece.type,
-            color: piece.color
+            color: piece.color,
+            spawnTime: currentPieceSpawnTime - recording.startTime,
+            boardSnapshot: compressBoard(board),
+            inputs: [],
+            randomEvents: [],
+            placement: null,  // Filled when piece locks
+            aiShadow: null    // For human vs AI comparison
         });
     }
     
     /**
-     * Record a player input for deterministic replay
+     * Record a player input - time is relative to current piece spawn
      */
     function recordInput(inputType, data = {}) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.inputs.push({
-            t: timestamp,
-            type: inputType,
-            ...data
-        });
+        if (pieceEntry) {
+            pieceEntry.inputs.push({
+                t: relativeTime,
+                type: inputType,
+                ...data
+            });
+        }
     }
     
     /**
-     * Record a piece placement
-     * For human games, aiShadow contains what the AI would have done
+     * Record a piece placement (when piece locks)
      */
     function recordMove(piece, board, moveData = {}, aiShadow = null) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
+        if (!pieceEntry) return;
         
-        // Compress piece data
-        const pieceData = {
-            t: timestamp,
-            type: piece.type || getPieceType(piece.shape),
+        // Record final placement
+        pieceEntry.placement = {
             x: piece.x,
             y: piece.y,
-            rot: piece.rotationIndex || 0,
-            color: piece.color
+            rot: piece.rotationIndex || 0
         };
         
         // Add optional move metadata
-        if (moveData.hardDrop) pieceData.hd = true;
-        if (moveData.softDropDistance) pieceData.sd = moveData.softDropDistance;
-        if (moveData.rotations) pieceData.rots = moveData.rotations;
-        if (moveData.lateralMoves) pieceData.lat = moveData.lateralMoves;
-        if (moveData.thinkTime) pieceData.tt = moveData.thinkTime;
+        if (moveData.hardDrop) pieceEntry.placement.hd = true;
+        if (moveData.softDropDistance) pieceEntry.placement.sd = moveData.softDropDistance;
+        if (moveData.rotations) pieceEntry.placement.rots = moveData.rotations;
+        if (moveData.lateralMoves) pieceEntry.placement.lat = moveData.lateralMoves;
+        if (moveData.thinkTime) pieceEntry.placement.tt = moveData.thinkTime;
         
-        // Add AI shadow evaluation if provided (what AI would have done)
+        // Add AI shadow evaluation if provided
         if (aiShadow) {
-            pieceData.aiWouldDo = {
-                x: aiShadow.chosen?.x,
-                y: aiShadow.chosen?.y,
-                rot: aiShadow.chosen?.rotation,
-                score: aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore,
-                class: aiShadow.chosen?.classification,
-                // Did human match AI recommendation?
+            pieceEntry.aiShadow = {
+                chosen: {
+                    x: aiShadow.chosen?.x,
+                    y: aiShadow.chosen?.y,
+                    rot: aiShadow.chosen?.rotation,
+                    score: aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore,
+                    class: aiShadow.chosen?.classification
+                },
                 match: (piece.x === aiShadow.chosen?.x && 
                        (piece.rotationIndex || 0) === aiShadow.chosen?.rotation)
             };
             
-            // Calculate how the AI would have scored the human's actual move
-            // This requires finding it in the alternatives
+            // Calculate score difference
             if (aiShadow.alternatives) {
                 const humanChoice = aiShadow.alternatives.find(alt => 
                     alt.x === piece.x && alt.rotation === (piece.rotationIndex || 0)
                 );
                 if (humanChoice) {
-                    pieceData.humanScore = humanChoice.combinedScore || humanChoice.immediateScore;
-                    pieceData.scoreDiff = (aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore) - 
-                                         (humanChoice.combinedScore || humanChoice.immediateScore);
+                    pieceEntry.aiShadow.humanScore = humanChoice.combinedScore || humanChoice.immediateScore;
+                    pieceEntry.aiShadow.scoreDiff = (aiShadow.chosen?.combinedScore || aiShadow.chosen?.immediateScore) - 
+                                                   (humanChoice.combinedScore || humanChoice.immediateScore);
                 }
             }
         }
-        
-        recording.moves.push(pieceData);
     }
     
     /**
-     * Record AI decision metadata (why the AI made a particular move)
+     * Record AI decision metadata
      */
     function recordAIDecision(decisionMeta) {
-        if (!isRecording || !recording || !decisionMeta) return;
+        if (!isRecording || !recording || !decisionMeta || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
+        if (!pieceEntry) return;
         
-        // Compress the decision data
-        const decision = {
-            t: timestamp,
+        pieceEntry.aiDecision = {
             chosen: decisionMeta.chosen,
-            alts: decisionMeta.alternatives?.slice(0, 3) || [], // Top 3 alternatives
+            alts: decisionMeta.alternatives?.slice(0, 3) || [],
             diff: decisionMeta.scoreDifferential,
-            board: decisionMeta.boardMetrics,
-            look: decisionMeta.lookahead?.depth || 1,
-            candidates: decisionMeta.candidatesEvaluated,
-            skill: decisionMeta.skillLevel
+            danger: decisionMeta.dangerLevel,
+            state: decisionMeta.gameState
         };
-        
-        recording.aiDecisions.push(decision);
     }
     
     /**
-     * Record a game event (line clear, strike, etc.)
+     * Record tornado spawn - relative to current piece
      */
-    function recordEvent(eventType, data = {}) {
-        if (!isRecording || !recording) return;
+    function recordTornadoSpawn(x, snakeDirection, snakeChangeCounter) {
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.events.push({
-            t: timestamp,
-            type: eventType,
-            ...data
-        });
-    }
-    
-    // ============================================
-    // RANDOM EVENT RECORDING (for playback)
-    // ============================================
-    
-    /**
-     * Record tornado spawn with its random parameters
-     */
-    function recordTornadoSpawn(tornadoData) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'tornado_spawn',
-            x: tornadoData.x,
-            snakeDirection: tornadoData.snakeDirection,
-            snakeChangeCounter: tornadoData.snakeChangeCounter
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'tornado_spawn',
+                x,
+                direction: snakeDirection,
+                snakeChangeCounter
+            });
+        }
     }
     
     /**
      * Record tornado direction change
      */
-    function recordTornadoDirectionChange(newDirection, newCounter) {
-        if (!isRecording || !recording) return;
+    function recordTornadoDirection(newDirection, velocity) {
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'tornado_direction',
-            newDirection: newDirection,
-            newCounter: newCounter
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'tornado_direction',
+                direction: newDirection,
+                velocity
+            });
+        }
     }
     
     /**
-     * Record tornado drop target position
+     * Record tornado drop position
      */
     function recordTornadoDrop(targetX) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'tornado_drop',
-            targetX: targetX
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'tornado_drop',
+                targetX
+            });
+        }
     }
     
     /**
-     * Record earthquake crack path
+     * Record earthquake
      */
     function recordEarthquake(crackPath, shiftType) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'earthquake',
-            crack: crackPath.map(pt => ({ x: pt.x, y: pt.y, edge: pt.edge })),
-            shiftType: shiftType
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'earthquake',
+                crack: crackPath.map(pt => ({ x: pt.x, y: pt.y, edge: pt.edge })),
+                shiftType
+            });
+        }
     }
     
     /**
-     * Record volcano eruption column selection
+     * Record volcano eruption
      */
     function recordVolcanoEruption(column, edgeType) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'volcano',
-            column: column,
-            edge: edgeType
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'volcano',
+                column,
+                edgeType
+            });
+        }
     }
     
     /**
-     * Record lava projectile spawn (for volcano determinism)
+     * Record lava projectile
      */
-    function recordLavaProjectile(direction, vx, vy) {
-        if (!isRecording || !recording) return;
+    function recordLavaProjectile(vx, vy) {
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'lava_projectile',
-            direction: direction,
-            vx: vx,
-            vy: vy
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'lava_projectile',
+                vx, vy
+            });
+        }
     }
     
     /**
-     * Record random hail block spawn (for Hailstorm/Hurricane modes)
+     * Record hail/gremlin block
      */
     function recordHailBlock(x, y, color) {
-        if (!isRecording || !recording) return;
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'hail_block',
-            x: x,
-            y: y,
-            color: color
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: 'gremlin_block',
+                x, y, color
+            });
+        }
     }
     
     /**
-     * Record challenge mode random events
+     * Record challenge mode event
      */
-    function recordChallengeEvent(challengeType, data) {
-        if (!isRecording || !recording) return;
+    function recordChallengeEvent(eventType, data) {
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.randomEvents.push({
-            t: timestamp,
-            type: 'challenge_' + challengeType,
-            ...data
-        });
+        if (pieceEntry) {
+            pieceEntry.randomEvents.push({
+                t: relativeTime,
+                type: eventType,
+                ...data
+            });
+        }
     }
     
     /**
-     * Record music track change for replay
+     * Record a music track change
      */
-    function recordMusicTrack(trackId, trackName) {
+    function recordMusicTrack(trackName) {
         if (!isRecording || !recording) return;
         
         const timestamp = Date.now() - recording.startTime;
         
         recording.musicTracks.push({
             t: timestamp,
-            trackId: trackId,
-            trackName: trackName
-        });
-        
-        console.log(`📹 Music track recorded: ${trackName} at ${timestamp}ms`);
-    }
-    
-    /**
-     * Record tsunami event (for analysis - replays naturally, not injected)
-     */
-    function recordTsunami(blob) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        recording.events.push({
-            t: timestamp,
-            type: 'tsunami',
-            blobSize: blob?.positions?.length || 0
+            trackName
         });
     }
     
     /**
-     * Record black hole event (for analysis - replays naturally, not injected)
+     * Record special event (strikes, tsunamis, etc.)
      */
-    function recordBlackHole(innerBlob, outerBlob) {
-        if (!isRecording || !recording) return;
+    function recordEvent(eventType, data = {}) {
+        if (!isRecording || !recording || currentPieceIndex < 0) return;
         
-        const timestamp = Date.now() - recording.startTime;
+        const relativeTime = Date.now() - currentPieceSpawnTime;
+        const pieceEntry = recording.pieceData[currentPieceIndex];
         
-        recording.events.push({
-            t: timestamp,
-            type: 'blackhole',
-            innerSize: innerBlob?.positions?.length || 0,
-            outerSize: outerBlob?.positions?.length || 0
-        });
-    }
-    
-    /**
-     * Record gravity animation data (for analysis - replays naturally, not injected)
-     */
-    function recordGravity(animations) {
-        if (!isRecording || !recording) return;
-        
-        const timestamp = Date.now() - recording.startTime;
-        
-        recording.events.push({
-            t: timestamp,
-            type: 'gravity',
-            blobCount: animations?.length || 0
-        });
-    }
-    
-    /**
-     * Capture periodic board state (call from game loop)
-     */
-    function captureFrame(board) {
-        if (!isRecording || !recording) return;
-        
-        framesSinceLastCapture++;
-        
-        if (framesSinceLastCapture >= CAPTURE_INTERVAL) {
-            framesSinceLastCapture = 0;
-            
-            const timestamp = Date.now() - recording.startTime;
-            const compressed = compressBoard(board);
-            
-            // Only save if board changed significantly
-            if (boardChanged(compressed, lastBoardState)) {
-                recording.keyframes.push({
-                    t: timestamp,
-                    board: compressed
-                });
-                lastBoardState = compressed;
-            }
+        if (pieceEntry) {
+            if (!pieceEntry.events) pieceEntry.events = [];
+            pieceEntry.events.push({
+                t: relativeTime,
+                type: eventType,
+                ...data
+            });
         }
     }
     
@@ -413,56 +350,47 @@ const GameRecorder = (() => {
         
         // Calculate human vs AI comparison stats if shadow data exists
         let humanVsAI = null;
-        const movesWithShadow = recording.moves.filter(m => m.aiWouldDo);
-        if (movesWithShadow.length > 0) {
-            const matches = movesWithShadow.filter(m => m.aiWouldDo.match).length;
-            const scoreDiffs = movesWithShadow.filter(m => m.scoreDiff !== undefined).map(m => m.scoreDiff);
+        const piecesWithShadow = recording.pieceData.filter(p => p.aiShadow);
+        if (piecesWithShadow.length > 0) {
+            const matches = piecesWithShadow.filter(p => p.aiShadow.match).length;
+            const scoreDiffs = piecesWithShadow.filter(p => p.aiShadow.scoreDiff !== undefined)
+                                               .map(p => p.aiShadow.scoreDiff);
             const avgDiff = scoreDiffs.length > 0 ? 
                 scoreDiffs.reduce((a, b) => a + b, 0) / scoreDiffs.length : 0;
             
-            // Classify moves: human better (negative diff), AI better (positive diff), same
-            const humanBetter = scoreDiffs.filter(d => d < -5).length;
-            const aiBetter = scoreDiffs.filter(d => d > 5).length;
-            const similar = scoreDiffs.length - humanBetter - aiBetter;
-            
             humanVsAI = {
-                totalCompared: movesWithShadow.length,
-                exactMatches: matches,
-                matchRate: Math.round(matches / movesWithShadow.length * 100),
-                avgScoreDiff: Math.round(avgDiff * 100) / 100,
-                humanBetterCount: humanBetter,
-                aiBetterCount: aiBetter,
-                similarCount: similar
+                totalMoves: piecesWithShadow.length,
+                matchingMoves: matches,
+                matchRate: (matches / piecesWithShadow.length * 100).toFixed(1) + '%',
+                avgScoreDiff: avgDiff.toFixed(0)
             };
         }
         
-        recording.finalStats = {
-            score: finalStats.score || 0,
-            lines: finalStats.lines || 0,
-            level: finalStats.level || 1,
-            strikes: finalStats.strikes || 0,
-            tsunamis: finalStats.tsunamis || 0,
-            blackholes: finalStats.blackholes || 0,
-            volcanoes: finalStats.volcanoes || 0,
-            duration: Date.now() - recording.startTime,
-            totalMoves: recording.moves.length,
-            totalPieces: recording.pieces.length,
-            totalRandomEvents: recording.randomEvents.length,
-            totalAIDecisions: recording.aiDecisions?.length || 0,
-            endCause: finalStats.endCause || 'game_over',
-            humanVsAI: humanVsAI
-        };
-        
         // Add final board state
-        if (finalStats.board) {
+        if (finalStats && finalStats.board) {
             recording.finalBoard = compressBoard(finalStats.board);
         }
         
-        const shadowInfo = humanVsAI ? `, ${humanVsAI.matchRate}% AI match rate` : '';
-        console.log(`📹 Recording stopped: ${recording.moves.length} moves, ${recording.events.length} events, ${recording.randomEvents.length} random events, ${recording.aiDecisions?.length || 0} AI decisions, ${recording.pieces.length} pieces${shadowInfo}`);
+        recording.finalStats = {
+            score: finalStats?.score || 0,
+            lines: finalStats?.lines || 0,
+            level: finalStats?.level || 1,
+            strikes: finalStats?.strikes || 0,
+            tsunamis: finalStats?.tsunamis || 0,
+            blackHoles: finalStats?.blackHoles || 0,
+            volcanoes: finalStats?.volcanoes || 0,
+            duration: Date.now() - recording.startTime,
+            piecesPlaced: recording.pieceData.length,
+            humanVsAI
+        };
+        
+        console.log('📹 Recording stopped:', recording.pieceData.length, 'pieces,', 
+                    recording.finalStats.duration, 'ms');
         
         const result = recording;
         recording = null;
+        currentPieceIndex = -1;
+        
         return result;
     }
     
@@ -470,89 +398,72 @@ const GameRecorder = (() => {
      * Submit recording to server
      */
     async function submitRecording(recordingData, gameData = {}) {
-        if (!recordingData) {
-            console.log('📹 No recording to submit');
-            return null;
-        }
-        
         try {
-            const token = localStorage.getItem('oi_token');
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            
-            // Use gameData as overrides for recordingData fields
             const payload = {
-                recording: recordingData,
-                username: gameData.username || 'Anonymous',
-                sessionId: gameData.sessionId || getSessionId(),
-                game: gameData.game || 'blockchainstorm',
-                playerType: gameData.playerType || recordingData.playerType || 'human',
-                difficulty: gameData.difficulty || recordingData.difficulty,
-                skillLevel: gameData.skillLevel || recordingData.skillLevel,
-                mode: gameData.mode || recordingData.mode,
-                challenges: gameData.challenges || recordingData.challenges,
-                speedBonus: gameData.speedBonus || recordingData.speedBonus,
-                score: gameData.score ?? recordingData.finalStats?.score ?? 0,
-                lines: gameData.lines ?? recordingData.finalStats?.lines ?? 0,
-                level: gameData.level ?? recordingData.finalStats?.level ?? 1,
-                strikes: gameData.strikes ?? recordingData.finalStats?.strikes ?? 0,
-                tsunamis: gameData.tsunamis ?? recordingData.finalStats?.tsunamis ?? 0,
-                blackholes: gameData.blackholes ?? recordingData.finalStats?.blackholes ?? 0,
-                volcanoes: gameData.volcanoes ?? recordingData.finalStats?.volcanoes ?? 0,
-                durationSeconds: gameData.durationSeconds ?? Math.floor((recordingData.finalStats?.duration || 0) / 1000),
-                gameVersion: recordingData.gameVersion,
-                endCause: gameData.endCause || recordingData.finalStats?.endCause || 'game_over',
-                debugLog: gameData.debugLog || null
+                username: gameData.username || 'anonymous',
+                difficulty: recordingData.difficulty,
+                skill_level: recordingData.skillLevel,
+                score: recordingData.finalStats?.score || 0,
+                lines: recordingData.finalStats?.lines || 0,
+                level: recordingData.finalStats?.level || 1,
+                strikes: recordingData.finalStats?.strikes || 0,
+                tsunamis: recordingData.finalStats?.tsunamis || 0,
+                black_holes: recordingData.finalStats?.blackHoles || 0,
+                volcanoes: recordingData.finalStats?.volcanoes || 0,
+                is_ai: recordingData.playerType === 'ai',
+                recording_data: recordingData
             };
+            
+            console.log('📹 Submitting recording to server...');
             
             const response = await fetch(`${API_URL}/recording`, {
                 method: 'POST',
-                headers: headers,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
             
             if (response.ok) {
                 const result = await response.json();
-                console.log(`📹 Recording submitted: ID ${result.recording_id}`);
-                return result;
+                console.log('📹 Recording submitted successfully, ID:', result.recording_id);
+                return { success: true, recordingId: result.recording_id };
             } else {
-                const error = await response.json();
-                console.error('📹 Recording submission failed:', error);
-                return null;
+                const errorText = await response.text();
+                console.error('📹 Recording submission failed:', response.status, errorText);
+                return { success: false, error: errorText };
             }
-        } catch (e) {
-            console.error('📹 Recording submission error:', e);
-            return null;
+        } catch (error) {
+            console.error('📹 Recording submission error:', error);
+            return { success: false, error: error.message };
         }
     }
     
     /**
-     * Download recording as JSON file (for debugging/manual analysis)
+     * Check if currently recording
      */
-    function downloadRecording(recordingData) {
-        if (!recordingData) return;
-        
-        const filename = `game_${recordingData.playerType}_${recordingData.difficulty}_${Date.now()}.json`;
-        const blob = new Blob([JSON.stringify(recordingData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        
-        URL.revokeObjectURL(url);
-        console.log(`📹 Recording downloaded: ${filename}`);
+    function isActive() {
+        return isRecording;
     }
     
-    // ============================================
-    // HELPER FUNCTIONS
-    // ============================================
+    /**
+     * Get current recording (for inspection)
+     */
+    function getRecording() {
+        return recording;
+    }
     
+    /**
+     * Get current piece index
+     */
+    function getCurrentPieceIndex() {
+        return currentPieceIndex;
+    }
+    
+    /**
+     * Compress board to array of non-null cells
+     */
     function compressBoard(board) {
         if (!board) return [];
         
@@ -567,80 +478,55 @@ const GameRecorder = (() => {
         return compressed;
     }
     
-    function boardChanged(newBoard, oldBoard) {
-        if (!oldBoard) return true;
-        if (newBoard.length !== oldBoard.length) return true;
-        
-        // Simple comparison - could be optimized
-        const newSet = new Set(newBoard.map(b => `${b.x},${b.y}`));
-        const oldSet = new Set(oldBoard.map(b => `${b.x},${b.y}`));
-        
-        if (newSet.size !== oldSet.size) return true;
-        for (const item of newSet) {
-            if (!oldSet.has(item)) return true;
-        }
-        return false;
-    }
-    
+    // Utility function for piece type detection (fallback)
     function getPieceType(shape) {
         if (!shape) return '?';
         const h = shape.length;
         const w = shape[0]?.length || 0;
         
-        // Basic shape detection
         if (h === 1 && w === 4) return 'I';
         if (h === 2 && w === 2) return 'O';
         if (h === 2 && w === 3) {
-            // Could be T, L, J, S, Z
-            const topFilled = shape[0].filter(v => v).length;
-            const botFilled = shape[1].filter(v => v).length;
-            if (topFilled === 3) return 'T';
-            if (botFilled === 3) return 'L';
-            return 'S';
+            const bottomRow = shape[1];
+            if (bottomRow[0] && bottomRow[1] && !bottomRow[2]) return 'J';
+            if (!bottomRow[0] && bottomRow[1] && bottomRow[2]) return 'L';
+            if (bottomRow[0] && bottomRow[1] && bottomRow[2]) return 'T';
+        }
+        if (h === 2 && w === 3) {
+            if (shape[0][0] && shape[0][1] && shape[1][1] && shape[1][2]) return 'S';
+            if (shape[0][1] && shape[0][2] && shape[1][0] && shape[1][1]) return 'Z';
         }
         return '?';
     }
     
-    function getSessionId() {
-        let sessionId = sessionStorage.getItem('game_session_id');
-        if (!sessionId) {
-            sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            sessionStorage.setItem('game_session_id', sessionId);
-        }
-        return sessionId;
-    }
-    
-    // ============================================
-    // PUBLIC API
-    // ============================================
-    
+    // Export public interface
     return {
         startRecording,
-        recordPieceGenerated,
+        stopRecording,
+        recordPieceSpawn,
         recordInput,
         recordMove,
         recordAIDecision,
         recordEvent,
+        recordMusicTrack,
         recordTornadoSpawn,
-        recordTornadoDirectionChange,
+        recordTornadoDirection,
         recordTornadoDrop,
         recordEarthquake,
         recordVolcanoEruption,
         recordLavaProjectile,
         recordHailBlock,
-        recordGremlinBlock: recordHailBlock,  // Alias for renamed feature
+        recordGremlinBlock: recordHailBlock,
         recordChallengeEvent,
-        recordMusicTrack,
-        recordTsunami,
-        recordBlackHole,
-        recordGravity,
-        captureFrame,
-        stopRecording,
         submitRecording,
-        downloadRecording,
-        isActive: () => isRecording
+        isActive,
+        getRecording,
+        getCurrentPieceIndex,
+        compressBoard
     };
 })();
 
-// Make available globally
-window.GameRecorder = GameRecorder;
+// Export for use as module
+if (typeof window !== 'undefined') {
+    window.GameRecorder = GameRecorder;
+}
