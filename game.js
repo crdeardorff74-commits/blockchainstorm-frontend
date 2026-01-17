@@ -644,7 +644,7 @@ const GamepadController = {
                 return;
             }
             
-            if (!gameRunning || paused) return;
+            if (!gameRunning || paused || replayActive) return;
             if (!currentPiece) return;
             
             const now = Date.now();
@@ -1202,18 +1202,23 @@ const GamepadController = {
         if (newIndex < 0) newIndex = buttons.length - 1;
         if (newIndex >= buttons.length) newIndex = 0;
         
-        // Update selection visually
-        buttons.forEach((btn, i) => {
-            if (i === newIndex) {
-                btn.classList.add('selected');
-            } else {
-                btn.classList.remove('selected');
-            }
-        });
-        
-        // Update the global selectedModeIndex if it exists
+        // Update the global selectedModeIndex
         if (typeof selectedModeIndex !== 'undefined') {
             selectedModeIndex = newIndex;
+        }
+        
+        // Use updateSelectedMode to update visuals AND leaderboard
+        if (typeof updateSelectedMode === 'function') {
+            updateSelectedMode();
+        } else {
+            // Fallback: Update selection visually if updateSelectedMode not available yet
+            buttons.forEach((btn, i) => {
+                if (i === newIndex) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
         }
         
         // Play move sound
@@ -2374,6 +2379,7 @@ function exitAIGame() {
     // Stop music and timers
     cancelAIAutoRestartTimer();
     stopMusic();
+    GamepadController.stopVibration(); // Stop any controller haptic feedback
     
     // Hide sun/planets and planet stats
     if (typeof StarfieldSystem !== 'undefined') {
@@ -11514,6 +11520,7 @@ async function gameOver() {
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
+    GamepadController.stopVibration(); // Stop any controller haptic feedback
     setHasPlayedGame(true); // Switch menu music to End Credits version
     playSoundEffect('gameover', soundToggle);
     StarfieldSystem.hidePlanetStats();
@@ -12051,7 +12058,9 @@ function update(time = 0) {
         updateVolcanoAnimation(); // Update volcano animation
         updateFallingBlocks(); // Update falling blocks from gravity
         updateBouncingPieces(); // Update bouncing pieces (Rubber & Glue mode)
-        GamepadController.update(); // Update gamepad controller input
+        if (!replayActive) {
+            GamepadController.update(); // Update gamepad controller input (skip during replay)
+        }
     }
     
     // Apply horizontal earthquake shake during shake, crack and shift phases
@@ -14738,6 +14747,7 @@ function showReplayComplete() {
     
     // Stop the game loop but keep UI visible
     gameRunning = false;
+    GamepadController.stopVibration(); // Stop any controller haptic feedback
 }
 
 /**
@@ -14893,6 +14903,7 @@ function stopReplay() {
     toggleUIElements(true); // Restore How to Play panel
     setGameInProgress(false);
     stopMusic();
+    GamepadController.stopVibration(); // Stop any controller haptic feedback
     startMenuMusic(musicSelect); // Resume menu music
     
     // Hide planet stats
