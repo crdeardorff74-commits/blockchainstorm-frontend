@@ -1,7 +1,7 @@
-// AI Worker v4.7.0 - Fix run bonuses to only reward contributions + add overhang penalty
-console.log("🤖 AI Worker v4.7.0 loaded - run bonuses now require piece contribution, overhang penalty added");
+// AI Worker v4.8.0 - Fix run bonuses + add overhang penalty + edge well disparity penalty
+console.log("🤖 AI Worker v4.8.0 loaded - prevents I-piece dependency from edge well buildup");
 
-const AI_VERSION = "4.7.0";
+const AI_VERSION = "4.8.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -578,6 +578,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         height: { value: 0, penalty: 0 },
         bumpiness: { value: 0, penalty: 0 },
         wells: { count: 0, penalty: 0 },
+        edgeWells: { leftDepth: 0, rightDepth: 0, penalty: 0 },
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
         lineClears: { count: 0, bonus: 0 },
@@ -744,6 +745,56 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.wells.count = wellCount;
     breakdown.wells.penalty = wellPenalty;
     score -= wellPenalty;
+    
+    // ====== EDGE WELL DISPARITY PENALTY ======
+    // Penalize when edge columns (0 and 9) are much lower than the middle
+    // This creates I-piece dependency which is a death sentence
+    const middleAvgHeight = (colHeights[2] + colHeights[3] + colHeights[4] + colHeights[5] + colHeights[6] + colHeights[7]) / 6;
+    const leftEdgeDepth = Math.max(0, middleAvgHeight - colHeights[0]);
+    const rightEdgeDepth = Math.max(0, middleAvgHeight - colHeights[9]);
+    
+    breakdown.edgeWells.leftDepth = Math.round(leftEdgeDepth * 10) / 10;
+    breakdown.edgeWells.rightDepth = Math.round(rightEdgeDepth * 10) / 10;
+    
+    // Progressive penalty - small disparities are okay, large ones are very bad
+    let edgeWellPenalty = 0;
+    
+    // Left edge penalty
+    if (leftEdgeDepth > 8) {
+        // Severe: 8+ blocks lower - this is I-piece dependency territory
+        edgeWellPenalty += 30 + (leftEdgeDepth - 8) * 8;
+    } else if (leftEdgeDepth > 5) {
+        // Moderate: getting risky
+        edgeWellPenalty += (leftEdgeDepth - 5) * 5;
+    } else if (leftEdgeDepth > 3) {
+        // Mild: worth discouraging
+        edgeWellPenalty += (leftEdgeDepth - 3) * 2;
+    }
+    
+    // Right edge penalty (same logic)
+    if (rightEdgeDepth > 8) {
+        edgeWellPenalty += 30 + (rightEdgeDepth - 8) * 8;
+    } else if (rightEdgeDepth > 5) {
+        edgeWellPenalty += (rightEdgeDepth - 5) * 5;
+    } else if (rightEdgeDepth > 3) {
+        edgeWellPenalty += (rightEdgeDepth - 3) * 2;
+    }
+    
+    // Extra penalty if BOTH edges are deep - you're really stuck
+    if (leftEdgeDepth > 5 && rightEdgeDepth > 5) {
+        edgeWellPenalty += 20;
+    }
+    
+    // Reduce penalty slightly if building tsunami (horizontal building is natural)
+    // But don't reduce too much - edge wells are still bad
+    if (tsunamiNearCompletion) {
+        edgeWellPenalty = Math.round(edgeWellPenalty * 0.6);
+    } else if (hasTsunamiPotential) {
+        edgeWellPenalty = Math.round(edgeWellPenalty * 0.8);
+    }
+    
+    breakdown.edgeWells.penalty = edgeWellPenalty;
+    score -= edgeWellPenalty;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
@@ -1228,6 +1279,47 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             score -= (wellDepth - 3) * 3;
         }
     }
+    
+    // ====== EDGE WELL DISPARITY PENALTY ======
+    // Penalize when edge columns (0 and 9) are much lower than the middle
+    // This creates I-piece dependency which is a death sentence
+    const middleAvgHeight = (colHeights[2] + colHeights[3] + colHeights[4] + colHeights[5] + colHeights[6] + colHeights[7]) / 6;
+    const leftEdgeDepth = Math.max(0, middleAvgHeight - colHeights[0]);
+    const rightEdgeDepth = Math.max(0, middleAvgHeight - colHeights[9]);
+    
+    let edgeWellPenalty = 0;
+    
+    // Left edge penalty
+    if (leftEdgeDepth > 8) {
+        edgeWellPenalty += 30 + (leftEdgeDepth - 8) * 8;
+    } else if (leftEdgeDepth > 5) {
+        edgeWellPenalty += (leftEdgeDepth - 5) * 5;
+    } else if (leftEdgeDepth > 3) {
+        edgeWellPenalty += (leftEdgeDepth - 3) * 2;
+    }
+    
+    // Right edge penalty
+    if (rightEdgeDepth > 8) {
+        edgeWellPenalty += 30 + (rightEdgeDepth - 8) * 8;
+    } else if (rightEdgeDepth > 5) {
+        edgeWellPenalty += (rightEdgeDepth - 5) * 5;
+    } else if (rightEdgeDepth > 3) {
+        edgeWellPenalty += (rightEdgeDepth - 3) * 2;
+    }
+    
+    // Extra penalty if BOTH edges are deep
+    if (leftEdgeDepth > 5 && rightEdgeDepth > 5) {
+        edgeWellPenalty += 20;
+    }
+    
+    // Reduce penalty slightly if building tsunami
+    if (tsunamiNearCompletion) {
+        edgeWellPenalty = Math.round(edgeWellPenalty * 0.6);
+    } else if (hasTsunamiPotential) {
+        edgeWellPenalty = Math.round(edgeWellPenalty * 0.8);
+    }
+    
+    score -= edgeWellPenalty;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
