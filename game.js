@@ -2963,7 +2963,17 @@ function updateVolcanoAnimation() {
             // === VOLCANO SCORING - Applied when eruption starts ===
             // This timing gives visual feedback (lava shooting) before score jumps
             const lavaSize = volcanoLavaBlob.positions.length;
-            const lavaPoints = lavaSize * lavaSize * lavaSize * 500;
+            let lavaPoints = lavaSize * lavaSize * lavaSize * 500;
+            
+            // Apply CASCADE BONUS if this volcano was triggered by gravity from another special event
+            let cascadeMultiplier = 1;
+            if (cascadeLevel > 0) {
+                cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
+                lavaPoints *= cascadeMultiplier;
+                showCascadeBonus(cascadeMultiplier);
+                console.log(`🌋 VOLCANO CASCADE BONUS! x${cascadeMultiplier}`);
+            }
+            
             const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
             score += finalVolcanoScore;
             
@@ -8840,7 +8850,16 @@ function checkForSpecialFormations() {
             const innerSize = bh.innerBlob.positions.length;
             const innerPoints = innerSize * innerSize * innerSize * 800;
             const outerPoints = outerSize * outerSize * outerSize * 800;
-            const blackHolePoints = innerPoints + outerPoints;
+            let blackHolePoints = innerPoints + outerPoints;
+            
+            // Apply CASCADE BONUS if this black hole was triggered by gravity from another special event
+            let cascadeMultiplier = 1;
+            if (cascadeLevel > 0) {
+                cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
+                blackHolePoints *= cascadeMultiplier;
+                showCascadeBonus(cascadeMultiplier);
+                console.log(`🕳️ BLACK HOLE CASCADE BONUS! x${cascadeMultiplier}`);
+            }
             
             const finalBlackHoleScore = applyScoreModifiers(blackHolePoints * level);
             score += finalBlackHoleScore;
@@ -8877,6 +8896,16 @@ function checkForSpecialFormations() {
             // Points = (blob size)³ × 200
             const blobSize = blob.positions.length;
             let tsunamiPoints = blobSize * blobSize * blobSize * 200;
+            
+            // Apply CASCADE BONUS if this tsunami was triggered by gravity from another special event
+            let cascadeMultiplier = 1;
+            if (cascadeLevel > 0) {
+                cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
+                tsunamiPoints *= cascadeMultiplier;
+                showCascadeBonus(cascadeMultiplier);
+                console.log(`🌊 TSUNAMI CASCADE BONUS! x${cascadeMultiplier}`);
+            }
+            
             const finalTsunamiScore = applyScoreModifiers(tsunamiPoints * level);
             score += finalTsunamiScore;
             
@@ -9607,11 +9636,12 @@ function updateFallingBlocks() {
             }
         }
         
+        // Increment cascade level for gravity-triggered formations and clears
+        // This must happen BEFORE checkForSpecialFormations so cascaded tsunamis/black holes get bonus
+        cascadeLevel++;
+        
         // Check for black holes and tsunamis after gravity settles
         checkForSpecialFormations();
-        
-        // Increment cascade level for gravity-triggered clears
-        cascadeLevel++;
         
         // DON'T call applyGravity here - the multi-pass simulation already handled everything!
         // Just check for line clears

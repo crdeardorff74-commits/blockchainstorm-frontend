@@ -1,7 +1,7 @@
-// AI Worker v5.12.0 - Only reduce bumpiness for achievable tsunamis
-console.log("🤖 AI Worker v5.12.0 loaded - Stricter bumpiness: only reduce for achievable/imminent tsunamis");
+// AI Worker v5.13.0 - Quadratic edge well penalty
+console.log("🤖 AI Worker v5.13.0 loaded - Quadratic edge well penalty, stricter tsunami conditions");
 
-const AI_VERSION = "5.12.0";
+const AI_VERSION = "5.13.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -927,6 +927,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // ====== EDGE WELL DISPARITY PENALTY ======
     // Penalize when edge columns (0 and 9) are much lower than the middle
     // This creates I-piece dependency which is a death sentence
+    // SIGNIFICANTLY INCREASED - the AI was leaving edges empty too often
     const middleAvgHeight = (colHeights[2] + colHeights[3] + colHeights[4] + colHeights[5] + colHeights[6] + colHeights[7]) / 6;
     const leftEdgeDepth = Math.max(0, middleAvgHeight - colHeights[0]);
     const rightEdgeDepth = Math.max(0, middleAvgHeight - colHeights[9]);
@@ -934,33 +935,33 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.edgeWells.leftDepth = Math.round(leftEdgeDepth * 10) / 10;
     breakdown.edgeWells.rightDepth = Math.round(rightEdgeDepth * 10) / 10;
     
-    // Progressive penalty - small disparities are okay, large ones are very bad
+    // Progressive penalty - kick in earlier and be much stronger
     let edgeWellPenalty = 0;
     
-    // Left edge penalty
-    if (leftEdgeDepth > 8) {
-        // Severe: 8+ blocks lower - this is I-piece dependency territory
-        edgeWellPenalty += 30 + (leftEdgeDepth - 8) * 8;
-    } else if (leftEdgeDepth > 5) {
-        // Moderate: getting risky
-        edgeWellPenalty += (leftEdgeDepth - 5) * 5;
+    // Left edge penalty - QUADRATIC scaling for depth
+    if (leftEdgeDepth > 6) {
+        // Severe: 6+ blocks lower - quadratic penalty
+        edgeWellPenalty += leftEdgeDepth * leftEdgeDepth * 2;  // 6->72, 8->128, 10->200
     } else if (leftEdgeDepth > 3) {
-        // Mild: worth discouraging
-        edgeWellPenalty += (leftEdgeDepth - 3) * 2;
+        // Moderate: starting to get dangerous
+        edgeWellPenalty += (leftEdgeDepth - 3) * 12;  // 4->12, 5->24, 6->36
+    } else if (leftEdgeDepth > 1) {
+        // Mild: start discouraging early
+        edgeWellPenalty += (leftEdgeDepth - 1) * 5;  // 2->5, 3->10
     }
     
     // Right edge penalty (same logic)
-    if (rightEdgeDepth > 8) {
-        edgeWellPenalty += 30 + (rightEdgeDepth - 8) * 8;
-    } else if (rightEdgeDepth > 5) {
-        edgeWellPenalty += (rightEdgeDepth - 5) * 5;
+    if (rightEdgeDepth > 6) {
+        edgeWellPenalty += rightEdgeDepth * rightEdgeDepth * 2;
     } else if (rightEdgeDepth > 3) {
-        edgeWellPenalty += (rightEdgeDepth - 3) * 2;
+        edgeWellPenalty += (rightEdgeDepth - 3) * 12;
+    } else if (rightEdgeDepth > 1) {
+        edgeWellPenalty += (rightEdgeDepth - 1) * 5;
     }
     
     // Extra penalty if BOTH edges are deep - you're really stuck
-    if (leftEdgeDepth > 5 && rightEdgeDepth > 5) {
-        edgeWellPenalty += 20;
+    if (leftEdgeDepth > 4 && rightEdgeDepth > 4) {
+        edgeWellPenalty += 40;
     }
     
     // Reduce penalty slightly if building tsunami (horizontal building is natural)
@@ -2024,33 +2025,34 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // ====== EDGE WELL DISPARITY PENALTY ======
     // Penalize when edge columns (0 and 9) are much lower than the middle
     // This creates I-piece dependency which is a death sentence
+    // SIGNIFICANTLY INCREASED - the AI was leaving edges empty too often
     const middleAvgHeight = (colHeights[2] + colHeights[3] + colHeights[4] + colHeights[5] + colHeights[6] + colHeights[7]) / 6;
     const leftEdgeDepth = Math.max(0, middleAvgHeight - colHeights[0]);
     const rightEdgeDepth = Math.max(0, middleAvgHeight - colHeights[9]);
     
     let edgeWellPenalty = 0;
     
-    // Left edge penalty
-    if (leftEdgeDepth > 8) {
-        edgeWellPenalty += 30 + (leftEdgeDepth - 8) * 8;
-    } else if (leftEdgeDepth > 5) {
-        edgeWellPenalty += (leftEdgeDepth - 5) * 5;
+    // Left edge penalty - QUADRATIC scaling for depth
+    if (leftEdgeDepth > 6) {
+        edgeWellPenalty += leftEdgeDepth * leftEdgeDepth * 2;
     } else if (leftEdgeDepth > 3) {
-        edgeWellPenalty += (leftEdgeDepth - 3) * 2;
+        edgeWellPenalty += (leftEdgeDepth - 3) * 12;
+    } else if (leftEdgeDepth > 1) {
+        edgeWellPenalty += (leftEdgeDepth - 1) * 5;
     }
     
     // Right edge penalty
-    if (rightEdgeDepth > 8) {
-        edgeWellPenalty += 30 + (rightEdgeDepth - 8) * 8;
-    } else if (rightEdgeDepth > 5) {
-        edgeWellPenalty += (rightEdgeDepth - 5) * 5;
+    if (rightEdgeDepth > 6) {
+        edgeWellPenalty += rightEdgeDepth * rightEdgeDepth * 2;
     } else if (rightEdgeDepth > 3) {
-        edgeWellPenalty += (rightEdgeDepth - 3) * 2;
+        edgeWellPenalty += (rightEdgeDepth - 3) * 12;
+    } else if (rightEdgeDepth > 1) {
+        edgeWellPenalty += (rightEdgeDepth - 1) * 5;
     }
     
     // Extra penalty if BOTH edges are deep
-    if (leftEdgeDepth > 5 && rightEdgeDepth > 5) {
-        edgeWellPenalty += 20;
+    if (leftEdgeDepth > 4 && rightEdgeDepth > 4) {
+        edgeWellPenalty += 40;
     }
     
     // Reduce penalty slightly if building tsunami
