@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.18 loaded - fix earthquake stuck detection");
+console.log("🎮 AI Player v3.19 loaded - fix move order: move first then rotate for I/S/Z pieces");
 
 const AIPlayer = (() => {
     // Configuration
@@ -242,24 +242,82 @@ const AIPlayer = (() => {
     
     /**
      * Calculate moves needed to reach target placement
+     * FIXED: For I-piece (and pieces that get wider), move horizontally FIRST 
+     * while piece is narrow, THEN rotate. This prevents getting stuck when 
+     * rotation makes piece wider and blocks horizontal movement.
      * @param {boolean} skipDrop - If true, don't add drop command (for earthquake positioning)
      */
     function calculateMoves(currentPiece, targetPlacement, skipDrop = false) {
         const moves = [];
-        
-        for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-            moves.push('rotate');
-        }
-        
         const xDiff = targetPlacement.x - currentPiece.x;
+        const needsRotation = targetPlacement.rotationIndex > 0;
         
-        if (xDiff < 0) {
-            for (let i = 0; i < Math.abs(xDiff); i++) {
-                moves.push('left');
+        // I-piece is the main problem: spawns 1-wide vertical, becomes 4-wide horizontal
+        // Moving while vertical is easy, rotating near walls/pieces is hard
+        const isIPiece = currentPiece.type === 'I';
+        
+        // S, Z, L, J, T also change dimensions but less dramatically
+        // For these, moving first is still safer when we need to move far
+        const farMove = Math.abs(xDiff) >= 3;
+        
+        if (isIPiece && needsRotation) {
+            // I-PIECE STRATEGY: Always move first while vertical (1-wide)
+            // The I-piece rotates around its center, so:
+            // - Vertical I at x: single column at x
+            // - Horizontal I at x: spans x to x+3
+            // When rotating from vertical to horizontal, the x stays roughly centered
+            // So we need to move to approximately targetX, then rotate
+            
+            // Move horizontally while still vertical
+            if (xDiff < 0) {
+                for (let i = 0; i < Math.abs(xDiff); i++) {
+                    moves.push('left');
+                }
+            } else if (xDiff > 0) {
+                for (let i = 0; i < xDiff; i++) {
+                    moves.push('right');
+                }
             }
-        } else if (xDiff > 0) {
-            for (let i = 0; i < xDiff; i++) {
-                moves.push('right');
+            
+            // Then rotate
+            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+                moves.push('rotate');
+            }
+            
+        } else if ((farMove && needsRotation) || currentPiece.type === 'S' || currentPiece.type === 'Z') {
+            // For S and Z pieces, or when moving far: move first, then rotate
+            // S and Z pieces can get stuck when rotated near walls
+            
+            if (xDiff < 0) {
+                for (let i = 0; i < Math.abs(xDiff); i++) {
+                    moves.push('left');
+                }
+            } else if (xDiff > 0) {
+                for (let i = 0; i < xDiff; i++) {
+                    moves.push('right');
+                }
+            }
+            
+            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+                moves.push('rotate');
+            }
+            
+        } else {
+            // DEFAULT STRATEGY: Rotate first, then move (works for most cases)
+            // O, T, L, J pieces with short moves
+            
+            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+                moves.push('rotate');
+            }
+            
+            if (xDiff < 0) {
+                for (let i = 0; i < Math.abs(xDiff); i++) {
+                    moves.push('left');
+                }
+            } else if (xDiff > 0) {
+                for (let i = 0; i < xDiff; i++) {
+                    moves.push('right');
+                }
             }
         }
         
