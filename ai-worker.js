@@ -1,7 +1,7 @@
-// AI Worker v5.16.0 - NO TSUNAMI REDUCTION for holes: survival first, only imminent tsunamis get leniency
-console.log("🤖 AI Worker v5.16.0 loaded - NO tsunami potential reduction for holes, lower danger thresholds");
+// AI Worker v5.18.0 - Stack-based tsunami lookahead: 1-4 pieces based on stack height
+console.log("🤖 AI Worker v5.18.0 loaded - Stack-based tsunami lookahead (1-4 pieces), survival penalties");
 
-const AI_VERSION = "5.16.0";
+const AI_VERSION = "5.18.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -900,23 +900,23 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.holes.penalty;
     
     // ====== HEIGHT PENALTY ======
-    // Height is the #1 survival factor - penalize it more aggressively
-    // Base penalty is now higher to encourage clearing lines
-    let heightMultiplier = 1.5;  // Was 1.0 - increased base penalty
+    // Height is the #1 survival factor - MASSIVE penalty
+    let heightMultiplier = 2.5;  // Was 1.5 - DRASTICALLY increased
     
-    if (tsunamiImminent) {
-        heightMultiplier = 0.6;  // Only reduce for truly imminent tsunamis
-    } else if (tsunamiNearCompletion && stackHeight < 14) {
-        heightMultiplier = 0.9;  // Slight reduction, but only at safe heights
+    // Only reduce for truly imminent tsunamis with clean board
+    if (tsunamiImminent && holes <= 2) {
+        heightMultiplier = 1.0;
     }
-    // No reduction for "achievable" or "potential" - those are too speculative
+    // NO reduction for anything else
     
     // Additional penalty scaling for dangerous heights
     if (stackHeight >= 16) {
-        heightMultiplier *= 2.0;  // Double the penalty at critical height
+        heightMultiplier *= 2.5;
     } else if (stackHeight >= 14) {
-        heightMultiplier *= 1.5;
+        heightMultiplier *= 2.0;
     } else if (stackHeight >= 12) {
+        heightMultiplier *= 1.5;
+    } else if (stackHeight >= 10) {
         heightMultiplier *= 1.2;
     }
     
@@ -924,25 +924,25 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.height.penalty;
     
     // ====== BUMPINESS ======
-    // Bumpiness prevents line clears - penalize more aggressively
-    // INCREASED base penalty to prioritize flat surfaces
-    let bumpinessMultiplier = 1.5;  // Was 1.2 - need to prioritize flat surfaces
+    // Bumpiness prevents line clears - MASSIVE penalty
+    // DRASTICALLY INCREASED - flat surfaces are essential for survival
+    let bumpinessMultiplier = 3.0;  // Was 1.5 - DOUBLED AGAIN
     
-    // ONLY reduce bumpiness for truly imminent tsunamis - not just "potential"
-    if (tsunamiImminent && stackHeight < 14) {
-        bumpinessMultiplier = 0.5;  // Very close to tsunami at safe height
-    } else if (tsunamiNearCompletion && stackHeight < 12) {
-        bumpinessMultiplier = 0.8;  // Near completion at safe height
+    // Only reduce for truly imminent tsunamis with clean board
+    if (tsunamiImminent && holes <= 2 && stackHeight < 12) {
+        bumpinessMultiplier = 1.0;  // Still penalize, just less
     }
-    // No reduction for "potential" or at high stacks - survival first!
+    // NO reduction for anything else
     
-    // Scale up dramatically at dangerous heights
+    // Scale up at dangerous heights
     if (stackHeight >= 16) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);  // Was 3.0
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 6.0);
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);  // Was 2.2
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 5.0);
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.0);  // Was 1.6
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+    } else if (stackHeight >= 10) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.5);
     }
     
     breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
@@ -1401,71 +1401,76 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     if (completeRows > 0) {
-        // LINE CLEARS ARE SURVIVAL - reward them more!
-        // Only penalize when we have a VERY good tsunami opportunity
+        // LINE CLEARS ARE SURVIVAL - HEAVILY reward them
+        // Only avoid clearing if tsunami is worth pursuing at this stack height
         
-        if (stackHeight >= 16) {
-            // Survival mode - always clear lines at high stacks
-            breakdown.lineClears.bonus = completeRows * 250;
+        // Use same stack-based lookahead as tsunami building
+        let minWidthForPenalty = 6;
+        if (stackHeight > 14) {
+            minWidthForPenalty = 9;
+        } else if (stackHeight > 10) {
+            minWidthForPenalty = 8;
+        } else if (stackHeight > 6) {
+            minWidthForPenalty = 7;
+        }
+        
+        const tsunamiWorthProtecting = bestTsunamiWidth >= minWidthForPenalty && holes <= 2;
+        
+        if (stackHeight >= 14) {
+            // Danger zone - always clear lines
+            breakdown.lineClears.bonus = completeRows * 300;
             breakdown.classification = 'survival';
-        } else if (stackHeight >= 14) {
-            // Getting dangerous - strongly prefer clearing
-            breakdown.lineClears.bonus = completeRows * 150;
-            breakdown.classification = 'defensive';
-        } else if (tsunamiImminent && !tsunamiSurvivesLineClear) {
-            // DON'T clear lines that would break our IMMINENT tsunami
-            // But only if we're at a safe height
-            breakdown.lineClears.bonus = -completeRows * 80;
-        } else if (tsunamiDestroyedByLineClear && stackHeight < 12) {
-            // Would destroy a near-complete tsunami at safe height
-            breakdown.lineClears.bonus = -completeRows * 60;
-            breakdown.lineClears.destroysTsunami = true;
-        } else if (tsunamiNearCompletion && stackHeight < 12) {
-            // Building toward tsunami at safe height - slight penalty for clearing
-            breakdown.lineClears.bonus = -completeRows * 30;
         } else if (stackHeight >= 12) {
-            // Medium-high stack - reward line clears
-            breakdown.lineClears.bonus = completeRows * 80;
-        } else if (tsunamiLikelyAchievable && stackHeight < 10) {
-            // Good tsunami opportunity at low stack - neutral
-            breakdown.lineClears.bonus = completeRows * 10;
-        } else if (currentUfoActive && stackHeight < 10) {
-            // UFO active at low stack - slight penalty
-            breakdown.lineClears.bonus = -completeRows * 20;
+            // Getting risky - strongly prefer clearing
+            breakdown.lineClears.bonus = completeRows * 200;
+            breakdown.classification = 'defensive';
+        } else if (tsunamiWorthProtecting && !tsunamiSurvivesLineClear) {
+            // Only avoid clearing if tsunami is worth it at this stack height
+            breakdown.lineClears.bonus = -completeRows * 50;
+        } else if (stackHeight >= 10) {
+            // Medium stack - reward clearing
+            breakdown.lineClears.bonus = completeRows * 150;
         } else {
-            // Normal play - REWARD LINE CLEARS!
-            // This is the key change - make clearing lines attractive
-            breakdown.lineClears.bonus = completeRows * 50;  // Was 15
+            // Normal play - HEAVILY REWARD LINE CLEARS
+            breakdown.lineClears.bonus = completeRows * 100;
         }
         score += breakdown.lineClears.bonus;
     }
     
     // ====== TSUNAMI BUILDING BONUS ======
-    // REDUCED when we have holes - prioritize survival over tsunami building
-    if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor) {
-        // If we have significant holes, don't reward tsunami building
-        if (holes >= 4) {
-            // Too many holes - don't give tsunami bonus, focus on clearing
-            breakdown.tsunami.skippedDueToHoles = true;
-        } else {
-            const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
-            const tsunamiRun = bestRuns[bestTsunamiColor];
-            let tsunamiBonus = 15;
-            
-            // Reduce base bonus if we have any holes
-            if (holes >= 2) {
-                tsunamiBonus = 5;  // Much smaller base
-            }
-            
-            if (bestTsunamiWidth >= 9) {
-                tsunamiBonus += 50 + (bestTsunamiWidth - 9) * 30;
-            } else if (bestTsunamiWidth >= 8) {
-                tsunamiBonus += 25;
-            } else if (bestTsunamiWidth >= 7) {
-                tsunamiBonus += 10;
-            }
-            
-            tsunamiBonus += matchingInQueue * 8;
+    // Stack-based lookahead: be more aggressive when safe, conservative when in danger
+    // Stack > 14: only 1 piece away (width 9)
+    // Stack > 10: only 2 pieces away (width 8+)
+    // Stack > 6: only 3 pieces away (width 7+)
+    // Stack <= 6: all 4 pieces (width 6+)
+    let minTsunamiWidth = 6;  // Default: consider all queue pieces
+    if (stackHeight > 14) {
+        minTsunamiWidth = 9;  // Only 1 piece away
+    } else if (stackHeight > 10) {
+        minTsunamiWidth = 8;  // Only 2 pieces away
+    } else if (stackHeight > 6) {
+        minTsunamiWidth = 7;  // Only 3 pieces away
+    }
+    
+    const tsunamiWorthPursuing = bestTsunamiWidth >= minTsunamiWidth;
+    
+    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= 2) {
+        const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
+        const tsunamiRun = bestRuns[bestTsunamiColor];
+        
+        // Base bonus scales with how close we are to completion
+        let tsunamiBonus = 0;
+        if (bestTsunamiWidth >= 9) {
+            tsunamiBonus = 80 + (bestTsunamiWidth - 9) * 40;  // 80 for width 9, 120 for width 10
+        } else if (bestTsunamiWidth >= 8) {
+            tsunamiBonus = 40;
+        } else if (bestTsunamiWidth >= 7) {
+            tsunamiBonus = 20;
+        } else if (bestTsunamiWidth >= 6) {
+            tsunamiBonus = 10;
+        }
+        
+        tsunamiBonus += matchingInQueue * 5;
         
         // ====== TSUNAMI COMPLETION/EXTENSION BONUS ======
         // Give MASSIVE bonus for placements that actually extend the run toward completion
@@ -1541,7 +1546,6 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         if (!breakdown.classification || breakdown.classification === 'neutral') {
             breakdown.classification = 'offensive';
         }
-        }  // Close the else block for holes check
     }
     
     // ====== TSUNAMI BLOCKING PENALTY ======
@@ -2003,43 +2007,45 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     score -= holePenalty;
     
     // ====== HEIGHT PENALTIES ======
-    // Height is the #1 survival factor - penalize more aggressively
-    let heightMultiplier = 1.5;  // Increased base penalty
+    // Height is the #1 survival factor - MASSIVE penalty
+    let heightMultiplier = 2.5;  // DRASTICALLY increased
     
-    if (tsunamiImminent) {
-        heightMultiplier = 0.6;
-    } else if (tsunamiNearCompletion && stackHeight < 14) {
-        heightMultiplier = 0.9;
+    // Only reduce for truly imminent tsunamis with clean board
+    if (tsunamiImminent && holes <= 2) {
+        heightMultiplier = 1.0;
     }
     
     // Additional penalty scaling for dangerous heights
     if (stackHeight >= 16) {
-        heightMultiplier *= 2.0;
+        heightMultiplier *= 2.5;
     } else if (stackHeight >= 14) {
-        heightMultiplier *= 1.5;
+        heightMultiplier *= 2.0;
     } else if (stackHeight >= 12) {
+        heightMultiplier *= 1.5;
+    } else if (stackHeight >= 10) {
         heightMultiplier *= 1.2;
     }
     
     score -= stackHeight * heightMultiplier;
     
     // ====== BUMPINESS ======
-    // Bumpiness prevents line clears - penalize aggressively
-    let bumpinessMultiplier = 1.5;  // Increased base
+    // Bumpiness prevents line clears - MASSIVE penalty
+    let bumpinessMultiplier = 3.0;  // DRASTICALLY increased
     
-    if (tsunamiImminent && stackHeight < 14) {
-        bumpinessMultiplier = 0.5;
-    } else if (tsunamiNearCompletion && stackHeight < 12) {
-        bumpinessMultiplier = 0.8;
+    // Only reduce for truly imminent tsunamis with clean board
+    if (tsunamiImminent && holes <= 2 && stackHeight < 12) {
+        bumpinessMultiplier = 1.0;
     }
     
     // Scale up at dangerous heights
     if (stackHeight >= 16) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 6.0);
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 5.0);
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+    } else if (stackHeight >= 10) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.5);
     }
     
     score -= bumpiness * bumpinessMultiplier;
@@ -2349,47 +2355,63 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     if (completeRows > 0) {
-        // LINE CLEARS ARE SURVIVAL - reward them more!
-        if (stackHeight >= 16) {
-            score += completeRows * 250;  // Survival mode
-        } else if (stackHeight >= 14) {
-            score += completeRows * 150;  // Getting dangerous
-        } else if (tsunamiImminent && stackHeight < 12) {
-            score -= completeRows * 80;  // Don't break imminent tsunami at safe height
-        } else if (tsunamiNearCompletion && stackHeight < 12) {
-            score -= completeRows * 30;  // Building toward tsunami at safe height
+        // LINE CLEARS ARE SURVIVAL - HEAVILY reward them
+        // Use stack-based lookahead for tsunami consideration
+        let minWidthForPenalty = 6;
+        if (stackHeight > 14) {
+            minWidthForPenalty = 9;
+        } else if (stackHeight > 10) {
+            minWidthForPenalty = 8;
+        } else if (stackHeight > 6) {
+            minWidthForPenalty = 7;
+        }
+        
+        const tsunamiWorthProtecting = bestTsunamiWidth >= minWidthForPenalty && holes <= 2;
+        
+        if (stackHeight >= 14) {
+            score += completeRows * 300;  // Danger zone
         } else if (stackHeight >= 12) {
-            score += completeRows * 80;  // Medium-high stack - reward clearing
-        } else if (tsunamiLikelyAchievable && stackHeight < 10) {
-            score += completeRows * 10;  // Good tsunami opportunity - neutral
-        } else if (currentUfoActive && stackHeight < 10) {
-            score -= completeRows * 20;  // UFO active at low stack
+            score += completeRows * 200;  // Getting risky
+        } else if (tsunamiWorthProtecting && stackHeight < 10) {
+            score -= completeRows * 50;  // Protect tsunami if worth it
+        } else if (stackHeight >= 10) {
+            score += completeRows * 150;  // Medium stack
         } else {
-            // Normal play - REWARD LINE CLEARS!
-            score += completeRows * 50;  // Was 15
+            // Normal play - HEAVILY REWARD LINE CLEARS
+            score += completeRows * 100;
         }
     }
     
     // ====== TSUNAMI BUILDING BONUSES ======
-    // REDUCED when we have holes - prioritize survival
-    if (!isBreeze && hasTsunamiPotential && bestTsunamiColor && color === bestTsunamiColor && holes < 4) {
+    // Stack-based lookahead: aggressive when safe, conservative when in danger
+    let minTsunamiWidth = 6;
+    if (stackHeight > 14) {
+        minTsunamiWidth = 9;
+    } else if (stackHeight > 10) {
+        minTsunamiWidth = 8;
+    } else if (stackHeight > 6) {
+        minTsunamiWidth = 7;
+    }
+    
+    const tsunamiWorthPursuing = bestTsunamiWidth >= minTsunamiWidth;
+    
+    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= 2) {
         const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
         const tsunamiRun = bestRuns[bestTsunamiColor];
         
-        // Base bonus for matching color (reduced if any holes)
-        let tsunamiBonus = holes >= 2 ? 5 : 15;
-        
-        // Scale with width - exponential as we approach completion
+        // Base bonus scales with how close we are
+        let tsunamiBonus = 0;
         if (bestTsunamiWidth >= 9) {
-            tsunamiBonus += 50 + (bestTsunamiWidth - 9) * 30;
+            tsunamiBonus = 80 + (bestTsunamiWidth - 9) * 40;
         } else if (bestTsunamiWidth >= 8) {
-            tsunamiBonus += 25;
+            tsunamiBonus = 40;
         } else if (bestTsunamiWidth >= 7) {
-            tsunamiBonus += 10;
+            tsunamiBonus = 20;
+        } else if (bestTsunamiWidth >= 6) {
+            tsunamiBonus = 10;
         }
         
-        // Queue support bonus
-        tsunamiBonus += matchingInQueue * 8;
+        tsunamiBonus += matchingInQueue * 5;
         
         // ====== TSUNAMI COMPLETION/EXTENSION BONUS ======
         if (tsunamiRun) {
