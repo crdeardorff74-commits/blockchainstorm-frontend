@@ -13964,6 +13964,36 @@ function processReplayInputs() {
         replayInputIndex++;
     }
     
+    // SAFETY: If all inputs have been processed and we've passed the original lock time,
+    // force the piece to lock. This handles pieces that locked naturally (no hardDrop)
+    // and prevents freezing if the board state is slightly different during replay.
+    const allInputsProcessed = replayInputIndex >= pieceEntry.inputs.length;
+    const hasHardDrop = pieceEntry.inputs.some(inp => inp.type === 'hardDrop');
+    const placementTime = pieceEntry.placement?.tt || 0;
+    
+    if (allInputsProcessed && !hasHardDrop && placementTime > 0 && !hardDropping && currentPiece) {
+        // Give some grace period beyond the original lock time
+        const timePastLock = replayPieceElapsedTime - placementTime;
+        
+        if (timePastLock > 500) {
+            // First attempt: drop piece all the way and let it lock naturally
+            let dropCount = 0;
+            while (currentPiece && !collides(currentPiece, 0, 1) && dropCount < 30) {
+                currentPiece.y++;
+                dropCount++;
+            }
+        }
+        
+        if (timePastLock > 1500 && currentPiece) {
+            // Second attempt: force merge and advance
+            console.log('🎬 Replay: Force-advancing piece (stuck for', timePastLock, 'ms past lock time)');
+            mergePiece();
+            clearLines();
+            advanceReplayPiece();
+            return; // Don't process random events for the old piece
+        }
+    }
+    
     // Process random events for this piece
     while (replayRandomEventIndex < pieceEntry.randomEvents.length &&
            pieceEntry.randomEvents[replayRandomEventIndex].t <= replayPieceElapsedTime) {
