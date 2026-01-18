@@ -11273,17 +11273,23 @@ function update(time = 0) {
                         // Still have inputs to process - don't lock yet
                         // Cap lock delay counter to prevent runaway values
                         lockDelayCounter = LOCK_DELAY_TIME;
-                        return; // Skip the lock, let inputs process
+                        // Don't return here! Just skip the lock, let animations continue
+                    } else {
+                        // All inputs processed - reset lock delay and lock the piece
+                        lockDelayActive = false;
+                        lockDelayCounter = 0;
+                        lockDelayResets = 0;
+                        dropPiece();
+                        dropCounter = 0;
                     }
+                } else {
+                    // Not in replay, or no piece data - normal lock
+                    lockDelayActive = false;
+                    lockDelayCounter = 0;
+                    lockDelayResets = 0;
+                    dropPiece();
+                    dropCounter = 0;
                 }
-                
-                // Reset lock delay state BEFORE calling dropPiece
-                // (otherwise dropPiece sees lockDelayActive=true and returns early)
-                lockDelayActive = false;
-                lockDelayCounter = 0;
-                lockDelayResets = 0; // Reset for next piece
-                dropPiece(); // This will lock the piece since it can't move down
-                dropCounter = 0;
             }
         } else {
             // Piece is not resting - use normal drop timing
