@@ -1,7 +1,7 @@
-// AI Worker v5.11.0 - Stronger bumpiness and well penalties
-console.log("🤖 AI Worker v5.11.0 loaded - STRONGER bumpiness/well penalties, overhang penalties");
+// AI Worker v5.12.0 - Only reduce bumpiness for achievable tsunamis
+console.log("🤖 AI Worker v5.12.0 loaded - Stricter bumpiness: only reduce for achievable/imminent tsunamis");
 
-const AI_VERSION = "5.11.0";
+const AI_VERSION = "5.12.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -860,8 +860,11 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.holes.penalty;
     
     // ====== HEIGHT PENALTY ======
-    if (buildingSpecialEvent && stackHeight < 17) {
-        breakdown.height.penalty = stackHeight * 0.6;
+    // Only reduce height penalty for achievable/near-completion tsunamis
+    if (tsunamiImminent || tsunamiNearCompletion) {
+        breakdown.height.penalty = stackHeight * 0.5;  // Significant reduction - we're about to clear
+    } else if (tsunamiLikelyAchievable && stackHeight < 14) {
+        breakdown.height.penalty = stackHeight * 0.7;  // Moderate reduction for likely achievable
     } else {
         breakdown.height.penalty = stackHeight * 1.0;
     }
@@ -870,15 +873,19 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // ====== BUMPINESS ======
     // Scale bumpiness penalty with stack height - more critical when stack is high
     // INCREASED base penalty to prevent uneven builds
-    let bumpinessMultiplier = 1.2;  // Was 0.8 - need to prioritize flat surfaces
-    if (buildingSpecialEvent && stackHeight < 12) {
-        bumpinessMultiplier = 0.5;  // Was 0.3 - still allow some variance when building tsunamis
+    let bumpinessMultiplier = 1.2;
+    // ONLY reduce bumpiness for imminent or nearly complete tsunamis - not just "potential"
+    // Having small blobs shouldn't justify bumpy stacks
+    if (tsunamiImminent && stackHeight < 12) {
+        bumpinessMultiplier = 0.4;  // Very close to tsunami - some leniency
+    } else if (tsunamiNearCompletion && stackHeight < 12) {
+        bumpinessMultiplier = 0.6;  // Near completion - moderate leniency
     } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 3.0;  // Was 2.5 - MUCH more important at high stacks
+        bumpinessMultiplier = 3.0;  // MUCH more important at high stacks
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 2.2;  // Was 1.8
+        bumpinessMultiplier = 2.2;
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.6;  // Was 1.2
+        bumpinessMultiplier = 1.6;
     }
     breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
     score -= breakdown.bumpiness.penalty;
@@ -1892,23 +1899,27 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== HEIGHT PENALTIES ======
-    if (buildingSpecialEvent && stackHeight < 17) {
-        score -= stackHeight * 0.6;
+    if (tsunamiImminent || tsunamiNearCompletion) {
+        score -= stackHeight * 0.5;
+    } else if (tsunamiLikelyAchievable && stackHeight < 14) {
+        score -= stackHeight * 0.7;
     } else {
         score -= stackHeight * 1.0;
     }
     
     // ====== BUMPINESS ======
-    // Scale with stack height - INCREASED to match main evaluation
-    let bumpinessMultiplier = 1.2;  // Was 0.8
-    if (buildingSpecialEvent && stackHeight < 12) {
-        bumpinessMultiplier = 0.5;  // Was 0.3
+    // Scale with stack height - ONLY reduce for imminent tsunamis
+    let bumpinessMultiplier = 1.2;
+    if (tsunamiImminent && stackHeight < 12) {
+        bumpinessMultiplier = 0.4;
+    } else if (tsunamiNearCompletion && stackHeight < 12) {
+        bumpinessMultiplier = 0.6;
     } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 3.0;  // Was 2.5
+        bumpinessMultiplier = 3.0;
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 2.2;  // Was 1.8
+        bumpinessMultiplier = 2.2;
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.6;  // Was 1.2
+        bumpinessMultiplier = 1.6;
     }
     score -= bumpiness * bumpinessMultiplier;
     
