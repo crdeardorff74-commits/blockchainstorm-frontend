@@ -1,7 +1,7 @@
-// AI Worker v5.18.0 - Stack-based tsunami lookahead: 1-4 pieces based on stack height
-console.log("🤖 AI Worker v5.18.0 loaded - Stack-based tsunami lookahead (1-4 pieces), survival penalties");
+// AI Worker v5.19.0 - Foundation penalty: extra hole penalty at low stack heights
+console.log("🤖 AI Worker v5.19.0 loaded - Foundation penalty for early holes, stack-based tsunami lookahead");
 
-const AI_VERSION = "5.18.0";
+const AI_VERSION = "5.19.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -887,6 +887,19 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     } else if (columnsWithHoles >= 3) {
         // Multiple columns with holes - penalize
         breakdown.holes.penalty += columnsWithHoles * 12;
+    }
+    
+    // FOUNDATION PENALTY - holes at LOW stack are devastating!
+    // You're building your foundation wrong - this will compound throughout the game
+    if (stackHeight <= 6 && holes > 0) {
+        // MASSIVE penalty for any holes during foundation building
+        breakdown.holes.penalty += holes * 25;  // Extra 25 per hole
+        if (columnsWithHoles >= 2) {
+            breakdown.holes.penalty += columnsWithHoles * 15;  // Extra for scattered
+        }
+    } else if (stackHeight <= 10 && holes > 1) {
+        // Still penalize holes in early-mid game
+        breakdown.holes.penalty += (holes - 1) * 15;
     }
     
     // Extra penalty at high stacks - holes are more deadly
@@ -1995,6 +2008,16 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         holePenalty += columnsWithHoles * columnsWithHoles * 4;
     } else if (columnsWithHoles >= 3) {
         holePenalty += columnsWithHoles * 12;
+    }
+    
+    // FOUNDATION PENALTY - holes at LOW stack are devastating!
+    if (stackHeight <= 6 && holes > 0) {
+        holePenalty += holes * 25;
+        if (columnsWithHoles >= 2) {
+            holePenalty += columnsWithHoles * 15;
+        }
+    } else if (stackHeight <= 10 && holes > 1) {
+        holePenalty += (holes - 1) * 15;
     }
     
     // Extra at high stacks
