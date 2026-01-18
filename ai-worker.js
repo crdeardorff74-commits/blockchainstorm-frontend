@@ -1,7 +1,7 @@
-// AI Worker v5.13.0 - Quadratic edge well penalty
-console.log("🤖 AI Worker v5.13.0 loaded - Quadratic edge well penalty, stricter tsunami conditions");
+// AI Worker v5.14.0 - SURVIVAL FOCUSED: higher height/bumpiness penalties, reward line clears
+console.log("🤖 AI Worker v5.14.0 loaded - SURVIVAL FOCUSED: increased penalties, reward line clears");
 
-const AI_VERSION = "5.13.0";
+const AI_VERSION = "5.14.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -860,33 +860,51 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.holes.penalty;
     
     // ====== HEIGHT PENALTY ======
-    // Only reduce height penalty for achievable/near-completion tsunamis
-    if (tsunamiImminent || tsunamiNearCompletion) {
-        breakdown.height.penalty = stackHeight * 0.5;  // Significant reduction - we're about to clear
-    } else if (tsunamiLikelyAchievable && stackHeight < 14) {
-        breakdown.height.penalty = stackHeight * 0.7;  // Moderate reduction for likely achievable
-    } else {
-        breakdown.height.penalty = stackHeight * 1.0;
+    // Height is the #1 survival factor - penalize it more aggressively
+    // Base penalty is now higher to encourage clearing lines
+    let heightMultiplier = 1.5;  // Was 1.0 - increased base penalty
+    
+    if (tsunamiImminent) {
+        heightMultiplier = 0.6;  // Only reduce for truly imminent tsunamis
+    } else if (tsunamiNearCompletion && stackHeight < 14) {
+        heightMultiplier = 0.9;  // Slight reduction, but only at safe heights
     }
+    // No reduction for "achievable" or "potential" - those are too speculative
+    
+    // Additional penalty scaling for dangerous heights
+    if (stackHeight >= 16) {
+        heightMultiplier *= 2.0;  // Double the penalty at critical height
+    } else if (stackHeight >= 14) {
+        heightMultiplier *= 1.5;
+    } else if (stackHeight >= 12) {
+        heightMultiplier *= 1.2;
+    }
+    
+    breakdown.height.penalty = stackHeight * heightMultiplier;
     score -= breakdown.height.penalty;
     
     // ====== BUMPINESS ======
-    // Scale bumpiness penalty with stack height - more critical when stack is high
-    // INCREASED base penalty to prevent uneven builds
-    let bumpinessMultiplier = 1.2;
-    // ONLY reduce bumpiness for imminent or nearly complete tsunamis - not just "potential"
-    // Having small blobs shouldn't justify bumpy stacks
-    if (tsunamiImminent && stackHeight < 12) {
-        bumpinessMultiplier = 0.4;  // Very close to tsunami - some leniency
+    // Bumpiness prevents line clears - penalize more aggressively
+    // INCREASED base penalty to prioritize flat surfaces
+    let bumpinessMultiplier = 1.5;  // Was 1.2 - need to prioritize flat surfaces
+    
+    // ONLY reduce bumpiness for truly imminent tsunamis - not just "potential"
+    if (tsunamiImminent && stackHeight < 14) {
+        bumpinessMultiplier = 0.5;  // Very close to tsunami at safe height
     } else if (tsunamiNearCompletion && stackHeight < 12) {
-        bumpinessMultiplier = 0.6;  // Near completion - moderate leniency
-    } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 3.0;  // MUCH more important at high stacks
-    } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 2.2;
-    } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.6;
+        bumpinessMultiplier = 0.8;  // Near completion at safe height
     }
+    // No reduction for "potential" or at high stacks - survival first!
+    
+    // Scale up dramatically at dangerous heights
+    if (stackHeight >= 16) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);  // Was 3.0
+    } else if (stackHeight >= 14) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);  // Was 2.2
+    } else if (stackHeight >= 12) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.0);  // Was 1.6
+    }
+    
     breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
     score -= breakdown.bumpiness.penalty;
     
@@ -1343,42 +1361,41 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     
     if (completeRows > 0) {
-        if (stackHeight >= 17) {
-            // Survival mode - always clear lines at extreme height
-            breakdown.lineClears.bonus = completeRows * 200;
+        // LINE CLEARS ARE SURVIVAL - reward them more!
+        // Only penalize when we have a VERY good tsunami opportunity
+        
+        if (stackHeight >= 16) {
+            // Survival mode - always clear lines at high stacks
+            breakdown.lineClears.bonus = completeRows * 250;
             breakdown.classification = 'survival';
-        } else if (tsunamiDestroyedByLineClear) {
-            // This line clear would DESTROY our tsunami - massive penalty!
-            breakdown.lineClears.bonus = -completeRows * 200;
-            breakdown.lineClears.destroysTsunami = true;
-        } else if (tsunamiImminent && !tsunamiSurvivesLineClear) {
-            // DON'T clear lines that would break our imminent tsunami!
-            // Strong penalty unless we're in extreme danger
-            breakdown.lineClears.bonus = -completeRows * 100;
-        } else if (stackHeight >= 15) {
-            breakdown.lineClears.bonus = completeRows * 80;
+        } else if (stackHeight >= 14) {
+            // Getting dangerous - strongly prefer clearing
+            breakdown.lineClears.bonus = completeRows * 150;
             breakdown.classification = 'defensive';
-        } else if (stackHeight >= 13) {
-            if (tsunamiNearCompletion) {
-                breakdown.lineClears.bonus = -completeRows * 30;
-            } else if (tsunamiLikelyAchievable) {
-                breakdown.lineClears.bonus = -completeRows * 15;
-            } else {
-                breakdown.lineClears.bonus = completeRows * 30;
-            }
-        } else if (currentUfoActive) {
-            breakdown.lineClears.bonus = -completeRows * 50;
-        } else if (tsunamiNearCompletion) {
+        } else if (tsunamiImminent && !tsunamiSurvivesLineClear) {
+            // DON'T clear lines that would break our IMMINENT tsunami
+            // But only if we're at a safe height
             breakdown.lineClears.bonus = -completeRows * 80;
-        } else if (tsunamiLikelyAchievable) {
-            breakdown.lineClears.bonus = -completeRows * 50;
-        } else if (hasTsunamiPotential) {
-            breakdown.lineClears.bonus = -completeRows * 20;
-        } else if (volcanoPotential.hasPotential) {
+        } else if (tsunamiDestroyedByLineClear && stackHeight < 12) {
+            // Would destroy a near-complete tsunami at safe height
+            breakdown.lineClears.bonus = -completeRows * 60;
+            breakdown.lineClears.destroysTsunami = true;
+        } else if (tsunamiNearCompletion && stackHeight < 12) {
+            // Building toward tsunami at safe height - slight penalty for clearing
             breakdown.lineClears.bonus = -completeRows * 30;
+        } else if (stackHeight >= 12) {
+            // Medium-high stack - reward line clears
+            breakdown.lineClears.bonus = completeRows * 80;
+        } else if (tsunamiLikelyAchievable && stackHeight < 10) {
+            // Good tsunami opportunity at low stack - neutral
+            breakdown.lineClears.bonus = completeRows * 10;
+        } else if (currentUfoActive && stackHeight < 10) {
+            // UFO active at low stack - slight penalty
+            breakdown.lineClears.bonus = -completeRows * 20;
         } else {
-            // No special event building - reward line clears
-            breakdown.lineClears.bonus = completeRows * 15;
+            // Normal play - REWARD LINE CLEARS!
+            // This is the key change - make clearing lines attractive
+            breakdown.lineClears.bonus = completeRows * 50;  // Was 15
         }
         score += breakdown.lineClears.bonus;
     }
@@ -1900,28 +1917,45 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== HEIGHT PENALTIES ======
-    if (tsunamiImminent || tsunamiNearCompletion) {
-        score -= stackHeight * 0.5;
-    } else if (tsunamiLikelyAchievable && stackHeight < 14) {
-        score -= stackHeight * 0.7;
-    } else {
-        score -= stackHeight * 1.0;
+    // Height is the #1 survival factor - penalize more aggressively
+    let heightMultiplier = 1.5;  // Increased base penalty
+    
+    if (tsunamiImminent) {
+        heightMultiplier = 0.6;
+    } else if (tsunamiNearCompletion && stackHeight < 14) {
+        heightMultiplier = 0.9;
     }
     
-    // ====== BUMPINESS ======
-    // Scale with stack height - ONLY reduce for imminent tsunamis
-    let bumpinessMultiplier = 1.2;
-    if (tsunamiImminent && stackHeight < 12) {
-        bumpinessMultiplier = 0.4;
-    } else if (tsunamiNearCompletion && stackHeight < 12) {
-        bumpinessMultiplier = 0.6;
-    } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 3.0;
+    // Additional penalty scaling for dangerous heights
+    if (stackHeight >= 16) {
+        heightMultiplier *= 2.0;
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 2.2;
+        heightMultiplier *= 1.5;
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.6;
+        heightMultiplier *= 1.2;
     }
+    
+    score -= stackHeight * heightMultiplier;
+    
+    // ====== BUMPINESS ======
+    // Bumpiness prevents line clears - penalize aggressively
+    let bumpinessMultiplier = 1.5;  // Increased base
+    
+    if (tsunamiImminent && stackHeight < 14) {
+        bumpinessMultiplier = 0.5;
+    } else if (tsunamiNearCompletion && stackHeight < 12) {
+        bumpinessMultiplier = 0.8;
+    }
+    
+    // Scale up at dangerous heights
+    if (stackHeight >= 16) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+    } else if (stackHeight >= 14) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
+    } else if (stackHeight >= 12) {
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.0);
+    }
+    
     score -= bumpiness * bumpinessMultiplier;
     
     // ====== DEEP WELLS ======
@@ -2229,36 +2263,24 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     if (completeRows > 0) {
-        if (stackHeight >= 17) {
-            // Critical emergency - must clear
-            score += completeRows * 200;
-        } else if (tsunamiImminent) {
-            // DON'T clear lines that would break imminent tsunami!
-            score -= completeRows * 100;
-        } else if (stackHeight >= 15) {
-            // Dangerous - clearing is strongly encouraged
-            score += completeRows * 80;
-        } else if (stackHeight >= 13) {
-            if (tsunamiNearCompletion) {
-                score -= completeRows * 30;
-            } else if (tsunamiLikelyAchievable) {
-                score -= completeRows * 15;
-            } else {
-                score += completeRows * 30;
-            }
-        } else if (currentUfoActive) {
-            score -= completeRows * 50;
-        } else if (tsunamiNearCompletion) {
-            score -= completeRows * 80;
-        } else if (tsunamiLikelyAchievable) {
-            score -= completeRows * 50;
-        } else if (hasTsunamiPotential) {
-            score -= completeRows * 20;
-        } else if (volcanoPotential.hasPotential) {
-            score -= completeRows * 30;
+        // LINE CLEARS ARE SURVIVAL - reward them more!
+        if (stackHeight >= 16) {
+            score += completeRows * 250;  // Survival mode
+        } else if (stackHeight >= 14) {
+            score += completeRows * 150;  // Getting dangerous
+        } else if (tsunamiImminent && stackHeight < 12) {
+            score -= completeRows * 80;  // Don't break imminent tsunami at safe height
+        } else if (tsunamiNearCompletion && stackHeight < 12) {
+            score -= completeRows * 30;  // Building toward tsunami at safe height
+        } else if (stackHeight >= 12) {
+            score += completeRows * 80;  // Medium-high stack - reward clearing
+        } else if (tsunamiLikelyAchievable && stackHeight < 10) {
+            score += completeRows * 10;  // Good tsunami opportunity - neutral
+        } else if (currentUfoActive && stackHeight < 10) {
+            score -= completeRows * 20;  // UFO active at low stack
         } else {
-            // No special event building - reward line clears
-            score += completeRows * 15;
+            // Normal play - REWARD LINE CLEARS!
+            score += completeRows * 50;  // Was 15
         }
     }
     
