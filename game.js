@@ -2832,24 +2832,10 @@ function updateBlackHoleAnimation() {
         // Stop controller haptic feedback
         GamepadController.stopVibration();
         
-        // During replay, immediately sync board from the current piece's snapshot
-        if (replayActive && replayPieceIndex < replayPieceData.length) {
-            const currentPieceEntry = replayPieceData[replayPieceIndex];
-            if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                let differences = 0;
-                for (let y = 0; y < ROWS; y++) {
-                    for (let x = 0; x < COLS; x++) {
-                        if (board[y][x] !== snapshotBoard[y][x]) {
-                            differences++;
-                            board[y][x] = snapshotBoard[y][x];
-                        }
-                    }
-                }
-                if (differences > 0) {
-                    console.log('🎬 Board synced from snapshot after black hole - fixed', differences, 'cells');
-                }
-            }
+        // During replay, skip the next board sync
+        if (replayActive) {
+            replaySkipNextSync = true;
+            console.log('🎬 Will skip next board sync (black hole just finished)');
         }
         
         console.log('🕳️ Black hole calling applyGravity()');
@@ -3209,24 +3195,10 @@ function updateVolcanoAnimation() {
             volcanoAnimating = false;
             volcanoActive = false;
             volcanoPhase = 'warming'; // Reset for next volcano
-            // During replay, immediately sync board from the current piece's snapshot
-            if (replayActive && replayPieceIndex < replayPieceData.length) {
-                const currentPieceEntry = replayPieceData[replayPieceIndex];
-                if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                    const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                    let differences = 0;
-                    for (let y = 0; y < ROWS; y++) {
-                        for (let x = 0; x < COLS; x++) {
-                            if (board[y][x] !== snapshotBoard[y][x]) {
-                                differences++;
-                                board[y][x] = snapshotBoard[y][x];
-                            }
-                        }
-                    }
-                    if (differences > 0) {
-                        console.log('🎬 Board synced from snapshot after volcano - fixed', differences, 'cells');
-                    }
-                }
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (volcano just finished)');
             }
             applyGravity();
         }
@@ -3845,24 +3817,10 @@ function updateTsunamiAnimation() {
         // Stop controller haptic feedback (should already be stopped, but ensure cleanup)
         GamepadController.stopVibration();
         
-        // During replay, immediately sync board from the current piece's snapshot
-        if (replayActive && replayPieceIndex < replayPieceData.length) {
-            const currentPieceEntry = replayPieceData[replayPieceIndex];
-            if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                let differences = 0;
-                for (let y = 0; y < ROWS; y++) {
-                    for (let x = 0; x < COLS; x++) {
-                        if (board[y][x] !== snapshotBoard[y][x]) {
-                            differences++;
-                            board[y][x] = snapshotBoard[y][x];
-                        }
-                    }
-                }
-                if (differences > 0) {
-                    console.log('🎬 Board synced from snapshot after tsunami - fixed', differences, 'cells');
-                }
-            }
+        // During replay, skip the next board sync
+        if (replayActive) {
+            replaySkipNextSync = true;
+            console.log('🎬 Will skip next board sync (tsunami just finished)');
         }
         
         // Put pushed blocks back on board at their original positions
@@ -4318,24 +4276,10 @@ function updateTornado() {
             setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
-            // During replay, immediately sync board from the current piece's snapshot
-            if (replayActive && replayPieceIndex < replayPieceData.length) {
-                const currentPieceEntry = replayPieceData[replayPieceIndex];
-                if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                    const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                    let differences = 0;
-                    for (let y = 0; y < ROWS; y++) {
-                        for (let x = 0; x < COLS; x++) {
-                            if (board[y][x] !== snapshotBoard[y][x]) {
-                                differences++;
-                                board[y][x] = snapshotBoard[y][x];
-                            }
-                        }
-                    }
-                    if (differences > 0) {
-                        console.log('🎬 Board synced from snapshot after tornado touchdown - fixed', differences, 'cells');
-                    }
-                }
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (tornado touchdown just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
             return;
@@ -4661,24 +4605,10 @@ function updateTornado() {
         if (tornadoFadeProgress >= 1.0) {
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
-            // During replay, immediately sync board from the current piece's snapshot
-            if (replayActive && replayPieceIndex < replayPieceData.length) {
-                const currentPieceEntry = replayPieceData[replayPieceIndex];
-                if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                    const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                    let differences = 0;
-                    for (let y = 0; y < ROWS; y++) {
-                        for (let x = 0; x < COLS; x++) {
-                            if (board[y][x] !== snapshotBoard[y][x]) {
-                                differences++;
-                                board[y][x] = snapshotBoard[y][x];
-                            }
-                        }
-                    }
-                    if (differences > 0) {
-                        console.log('🎬 Board synced from snapshot after tornado - fixed', differences, 'cells');
-                    }
-                }
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (tornado just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
         }
@@ -5081,25 +5011,11 @@ function updateEarthquake() {
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             console.log('🌍 Earthquake finished, earthquakeActive = false');
             
-            // During replay, immediately sync board from the current piece's snapshot
-            // This ensures we're on the correct post-earthquake board state
-            if (replayActive && replayPieceIndex < replayPieceData.length) {
-                const currentPieceEntry = replayPieceData[replayPieceIndex];
-                if (currentPieceEntry && currentPieceEntry.boardSnapshot) {
-                    const snapshotBoard = decompressKeyframeBoard(currentPieceEntry.boardSnapshot, ROWS, COLS);
-                    let differences = 0;
-                    for (let y = 0; y < ROWS; y++) {
-                        for (let x = 0; x < COLS; x++) {
-                            if (board[y][x] !== snapshotBoard[y][x]) {
-                                differences++;
-                                board[y][x] = snapshotBoard[y][x];
-                            }
-                        }
-                    }
-                    if (differences > 0) {
-                        console.log('🎬 Board synced from snapshot after earthquake - fixed', differences, 'cells');
-                    }
-                }
+            // During replay, skip the next board sync since the snapshot was captured
+            // before the earthquake completed in the original game
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (earthquake just finished)');
             }
             
             // Stop controller haptic feedback
@@ -11332,9 +11248,8 @@ function update(time = 0) {
     }
     
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
-    // (But during replay, allow auto-drop - board syncs at next piece)
+    // During replay, bypass most animation checks since board syncs at piece boundaries
     const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift' && !replayActive;
-    // During replay, bypass animation checks to keep replay in sync
     const blockDropForAnimations = !replayActive && (animatingLines || gravityAnimating || blackHoleAnimating || tsunamiAnimating);
     if (!paused && !blockDropForAnimations && !hardDropping && !earthquakeShiftActive && currentPiece) {
         // Check if piece is resting on the stack (would collide if moved down)
@@ -14008,6 +13923,26 @@ function processReplayInputs() {
     // Calculate elapsed time since this piece spawned
     replayPieceElapsedTime = Date.now() - replayPieceSpawnTime;
     
+    // Debug: Log if piece is stuck for a long time
+    if (replayPieceElapsedTime > 10000 && !pieceEntry._stuckLogged) {
+        console.warn('🎬 Piece', replayPieceIndex, 'stuck for', replayPieceElapsedTime, 'ms');
+        console.log('  Type:', pieceEntry.type, 'Inputs:', pieceEntry.inputs.length, 'Processed:', replayInputIndex);
+        console.log('  currentPiece pos:', currentPiece?.x, currentPiece?.y);
+        console.log('  hardDropping:', hardDropping, 'animatingLines:', animatingLines, 'gravityAnimating:', gravityAnimating);
+        pieceEntry._stuckLogged = true;
+    }
+    
+    // SAFETY: If piece is stuck for too long (30 seconds) after all inputs processed, force advance
+    const allInputsProcessed = replayInputIndex >= pieceEntry.inputs.length;
+    if (allInputsProcessed && replayPieceElapsedTime > 30000 && currentPiece && !hardDropping) {
+        console.error('🎬 FORCE ADVANCING: Piece', replayPieceIndex, 'stuck for 30+ seconds');
+        // Force merge and advance
+        mergePiece();
+        clearLines();
+        advanceReplayPiece();
+        return;
+    }
+    
     // Process all inputs for this piece that should have occurred by now
     while (replayInputIndex < pieceEntry.inputs.length &&
            pieceEntry.inputs[replayInputIndex].t <= replayPieceElapsedTime) {
@@ -14036,36 +13971,6 @@ function processReplayInputs() {
         }
         
         replayInputIndex++;
-    }
-    
-    // SAFETY: If all inputs have been processed and we've passed the original lock time,
-    // force the piece to lock. This handles pieces that locked naturally (no hardDrop)
-    // and prevents freezing if the board state is slightly different during replay.
-    const allInputsProcessed = replayInputIndex >= pieceEntry.inputs.length;
-    const hasHardDrop = pieceEntry.inputs.some(inp => inp.type === 'hardDrop');
-    const placementTime = pieceEntry.placement?.tt || 0;
-    
-    if (allInputsProcessed && !hasHardDrop && placementTime > 0 && !hardDropping && currentPiece) {
-        // Give some grace period beyond the original lock time
-        const timePastLock = replayPieceElapsedTime - placementTime;
-        
-        if (timePastLock > 500) {
-            // First attempt: drop piece all the way and let it lock naturally
-            let dropCount = 0;
-            while (currentPiece && !collides(currentPiece, 0, 1) && dropCount < 30) {
-                currentPiece.y++;
-                dropCount++;
-            }
-        }
-        
-        if (timePastLock > 1500 && currentPiece) {
-            // Second attempt: force merge and advance
-            console.log('🎬 Replay: Force-advancing piece (stuck for', timePastLock, 'ms past lock time)');
-            mergePiece();
-            clearLines();
-            advanceReplayPiece();
-            return; // Don't process random events for the old piece
-        }
     }
     
     // Process random events for this piece
