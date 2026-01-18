@@ -13753,46 +13753,12 @@ function spawnReplayPiece() {
     const pieceEntry = replayPieceData[replayPieceIndex];
     
     // Sync board state from snapshot (ensures perfect sync at each piece)
-    // SKIP sync if volcano animation is in progress - the lava blocks will land
-    // naturally using recorded velocities, and we'll sync at the next piece after
-    // the volcano completes. This prevents the visual "snap" of lava blocks.
-    if (pieceEntry.boardSnapshot && !volcanoAnimating) {
-        // CRITICAL: If earthquake animation is still running, cancel it!
-        // The snapshot already contains the post-earthquake state, so letting
-        // the animation complete would double-apply the shift and corrupt the board.
-        if (earthquakeActive) {
-            console.log('🎬 Cancelling earthquake animation - board snapshot has post-earthquake state');
-            earthquakeActive = false;
-            earthquakePhase = 'done';
-            earthquakeShakeProgress = 0;
-            earthquakeShakeIntensity = 0;
-            earthquakeCrackProgress = 0;
-            earthquakeShiftProgress = 0;
-            earthquakeCrack = [];
-            earthquakeCrackMap.clear();
-            earthquakeLeftBlocks = [];
-            earthquakeRightBlocks = [];
-            // Stop controller haptic feedback
-            if (typeof GamepadController !== 'undefined') {
-                GamepadController.stopVibration();
-            }
-        }
-        
-        // If tornado is active and has picked up a blob, we need to be careful.
-        // The snapshot has the post-tornado state, so cancel the tornado animation.
-        if (tornadoActive) {
-            console.log('🎬 Cancelling tornado animation - board snapshot has post-tornado state');
-            tornadoActive = false;
-            tornadoState = 'dissipating';
-            tornadoPickedBlob = null;
-            tornadoFinalPositions = null;
-            tornadoParticles = [];
-            // Stop controller haptic feedback
-            if (typeof GamepadController !== 'undefined') {
-                GamepadController.stopVibration();
-            }
-        }
-        
+    // SKIP sync if special event animation is in progress - the animation will complete
+    // naturally using recorded data, and we'll sync at the next piece after it completes.
+    // This prevents jarring visual interruptions mid-animation.
+    const skipSyncForAnimation = volcanoAnimating || earthquakeActive || tornadoActive;
+    
+    if (pieceEntry.boardSnapshot && !skipSyncForAnimation) {
         const snapshotBoard = decompressKeyframeBoard(pieceEntry.boardSnapshot, ROWS, COLS);
         let differences = 0;
         for (let y = 0; y < ROWS; y++) {
@@ -13806,8 +13772,9 @@ function spawnReplayPiece() {
         if (differences > 0) {
             console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
         }
-    } else if (pieceEntry.boardSnapshot && volcanoAnimating) {
-        console.log('🎬 Skipping board sync - volcano animation in progress');
+    } else if (pieceEntry.boardSnapshot && skipSyncForAnimation) {
+        const reason = volcanoAnimating ? 'volcano' : (earthquakeActive ? 'earthquake' : 'tornado');
+        console.log('🎬 Skipping board sync -', reason, 'animation in progress');
     }
     
     // Create piece from recorded data
