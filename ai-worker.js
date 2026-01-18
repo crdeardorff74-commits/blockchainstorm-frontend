@@ -1,7 +1,7 @@
-// AI Worker v5.10.0 - Stronger overhang penalties
-console.log("🤖 AI Worker v5.10.0 loaded - STRONGER overhang penalties, survival fill bonus, edge overhang penalty");
+// AI Worker v5.11.0 - Stronger bumpiness and well penalties
+console.log("🤖 AI Worker v5.11.0 loaded - STRONGER bumpiness/well penalties, overhang penalties");
 
-const AI_VERSION = "5.10.0";
+const AI_VERSION = "5.11.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -869,21 +869,23 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     // ====== BUMPINESS ======
     // Scale bumpiness penalty with stack height - more critical when stack is high
-    let bumpinessMultiplier = 0.8;
+    // INCREASED base penalty to prevent uneven builds
+    let bumpinessMultiplier = 1.2;  // Was 0.8 - need to prioritize flat surfaces
     if (buildingSpecialEvent && stackHeight < 12) {
-        bumpinessMultiplier = 0.3;
+        bumpinessMultiplier = 0.5;  // Was 0.3 - still allow some variance when building tsunamis
     } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 2.5;  // MUCH more important at high stacks
+        bumpinessMultiplier = 3.0;  // Was 2.5 - MUCH more important at high stacks
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 1.8;
+        bumpinessMultiplier = 2.2;  // Was 1.8
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.2;
+        bumpinessMultiplier = 1.6;  // Was 1.2
     }
     breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
     score -= breakdown.bumpiness.penalty;
     
     // ====== DEEP WELLS ======
     // Heavily penalize deep wells - they're death traps at high stacks
+    // INCREASED penalties to prevent wells from forming
     let wellPenalty = 0;
     let wellCount = 0;
     let deepestWell = 0;
@@ -894,14 +896,16 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         const wellDepth = minNeighbor - colHeights[col];
         deepestWell = Math.max(deepestWell, wellDepth);
         if (wellDepth > 2) {
-            // Exponential penalty for deep wells
-            let thisWellPenalty = wellDepth * wellDepth;  // Quadratic: 3->9, 4->16, 5->25, 7->49
+            // Exponential penalty for deep wells - INCREASED base
+            let thisWellPenalty = wellDepth * wellDepth * 1.5;  // Was just wellDepth^2
             
             // Extra penalty at high stacks
             if (stackHeight >= 14) {
-                thisWellPenalty *= 2;
+                thisWellPenalty *= 2.5;  // Was 2
             } else if (stackHeight >= 12) {
-                thisWellPenalty *= 1.5;
+                thisWellPenalty *= 1.8;  // Was 1.5
+            } else if (stackHeight >= 8) {
+                thisWellPenalty *= 1.3;  // NEW: penalize even at medium stacks
             }
             
             wellPenalty += thisWellPenalty;
@@ -1895,32 +1899,34 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BUMPINESS ======
-    // Scale with stack height
-    let bumpinessMultiplier = 0.8;
+    // Scale with stack height - INCREASED to match main evaluation
+    let bumpinessMultiplier = 1.2;  // Was 0.8
     if (buildingSpecialEvent && stackHeight < 12) {
-        bumpinessMultiplier = 0.3;
+        bumpinessMultiplier = 0.5;  // Was 0.3
     } else if (stackHeight >= 16) {
-        bumpinessMultiplier = 2.5;
+        bumpinessMultiplier = 3.0;  // Was 2.5
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = 1.8;
+        bumpinessMultiplier = 2.2;  // Was 1.8
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = 1.2;
+        bumpinessMultiplier = 1.6;  // Was 1.2
     }
     score -= bumpiness * bumpinessMultiplier;
     
     // ====== DEEP WELLS ======
-    // Quadratic penalty for deep wells, scaled by height
+    // Quadratic penalty for deep wells, scaled by height - INCREASED
     for (let col = 0; col < cols; col++) {
         const leftHeight = col > 0 ? colHeights[col - 1] : colHeights[col];
         const rightHeight = col < cols - 1 ? colHeights[col + 1] : colHeights[col];
         const minNeighbor = Math.min(leftHeight, rightHeight);
         const wellDepth = minNeighbor - colHeights[col];
         if (wellDepth > 2) {
-            let thisWellPenalty = wellDepth * wellDepth;
+            let thisWellPenalty = wellDepth * wellDepth * 1.5;  // Was just wellDepth^2
             if (stackHeight >= 14) {
-                thisWellPenalty *= 2;
+                thisWellPenalty *= 2.5;  // Was 2
             } else if (stackHeight >= 12) {
-                thisWellPenalty *= 1.5;
+                thisWellPenalty *= 1.8;  // Was 1.5
+            } else if (stackHeight >= 8) {
+                thisWellPenalty *= 1.3;  // NEW
             }
             score -= thisWellPenalty;
         }
