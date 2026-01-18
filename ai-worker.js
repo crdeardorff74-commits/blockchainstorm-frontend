@@ -1,7 +1,7 @@
-// AI Worker v5.7.0 - Edge overhang penalty 4-5x, tsunami completion at all heights, line clear lookahead
-console.log("🤖 AI Worker v5.7.0 loaded - massive edge overhang penalty, tsunami works at high stacks, line clear tsunami survival check");
+// AI Worker v5.8.0 - Survival mode: aggressive well penalty, fill bonus, bumpiness scaling
+console.log("🤖 AI Worker v5.8.0 loaded - survival instincts: quadratic well penalty, fill lowest columns bonus, bumpiness scales with height");
 
-const AI_VERSION = "5.7.0";
+const AI_VERSION = "5.8.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -694,7 +694,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         holes: { count: 0, penalty: 0 },
         height: { value: 0, penalty: 0 },
         bumpiness: { value: 0, penalty: 0 },
-        wells: { count: 0, penalty: 0 },
+        wells: { count: 0, penalty: 0, deepest: 0 },
         edgeWells: { leftDepth: 0, rightDepth: 0, penalty: 0, fillBonus: 0 },
         iPieceWells: { worstDepth: 0, worstCol: -1, count: 0, penalty: 0 },
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
@@ -706,6 +706,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         runs: { bonus: 0 },
         edge: { bonus: 0 },
         queue: { matchingPieces: 0, bonus: 0 },
+        survivalFill: 0,
         classification: 'neutral' // 'defensive', 'offensive', 'opportunistic', 'survival'
     };
     
@@ -866,28 +867,49 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.height.penalty;
     
     // ====== BUMPINESS ======
-    if (buildingSpecialEvent) {
-        breakdown.bumpiness.penalty = bumpiness * 0.3;
-    } else {
-        breakdown.bumpiness.penalty = bumpiness * 0.8;
+    // Scale bumpiness penalty with stack height - more critical when stack is high
+    let bumpinessMultiplier = 0.8;
+    if (buildingSpecialEvent && stackHeight < 12) {
+        bumpinessMultiplier = 0.3;
+    } else if (stackHeight >= 16) {
+        bumpinessMultiplier = 2.5;  // MUCH more important at high stacks
+    } else if (stackHeight >= 14) {
+        bumpinessMultiplier = 1.8;
+    } else if (stackHeight >= 12) {
+        bumpinessMultiplier = 1.2;
     }
+    breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
     score -= breakdown.bumpiness.penalty;
     
     // ====== DEEP WELLS ======
+    // Heavily penalize deep wells - they're death traps at high stacks
     let wellPenalty = 0;
     let wellCount = 0;
+    let deepestWell = 0;
     for (let col = 0; col < cols; col++) {
         const leftHeight = col > 0 ? colHeights[col - 1] : colHeights[col];
         const rightHeight = col < cols - 1 ? colHeights[col + 1] : colHeights[col];
         const minNeighbor = Math.min(leftHeight, rightHeight);
         const wellDepth = minNeighbor - colHeights[col];
-        if (wellDepth > 3) {
-            wellPenalty += (wellDepth - 3) * 3;
+        deepestWell = Math.max(deepestWell, wellDepth);
+        if (wellDepth > 2) {
+            // Exponential penalty for deep wells
+            let thisWellPenalty = wellDepth * wellDepth;  // Quadratic: 3->9, 4->16, 5->25, 7->49
+            
+            // Extra penalty at high stacks
+            if (stackHeight >= 14) {
+                thisWellPenalty *= 2;
+            } else if (stackHeight >= 12) {
+                thisWellPenalty *= 1.5;
+            }
+            
+            wellPenalty += thisWellPenalty;
             wellCount++;
         }
     }
     breakdown.wells.count = wellCount;
     breakdown.wells.penalty = wellPenalty;
+    breakdown.wells.deepest = deepestWell;
     score -= wellPenalty;
     
     // ====== EDGE WELL DISPARITY PENALTY ======
@@ -1062,6 +1084,73 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     breakdown.edgeWells.fillBonus = edgeFillBonus;
     score += edgeFillBonus;
+    
+    // ====== SURVIVAL FILL BONUS ======
+    // At high stacks, HEAVILY reward placements that fill the lowest columns
+    // This overrides blob-building concerns - survival is paramount
+    let survivalFillBonus = 0;
+    
+    if (stackHeight >= 12) {
+        // Find the minimum height column(s)
+        const minHeight = Math.min(...colHeights);
+        const maxHeight = Math.max(...colHeights);
+        const heightDiff = maxHeight - minHeight;
+        
+        // Check which columns the piece touches and what heights they have
+        let lowestColTouched = -1;
+        let lowestColHeight = 999;
+        let pieceCellsInLowCols = 0;
+        
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    const col = x + px;
+                    if (col >= 0 && col < cols) {
+                        if (colHeights[col] < lowestColHeight) {
+                            lowestColHeight = colHeights[col];
+                            lowestColTouched = col;
+                        }
+                        // Count cells going into low columns (within 2 of min)
+                        if (colHeights[col] <= minHeight + 2) {
+                            pieceCellsInLowCols++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Bonus scales with: how low the column is, how high the stack is, how big the gap is
+        if (lowestColTouched >= 0 && heightDiff >= 4) {
+            const colDepth = maxHeight - lowestColHeight;  // How much lower than max
+            
+            // Base bonus for touching low columns
+            let fillBonus = 0;
+            if (colDepth >= 8) {
+                fillBonus = 80 + (colDepth - 8) * 15;
+            } else if (colDepth >= 6) {
+                fillBonus = 50 + (colDepth - 6) * 15;
+            } else if (colDepth >= 4) {
+                fillBonus = 20 + (colDepth - 4) * 15;
+            }
+            
+            // Multiply by number of cells going into low columns
+            fillBonus *= (1 + pieceCellsInLowCols * 0.25);
+            
+            // Scale up dramatically at dangerous heights
+            if (stackHeight >= 17) {
+                fillBonus *= 3;  // SURVIVAL MODE - triple the bonus
+            } else if (stackHeight >= 15) {
+                fillBonus *= 2;
+            } else if (stackHeight >= 13) {
+                fillBonus *= 1.5;
+            }
+            
+            survivalFillBonus = Math.round(fillBonus);
+        }
+    }
+    
+    breakdown.survivalFill = survivalFillBonus;
+    score += survivalFillBonus;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
@@ -1762,20 +1851,86 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== BUMPINESS ======
-    if (buildingSpecialEvent) {
-        score -= bumpiness * 0.3;
-    } else {
-        score -= bumpiness * 0.8;
+    // Scale with stack height
+    let bumpinessMultiplier = 0.8;
+    if (buildingSpecialEvent && stackHeight < 12) {
+        bumpinessMultiplier = 0.3;
+    } else if (stackHeight >= 16) {
+        bumpinessMultiplier = 2.5;
+    } else if (stackHeight >= 14) {
+        bumpinessMultiplier = 1.8;
+    } else if (stackHeight >= 12) {
+        bumpinessMultiplier = 1.2;
     }
+    score -= bumpiness * bumpinessMultiplier;
     
     // ====== DEEP WELLS ======
+    // Quadratic penalty for deep wells, scaled by height
     for (let col = 0; col < cols; col++) {
         const leftHeight = col > 0 ? colHeights[col - 1] : colHeights[col];
         const rightHeight = col < cols - 1 ? colHeights[col + 1] : colHeights[col];
         const minNeighbor = Math.min(leftHeight, rightHeight);
         const wellDepth = minNeighbor - colHeights[col];
-        if (wellDepth > 3) {
-            score -= (wellDepth - 3) * 3;
+        if (wellDepth > 2) {
+            let thisWellPenalty = wellDepth * wellDepth;
+            if (stackHeight >= 14) {
+                thisWellPenalty *= 2;
+            } else if (stackHeight >= 12) {
+                thisWellPenalty *= 1.5;
+            }
+            score -= thisWellPenalty;
+        }
+    }
+    
+    // ====== SURVIVAL FILL BONUS ======
+    if (stackHeight >= 12) {
+        const minHeight = Math.min(...colHeights);
+        const maxHeight = Math.max(...colHeights);
+        const heightDiff = maxHeight - minHeight;
+        
+        if (heightDiff >= 4) {
+            let lowestColHeight = 999;
+            let pieceCellsInLowCols = 0;
+            
+            for (let py = 0; py < shape.length; py++) {
+                for (let px = 0; px < shape[py].length; px++) {
+                    if (shape[py][px]) {
+                        const col = x + px;
+                        if (col >= 0 && col < cols) {
+                            if (colHeights[col] < lowestColHeight) {
+                                lowestColHeight = colHeights[col];
+                            }
+                            if (colHeights[col] <= minHeight + 2) {
+                                pieceCellsInLowCols++;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (lowestColHeight < 999) {
+                const colDepth = maxHeight - lowestColHeight;
+                let fillBonus = 0;
+                if (colDepth >= 8) {
+                    fillBonus = 80 + (colDepth - 8) * 15;
+                } else if (colDepth >= 6) {
+                    fillBonus = 50 + (colDepth - 6) * 15;
+                } else if (colDepth >= 4) {
+                    fillBonus = 20 + (colDepth - 4) * 15;
+                }
+                
+                fillBonus *= (1 + pieceCellsInLowCols * 0.25);
+                
+                if (stackHeight >= 17) {
+                    fillBonus *= 3;
+                } else if (stackHeight >= 15) {
+                    fillBonus *= 2;
+                } else if (stackHeight >= 13) {
+                    fillBonus *= 1.5;
+                }
+                
+                score += Math.round(fillBonus);
+            }
         }
     }
     
