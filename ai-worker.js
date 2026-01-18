@@ -1,7 +1,7 @@
-// AI Worker v5.5.0 - Improved tsunami blocking, completion bonus, and run tracking at all heights
-console.log("🤖 AI Worker v5.5.0 loaded - better tsunami blocking (column + direct), completion bonus, tracks runs at all heights");
+// AI Worker v5.7.0 - Edge overhang penalty 4-5x, tsunami completion at all heights, line clear lookahead
+console.log("🤖 AI Worker v5.7.0 loaded - massive edge overhang penalty, tsunami works at high stacks, line clear tsunami survival check");
 
-const AI_VERSION = "5.5.0";
+const AI_VERSION = "5.7.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -516,6 +516,107 @@ function analyzeOverhangs(board, shape, x, y, cols, rows, colHeights = null) {
 // ==================== HORIZONTAL CONNECTIVITY ANALYSIS ====================
 
 /**
+ * Simulate placing a piece and clearing lines, return the resulting board state
+ * Used for tsunami lookahead - checking if a placement would destroy a tsunami opportunity
+ */
+function simulatePlacementWithLineClear(board, shape, x, y, color, cols, rows) {
+    // Deep copy the board
+    const newBoard = [];
+    for (let row = 0; row < rows; row++) {
+        newBoard[row] = board[row] ? [...board[row]] : new Array(cols).fill(null);
+    }
+    
+    // Place the piece
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const bx = x + px;
+                const by = y + py;
+                if (by >= 0 && by < rows && bx >= 0 && bx < cols) {
+                    newBoard[by][bx] = color;
+                }
+            }
+        }
+    }
+    
+    // Check for and clear complete lines
+    let linesCleared = 0;
+    const linesToClear = [];
+    
+    for (let row = 0; row < rows; row++) {
+        if (newBoard[row] && newBoard[row].every(cell => cell !== null)) {
+            linesToClear.push(row);
+            linesCleared++;
+        }
+    }
+    
+    // Clear lines (shift rows down)
+    if (linesCleared > 0) {
+        // Remove cleared rows and add empty rows at top
+        const clearedBoard = [];
+        for (let row = 0; row < rows; row++) {
+            if (!linesToClear.includes(row)) {
+                clearedBoard.push(newBoard[row]);
+            }
+        }
+        // Add empty rows at top
+        while (clearedBoard.length < rows) {
+            clearedBoard.unshift(new Array(cols).fill(null));
+        }
+        return { board: clearedBoard, linesCleared };
+    }
+    
+    return { board: newBoard, linesCleared: 0 };
+}
+
+/**
+ * Check if a tsunami run survives after simulated line clear
+ * Returns { survives: boolean, newWidth: number, newRow: number }
+ */
+function checkTsunamiAfterLineClear(simulatedBoard, tsunamiColor, originalRun, cols, rows) {
+    // Find the best run of tsunamiColor in the simulated board
+    let bestRun = null;
+    
+    for (let row = 0; row < rows; row++) {
+        if (!simulatedBoard[row]) continue;
+        
+        let runStart = -1;
+        for (let col = 0; col <= cols; col++) {
+            const cell = col < cols ? simulatedBoard[row][col] : null;
+            if (cell === tsunamiColor) {
+                if (runStart < 0) runStart = col;
+            } else {
+                if (runStart >= 0) {
+                    const width = col - runStart;
+                    if (!bestRun || width > bestRun.width) {
+                        bestRun = { row, startX: runStart, width, endX: col - 1 };
+                    }
+                }
+                runStart = -1;
+            }
+        }
+    }
+    
+    if (!bestRun) {
+        return { survives: false, newWidth: 0, newRow: -1 };
+    }
+    
+    // Check if the extension path is still clear
+    const leftClear = bestRun.startX === 0 || 
+        (simulatedBoard[bestRun.row] && simulatedBoard[bestRun.row][bestRun.startX - 1] === null);
+    const rightClear = bestRun.endX === cols - 1 || 
+        (simulatedBoard[bestRun.row] && simulatedBoard[bestRun.row][bestRun.endX + 1] === null);
+    
+    const canComplete = (leftClear || bestRun.startX === 0) || (rightClear || bestRun.endX === cols - 1);
+    
+    return { 
+        survives: bestRun.width >= originalRun.width - 1 && canComplete,  // Allow 1 cell loss
+        newWidth: bestRun.width, 
+        newRow: bestRun.row 
+    };
+}
+
+/**
  * Analyze horizontal color runs in the board
  * Returns array of runs: { color, row, startX, endX, width, touchesLeft, touchesRight }
  */
@@ -598,7 +699,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         iPieceWells: { worstDepth: 0, worstCol: -1, count: 0, penalty: 0 },
         overhangs: { count: 0, severe: 0, edgeVertical: false, penalty: 0 },
         criticalHeight: { penalty: 0 },
-        lineClears: { count: 0, bonus: 0 },
+        lineClears: { count: 0, bonus: 0, tsunamiSurvives: true, postClearWidth: 0, destroysTsunami: false },
         tsunami: { potential: false, achievable: false, nearCompletion: false, imminent: false, width: 0, color: null, bonus: 0, blockingPenalty: 0, expanding: false, earlyCompletion: false, completing: false },
         volcano: { potential: false, progress: 0, innerSize: 0, bonus: 0 },
         blob: { horizontalAdj: 0, verticalAdj: 0, bonus: 0 },
@@ -650,27 +751,30 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
             const totalMatches = queueMatches + currentPieceMatches;
             
             // IMMINENT: Can complete with current piece + visible queue pieces
-            // This is ALWAYS worth doing unless in death zone
-            if (!inDeathZone) {
-                if (run.width >= 10) {
-                    tsunamiImminent = true;
-                    tsunamiNearCompletion = true;
-                } else if (run.width >= 8 && totalMatches >= blocksNeeded) {
-                    // Width 8 + 2 matching (current + queue), or width 9 + 1 matching
-                    tsunamiImminent = true;
-                    tsunamiNearCompletion = true;
-                } else if (run.width >= 9 && totalMatches >= 1) {
-                    tsunamiImminent = true;
-                    tsunamiNearCompletion = true;
-                }
+            // This is ALWAYS worth doing - including at high stacks! Completing clears board!
+            // Only skip in death zone if run is still small
+            if (run.width >= 10) {
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (run.width >= 9 && totalMatches >= 1) {
+                // Width 9 + 1 matching = can complete
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (run.width >= 8 && totalMatches >= blocksNeeded) {
+                // Width 8 + 2 matching (current + queue)
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (!inDeathZone && run.width >= 8 && totalMatches >= 1) {
+                // Width 8 + 1 matching - getting close
+                tsunamiNearCompletion = true;
             }
             
             // NEAR COMPLETION: Very close, worth prioritizing even at moderate height
-            // Allowed up to critical zone (height 15)
-            if (!inCriticalZone) {
-                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
-                    tsunamiNearCompletion = true;
-                }
+            // Allow at critical zone if run is already wide (8+)
+            if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
+                tsunamiNearCompletion = true;
+            } else if (!inCriticalZone && run.width >= 8 && totalMatches >= 1) {
+                tsunamiNearCompletion = true;
             }
             
             // ACHIEVABLE: Good chance with a few more pieces - only at safe heights
@@ -692,10 +796,8 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                 effectiveThreshold = totalMatches >= 2 ? 5 : (totalMatches >= 1 ? 6 : 7);
             }
             
-            // ALWAYS track the best run - needed for blocking penalty even at high stpoprzednia
-            // But only set hasTsunamiPotential (for bonuses) when not in critical zone
+            // ALWAYS track the best run - needed for blocking penalty and completion bonuses
             if (run.width >= effectiveThreshold) {
-                // Track best run regardless of height (for blocking penalty)
                 const currentBonus = currentPieceMatches ? 0.5 : 0;
                 const effectiveWidth = run.width + currentBonus;
                 if (effectiveWidth > bestTsunamiWidth) {
@@ -703,9 +805,12 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                     bestTsunamiColor = runColor;
                 }
                 
-                // Only grant bonus-eligible potential when not in critical zone
-                if (!inCriticalZone) {
-                    hasTsunamiPotential = true;
+                // Grant potential bonuses based on width AND height
+                // Wide runs (8+) get potential even at high stacks - completing saves the game!
+                if (run.width >= 8) {
+                    hasTsunamiPotential = true;  // Always for wide runs
+                } else if (!inCriticalZone) {
+                    hasTsunamiPotential = true;  // Smaller runs only at safe heights
                 }
             }
         }
@@ -967,14 +1072,28 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.overhangs.edgeVertical = overhangInfo.edgeVerticalProblem;
     
     // Base overhang penalty - higher when NOT building toward special events
-    let overhangPenalty = overhangInfo.overhangCount * 12;  // Increased from 8
+    let overhangPenalty = overhangInfo.overhangCount * 12;
     
     // Extra penalty for severe overhangs (2+ empty below)
-    overhangPenalty += overhangInfo.severeOverhangs * 20;  // Increased from 15
+    overhangPenalty += overhangInfo.severeOverhangs * 20;
     
-    // Significant extra penalty for vertical Z/S at edges - these almost always cause problems
+    // MASSIVE penalty for vertical Z/S at edges - these create unfillable patterns
+    // Scale with stack height - at high stacks this is catastrophic
     if (overhangInfo.edgeVerticalProblem) {
-        overhangPenalty += 40;
+        let edgePenalty = 80;  // Base penalty doubled from 40
+        
+        // Scale with stack height - higher stacks = more dangerous
+        if (stackHeight >= 16) {
+            edgePenalty = 200;  // Near death - this is terrible
+        } else if (stackHeight >= 14) {
+            edgePenalty = 150;  // Critical - very bad
+        } else if (stackHeight >= 12) {
+            edgePenalty = 120;  // Danger zone - quite bad
+        } else if (stackHeight >= 10) {
+            edgePenalty = 100;  // Getting risky
+        }
+        
+        overhangPenalty += edgePenalty;
     }
     
     // Reduce overhang penalty if building toward special events (creating holes is acceptable)
@@ -1048,12 +1167,46 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     }
     breakdown.lineClears.count = completeRows;
     
+    // ====== LINE CLEAR TSUNAMI SURVIVAL CHECK ======
+    // If line clears would happen and we're building a tsunami, simulate and check if it survives
+    let tsunamiSurvivesLineClear = true;
+    let tsunamiDestroyedByLineClear = false;
+    
+    if (completeRows > 0 && hasTsunamiPotential && bestTsunamiColor && bestTsunamiWidth >= 6) {
+        const tsunamiRun = bestRuns[bestTsunamiColor];
+        if (tsunamiRun) {
+            // Simulate the placement and line clear
+            const simulation = simulatePlacementWithLineClear(board, shape, x, y, color, cols, rows);
+            
+            if (simulation.linesCleared > 0) {
+                // Check if tsunami survives
+                const survivalCheck = checkTsunamiAfterLineClear(
+                    simulation.board, 
+                    bestTsunamiColor, 
+                    tsunamiRun, 
+                    cols, 
+                    rows
+                );
+                
+                tsunamiSurvivesLineClear = survivalCheck.survives;
+                tsunamiDestroyedByLineClear = !survivalCheck.survives && bestTsunamiWidth >= 7;
+                
+                breakdown.lineClears.tsunamiSurvives = tsunamiSurvivesLineClear;
+                breakdown.lineClears.postClearWidth = survivalCheck.newWidth;
+            }
+        }
+    }
+    
     if (completeRows > 0) {
         if (stackHeight >= 17) {
             // Survival mode - always clear lines at extreme height
             breakdown.lineClears.bonus = completeRows * 200;
             breakdown.classification = 'survival';
-        } else if (tsunamiImminent) {
+        } else if (tsunamiDestroyedByLineClear) {
+            // This line clear would DESTROY our tsunami - massive penalty!
+            breakdown.lineClears.bonus = -completeRows * 200;
+            breakdown.lineClears.destroysTsunami = true;
+        } else if (tsunamiImminent && !tsunamiSurvivesLineClear) {
             // DON'T clear lines that would break our imminent tsunami!
             // Strong penalty unless we're in extreme danger
             breakdown.lineClears.bonus = -completeRows * 100;
@@ -1518,20 +1671,25 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             const totalMatches = queueMatches + currentPieceMatches;
             
             // IMMINENT: Can complete with current piece + visible queue (always allowed except death zone)
-            if (!inDeathZone) {
-                if (run.width >= 10 || 
-                    (run.width >= 8 && totalMatches >= blocksNeeded) ||
-                    (run.width >= 9 && totalMatches >= 1)) {
-                    tsunamiImminent = true;
-                    tsunamiNearCompletion = true;
-                }
+            // IMMINENT: Can complete - including at high stacks! Completing clears board!
+            if (run.width >= 10) {
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (run.width >= 9 && totalMatches >= 1) {
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (run.width >= 8 && totalMatches >= blocksNeeded) {
+                tsunamiImminent = true;
+                tsunamiNearCompletion = true;
+            } else if (!inDeathZone && run.width >= 8 && totalMatches >= 1) {
+                tsunamiNearCompletion = true;
             }
             
-            // NEAR COMPLETION: Very close (allowed up to critical zone)
-            if (!inCriticalZone) {
-                if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
-                    tsunamiNearCompletion = true;
-                }
+            // NEAR COMPLETION: Very close, worth prioritizing
+            if (run.width >= 9 || (run.width >= 8 && totalMatches >= 2)) {
+                tsunamiNearCompletion = true;
+            } else if (!inCriticalZone && run.width >= 8 && totalMatches >= 1) {
+                tsunamiNearCompletion = true;
             }
             
             // ACHIEVABLE: Speculative (only at safe heights)
@@ -1542,7 +1700,6 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             }
             
             // POTENTIAL: Most speculative
-            // Lower threshold for edge-touching runs
             let effectiveThreshold;
             if (run.touchesRight || run.touchesLeft) {
                 effectiveThreshold = totalMatches >= 2 ? 4 : (totalMatches >= 1 ? 5 : 6);
@@ -1550,7 +1707,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 effectiveThreshold = totalMatches >= 2 ? 5 : (totalMatches >= 1 ? 6 : 7);
             }
             
-            // ALWAYS track best run (for blocking), but only set potential when safe
+            // ALWAYS track best run, wide runs (8+) get potential even at high stacks
             if (run.width >= effectiveThreshold) {
                 const currentBonus = currentPieceMatches ? 0.5 : 0;
                 const effectiveWidth = run.width + currentBonus;
@@ -1559,7 +1716,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                     bestTsunamiColor = runColor;
                 }
                 
-                if (!inCriticalZone) {
+                if (run.width >= 8) {
+                    hasTsunamiPotential = true;
+                } else if (!inCriticalZone) {
                     hasTsunamiPotential = true;
                 }
             }
@@ -1755,19 +1914,31 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // Penalize piece placements that create overhangs (cells over empty space)
     const overhangInfo = analyzeOverhangs(board, shape, x, y, cols, rows, colHeights);
     
-    let overhangPenalty = overhangInfo.overhangCount * 8;
-    overhangPenalty += overhangInfo.severeOverhangs * 15;
+    let overhangPenalty = overhangInfo.overhangCount * 12;
+    overhangPenalty += overhangInfo.severeOverhangs * 20;
     
-    // Significant extra penalty for vertical Z/S at edges
+    // MASSIVE penalty for vertical Z/S at edges - scale with height
     if (overhangInfo.edgeVerticalProblem) {
-        overhangPenalty += 40;
+        let edgePenalty = 80;
+        if (stackHeight >= 16) {
+            edgePenalty = 200;
+        } else if (stackHeight >= 14) {
+            edgePenalty = 150;
+        } else if (stackHeight >= 12) {
+            edgePenalty = 120;
+        } else if (stackHeight >= 10) {
+            edgePenalty = 100;
+        }
+        overhangPenalty += edgePenalty;
     }
     
     // Reduce penalty if building toward imminent tsunami
     if (tsunamiImminent && color === bestTsunamiColor) {
-        overhangPenalty = Math.round(overhangPenalty * 0.3);
+        overhangPenalty = Math.round(overhangPenalty * 0.2);
+    } else if (buildingSpecialEvent && color === bestTsunamiColor) {
+        overhangPenalty = Math.round(overhangPenalty * 0.5);
     } else if (buildingSpecialEvent) {
-        overhangPenalty = Math.round(overhangPenalty * 0.6);
+        overhangPenalty = Math.round(overhangPenalty * 0.7);
     }
     
     score -= overhangPenalty;
