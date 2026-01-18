@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.19 loaded - fix move order: move first then rotate for I/S/Z pieces");
+console.log("🎮 AI Player v3.20 loaded - smart move order: rotate first if target is narrower");
 
 const AIPlayer = (() => {
     // Configuration
@@ -242,9 +242,9 @@ const AIPlayer = (() => {
     
     /**
      * Calculate moves needed to reach target placement
-     * FIXED: For I-piece (and pieces that get wider), move horizontally FIRST 
-     * while piece is narrow, THEN rotate. This prevents getting stuck when 
-     * rotation makes piece wider and blocks horizontal movement.
+     * FIXED: Smart move ordering based on piece dimensions
+     * - If target shape is NARROWER than current, rotate first (can reach more x positions)
+     * - If target shape is WIDER than current, move first while narrow
      * @param {boolean} skipDrop - If true, don't add drop command (for earthquake positioning)
      */
     function calculateMoves(currentPiece, targetPlacement, skipDrop = false) {
@@ -252,23 +252,35 @@ const AIPlayer = (() => {
         const xDiff = targetPlacement.x - currentPiece.x;
         const needsRotation = targetPlacement.rotationIndex > 0;
         
-        // I-piece is the main problem: spawns 1-wide vertical, becomes 4-wide horizontal
-        // Moving while vertical is easy, rotating near walls/pieces is hard
-        const isIPiece = currentPiece.type === 'I';
+        // Get current and target dimensions
+        const currentShape = currentPiece.shape;
+        const currentWidth = currentShape[0] ? currentShape[0].length : 1;
         
-        // S, Z, L, J, T also change dimensions but less dramatically
-        // For these, moving first is still safer when we need to move far
-        const farMove = Math.abs(xDiff) >= 3;
+        // Estimate target width after rotation
+        // For most pieces, 90° rotation swaps width and height
+        let targetWidth = currentWidth;
+        if (needsRotation && currentPiece.type === 'I') {
+            // I-piece: horizontal (4 wide) <-> vertical (1 wide)
+            targetWidth = (targetPlacement.rotationIndex % 2 === 1) ? 1 : 4;
+            if (currentWidth === 1) targetWidth = (targetPlacement.rotationIndex % 2 === 1) ? 4 : 1;
+        } else if (needsRotation) {
+            // Other pieces: approximate by swapping
+            const currentHeight = currentShape.length;
+            if (targetPlacement.rotationIndex === 1 || targetPlacement.rotationIndex === 3) {
+                targetWidth = currentHeight;
+            }
+        }
         
-        if (isIPiece && needsRotation) {
-            // I-PIECE STRATEGY: Always move first while vertical (1-wide)
-            // The I-piece rotates around its center, so:
-            // - Vertical I at x: single column at x
-            // - Horizontal I at x: spans x to x+3
-            // When rotating from vertical to horizontal, the x stays roughly centered
-            // So we need to move to approximately targetX, then rotate
+        // DECISION: Rotate first if target is narrower or same width
+        // Move first only if target is wider (piece will get stuck if we rotate first)
+        const rotateFirst = targetWidth <= currentWidth;
+        
+        if (rotateFirst) {
+            // ROTATE FIRST - target is narrower, so rotating gives more movement freedom
+            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+                moves.push('rotate');
+            }
             
-            // Move horizontally while still vertical
             if (xDiff < 0) {
                 for (let i = 0; i < Math.abs(xDiff); i++) {
                     moves.push('left');
@@ -278,38 +290,8 @@ const AIPlayer = (() => {
                     moves.push('right');
                 }
             }
-            
-            // Then rotate
-            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-                moves.push('rotate');
-            }
-            
-        } else if ((farMove && needsRotation) || currentPiece.type === 'S' || currentPiece.type === 'Z') {
-            // For S and Z pieces, or when moving far: move first, then rotate
-            // S and Z pieces can get stuck when rotated near walls
-            
-            if (xDiff < 0) {
-                for (let i = 0; i < Math.abs(xDiff); i++) {
-                    moves.push('left');
-                }
-            } else if (xDiff > 0) {
-                for (let i = 0; i < xDiff; i++) {
-                    moves.push('right');
-                }
-            }
-            
-            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-                moves.push('rotate');
-            }
-            
         } else {
-            // DEFAULT STRATEGY: Rotate first, then move (works for most cases)
-            // O, T, L, J pieces with short moves
-            
-            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-                moves.push('rotate');
-            }
-            
+            // MOVE FIRST - target is wider, move while still narrow
             if (xDiff < 0) {
                 for (let i = 0; i < Math.abs(xDiff); i++) {
                     moves.push('left');
@@ -318,6 +300,10 @@ const AIPlayer = (() => {
                 for (let i = 0; i < xDiff; i++) {
                     moves.push('right');
                 }
+            }
+            
+            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+                moves.push('rotate');
             }
         }
         
