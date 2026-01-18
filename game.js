@@ -13757,6 +13757,42 @@ function spawnReplayPiece() {
     // naturally using recorded velocities, and we'll sync at the next piece after
     // the volcano completes. This prevents the visual "snap" of lava blocks.
     if (pieceEntry.boardSnapshot && !volcanoAnimating) {
+        // CRITICAL: If earthquake animation is still running, cancel it!
+        // The snapshot already contains the post-earthquake state, so letting
+        // the animation complete would double-apply the shift and corrupt the board.
+        if (earthquakeActive) {
+            console.log('🎬 Cancelling earthquake animation - board snapshot has post-earthquake state');
+            earthquakeActive = false;
+            earthquakePhase = 'done';
+            earthquakeShakeProgress = 0;
+            earthquakeShakeIntensity = 0;
+            earthquakeCrackProgress = 0;
+            earthquakeShiftProgress = 0;
+            earthquakeCrack = [];
+            earthquakeCrackMap.clear();
+            earthquakeLeftBlocks = [];
+            earthquakeRightBlocks = [];
+            // Stop controller haptic feedback
+            if (typeof GamepadController !== 'undefined') {
+                GamepadController.stopVibration();
+            }
+        }
+        
+        // If tornado is active and has picked up a blob, we need to be careful.
+        // The snapshot has the post-tornado state, so cancel the tornado animation.
+        if (tornadoActive) {
+            console.log('🎬 Cancelling tornado animation - board snapshot has post-tornado state');
+            tornadoActive = false;
+            tornadoState = 'dissipating';
+            tornadoPickedBlob = null;
+            tornadoFinalPositions = null;
+            tornadoParticles = [];
+            // Stop controller haptic feedback
+            if (typeof GamepadController !== 'undefined') {
+                GamepadController.stopVibration();
+            }
+        }
+        
         const snapshotBoard = decompressKeyframeBoard(pieceEntry.boardSnapshot, ROWS, COLS);
         let differences = 0;
         for (let y = 0; y < ROWS; y++) {
