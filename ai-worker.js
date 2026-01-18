@@ -1,7 +1,7 @@
-// AI Worker v5.9.0 - Critical: penalize vertical placements at high stacks
-console.log("🤖 AI Worker v5.9.0 loaded - VERTICAL PIECE PENALTY at high stacks, survival fill bonus, edge overhang penalty");
+// AI Worker v5.10.0 - Stronger overhang penalties
+console.log("🤖 AI Worker v5.10.0 loaded - STRONGER overhang penalties, survival fill bonus, edge overhang penalty");
 
-const AI_VERSION = "5.9.0";
+const AI_VERSION = "5.10.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1196,26 +1196,34 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.overhangs.severe = overhangInfo.severeOverhangs;
     breakdown.overhangs.edgeVertical = overhangInfo.edgeVerticalProblem;
     
-    // Base overhang penalty - higher when NOT building toward special events
-    let overhangPenalty = overhangInfo.overhangCount * 12;
+    // Base overhang penalty - INCREASED to compete with fill bonuses
+    // Each overhang creates a cell that must be filled before clearing lines
+    let overhangPenalty = overhangInfo.overhangCount * 25;  // Was 12
     
-    // Extra penalty for severe overhangs (2+ empty below)
-    overhangPenalty += overhangInfo.severeOverhangs * 20;
+    // Extra penalty for severe overhangs (2+ empty below) - creates unfillable patterns
+    overhangPenalty += overhangInfo.severeOverhangs * 40;  // Was 20
+    
+    // Scale overhang penalty with stack height - overhangs are more costly when stack is high
+    if (stackHeight >= 14) {
+        overhangPenalty = Math.round(overhangPenalty * 1.5);
+    } else if (stackHeight >= 12) {
+        overhangPenalty = Math.round(overhangPenalty * 1.25);
+    }
     
     // MASSIVE penalty for vertical Z/S at edges - these create unfillable patterns
     // Scale with stack height - at high stacks this is catastrophic
     if (overhangInfo.edgeVerticalProblem) {
-        let edgePenalty = 80;  // Base penalty doubled from 40
+        let edgePenalty = 120;  // Base penalty increased from 80
         
         // Scale with stack height - higher stacks = more dangerous
         if (stackHeight >= 16) {
-            edgePenalty = 200;  // Near death - this is terrible
+            edgePenalty = 300;  // Near death - absolutely terrible
         } else if (stackHeight >= 14) {
-            edgePenalty = 150;  // Critical - very bad
+            edgePenalty = 220;  // Critical - very bad
         } else if (stackHeight >= 12) {
-            edgePenalty = 120;  // Danger zone - quite bad
+            edgePenalty = 170;  // Danger zone - quite bad
         } else if (stackHeight >= 10) {
-            edgePenalty = 100;  // Getting risky
+            edgePenalty = 140;  // Getting risky
         }
         
         overhangPenalty += edgePenalty;
