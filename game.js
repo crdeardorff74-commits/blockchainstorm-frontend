@@ -2832,6 +2832,12 @@ function updateBlackHoleAnimation() {
         // Stop controller haptic feedback
         GamepadController.stopVibration();
         
+        // During replay, skip the next board sync
+        if (replayActive) {
+            replaySkipNextSync = true;
+            console.log('🎬 Will skip next board sync (black hole just finished)');
+        }
+        
         console.log('🕳️ Black hole calling applyGravity()');
         // Apply gravity after black hole
         applyGravity();
@@ -3189,6 +3195,11 @@ function updateVolcanoAnimation() {
             volcanoAnimating = false;
             volcanoActive = false;
             volcanoPhase = 'warming'; // Reset for next volcano
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (volcano just finished)');
+            }
             applyGravity();
         }
     }
@@ -3806,6 +3817,12 @@ function updateTsunamiAnimation() {
         // Stop controller haptic feedback (should already be stopped, but ensure cleanup)
         GamepadController.stopVibration();
         
+        // During replay, skip the next board sync
+        if (replayActive) {
+            replaySkipNextSync = true;
+            console.log('🎬 Will skip next board sync (tsunami just finished)');
+        }
+        
         // Put pushed blocks back on board at their original positions
         // They will then fall naturally with gravity (potentially reconnecting with other blocks)
         console.log('=== TSUNAMI COMPLETE - PLACING BLOCKS BACK ===');
@@ -4259,6 +4276,11 @@ function updateTornado() {
             setTimeout(() => canvas.classList.remove('touchdown-active'), 1000);
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (tornado touchdown just finished)');
+            }
             stopTornadoWind(); // Stop the wind sound
             return;
         }
@@ -4583,6 +4605,11 @@ function updateTornado() {
         if (tornadoFadeProgress >= 1.0) {
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
+            // During replay, skip the next board sync
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (tornado just finished)');
+            }
             stopTornadoWind(); // Stop the wind sound
         }
     }
@@ -4983,6 +5010,13 @@ function updateEarthquake() {
             earthquakeActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             console.log('🌍 Earthquake finished, earthquakeActive = false');
+            
+            // During replay, skip the next board sync since the snapshot was captured
+            // before the earthquake completed in the original game
+            if (replayActive) {
+                replaySkipNextSync = true;
+                console.log('🎬 Will skip next board sync (earthquake just finished)');
+            }
             
             // Stop controller haptic feedback
             GamepadController.stopVibration();
@@ -13534,6 +13568,7 @@ window.startGameReplay = function(recording) {
     // Clear earthquake replay data
     replayEarthquakeCrack = null;
     replayEarthquakeShiftType = null;
+    replaySkipNextSync = false;
     
     replayPaused = false;
     
@@ -13755,10 +13790,18 @@ function spawnReplayPiece() {
     // Sync board state from snapshot (ensures perfect sync at each piece)
     // SKIP sync if special event animation is in progress - the animation will complete
     // naturally using recorded data, and we'll sync at the next piece after it completes.
+    // Also skip if a special event JUST finished - the snapshot was captured before
+    // the event completed in the original game, so it's stale.
     // This prevents jarring visual interruptions mid-animation.
-    const skipSyncForAnimation = volcanoAnimating || earthquakeActive || tornadoActive;
+    const skipSyncForAnimation = volcanoAnimating || earthquakeActive || tornadoActive || 
+                                tsunamiAnimating || blackHoleAnimating || gravityAnimating;
+    const skipSyncForJustFinished = replaySkipNextSync;
     
-    if (pieceEntry.boardSnapshot && !skipSyncForAnimation) {
+    if (skipSyncForJustFinished) {
+        replaySkipNextSync = false; // Clear the flag
+    }
+    
+    if (pieceEntry.boardSnapshot && !skipSyncForAnimation && !skipSyncForJustFinished) {
         const snapshotBoard = decompressKeyframeBoard(pieceEntry.boardSnapshot, ROWS, COLS);
         let differences = 0;
         for (let y = 0; y < ROWS; y++) {
@@ -13772,9 +13815,26 @@ function spawnReplayPiece() {
         if (differences > 0) {
             console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
         }
-    } else if (pieceEntry.boardSnapshot && skipSyncForAnimation) {
-        const reason = volcanoAnimating ? 'volcano' : (earthquakeActive ? 'earthquake' : 'tornado');
-        console.log('🎬 Skipping board sync -', reason, 'animation in progress');
+    } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
+        let reason;
+        if (skipSyncForJustFinished) {
+            reason = 'special event just finished';
+        } else if (volcanoAnimating) {
+            reason = 'volcano animation';
+        } else if (earthquakeActive) {
+            reason = 'earthquake animation';
+        } else if (tornadoActive) {
+            reason = 'tornado animation';
+        } else if (tsunamiAnimating) {
+            reason = 'tsunami animation';
+        } else if (blackHoleAnimating) {
+            reason = 'black hole animation';
+        } else if (gravityAnimating) {
+            reason = 'gravity animation';
+        } else {
+            reason = 'animation in progress';
+        }
+        console.log('🎬 Skipping board sync -', reason);
     }
     
     // Create piece from recorded data
@@ -14042,6 +14102,10 @@ function tryReplayResyncOnGameOver() {
 let replayEarthquakeCrack = null;
 let replayEarthquakeShiftType = null;
 
+// Track if we should skip the next board sync (because a special event just finished
+// and the snapshot was captured before the event completed in the original game)
+let replaySkipNextSync = false;
+
 // Replay tornado data (set before spawnTornado during replay)
 let replayTornadoSpawnData = null;
 // Tornado direction changes and drops (collected from all pieces at replay start)
@@ -14285,6 +14349,7 @@ function stopReplay() {
     replayFWordSongId = null;
     replayEarthquakeCrack = null;
     replayEarthquakeShiftType = null;
+    replaySkipNextSync = false;
     replayTornadoSpawnData = null;
     replayTornadoDirChanges = [];
     replayTornadoDirIndex = 0;
