@@ -1,7 +1,7 @@
-// AI Worker v5.14.0 - SURVIVAL FOCUSED: higher height/bumpiness penalties, reward line clears
-console.log("🤖 AI Worker v5.14.0 loaded - SURVIVAL FOCUSED: increased penalties, reward line clears");
+// AI Worker v5.15.0 - MASSIVE HOLE PENALTIES: quadratic scaling, scattered hole detection
+console.log("🤖 AI Worker v5.15.0 loaded - MASSIVE hole penalties, scattered hole detection");
 
-const AI_VERSION = "5.14.0";
+const AI_VERSION = "5.15.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -838,25 +838,63 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     const buildingSpecialEvent = tsunamiImminent || 
         (!inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential));
     
-    // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
-    // Imminent tsunamis (can see the pieces) get most lenient treatment
-    if (tsunamiImminent && holes <= 8) {
-        breakdown.holes.penalty = holes * 2;  // Very lenient - we're about to score big
-    } else if (tsunamiNearCompletion && holes <= 6) {
-        breakdown.holes.penalty = holes * 3;
-    } else if (buildingSpecialEvent && holes <= 8) {
-        breakdown.holes.penalty = holes * 5;
-    } else if (hasTsunamiPotential && holes <= 5) {
-        breakdown.holes.penalty = holes * 6;
-    } else {
-        if (holes <= 2) {
-            breakdown.holes.penalty = holes * 7;
-        } else if (holes <= 5) {
-            breakdown.holes.penalty = 14 + (holes - 2) * 10;
-        } else {
-            breakdown.holes.penalty = 44 + (holes - 5) * 18;
+    // ====== HOLE PENALTIES - SURVIVAL CRITICAL ======
+    // Holes prevent line clears - the #1 survival problem
+    // SIGNIFICANTLY INCREASED penalties
+    
+    // First, count holes per column to detect "scattered" patterns
+    const holesPerCol = new Array(cols).fill(0);
+    for (let col = 0; col < cols; col++) {
+        let foundBlock = false;
+        for (let row = 0; row < rows; row++) {
+            if (board[row] && board[row][col]) {
+                foundBlock = true;
+            } else if (foundBlock && board[row]) {
+                holesPerCol[col]++;
+            }
         }
     }
+    const columnsWithHoles = holesPerCol.filter(h => h > 0).length;
+    
+    // Base hole penalty - increased
+    if (tsunamiImminent && holes <= 6) {
+        breakdown.holes.penalty = holes * 4;  // Was 2 - still lenient but stronger
+    } else if (tsunamiNearCompletion && holes <= 4) {
+        breakdown.holes.penalty = holes * 6;  // Was 3
+    } else if (buildingSpecialEvent && holes <= 5) {
+        breakdown.holes.penalty = holes * 8;  // Was 5, limit lowered from 8
+    } else {
+        // Normal penalty - QUADRATIC scaling for many holes
+        if (holes <= 2) {
+            breakdown.holes.penalty = holes * 12;  // Was 7
+        } else if (holes <= 5) {
+            breakdown.holes.penalty = 24 + (holes - 2) * 15;  // Was 14 + 10
+        } else if (holes <= 10) {
+            breakdown.holes.penalty = 69 + (holes - 5) * 20;  // Was 44 + 18
+        } else {
+            // Many holes - quadratic to discourage cheese patterns
+            breakdown.holes.penalty = 169 + (holes - 10) * 25;
+        }
+    }
+    
+    // SCATTERED HOLES PENALTY - having holes in multiple columns is worse
+    // Each additional column with holes makes recovery exponentially harder
+    if (columnsWithHoles >= 4) {
+        // Disaster - holes spread across 4+ columns, very hard to fill
+        breakdown.holes.penalty += columnsWithHoles * columnsWithHoles * 3;  // 4cols=48, 6cols=108, 8cols=192
+    } else if (columnsWithHoles >= 2) {
+        // Multiple columns with holes - penalize
+        breakdown.holes.penalty += columnsWithHoles * 8;
+    }
+    
+    // Extra penalty at high stacks - holes are more deadly
+    if (stackHeight >= 14 && holes > 2) {
+        breakdown.holes.penalty *= 1.5;
+    } else if (stackHeight >= 12 && holes > 3) {
+        breakdown.holes.penalty *= 1.25;
+    }
+    
+    breakdown.holes.penalty = Math.round(breakdown.holes.penalty);
     score -= breakdown.holes.penalty;
     
     // ====== HEIGHT PENALTY ======
@@ -1897,24 +1935,55 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     const buildingSpecialEvent = tsunamiImminent || 
         (!inCriticalZone && (tsunamiLikelyAchievable || volcanoPotential.hasPotential));
     
-    // ====== HOLE PENALTIES - CASCADE AWARE BUT NOT RECKLESS ======
-    if (tsunamiImminent && holes <= 8) {
-        score -= holes * 2;  // Very lenient for imminent completion
-    } else if (tsunamiNearCompletion && holes <= 6) {
-        score -= holes * 3;
-    } else if (buildingSpecialEvent && holes <= 8) {
-        score -= holes * 5;
-    } else if (hasTsunamiPotential && holes <= 5) {
-        score -= holes * 6;
-    } else {
-        if (holes <= 2) {
-            score -= holes * 7;
-        } else if (holes <= 5) {
-            score -= 14 + (holes - 2) * 10;
-        } else {
-            score -= 44 + (holes - 5) * 18;
+    // ====== HOLE PENALTIES - SURVIVAL CRITICAL ======
+    // Simplified scattered hole detection
+    let columnsWithHoles = 0;
+    for (let col = 0; col < cols; col++) {
+        let foundBlock = false;
+        for (let row = 0; row < rows; row++) {
+            if (board[row] && board[row][col]) {
+                foundBlock = true;
+            } else if (foundBlock && board[row]) {
+                columnsWithHoles++;
+                break;  // Just count columns, not total holes per column
+            }
         }
     }
+    
+    let holePenalty = 0;
+    if (tsunamiImminent && holes <= 6) {
+        holePenalty = holes * 4;
+    } else if (tsunamiNearCompletion && holes <= 4) {
+        holePenalty = holes * 6;
+    } else if (buildingSpecialEvent && holes <= 5) {
+        holePenalty = holes * 8;
+    } else {
+        if (holes <= 2) {
+            holePenalty = holes * 12;
+        } else if (holes <= 5) {
+            holePenalty = 24 + (holes - 2) * 15;
+        } else if (holes <= 10) {
+            holePenalty = 69 + (holes - 5) * 20;
+        } else {
+            holePenalty = 169 + (holes - 10) * 25;
+        }
+    }
+    
+    // Scattered holes penalty
+    if (columnsWithHoles >= 4) {
+        holePenalty += columnsWithHoles * columnsWithHoles * 3;
+    } else if (columnsWithHoles >= 2) {
+        holePenalty += columnsWithHoles * 8;
+    }
+    
+    // Extra at high stacks
+    if (stackHeight >= 14 && holes > 2) {
+        holePenalty = Math.round(holePenalty * 1.5);
+    } else if (stackHeight >= 12 && holes > 3) {
+        holePenalty = Math.round(holePenalty * 1.25);
+    }
+    
+    score -= holePenalty;
     
     // ====== HEIGHT PENALTIES ======
     // Height is the #1 survival factor - penalize more aggressively
