@@ -10408,7 +10408,14 @@ function movePiece(dir) {
 }
 
 function dropPiece() {
-    if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape || gameOverPending) return;
+    // During replay, allow drop even if animations are in progress
+    // The board will sync at the next piece anyway
+    if (!replayActive) {
+        if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape || gameOverPending) return;
+    } else {
+        // During replay, only block if no piece
+        if (!currentPiece || !currentPiece.shape || gameOverPending) return;
+    }
     // Prevent dropping during earthquake shift phase (but allow during replay - board syncs at next piece)
     if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
@@ -10616,7 +10623,14 @@ let hardDropPixelY = 0; // Track pixel position for smooth visual animation
 let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
-    if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
+    // During replay, allow hardDrop even if animations are in progress
+    // The board will sync at the next piece anyway
+    if (!replayActive) {
+        if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
+    } else {
+        // During replay, only block if no piece or already dropping
+        if (!currentPiece || hardDropping) return;
+    }
     // Prevent hard drop during earthquake shift phase (but allow during replay - board syncs at next piece)
     if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
     
@@ -10648,6 +10662,17 @@ function updateHardDrop() {
         hardDropping = false;
         hardDropVelocity = 0;
         hardDropPixelY = 0;
+        // During replay, we need to force the piece to drop all the way and lock
+        // since the input was already consumed
+        if (replayActive && currentPiece) {
+            console.log('🎬 Replay: Forcing piece to drop and lock after interrupted hard drop');
+            // Drop all the way down
+            while (!collides(currentPiece, 0, 1)) {
+                currentPiece.y++;
+            }
+            // Now lock the piece
+            dropPiece();
+        }
         return;
     }
     
@@ -11235,7 +11260,9 @@ function update(time = 0) {
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
     // (But during replay, allow auto-drop - board syncs at next piece)
     const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift' && !replayActive;
-    if (!paused && !animatingLines && !gravityAnimating && !blackHoleAnimating && !tsunamiAnimating && !hardDropping && !earthquakeShiftActive && currentPiece) {
+    // During replay, bypass animation checks to keep replay in sync
+    const blockDropForAnimations = !replayActive && (animatingLines || gravityAnimating || blackHoleAnimating || tsunamiAnimating);
+    if (!paused && !blockDropForAnimations && !hardDropping && !earthquakeShiftActive && currentPiece) {
         // Check if piece is resting on the stack (would collide if moved down)
         const isResting = collides(currentPiece, 0, 1);
         
