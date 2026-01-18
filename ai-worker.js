@@ -1,7 +1,7 @@
-// AI Worker v5.8.0 - Survival mode: aggressive well penalty, fill bonus, bumpiness scaling
-console.log("🤖 AI Worker v5.8.0 loaded - survival instincts: quadratic well penalty, fill lowest columns bonus, bumpiness scales with height");
+// AI Worker v5.9.0 - Critical: penalize vertical placements at high stacks
+console.log("🤖 AI Worker v5.9.0 loaded - VERTICAL PIECE PENALTY at high stacks, survival fill bonus, edge overhang penalty");
 
-const AI_VERSION = "5.8.0";
+const AI_VERSION = "5.9.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -707,6 +707,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         edge: { bonus: 0 },
         queue: { matchingPieces: 0, bonus: 0 },
         survivalFill: 0,
+        verticalPenalty: 0,
         classification: 'neutral' // 'defensive', 'offensive', 'opportunistic', 'survival'
     };
     
@@ -1151,6 +1152,41 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     breakdown.survivalFill = survivalFillBonus;
     score += survivalFillBonus;
+    
+    // ====== VERTICAL PIECE PENALTY AT HIGH STACKS ======
+    // Tall vertical placements are DEADLY at high stacks - they make the situation worse
+    // Detect piece orientation: height > width = vertical
+    const pieceHeight = shape.length;
+    const pieceWidth = shape[0] ? shape[0].length : 1;
+    const isVerticalPlacement = pieceHeight > pieceWidth;
+    
+    let verticalPenalty = 0;
+    if (isVerticalPlacement && stackHeight >= 14) {
+        // Extra height this piece adds vertically
+        const extraHeight = pieceHeight - 1;  // -1 because it fills at least one row
+        
+        // At high stacks, vertical pieces are catastrophic
+        if (stackHeight >= 18) {
+            verticalPenalty = extraHeight * 150;  // DEATH ZONE - massive penalty
+        } else if (stackHeight >= 16) {
+            verticalPenalty = extraHeight * 100;
+        } else if (stackHeight >= 14) {
+            verticalPenalty = extraHeight * 50;
+        }
+        
+        // Extra penalty if piece lands in the highest column
+        const pieceTopY = y;
+        const pieceTopRow = pieceTopY;
+        if (pieceTopRow <= 2) {
+            // Piece is near the very top - extremely dangerous
+            verticalPenalty *= 2;
+        } else if (pieceTopRow <= 4) {
+            verticalPenalty *= 1.5;
+        }
+    }
+    
+    breakdown.verticalPenalty = verticalPenalty;
+    score -= verticalPenalty;
     
     // ====== OVERHANG PENALTY ======
     // Penalize piece placements that create overhangs (cells over empty space)
@@ -1932,6 +1968,32 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 score += Math.round(fillBonus);
             }
         }
+    }
+    
+    // ====== VERTICAL PIECE PENALTY AT HIGH STACKS ======
+    const pieceHeight = shape.length;
+    const pieceWidth = shape[0] ? shape[0].length : 1;
+    const isVerticalPlacement = pieceHeight > pieceWidth;
+    
+    if (isVerticalPlacement && stackHeight >= 14) {
+        const extraHeight = pieceHeight - 1;
+        let verticalPenalty = 0;
+        
+        if (stackHeight >= 18) {
+            verticalPenalty = extraHeight * 150;
+        } else if (stackHeight >= 16) {
+            verticalPenalty = extraHeight * 100;
+        } else if (stackHeight >= 14) {
+            verticalPenalty = extraHeight * 50;
+        }
+        
+        if (y <= 2) {
+            verticalPenalty *= 2;
+        } else if (y <= 4) {
+            verticalPenalty *= 1.5;
+        }
+        
+        score -= verticalPenalty;
     }
     
     // ====== EDGE WELL DISPARITY PENALTY ======
