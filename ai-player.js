@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.20 loaded - smart move order: rotate first if target is narrower");
+console.log("🎮 AI Player v3.21 loaded - fixed piece identity tracking (was using color which isn't unique)");
 
 const AIPlayer = (() => {
     // Configuration
@@ -34,6 +34,9 @@ const AIPlayer = (() => {
     // Piece identity tracking - prevent multiple calculations for same piece
     let lastCalculatedPieceId = null; // Track which piece we last calculated for
     let samePieceCount = 0; // How many times we've tried to calculate for same piece
+    let pieceSpawnCounter = 0; // Increments each time we detect a new piece
+    let lastSeenShape = null; // Track last piece shape to detect new spawns
+    let expectingNewPiece = false; // Set true after hard drop, reset when new piece detected
     
     // Decision metadata for recording
     let lastDecisionMeta = null;
@@ -167,7 +170,7 @@ const AIPlayer = (() => {
                     console.log('🤖 AI Worker confirmed ready');
                 }
                 
-                const { bestPlacement, reset, stackHeight, decisionMeta } = e.data;
+                const { bestPlacement, reset, stackHeight, decisionMeta, requestId } = e.data;
                 
                 // Track stack height for display
                 if (typeof stackHeight === 'number') {
@@ -180,7 +183,8 @@ const AIPlayer = (() => {
                 }
                 
                 if (pendingCallback && !reset) {
-                    pendingCallback(bestPlacement, decisionMeta);
+                    // Pass requestId to callback for staleness check
+                    pendingCallback(bestPlacement, decisionMeta, requestId);
                     pendingCallback = null;
                 }
             };
@@ -552,6 +556,9 @@ const AIPlayer = (() => {
     
     // ============ END INLINE FALLBACK ============
     
+    // Request ID to track which response belongs to which request
+    let currentRequestId = 0;
+    
     /**
      * Request best placement from worker (async)
      */
@@ -564,15 +571,25 @@ const AIPlayer = (() => {
             return;
         }
         
-        // Don't send a new request if one is already pending
-        // This prevents duplicate calculations when tab is backgrounded/resumed
+        // Cancel any pending callback - we're starting a new request
         if (pendingCallback) {
-            // Don't start a new request, but also don't leave caller hanging
-            // The pending request will complete and trigger its callback
-            return;
+            console.log('🤖 Cancelling stale AI calculation, starting fresh for new piece');
         }
         
-        pendingCallback = callback;
+        // Increment request ID to invalidate old responses
+        currentRequestId++;
+        const thisRequestId = currentRequestId;
+        
+        // Wrap callback to check request ID - prevents stale responses from affecting new pieces
+        pendingCallback = function(bestPlacement, decisionMeta, responseRequestId) {
+            // If worker returned a requestId, check it matches
+            // If no requestId in response (old worker), just use the callback
+            if (responseRequestId !== undefined && responseRequestId !== thisRequestId) {
+                console.log(`🤖 Ignoring stale response (request ${responseRequestId}, current ${currentRequestId})`);
+                return;
+            }
+            callback(bestPlacement, decisionMeta);
+        };
         
         // Generate all rotations for this piece
         const rotations = fallbackGetAllRotations(piece.shape);
@@ -592,7 +609,8 @@ const AIPlayer = (() => {
             rows: rows,
             skillLevel: currentSkillLevel,
             ufoActive: currentUfoActive,
-            captureDecisionMeta: recordingEnabled
+            captureDecisionMeta: recordingEnabled,
+            requestId: thisRequestId  // Include request ID in message
         });
     }
     
@@ -610,8 +628,38 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
-        // Generate piece identity based on color (new piece = new color in this game)
-        const currentPieceId = currentPiece.color;
+        // Generate piece identity - must be unique per piece spawn
+        // Color is NOT unique (consecutive pieces can have same color)
+        // Shape/position isn't unique either (pieces spawn at same position)
+        // Use shape content as a fingerprint - when the piece changes, identity changes
+        const shapeFingerprint = currentPiece.shape ? 
+            currentPiece.shape.flat().join('') : '';
+        
+        // Detect new piece by checking if:
+        // 1. Shape changed (definitely new piece), OR
+        // 2. Piece is at spawn position (y <= 0) and we're expecting a new piece OR shape matches but we already processed this shape
+        const atSpawnPosition = currentPiece.y <= 0;
+        const shapeChanged = shapeFingerprint !== lastSeenShape;
+        
+        // A new piece is detected when:
+        // - Shape changed, OR
+        // - Piece is at spawn height AND (we're expecting new piece OR we already calculated for lastSeenShape)
+        const isNewPiece = shapeChanged || 
+            (atSpawnPosition && expectingNewPiece) ||
+            (atSpawnPosition && lastCalculatedPieceId === pieceSpawnCounter && moveQueue.length === 0 && !thinking);
+        
+        if (isNewPiece) {
+            pieceSpawnCounter++;
+            lastSeenShape = shapeFingerprint;
+            expectingNewPiece = false;
+            // Reset tracking for new piece
+            samePieceCount = 0;
+            samePositionCount = 0;
+            lastPieceKey = null;
+            lastCalculatedPieceId = null;  // IMPORTANT: Reset so we recalculate for new piece
+        }
+        
+        const currentPieceId = pieceSpawnCounter;
         
         // Execute queued moves
         if (moveQueue.length > 0) {
@@ -718,7 +766,10 @@ const AIPlayer = (() => {
                 if (callbacks.rotate) callbacks.rotate();
                 break;
             case 'drop':
-                if (callbacks.hardDrop) callbacks.hardDrop();
+                if (callbacks.hardDrop) {
+                    callbacks.hardDrop();
+                    expectingNewPiece = true;  // Next piece we see will be new
+                }
                 break;
             case 'down':
                 if (callbacks.softDrop) callbacks.softDrop();
@@ -742,6 +793,11 @@ const AIPlayer = (() => {
         samePositionCount = 0;
         lastCalculatedPieceId = null;
         samePieceCount = 0;
+        
+        // Reset piece spawn tracking
+        pieceSpawnCounter = 0;
+        lastSeenShape = null;
+        expectingNewPiece = false;
         
         // Also reset worker's mode
         if (worker && workerReady) {

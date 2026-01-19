@@ -3136,7 +3136,7 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
 // ==================== MESSAGE HANDLER ====================
 
 self.onmessage = function(e) {
-    const { command, board, piece, queue, cols, rows, skillLevel, ufoActive, cause } = e.data;
+    const { command, board, piece, queue, cols, rows, skillLevel, ufoActive, cause, requestId } = e.data;
     
     if (command === 'reset') {
         self.postMessage({ reset: true });
@@ -3201,10 +3201,11 @@ self.onmessage = function(e) {
             self.postMessage({ 
                 bestPlacement: result.placement, 
                 stackHeight,
-                decisionMeta: result.decisionMeta
+                decisionMeta: result.decisionMeta,
+                requestId: requestId  // Echo back for staleness check
             });
         } else {
-            self.postMessage({ bestPlacement: result, stackHeight });
+            self.postMessage({ bestPlacement: result, stackHeight, requestId: requestId });
         }
     }, 0);
 };
