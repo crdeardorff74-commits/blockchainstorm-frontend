@@ -1,8 +1,8 @@
-// AI Worker v6.6.0 - Survival mode triggers on holes (>=8) OR height (>=11)
+// AI Worker v6.6.1 - UFO easter egg support (avoid line clears when UFO active)
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.6.0 loaded - Survival mode: height>=11 OR holes>=8");
+console.log("🤖 AI Worker v6.6.1 loaded - UFO easter egg support");
 
-const AI_VERSION = "6.6.0";
+const AI_VERSION = "6.6.1";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -17,6 +17,9 @@ const SURVIVAL_MODE_EXIT_HEIGHT = 4;
 const SURVIVAL_MODE_ENTER_HOLES = 8;
 const SURVIVAL_MODE_EXIT_HOLES = 3;
 
+// UFO easter egg state - when active, avoid clearing lines (unless dangerous)
+let ufoActive = false;
+
 // ==================== GAME RECORDING ====================
 let gameRecording = {
     startTime: null,
@@ -26,8 +29,9 @@ let gameRecording = {
 };
 
 function startRecording() {
-    // Reset survival mode at game start
+    // Reset survival mode and UFO state at game start
     inSurvivalMode = false;
+    ufoActive = false;
     
     gameRecording = {
         version: AI_VERSION,
@@ -621,6 +625,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
         blackHole: { potential: blackHolePotential, bonus: 0 },
         phase,
         survivalMode: inSurvivalMode,
+        ufoActive: ufoActive,
         classification: 'neutral'
     } : null;
     
@@ -882,8 +887,15 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     let lineClearBonus = 0;
     
     if (completeRows > 0) {
+        // UFO EASTER EGG: When UFO is active, avoid clearing lines to let it complete
+        // Exception: If we're in danger, survival takes priority
+        if (ufoActive && !inSurvivalMode && phase !== 'critical' && phase !== 'danger') {
+            // UFO is circling! Heavily penalize line clears to preserve the 42 line count
+            lineClearBonus = -300 * completeRows;
+            if (breakdown) breakdown.classification = 'ufo_preserve';
+        }
         // SURVIVAL MODE: Always heavily reward line clears
-        if (inSurvivalMode) {
+        else if (inSurvivalMode) {
             // In survival mode, line clears are CRITICAL
             // More lines = exponentially better (clearing 4 is way better than 4x clearing 1)
             if (completeRows >= 4) {
@@ -1355,6 +1367,8 @@ self.onmessage = function(e) {
     if (command === 'reset') {
         currentSkillLevel = 'tempest';
         pieceQueue = [];
+        inSurvivalMode = false;
+        ufoActive = false;
         self.postMessage({ reset: true });
         return;
     }
@@ -1423,6 +1437,7 @@ self.onmessage = function(e) {
         // Update globals
         if (skillLevel) currentSkillLevel = skillLevel;
         if (queue) pieceQueue = queue;
+        ufoActive = e.data.ufoActive || false;  // Update UFO state
         
         const shouldCapture = captureDecisionMeta || false;
         

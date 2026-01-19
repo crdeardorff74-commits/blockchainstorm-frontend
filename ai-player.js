@@ -586,6 +586,9 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
+        // During UFO easter egg: soft drop only (no hard drops) to let the UFO circle
+        const duringUFO = ufoActive || false;
+        
         // Generate piece identity - must be unique per piece spawn
         // Color is NOT unique (consecutive pieces can have same color)
         // Shape/position isn't unique either (pieces spawn at same position)
@@ -696,11 +699,13 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
-                    // During earthquake: position piece but don't hard drop (let it fall naturally)
-                    moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
+                    // During earthquake or UFO: position piece but don't hard drop
+                    // During UFO: let it fall naturally so the UFO can circle the score
+                    const skipHardDrop = duringEarthquake || duringUFO;
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, skipHardDrop);
                 } else {
-                    // Only drop if not during earthquake
-                    moveQueue = duringEarthquake ? [] : ['drop'];
+                    // Only drop if not during earthquake or UFO
+                    moveQueue = (duringEarthquake || duringUFO) ? [] : ['drop'];
                 }
                 
                 thinking = false;
