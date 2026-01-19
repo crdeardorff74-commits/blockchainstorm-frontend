@@ -1,8 +1,8 @@
-// AI Worker v6.2.0 - Post-tsunami height + Vertical S/Z + Tower penalties
+// AI Worker v6.3.0 - Earlier tsunami building (width 5+) and stronger blob incentives
 // Priorities: 1) Survival 2) No holes 3) Blob building 4) Special events
-console.log("🤖 AI Worker v6.2.0 loaded - Added vertical S/Z and tower penalties");
+console.log("🤖 AI Worker v6.3.0 loaded - Earlier tsunami protection and stronger blob bonuses");
 
-const AI_VERSION = "6.2.0";
+const AI_VERSION = "6.3.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -573,7 +573,10 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     const blocksNeeded = 10 - bestTsunamiWidth;
     const tsunamiImminent = bestTsunamiWidth >= 9;
     const tsunamiAchievable = bestTsunamiWidth >= 7 && matchingInQueue >= blocksNeeded;
-    const tsunamiWorthBuilding = bestTsunamiWidth >= 7 && holes <= 4 && phase !== 'critical';
+    // Lower threshold for "worth building" to 5 - start protecting earlier
+    const tsunamiWorthBuilding = bestTsunamiWidth >= 5 && holes <= 4 && phase !== 'critical';
+    // But only give big bonuses at width 7+
+    const tsunamiNearComplete = bestTsunamiWidth >= 7;
     
     // ===== POST-TSUNAMI HEIGHT ANALYSIS =====
     // When building tsunami, penalize placements that leave tall non-tsunami stacks
@@ -812,19 +815,21 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
         } else if (phase === 'caution') {
             lineClearBonus = completeRows * 120;
         } else {
-            // Safe phase: line clears are good, but don't sacrifice tsunami
+            // Safe phase: line clears are good, but don't sacrifice tsunami progress
             if (tsunamiWorthBuilding && !tsunamiImminent) {
                 // Check if this clear would destroy the tsunami
                 const survivalCheck = checkTsunamiAfterClear(board, bestTsunamiColor, cols, rows);
                 
-                if (!survivalCheck.survives && bestTsunamiWidth >= 7) {
-                    // Line clear destroys tsunami progress - penalty
-                    lineClearBonus = -completeRows * 30;
+                if (!survivalCheck.survives && bestTsunamiWidth >= 5) {
+                    // Line clear destroys tsunami progress - penalty proportional to width
+                    const widthPenalty = (bestTsunamiWidth - 4) * 15;
+                    lineClearBonus = -completeRows * widthPenalty;
                 } else if (survivalCheck.newWidth < bestTsunamiWidth - 1) {
-                    // Significant damage to tsunami
-                    lineClearBonus = completeRows * 40;
+                    // Significant damage to tsunami - reduced bonus
+                    lineClearBonus = completeRows * 30;
                 } else {
-                    lineClearBonus = completeRows * 80;
+                    // Tsunami survives - moderate bonus
+                    lineClearBonus = completeRows * 60;
                 }
             } else {
                 lineClearBonus = completeRows * 100;
@@ -846,7 +851,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     if (!isBreeze && phase !== 'critical') {
         // Horizontal adjacency is much more valuable than vertical
-        blobBonus = adjacencies.horizontal * 8 + adjacencies.vertical * 2;
+        blobBonus = adjacencies.horizontal * 10 + adjacencies.vertical * 2;
         
         // Bonus for contributing to existing color run
         if (bestTsunamiColor && color === bestTsunamiColor && tsunamiRun) {
@@ -855,25 +860,28 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
             const pieceBottomRow = y + shape.length - 1;
             
             if (tsunamiRun.row >= pieceTopRow && tsunamiRun.row <= pieceBottomRow) {
-                // Piece is on the tsunami row - nice bonus
-                blobBonus += bestTsunamiWidth * 5;
+                // Piece is on the tsunami row - scale bonus with current width
+                blobBonus += bestTsunamiWidth * 8;
                 
                 // Extra for extending the run
                 const pieceMinX = x;
                 const pieceMaxX = x + (shape[0]?.length || 1) - 1;
                 
                 if (pieceMinX <= tsunamiRun.startX && !tsunamiRun.touchesLeft) {
-                    blobBonus += 25;
+                    blobBonus += 35;
                 }
                 if (pieceMaxX >= tsunamiRun.endX && !tsunamiRun.touchesRight) {
-                    blobBonus += 25;
+                    blobBonus += 35;
                 }
+            } else {
+                // Not on tsunami row, but matching color - still some bonus
+                blobBonus += bestTsunamiWidth * 3;
             }
         }
         
         // Scale down in caution phase
         if (phase === 'caution') {
-            blobBonus = Math.round(blobBonus * 0.5);
+            blobBonus = Math.round(blobBonus * 0.6);
         }
     }
     
@@ -885,12 +893,16 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     if (!isBreeze && tsunamiWorthBuilding && color === bestTsunamiColor) {
         if (tsunamiImminent) {
-            tsunamiBonus = 80 + (bestTsunamiWidth - 9) * 50;
+            tsunamiBonus = 100 + (bestTsunamiWidth - 9) * 60;
             if (breakdown) breakdown.classification = 'offensive';
         } else if (tsunamiAchievable) {
-            tsunamiBonus = 40 + matchingInQueue * 10;
-        } else if (bestTsunamiWidth >= 7) {
-            tsunamiBonus = 20;
+            tsunamiBonus = 60 + matchingInQueue * 15;
+        } else if (tsunamiNearComplete) {
+            // Width 7-8: significant bonus
+            tsunamiBonus = 30 + (bestTsunamiWidth - 6) * 10;
+        } else if (bestTsunamiWidth >= 5) {
+            // Width 5-6: small but meaningful bonus to encourage building
+            tsunamiBonus = 15 + (bestTsunamiWidth - 4) * 8;
         }
         
         // Reduce if foundation is unstable (will die after tsunami clears)
