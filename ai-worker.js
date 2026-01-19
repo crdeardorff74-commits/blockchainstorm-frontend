@@ -1,8 +1,8 @@
-// AI Worker v6.6.1 - UFO easter egg support (avoid line clears when UFO active)
+// AI Worker v6.6.2 - UFO protection only bypasses for truly critical (h>=15+critical or h>=17)
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.6.1 loaded - UFO easter egg support");
+console.log("🤖 AI Worker v6.6.2 loaded - Better UFO protection");
 
-const AI_VERSION = "6.6.1";
+const AI_VERSION = "6.6.2";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -888,8 +888,10 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     if (completeRows > 0) {
         // UFO EASTER EGG: When UFO is active, avoid clearing lines to let it complete
-        // Exception: If we're in danger, survival takes priority
-        if (currentUfoActive && !inSurvivalMode && phase !== 'critical' && phase !== 'danger') {
+        // Only bypass for TRULY critical situations (high stack AND critical phase)
+        // We want to let the UFO easter egg play out unless death is imminent
+        const ufoTrulyCritical = (phase === 'critical' && stackHeight >= 15) || stackHeight >= 17;
+        if (currentUfoActive && !ufoTrulyCritical) {
             // UFO is circling! Heavily penalize line clears to preserve the 42 line count
             lineClearBonus = -300 * completeRows;
             if (breakdown) breakdown.classification = 'ufo_preserve';
