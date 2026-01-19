@@ -1,8 +1,8 @@
-// AI Worker v6.5.0 - More aggressive blob/tsunami/black hole pursuit when not in survival mode
+// AI Worker v6.5.2 - Fixed vertical I penalty (check post-placement), stronger stacking penalty
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.5.0 loaded - Aggressive special event pursuit");
+console.log("🤖 AI Worker v6.5.2 loaded - Fixed vertical I and stacking penalties");
 
-const AI_VERSION = "6.5.0";
+const AI_VERSION = "6.5.2";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -754,6 +754,41 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     score -= towerPenalty;
     
+    // ----- UNNECESSARY STACKING PENALTY -----
+    // Penalize placing pieces that result in columns much taller than neighbors
+    // This prevents pointlessly adding height when horizontal/flat placements exist
+    let stackingPenalty = 0;
+    
+    // Check each column the piece occupies
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const col = x + px;
+                if (col >= 0 && col < cols) {
+                    const colH = colHeights[col];  // Height AFTER placement
+                    const leftH = col > 0 ? colHeights[col - 1] : colH;
+                    const rightH = col < cols - 1 ? colHeights[col + 1] : colH;
+                    const avgNeighbor = (leftH + rightH) / 2;
+                    
+                    // If this column is now taller than neighbors, the piece added unnecessary height
+                    const excessHeight = colH - avgNeighbor;
+                    if (excessHeight > 2) {
+                        stackingPenalty += excessHeight * 12;
+                    } else if (excessHeight > 0) {
+                        stackingPenalty += excessHeight * 5;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Increase penalty in survival mode - stacking is deadly
+    if (inSurvivalMode && stackingPenalty > 0) {
+        stackingPenalty *= 2.0;
+    }
+    
+    score -= stackingPenalty;
+    
     // ----- I-PIECE WELL PENALTY -----
     let wellPenalty = 0;
     
@@ -1073,14 +1108,42 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     score += blackHoleBonus;
     if (breakdown) breakdown.blackHole.bonus = blackHoleBonus;
     
-    // ----- I-PIECE WELL FILL BONUS -----
-    // Strongly reward placing I-pieces into wells
+    // ----- I-PIECE HANDLING -----
+    // Vertical I-pieces should ONLY be used to fill wells/gaps
+    // Horizontal I-pieces are almost always better (add 1 height vs 4)
     const isVerticalI = shape.length === 4 && shape.every(row => row.length === 1 && row[0]);
-    if (isVerticalI && iPieceWells.length > 0) {
-        // Check if we're filling a well
-        const wellAtX = iPieceWells.find(w => w.col === x);
-        if (wellAtX) {
-            score += 50 + wellAtX.depth * 20;
+    const isHorizontalI = shape.length === 1 && shape[0].length === 4;
+    
+    if (isVerticalI) {
+        // colHeights is AFTER placement, so the vertical I already added 4 to this column
+        // Check if the result is good (column at or below neighbors) or bad (column above neighbors)
+        const placedCol = x;
+        const currentH = colHeights[placedCol];  // Height AFTER placing vertical I
+        const leftH = placedCol > 0 ? colHeights[placedCol - 1] : currentH;
+        const rightH = placedCol < cols - 1 ? colHeights[placedCol + 1] : currentH;
+        const neighborAvg = (leftH + rightH) / 2;
+        
+        // If column is now at or below neighbor average, we filled a gap - good!
+        // If column is now above neighbors, we stacked on top - bad!
+        const excessAboveNeighbors = currentH - neighborAvg;
+        
+        if (excessAboveNeighbors <= 0) {
+            // Good: filled a gap, column is now level or below neighbors
+            score += 60;
+        } else if (excessAboveNeighbors <= 2) {
+            // Slight excess - minor penalty
+            score -= 40;
+        } else if (excessAboveNeighbors <= 4) {
+            // Moderate excess - this was a bad vertical placement
+            score -= 120;
+        } else {
+            // Severe excess - terrible vertical placement, created a tower
+            score -= 200;
+            
+            // Even worse in survival mode
+            if (inSurvivalMode) {
+                score -= 100;
+            }
         }
     }
     
