@@ -8,6 +8,82 @@ const AI_VERSION = "6.0.0";
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
 
+// ==================== GAME RECORDING ====================
+let gameRecording = {
+    startTime: null,
+    decisions: [],
+    events: [],
+    finalState: null
+};
+
+function startRecording() {
+    gameRecording = {
+        version: AI_VERSION,
+        startTime: Date.now(),
+        skillLevel: currentSkillLevel,
+        decisions: [],
+        events: [],
+        finalState: null
+    };
+}
+
+function recordDecision(board, piece, placements, chosen, stackHeight) {
+    const sortedPlacements = [...placements].sort((a, b) => b.score - a.score);
+    const topPlacements = sortedPlacements.slice(0, 5);
+    
+    const compressedBoard = [];
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < (board[y] ? board[y].length : 10); x++) {
+            if (board[y] && board[y][x]) {
+                compressedBoard.push({ x, y, c: board[y][x] });
+            }
+        }
+    }
+    
+    gameRecording.decisions.push({
+        time: Date.now() - gameRecording.startTime,
+        board: compressedBoard,
+        piece: { color: piece.color },
+        stackHeight,
+        top: topPlacements.map(p => ({ x: p.x, y: p.y, r: p.rotationIndex, s: p.score })),
+        chosen: { x: chosen.x, y: chosen.y, r: chosen.rotationIndex, s: chosen.score }
+    });
+}
+
+function recordEvent(type, data) {
+    if (gameRecording.startTime) {
+        gameRecording.events.push({
+            time: Date.now() - gameRecording.startTime,
+            type,
+            ...data
+        });
+    }
+}
+
+function finalizeRecording(board, cause) {
+    const compressedBoard = [];
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < (board[y] ? board[y].length : 10); x++) {
+            if (board[y] && board[y][x]) {
+                compressedBoard.push({ x, y, c: board[y][x] });
+            }
+        }
+    }
+    
+    gameRecording.finalState = {
+        board: compressedBoard,
+        cause,
+        duration: Date.now() - gameRecording.startTime,
+        totalDecisions: gameRecording.decisions.length
+    };
+    
+    return gameRecording;
+}
+
+function getRecording() {
+    return gameRecording;
+}
+
 // ==================== UTILITY FUNCTIONS ====================
 
 function cloneBoard(board) {
@@ -948,13 +1024,44 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
 // ==================== MESSAGE HANDLER ====================
 
 self.onmessage = function(e) {
-    const { board, piece, cols, rows, queue, skillLevel, captureDecisionMeta, requestId, command } = e.data;
+    const { command, board, piece, cols, rows, queue, skillLevel, ufoActive, cause, requestId, captureDecisionMeta } = e.data;
     
     // Handle reset command
     if (command === 'reset') {
         currentSkillLevel = 'tempest';
         pieceQueue = [];
         self.postMessage({ reset: true });
+        return;
+    }
+    
+    // Handle startRecording command
+    if (command === 'startRecording') {
+        startRecording();
+        gameRecording.skillLevel = skillLevel || currentSkillLevel;
+        self.postMessage({ recordingStarted: true });
+        return;
+    }
+    
+    // Handle stopRecording command
+    if (command === 'stopRecording') {
+        if (board) {
+            const recording = finalizeRecording(board, cause || 'manual_stop');
+            self.postMessage({ recordingStopped: true, recording });
+        } else {
+            self.postMessage({ recordingStopped: true, recording: getRecording() });
+        }
+        return;
+    }
+    
+    // Handle getRecording command
+    if (command === 'getRecording') {
+        self.postMessage({ recording: getRecording() });
+        return;
+    }
+    
+    // Handle recordEvent command
+    if (command === 'recordEvent') {
+        recordEvent(e.data.eventType, e.data.eventData || {});
         return;
     }
     
@@ -971,26 +1078,48 @@ self.onmessage = function(e) {
         return;
     }
     
+    // Shadow evaluation - calculate what AI would do without recording or executing
+    if (command === 'shadowEvaluate') {
+        currentSkillLevel = skillLevel || 'tempest';
+        pieceQueue = queue || [];
+        
+        setTimeout(() => {
+            const result = findBestPlacement(board, piece, cols, rows, pieceQueue, true);
+            self.postMessage({ 
+                shadowResponse: true,
+                decisionMeta: result ? result.decisionMeta : null
+            });
+        }, 0);
+        return;
+    }
+    
     // Main placement request
     if (board && piece) {
         // Update globals
         if (skillLevel) currentSkillLevel = skillLevel;
         if (queue) pieceQueue = queue;
         
-        const result = findBestPlacement(board, piece, cols, rows, queue || [], captureDecisionMeta);
+        const shouldCapture = captureDecisionMeta || false;
         
-        if (captureDecisionMeta) {
-            self.postMessage({
-                bestPlacement: result.placement,
-                decisionMeta: result.decisionMeta,
-                requestId: requestId
-            });
-        } else {
-            self.postMessage({
-                bestPlacement: result,
-                requestId: requestId
-            });
-        }
+        setTimeout(() => {
+            const result = findBestPlacement(board, piece, cols, rows, queue || [], shouldCapture);
+            const stackHeight = getStackHeight(board, rows);
+            
+            if (shouldCapture && result) {
+                self.postMessage({
+                    bestPlacement: result.placement,
+                    stackHeight,
+                    decisionMeta: result.decisionMeta,
+                    requestId: requestId
+                });
+            } else {
+                self.postMessage({
+                    bestPlacement: result,
+                    stackHeight,
+                    requestId: requestId
+                });
+            }
+        }, 0);
     }
 };
 
