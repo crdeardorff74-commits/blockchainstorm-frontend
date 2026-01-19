@@ -1,17 +1,17 @@
-// AI Worker v6.4.1 - Fixed survival mode hysteresis (check once per move, not per evaluation)
+// AI Worker v6.5.0 - More aggressive blob/tsunami/black hole pursuit when not in survival mode
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.4.1 loaded - Fixed survival mode check location");
+console.log("🤖 AI Worker v6.5.0 loaded - Aggressive special event pursuit");
 
-const AI_VERSION = "6.4.1";
+const AI_VERSION = "6.5.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
 
 // Survival mode state (hysteresis-based)
-// Enter survival mode when stack >= 13, exit when stack <= 4
+// Enter survival mode when stack >= 12, exit when stack <= 4
 let inSurvivalMode = false;
-const SURVIVAL_MODE_ENTER_HEIGHT = 13;
+const SURVIVAL_MODE_ENTER_HEIGHT = 12;
 const SURVIVAL_MODE_EXIT_HEIGHT = 4;
 
 // ==================== GAME RECORDING ====================
@@ -662,20 +662,36 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     if (breakdown) breakdown.holes.penalty = holePenalty;
     
     // ----- HEIGHT PENALTY -----
-    let heightPenalty = stackHeight * 1.8;
+    // Don't penalize low stacks too much - we want the board to build up naturally
+    let heightPenalty = 0;
     
-    // Exponential increase at dangerous heights
-    if (stackHeight >= 16) {
-        heightPenalty += (stackHeight - 15) * 30;
-    } else if (stackHeight >= 14) {
-        heightPenalty += (stackHeight - 13) * 15;
-    } else if (stackHeight >= 12) {
-        heightPenalty += (stackHeight - 11) * 8;
-    }
-    
-    // SURVIVAL MODE: Much higher height penalty to aggressively reduce stack
     if (inSurvivalMode) {
-        heightPenalty *= 2.0;
+        // SURVIVAL MODE: Strong penalty at all heights to drive stack down
+        heightPenalty = stackHeight * 3.5;
+        
+        // Exponential increase at dangerous heights
+        if (stackHeight >= 16) {
+            heightPenalty += (stackHeight - 15) * 40;
+        } else if (stackHeight >= 14) {
+            heightPenalty += (stackHeight - 13) * 20;
+        } else if (stackHeight >= 12) {
+            heightPenalty += (stackHeight - 11) * 10;
+        }
+    } else {
+        // NORMAL MODE: Only penalize above a reasonable height
+        // Allow stack to naturally reach 6-8 before penalties kick in
+        if (stackHeight > 8) {
+            heightPenalty = (stackHeight - 8) * 2.5;
+        }
+        
+        // Exponential increase at dangerous heights
+        if (stackHeight >= 16) {
+            heightPenalty += (stackHeight - 15) * 30;
+        } else if (stackHeight >= 14) {
+            heightPenalty += (stackHeight - 13) * 15;
+        } else if (stackHeight >= 12) {
+            heightPenalty += (stackHeight - 11) * 8;
+        }
     }
     
     score -= heightPenalty;
@@ -870,7 +886,18 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
                     lineClearBonus = completeRows * 60;
                 }
             } else {
-                lineClearBonus = completeRows * 100;
+                // No tsunami to protect - but don't over-incentivize clearing at low stacks
+                // Allow the board to build up naturally before rewarding clears
+                if (stackHeight <= 6) {
+                    // Stack is very low - minimal bonus, let it build up
+                    lineClearBonus = completeRows * 20;
+                } else if (stackHeight <= 8) {
+                    // Stack is moderate - small bonus
+                    lineClearBonus = completeRows * 50;
+                } else {
+                    // Stack is getting taller - normal bonus
+                    lineClearBonus = completeRows * 100;
+                }
             }
         }
         
@@ -886,49 +913,52 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     // ----- BLOB BUILDING BONUS -----
     // Reward horizontal color adjacency (builds toward tsunamis)
     // In survival mode: only use as tie-breaker (very small values)
-    // Outside survival mode: full bonus to encourage blob building
+    // In Breeze mode: small tie-breaker bonus (no special events, but prefer grouping)
+    // Outside survival mode: AGGRESSIVE bonus to encourage blob building
     let blobBonus = 0;
     
-    if (!isBreeze) {
-        if (inSurvivalMode) {
-            // SURVIVAL MODE: Minimal blob bonus (tie-breaker only)
-            // Still prefer bigger blobs when all else is equal, but don't sacrifice anything for it
-            blobBonus = adjacencies.horizontal * 0.5 + adjacencies.vertical * 0.1;
-        } else if (phase !== 'critical') {
-            // NORMAL MODE: Full blob building bonus
-            // Horizontal adjacency is much more valuable than vertical
-            blobBonus = adjacencies.horizontal * 10 + adjacencies.vertical * 2;
+    if (isBreeze) {
+        // BREEZE MODE: Small tie-breaker bonus only
+        // Makes the game more visually interesting even without special events
+        blobBonus = adjacencies.horizontal * 0.3 + adjacencies.vertical * 0.1;
+    } else if (inSurvivalMode) {
+        // SURVIVAL MODE: Minimal blob bonus (tie-breaker only)
+        // Still prefer bigger blobs when all else is equal, but don't sacrifice anything for it
+        blobBonus = adjacencies.horizontal * 0.5 + adjacencies.vertical * 0.1;
+    } else if (phase !== 'critical') {
+        // NORMAL MODE: Aggressive blob building bonus
+        // Horizontal adjacency is much more valuable than vertical
+        blobBonus = adjacencies.horizontal * 18 + adjacencies.vertical * 4;
+        
+        // Bonus for contributing to existing color run
+        if (bestTsunamiColor && color === bestTsunamiColor && tsunamiRun) {
+            // Check if piece is on or adjacent to the run's row
+            const pieceTopRow = y;
+            const pieceBottomRow = y + shape.length - 1;
             
-            // Bonus for contributing to existing color run
-            if (bestTsunamiColor && color === bestTsunamiColor && tsunamiRun) {
-                // Check if piece is on or adjacent to the run's row
-                const pieceTopRow = y;
-                const pieceBottomRow = y + shape.length - 1;
+            if (tsunamiRun.row >= pieceTopRow && tsunamiRun.row <= pieceBottomRow) {
+                // Piece is on the tsunami row - scale bonus with current width
+                blobBonus += bestTsunamiWidth * 15;
                 
-                if (tsunamiRun.row >= pieceTopRow && tsunamiRun.row <= pieceBottomRow) {
-                    // Piece is on the tsunami row - scale bonus with current width
-                    blobBonus += bestTsunamiWidth * 8;
-                    
-                    // Extra for extending the run
-                    const pieceMinX = x;
-                    const pieceMaxX = x + (shape[0]?.length || 1) - 1;
-                    
-                    if (pieceMinX <= tsunamiRun.startX && !tsunamiRun.touchesLeft) {
-                        blobBonus += 35;
-                    }
-                    if (pieceMaxX >= tsunamiRun.endX && !tsunamiRun.touchesRight) {
-                        blobBonus += 35;
-                    }
-                } else {
-                    // Not on tsunami row, but matching color - still some bonus
-                    blobBonus += bestTsunamiWidth * 3;
+                // Extra for extending the run
+                const pieceMinX = x;
+                const pieceMaxX = x + (shape[0]?.length || 1) - 1;
+                
+                if (pieceMinX <= tsunamiRun.startX && !tsunamiRun.touchesLeft) {
+                    blobBonus += 60;
                 }
+                if (pieceMaxX >= tsunamiRun.endX && !tsunamiRun.touchesRight) {
+                    blobBonus += 60;
+                }
+            } else {
+                // Not on tsunami row, but matching color - still some bonus
+                blobBonus += bestTsunamiWidth * 6;
             }
-            
-            // Scale down in caution phase
-            if (phase === 'caution') {
-                blobBonus = Math.round(blobBonus * 0.6);
-            }
+        }
+        
+        // Scale down in caution phase (but not as much as before)
+        if (phase === 'caution') {
+            blobBonus = Math.round(blobBonus * 0.75);
         }
     }
     
@@ -940,16 +970,18 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     if (!isBreeze && tsunamiWorthBuilding && color === bestTsunamiColor) {
         if (tsunamiImminent) {
-            tsunamiBonus = 100 + (bestTsunamiWidth - 9) * 60;
+            // Width 9+: Very close to completion - big bonus
+            tsunamiBonus = 180 + (bestTsunamiWidth - 9) * 100;
             if (breakdown) breakdown.classification = 'offensive';
         } else if (tsunamiAchievable) {
-            tsunamiBonus = 60 + matchingInQueue * 15;
+            // Width 7+ with pieces in queue to complete
+            tsunamiBonus = 120 + matchingInQueue * 25;
         } else if (tsunamiNearComplete) {
             // Width 7-8: significant bonus
-            tsunamiBonus = 30 + (bestTsunamiWidth - 6) * 10;
+            tsunamiBonus = 60 + (bestTsunamiWidth - 6) * 20;
         } else if (bestTsunamiWidth >= 5) {
-            // Width 5-6: small but meaningful bonus to encourage building
-            tsunamiBonus = 15 + (bestTsunamiWidth - 4) * 8;
+            // Width 5-6: meaningful bonus to encourage building
+            tsunamiBonus = 30 + (bestTsunamiWidth - 4) * 15;
         }
         
         // Reduce if foundation is unstable (will die after tsunami clears)
@@ -1011,7 +1043,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     let blackHoleBonus = 0;
     
     // In survival mode: only pursue black holes if nearly complete (direct path)
-    // Outside survival mode: pursue based on progress
+    // Outside survival mode: aggressively pursue based on progress
     const blackHoleNearComplete = blackHolePotential && blackHolePotential.progress >= 0.8;
     const shouldPursueBlackHole = !isBreeze && blackHolePotential && 
         (inSurvivalMode ? blackHoleNearComplete : phase !== 'critical');
@@ -1021,20 +1053,20 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
         if (color === blackHolePotential.color) {
             // Bonus based on progress toward enclosure
             if (blackHolePotential.progress >= 0.8) {
-                blackHoleBonus = 60;
+                blackHoleBonus = 120;
             } else if (blackHolePotential.progress >= 0.6) {
+                blackHoleBonus = 60;
+            } else if (blackHolePotential.progress >= 0.5) {
                 blackHoleBonus = 30;
-            } else {
-                blackHoleBonus = 15;
             }
             
             // Scale with size of potential black hole
-            blackHoleBonus += blackHolePotential.width * 3 + blackHolePotential.height * 3;
+            blackHoleBonus += blackHolePotential.width * 6 + blackHolePotential.height * 6;
         }
         
         // Reduce in caution phase (but not in survival mode pursuing near-complete)
         if (phase === 'caution' && !inSurvivalMode) {
-            blackHoleBonus = Math.round(blackHoleBonus * 0.5);
+            blackHoleBonus = Math.round(blackHoleBonus * 0.6);
         }
     }
     
