@@ -1,8 +1,8 @@
-// AI Worker v6.1.0 - Complete Rewrite + Post-tsunami height penalty
+// AI Worker v6.2.0 - Post-tsunami height + Vertical S/Z + Tower penalties
 // Priorities: 1) Survival 2) No holes 3) Blob building 4) Special events
-console.log("🤖 AI Worker v6.1.0 loaded - Post-tsunami height penalty to avoid tsunami death");
+console.log("🤖 AI Worker v6.2.0 loaded - Added vertical S/Z and tower penalties");
 
-const AI_VERSION = "6.1.0";
+const AI_VERSION = "6.2.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -668,6 +668,50 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     score -= bumpinessPenalty;
     if (breakdown) breakdown.bumpiness.penalty = bumpinessPenalty;
     
+    // ----- TOWER PENALTY -----
+    // Penalize columns that are much taller than the median
+    // This prevents vertical stacking that creates isolated towers
+    let towerPenalty = 0;
+    
+    // Sort heights to find median
+    const sortedHeights = [...colHeights].sort((a, b) => a - b);
+    const medianHeight = sortedHeights[Math.floor(cols / 2)];
+    
+    for (let col = 0; col < cols; col++) {
+        const h = colHeights[col];
+        
+        // Check excess above median
+        const excessFromMedian = h - medianHeight;
+        
+        if (excessFromMedian >= 8) {
+            // Severe tower - very dangerous
+            towerPenalty += excessFromMedian * 10;
+        } else if (excessFromMedian >= 6) {
+            // Bad tower
+            towerPenalty += excessFromMedian * 6;
+        } else if (excessFromMedian >= 4) {
+            // Moderate tower
+            towerPenalty += excessFromMedian * 3;
+        }
+        
+        // Also check against immediate neighbors (original logic)
+        const leftH = col > 0 ? colHeights[col - 1] : 0;
+        const rightH = col < cols - 1 ? colHeights[col + 1] : 0;
+        const avgNeighbor = (leftH + rightH) / 2;
+        const excessFromNeighbor = h - avgNeighbor;
+        
+        if (excessFromNeighbor >= 6) {
+            towerPenalty += excessFromNeighbor * 4;
+        }
+    }
+    
+    // Extra penalty if max height is getting dangerous
+    if (stackHeight >= 14 && towerPenalty > 0) {
+        towerPenalty *= 1.5;
+    }
+    
+    score -= towerPenalty;
+    
     // ----- I-PIECE WELL PENALTY -----
     let wellPenalty = 0;
     
@@ -719,6 +763,30 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
             overhangPenalty += 180;
         } else {
             overhangPenalty += 120;
+        }
+    }
+    
+    // Penalty for vertical S/Z pieces
+    // Vertical S/Z adds 3 height vs horizontal's 2 height
+    // Penalize especially when creating overhangs (which become holes)
+    const isVerticalSZ = shape.length === 3 && shape[0].length === 2;
+    if (isVerticalSZ) {
+        // Check if this creates overhangs (holes underneath the piece)
+        if (overhangs.count > 0) {
+            // Significant penalty - horizontal would create same hole but less height
+            overhangPenalty += 70;
+            
+            // Extra penalty at higher stacks - vertical stacking is more dangerous
+            if (stackHeight >= 14) {
+                overhangPenalty += 80;
+            } else if (stackHeight >= 12) {
+                overhangPenalty += 50;
+            } else if (stackHeight >= 8) {
+                overhangPenalty += 25;
+            }
+        } else {
+            // Small penalty even for clean vertical placement - adds more height
+            overhangPenalty += 10;
         }
     }
     
