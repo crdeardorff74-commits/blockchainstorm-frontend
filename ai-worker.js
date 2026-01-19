@@ -1,8 +1,8 @@
-// AI Worker v6.0.0 - Complete Rewrite
+// AI Worker v6.1.0 - Complete Rewrite + Post-tsunami height penalty
 // Priorities: 1) Survival 2) No holes 3) Blob building 4) Special events
-console.log("🤖 AI Worker v6.0.0 loaded - Complete rewrite with cleaner evaluation");
+console.log("🤖 AI Worker v6.1.0 loaded - Post-tsunami height penalty to avoid tsunami death");
 
-const AI_VERSION = "6.0.0";
+const AI_VERSION = "6.1.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -490,6 +490,33 @@ function checkTsunamiAfterClear(board, tsunamiColor, cols, rows) {
     };
 }
 
+/**
+ * Calculate post-tsunami heights (what heights would be after tsunami clears)
+ * This helps avoid building tall stacks of non-tsunami-colored cells
+ */
+function analyzePostTsunamiHeights(board, tsunamiColor, cols, rows) {
+    if (!tsunamiColor) return null;
+    
+    const postHeights = new Array(cols).fill(0);
+    
+    for (let col = 0; col < cols; col++) {
+        // Count cells that would survive (not tsunami color)
+        let survivingHeight = 0;
+        for (let row = 0; row < rows; row++) {
+            if (board[row] && board[row][col] && board[row][col] !== tsunamiColor) {
+                survivingHeight++;
+            }
+        }
+        postHeights[col] = survivingHeight;
+    }
+    
+    return {
+        heights: postHeights,
+        maxHeight: Math.max(...postHeights),
+        totalSurviving: postHeights.reduce((a, b) => a + b, 0)
+    };
+}
+
 // ==================== MAIN EVALUATION FUNCTION ====================
 
 /**
@@ -547,6 +574,12 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     const tsunamiImminent = bestTsunamiWidth >= 9;
     const tsunamiAchievable = bestTsunamiWidth >= 7 && matchingInQueue >= blocksNeeded;
     const tsunamiWorthBuilding = bestTsunamiWidth >= 7 && holes <= 4 && phase !== 'critical';
+    
+    // ===== POST-TSUNAMI HEIGHT ANALYSIS =====
+    // When building tsunami, penalize placements that leave tall non-tsunami stacks
+    const postTsunamiInfo = (bestTsunamiWidth >= 7 && bestTsunamiColor) 
+        ? analyzePostTsunamiHeights(board, bestTsunamiColor, cols, rows)
+        : null;
     
     // ===== BLACK HOLE DETECTION =====
     const blackHolePotential = !isBreeze ? analyzeBlackHolePotential(board, cols, rows) : null;
@@ -800,6 +833,52 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     score += tsunamiBonus;
     if (breakdown) breakdown.tsunami.bonus = tsunamiBonus;
+    
+    // ----- POST-TSUNAMI HEIGHT PENALTY -----
+    // When building a tsunami, penalize placements that leave tall non-tsunami stacks
+    // These will remain after the tsunami clears and can cause death
+    let postTsunamiPenalty = 0;
+    
+    if (postTsunamiInfo && tsunamiWorthBuilding && color !== bestTsunamiColor) {
+        // This piece is NOT tsunami color - it will survive the clear
+        // Penalize heavily if it's being placed in a column with already-high post-tsunami height
+        
+        // Calculate which columns this piece touches
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    const col = x + px;
+                    if (col >= 0 && col < cols) {
+                        const currentPostHeight = postTsunamiInfo.heights[col];
+                        
+                        // Penalize based on how tall the post-tsunami stack would be
+                        if (currentPostHeight >= 10) {
+                            postTsunamiPenalty += 60;  // Dangerous - this could kill us
+                        } else if (currentPostHeight >= 7) {
+                            postTsunamiPenalty += 30;  // Getting risky
+                        } else if (currentPostHeight >= 4) {
+                            postTsunamiPenalty += 10;  // Minor concern
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Extra penalty if max post-tsunami height is already high
+        if (postTsunamiInfo.maxHeight >= 12) {
+            postTsunamiPenalty += 100;  // Critical - tsunami won't save us
+        } else if (postTsunamiInfo.maxHeight >= 10) {
+            postTsunamiPenalty += 50;
+        }
+    }
+    
+    score -= postTsunamiPenalty;
+    if (breakdown) {
+        breakdown.postTsunami = { 
+            maxHeight: postTsunamiInfo?.maxHeight || 0, 
+            penalty: postTsunamiPenalty 
+        };
+    }
     
     // ----- BLACK HOLE BONUS -----
     let blackHoleBonus = 0;
