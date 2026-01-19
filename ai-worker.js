@@ -1161,14 +1161,12 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // ====== I-PIECE WELL FILL BONUS ======
     // Strongly reward placing I-pieces into single-column wells
     // This complements the well penalty by making filling attractive
-    if (pieceType === 'I' && worstWellCol >= 0) {
-        // Check if I-piece is being placed in the worst well
-        const isVertical = shape.length === 4;  // I-piece vertical is 4 tall, 1 wide
-        if (isVertical && x === worstWellCol) {
-            // Direct fill of worst well - big bonus
-            const fillBonus = 40 + worstWellDepth * 15;
-            score += fillBonus;
-        }
+    // Detect I-piece from shape: vertical I is 4 tall, 1 wide (each row has 1 cell)
+    const isVerticalIPiece = shape.length === 4 && shape.every(row => row.length === 1 && row[0]);
+    if (isVerticalIPiece && worstWellCol >= 0 && x === worstWellCol) {
+        // Direct fill of worst well - big bonus
+        const fillBonus = 40 + worstWellDepth * 15;
+        score += fillBonus;
     }
     
     // ====== EDGE FILL BONUS ======
@@ -2414,12 +2412,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== I-PIECE WELL FILL BONUS ======
     // Strongly reward placing I-pieces into single-column wells
-    if (pieceType === 'I' && worstWellCol >= 0) {
-        const isVertical = shape.length === 4;
-        if (isVertical && x === worstWellCol) {
-            const fillBonus = 40 + worstWellDepth * 15;
-            score += fillBonus;
-        }
+    // Detect I-piece from shape: vertical I is 4 tall, 1 wide
+    const isVerticalIPiece = shape.length === 4 && shape.every(row => row.length === 1 && row[0]);
+    if (isVerticalIPiece && worstWellCol >= 0 && x === worstWellCol) {
+        const fillBonus = 40 + worstWellDepth * 15;
+        score += fillBonus;
     }
     
     // ====== EDGE FILL BONUS ======
