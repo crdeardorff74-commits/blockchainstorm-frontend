@@ -586,6 +586,10 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
+        // Update UFO state IMMEDIATELY so executeMove can check it
+        // This must happen BEFORE move execution below
+        currentUfoActive = ufoActive || false;
+        
         // During UFO easter egg: soft drop only (no hard drops) to let the UFO circle
         const duringUFO = ufoActive || false;
         
@@ -635,10 +639,18 @@ const AIPlayer = (() => {
         // Don't start thinking if already thinking
         if (thinking) return;
         
+        // During UFO: if we've already positioned the piece, just keep soft dropping
+        // This ensures the piece lands naturally while the UFO circles
+        if (duringUFO && lastCalculatedPieceId === currentPieceId) {
+            // Queue a soft drop and return - don't recalculate
+            moveQueue = ['down'];
+            return;
+        }
+        
         // If we already calculated for this piece and have no moves, force drop
         // This handles the case where calculation completed but moves didn't execute
-        // But NOT during earthquake - we're intentionally waiting for natural fall
-        if (lastCalculatedPieceId === currentPieceId && !duringEarthquake) {
+        // But NOT during earthquake or UFO - we're intentionally waiting for natural fall
+        if (lastCalculatedPieceId === currentPieceId && !duringEarthquake && !duringUFO) {
             samePieceCount++;
             if (samePieceCount >= STUCK_THRESHOLD) {
                 console.log(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
@@ -654,9 +666,9 @@ const AIPlayer = (() => {
         }
         
         // Stuck detection: check if piece is in same position as last calculation
-        // Skip stuck detection during earthquake since we're intentionally not dropping
+        // Skip stuck detection during earthquake or UFO since we're intentionally not dropping
         const pieceKey = getPieceKey(currentPiece);
-        if (!duringEarthquake) {
+        if (!duringEarthquake && !duringUFO) {
             if (pieceKey === lastPieceKey) {
                 samePositionCount++;
                 if (samePositionCount >= STUCK_THRESHOLD) {
@@ -729,7 +741,12 @@ const AIPlayer = (() => {
                 if (callbacks.rotate) callbacks.rotate();
                 break;
             case 'drop':
-                if (callbacks.hardDrop) {
+                // Check UFO state at EXECUTION time, not planning time
+                // If UFO is active, do soft drop instead of hard drop
+                if (currentUfoActive) {
+                    if (callbacks.softDrop) callbacks.softDrop();
+                    // Don't set expectingNewPiece - piece hasn't landed yet
+                } else if (callbacks.hardDrop) {
                     callbacks.hardDrop();
                     expectingNewPiece = true;  // Next piece we see will be new
                 }
