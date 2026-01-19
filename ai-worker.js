@@ -1,7 +1,7 @@
-// AI Worker v5.24.0 - Quadratic foundation leveling bonus (fills lowest columns first)
-console.log("🤖 AI Worker v5.24.0 loaded - Quadratic foundation leveling bonus");
+// AI Worker v5.25.0 - REMOVED broken foundation leveling bonus (was overwhelming hole penalties)
+console.log("🤖 AI Worker v5.25.0 loaded - Removed foundation leveling bonus");
 
-const AI_VERSION = "5.24.0";
+const AI_VERSION = "5.25.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1268,50 +1268,6 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.survivalFill = survivalFillBonus;
     score += survivalFillBonus;
     
-    // ====== FOUNDATION LEVELING BONUS ======
-    // When the board is uneven (some columns much lower than others), give a bonus
-    // for filling the low columns. Bonus scales with HOW LOW the column is.
-    const minHeightForLeveling = Math.min(...colHeights);
-    const maxHeightForLeveling = Math.max(...colHeights);
-    const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
-    
-    let foundationLevelingBonus = 0;
-    if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
-        // Check each cell the piece touches
-        for (let py = 0; py < shape.length; py++) {
-            for (let px = 0; px < shape[py].length; px++) {
-                if (shape[py][px]) {
-                    const col = x + px;
-                    if (col >= 0 && col < cols) {
-                        // How far below max is this column?
-                        const colDepth = maxHeightForLeveling - colHeights[col];
-                        
-                        // Only give bonus for columns 4+ below max
-                        if (colDepth >= 4) {
-                            // Bonus scales QUADRATICALLY with depth
-                            // Column 4 below max: (4-3)^2 * 15 = 15
-                            // Column 6 below max: (6-3)^2 * 15 = 135
-                            // Column 8 below max: (8-3)^2 * 15 = 375
-                            // Column 10 below max: (10-3)^2 * 15 = 735
-                            const depthBonus = Math.pow(colDepth - 3, 2) * 15;
-                            foundationLevelingBonus += depthBonus;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Extra multiplier if max height is getting dangerous
-        if (maxHeightForLeveling >= 12) {
-            foundationLevelingBonus = Math.round(foundationLevelingBonus * 2.0);
-        } else if (maxHeightForLeveling >= 10) {
-            foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.5);
-        } else if (maxHeightForLeveling >= 8) {
-            foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.25);
-        }
-    }
-    score += foundationLevelingBonus;
-    
     // ====== VERTICAL PIECE PENALTY AT HIGH STACKS ======
     // Tall vertical placements are DEADLY at high stacks - they make the situation worse
     // Detect piece orientation: height > width = vertical
@@ -2316,42 +2272,6 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
                 
                 score += Math.round(fillBonus);
             }
-        }
-    }
-    
-    // ====== FOUNDATION LEVELING BONUS ======
-    // When board is uneven, bonus scales with HOW LOW each column is
-    const minHeightForLeveling = Math.min(...colHeights);
-    const maxHeightForLeveling = Math.max(...colHeights);
-    const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
-    
-    if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
-        let foundationBonus = 0;
-        
-        for (let py = 0; py < shape.length; py++) {
-            for (let px = 0; px < shape[py].length; px++) {
-                if (shape[py][px]) {
-                    const col = x + px;
-                    if (col >= 0 && col < cols) {
-                        const colDepth = maxHeightForLeveling - colHeights[col];
-                        if (colDepth >= 4) {
-                            // Quadratic scaling with depth
-                            foundationBonus += Math.pow(colDepth - 3, 2) * 15;
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (foundationBonus > 0) {
-            if (maxHeightForLeveling >= 12) {
-                foundationBonus = Math.round(foundationBonus * 2.0);
-            } else if (maxHeightForLeveling >= 10) {
-                foundationBonus = Math.round(foundationBonus * 1.5);
-            } else if (maxHeightForLeveling >= 8) {
-                foundationBonus = Math.round(foundationBonus * 1.25);
-            }
-            score += foundationBonus;
         }
     }
     
