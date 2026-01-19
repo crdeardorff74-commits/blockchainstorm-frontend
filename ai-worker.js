@@ -1,18 +1,21 @@
-// AI Worker v6.5.2 - Fixed vertical I penalty (check post-placement), stronger stacking penalty
+// AI Worker v6.6.0 - Survival mode triggers on holes (>=8) OR height (>=11)
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.5.2 loaded - Fixed vertical I and stacking penalties");
+console.log("🤖 AI Worker v6.6.0 loaded - Survival mode: height>=11 OR holes>=8");
 
-const AI_VERSION = "6.5.2";
+const AI_VERSION = "6.6.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
 
 // Survival mode state (hysteresis-based)
-// Enter survival mode when stack >= 12, exit when stack <= 4
+// Enter survival mode when stack >= 11 OR holes >= 8
+// Exit survival mode when stack <= 4 AND holes <= 3
 let inSurvivalMode = false;
-const SURVIVAL_MODE_ENTER_HEIGHT = 12;
+const SURVIVAL_MODE_ENTER_HEIGHT = 11;
 const SURVIVAL_MODE_EXIT_HEIGHT = 4;
+const SURVIVAL_MODE_ENTER_HOLES = 8;
+const SURVIVAL_MODE_EXIT_HOLES = 3;
 
 // ==================== GAME RECORDING ====================
 let gameRecording = {
@@ -1246,10 +1249,13 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
     // This ensures consistent behavior for all placement evaluations
     const currentHeights = getColumnHeights(board, cols, rows);
     const currentStackHeight = Math.max(...currentHeights);
+    const currentHoles = countHoles(board);
     
-    if (currentStackHeight >= SURVIVAL_MODE_ENTER_HEIGHT) {
+    // Enter survival mode on high stack OR too many holes
+    // Exit only when BOTH stack is low AND holes are cleared
+    if (currentStackHeight >= SURVIVAL_MODE_ENTER_HEIGHT || currentHoles >= SURVIVAL_MODE_ENTER_HOLES) {
         inSurvivalMode = true;
-    } else if (currentStackHeight <= SURVIVAL_MODE_EXIT_HEIGHT) {
+    } else if (currentStackHeight <= SURVIVAL_MODE_EXIT_HEIGHT && currentHoles <= SURVIVAL_MODE_EXIT_HOLES) {
         inSurvivalMode = false;
     }
     // Otherwise maintain current state (hysteresis)
