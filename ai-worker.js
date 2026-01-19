@@ -1,7 +1,7 @@
-// AI Worker v5.25.0 - REMOVED broken foundation leveling bonus (was overwhelming hole penalties)
-console.log("🤖 AI Worker v5.25.0 loaded - Removed foundation leveling bonus");
+// AI Worker v5.26.0 - Foundation check only blocks tsunami bonus for width < 7
+console.log("🤖 AI Worker v5.26.0 loaded - Allow width 7+ tsunamis despite foundation imbalance");
 
-const AI_VERSION = "5.25.0";
+const AI_VERSION = "5.26.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1541,6 +1541,7 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // Don't give tsunami bonuses if the board has deep valleys that will become
     // unfillable after the tsunami clears. A tsunami built on an uneven foundation
     // will expose those valleys and lead to rapid hole accumulation.
+    // EXCEPTION: If tsunami is already width 7+, allow it to continue (don't abandon progress)
     const minColHeight = Math.min(...colHeights);
     const maxColHeight = Math.max(...colHeights);
     const foundationImbalance = maxColHeight - minColHeight;
@@ -1559,9 +1560,12 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     const foundationUnstable = (foundationImbalance >= 6 && veryLowColumns >= 2) || 
                                (foundationImbalance >= 8);
     
-    // Only block tsunami bonuses if foundation is unstable AND we're not already imminent
-    // (if imminent, better to complete and clear than abandon)
-    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && maxColHeight >= 6;
+    // Only block tsunami bonuses if:
+    // - Foundation is unstable AND
+    // - NOT already imminent AND
+    // - NOT already at width 7+ (don't abandon a tsunami that's close to completion) AND
+    // - Max height is at least 6
+    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && bestTsunamiWidth < 7 && maxColHeight >= 6;
     
     if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus && !tsunamiBlockedByFoundation) {
         const tsunamiRun = bestRuns[bestTsunamiColor];
@@ -2584,6 +2588,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     // ====== FOUNDATION IMBALANCE CHECK ======
     // Don't give tsunami bonuses if board has deep valleys
+    // EXCEPTION: If tsunami is already width 7+, allow it to continue
     const minColHeight = Math.min(...colHeights);
     const maxColHeight = Math.max(...colHeights);
     const foundationImbalance = maxColHeight - minColHeight;
@@ -2597,7 +2602,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     
     const foundationUnstable = (foundationImbalance >= 6 && veryLowColumns >= 2) || 
                                (foundationImbalance >= 8);
-    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && maxColHeight >= 6;
+    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && bestTsunamiWidth < 7 && maxColHeight >= 6;
     
     if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus && !tsunamiBlockedByFoundation) {
         const tsunamiRun = bestRuns[bestTsunamiColor];
