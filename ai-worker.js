@@ -1,7 +1,7 @@
-// AI Worker v5.28.0 - Increased I-piece well penalties (2.5x), reduced queue discount
-console.log("🤖 AI Worker v5.28.0 loaded - Stronger I-piece well penalties to prevent gap formation");
+// AI Worker v5.29.0 - Reduce line clear bonus when creating edge vertical problems (70% reduction)
+console.log("🤖 AI Worker v5.29.0 loaded - Line clears penalized when creating edge overhangs");
 
-const AI_VERSION = "5.28.0";
+const AI_VERSION = "5.29.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1511,23 +1511,27 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         const tsunamiWorthProtecting = bestTsunamiWidth >= minWidthForPenalty && 
             bestTsunamiWidth >= 8 && holes <= 4;
         
+        // Reduce line clear bonus if this move creates edge vertical problem
+        // Edge vertical problems persist and cause death later
+        const lineClearMultiplier = overhangInfo.edgeVerticalProblem ? 0.3 : 1.0;
+        
         if (stackHeight >= 14) {
-            // Danger zone - always clear lines
-            breakdown.lineClears.bonus = completeRows * 300;
+            // Danger zone - always clear lines (but still penalize edge problems)
+            breakdown.lineClears.bonus = Math.round(completeRows * 300 * lineClearMultiplier);
             breakdown.classification = 'survival';
         } else if (stackHeight >= 12) {
             // Getting risky - strongly prefer clearing
-            breakdown.lineClears.bonus = completeRows * 200;
+            breakdown.lineClears.bonus = Math.round(completeRows * 200 * lineClearMultiplier);
             breakdown.classification = 'defensive';
         } else if (tsunamiWorthProtecting && !tsunamiSurvivesLineClear) {
             // Only avoid clearing if tsunami is strong with low holes
             breakdown.lineClears.bonus = -completeRows * 30;  // Reduced penalty
         } else if (stackHeight >= 10) {
             // Medium stack - reward clearing
-            breakdown.lineClears.bonus = completeRows * 150;
+            breakdown.lineClears.bonus = Math.round(completeRows * 150 * lineClearMultiplier);
         } else {
             // Normal play - HEAVILY REWARD LINE CLEARS
-            breakdown.lineClears.bonus = completeRows * 100;
+            breakdown.lineClears.bonus = Math.round(completeRows * 100 * lineClearMultiplier);
         }
         score += breakdown.lineClears.bonus;
     }
@@ -2579,17 +2583,20 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         const tsunamiWorthProtecting = bestTsunamiWidth >= minWidthForPenalty && 
             bestTsunamiWidth >= 8 && holes <= 4;
         
+        // Reduce line clear bonus if this move creates edge vertical problem
+        const lineClearMultiplier = overhangInfo.edgeVerticalProblem ? 0.3 : 1.0;
+        
         if (stackHeight >= 14) {
-            score += completeRows * 300;  // Danger zone
+            score += Math.round(completeRows * 300 * lineClearMultiplier);  // Danger zone
         } else if (stackHeight >= 12) {
-            score += completeRows * 200;  // Getting risky
+            score += Math.round(completeRows * 200 * lineClearMultiplier);  // Getting risky
         } else if (tsunamiWorthProtecting && stackHeight < 10) {
             score -= completeRows * 30;  // Reduced penalty
         } else if (stackHeight >= 10) {
-            score += completeRows * 150;  // Medium stack
+            score += Math.round(completeRows * 150 * lineClearMultiplier);  // Medium stack
         } else {
             // Normal play - HEAVILY REWARD LINE CLEARS
-            score += completeRows * 100;
+            score += Math.round(completeRows * 100 * lineClearMultiplier);
         }
     }
     
