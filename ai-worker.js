@@ -1,7 +1,7 @@
-// AI Worker v5.27.0 - Significantly increased hole penalties (2x base, 2x foundation)
-console.log("🤖 AI Worker v5.27.0 loaded - Increased hole penalties to prevent early hole creation");
+// AI Worker v5.28.0 - Increased I-piece well penalties (2.5x), reduced queue discount
+console.log("🤖 AI Worker v5.28.0 loaded - Stronger I-piece well penalties to prevent gap formation");
 
-const AI_VERSION = "5.27.0";
+const AI_VERSION = "5.28.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1111,38 +1111,38 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
                 worstWellCol = col;
             }
             
-            // Exponential penalty based on depth
-            // Depth 3: minor (needs part of one I-piece) = 15
-            // Depth 4: moderate (one I-piece) = 40  
-            // Depth 5-7: serious (might need 2 I-pieces) = 80-160
-            // Depth 8+: critical (multiple I-pieces, likely death) = 200+
+            // Exponential penalty based on depth - INCREASED to prevent well formation
+            // Depth 3: concerning - can quickly become worse = 30 (was 12)
+            // Depth 4: moderate (one I-piece) = 60 (was 40)
+            // Depth 5-7: serious (might need 2 I-pieces) = 120-200 (was 80-160)
+            // Depth 8+: critical (multiple I-pieces, likely death) = 250+ (was 200+)
             if (wellDepth >= 8) {
                 // Critical: likely death without multiple I-pieces
-                iPieceDependencyPenalty += 150 + (wellDepth - 8) * 30;
+                iPieceDependencyPenalty += 200 + (wellDepth - 8) * 40;
             } else if (wellDepth >= 6) {
                 // Very dangerous
-                iPieceDependencyPenalty += 60 + (wellDepth - 6) * 40;
+                iPieceDependencyPenalty += 100 + (wellDepth - 6) * 50;
             } else if (wellDepth >= 4) {
                 // Dangerous - full I-piece needed
-                iPieceDependencyPenalty += 25 + (wellDepth - 4) * 15;
+                iPieceDependencyPenalty += 50 + (wellDepth - 4) * 25;
             } else {
-                // Depth 3: concerning but manageable
-                iPieceDependencyPenalty += 12;
+                // Depth 3: concerning - don't let it grow!
+                iPieceDependencyPenalty += 30;
             }
         }
     }
     
     // Extra penalty for multiple single-column wells (multiple I-pieces needed simultaneously)
     if (wellCount2 >= 2) {
-        iPieceDependencyPenalty += wellCount2 * 25;
+        iPieceDependencyPenalty += wellCount2 * 40;  // Increased from 25
     }
     
-    // Reduce penalty if I-piece is visible in queue
+    // Reduce penalty if I-piece is visible in queue - but not too much
     if (hasIPieceInQueue && worstWellDepth <= 6) {
-        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.5);
+        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.7);  // Was 0.5
     } else if (hasIPieceInQueue) {
         // Still reduce but less for very deep wells
-        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.7);
+        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.8);  // Was 0.7
     }
     
     // Don't penalize during imminent tsunami - we're about to clear anyway
@@ -1157,6 +1157,19 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         penalty: iPieceDependencyPenalty
     };
     score -= iPieceDependencyPenalty;
+    
+    // ====== I-PIECE WELL FILL BONUS ======
+    // Strongly reward placing I-pieces into single-column wells
+    // This complements the well penalty by making filling attractive
+    if (pieceType === 'I' && worstWellCol >= 0) {
+        // Check if I-piece is being placed in the worst well
+        const isVertical = shape.length === 4;  // I-piece vertical is 4 tall, 1 wide
+        if (isVertical && x === worstWellCol) {
+            // Direct fill of worst well - big bonus
+            const fillBonus = 40 + worstWellDepth * 15;
+            score += fillBonus;
+        }
+    }
     
     // ====== EDGE FILL BONUS ======
     // Actively reward placements that touch edge columns when they need filling
@@ -2352,6 +2365,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // Single-column wells can ONLY be filled by I-pieces (14% chance per piece)
     let iPieceDependencyPenalty = 0;
     let worstWellDepth = 0;
+    let worstWellCol = -1;
     let wellCount2 = 0;
     
     // Check if I-piece is in visible queue (reduces urgency)
@@ -2367,28 +2381,29 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
             wellCount2++;
             if (wellDepth > worstWellDepth) {
                 worstWellDepth = wellDepth;
+                worstWellCol = col;
             }
             
             if (wellDepth >= 8) {
-                iPieceDependencyPenalty += 150 + (wellDepth - 8) * 30;
+                iPieceDependencyPenalty += 200 + (wellDepth - 8) * 40;
             } else if (wellDepth >= 6) {
-                iPieceDependencyPenalty += 60 + (wellDepth - 6) * 40;
+                iPieceDependencyPenalty += 100 + (wellDepth - 6) * 50;
             } else if (wellDepth >= 4) {
-                iPieceDependencyPenalty += 25 + (wellDepth - 4) * 15;
+                iPieceDependencyPenalty += 50 + (wellDepth - 4) * 25;
             } else {
-                iPieceDependencyPenalty += 12;
+                iPieceDependencyPenalty += 30;
             }
         }
     }
     
     if (wellCount2 >= 2) {
-        iPieceDependencyPenalty += wellCount2 * 25;
+        iPieceDependencyPenalty += wellCount2 * 40;  // Increased from 25
     }
     
     if (hasIPieceInQueue && worstWellDepth <= 6) {
-        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.5);
+        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.7);  // Was 0.5
     } else if (hasIPieceInQueue) {
-        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.7);
+        iPieceDependencyPenalty = Math.round(iPieceDependencyPenalty * 0.8);  // Was 0.7
     }
     
     if (tsunamiImminent) {
@@ -2396,6 +2411,16 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     score -= iPieceDependencyPenalty;
+    
+    // ====== I-PIECE WELL FILL BONUS ======
+    // Strongly reward placing I-pieces into single-column wells
+    if (pieceType === 'I' && worstWellCol >= 0) {
+        const isVertical = shape.length === 4;
+        if (isVertical && x === worstWellCol) {
+            const fillBonus = 40 + worstWellDepth * 15;
+            score += fillBonus;
+        }
+    }
     
     // ====== EDGE FILL BONUS ======
     // Actively reward placements that touch edge columns when they need filling
