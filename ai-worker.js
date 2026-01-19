@@ -1,7 +1,7 @@
-// AI Worker v5.26.0 - Foundation check only blocks tsunami bonus for width < 7
-console.log("🤖 AI Worker v5.26.0 loaded - Allow width 7+ tsunamis despite foundation imbalance");
+// AI Worker v5.27.0 - Significantly increased hole penalties (2x base, 2x foundation)
+console.log("🤖 AI Worker v5.27.0 loaded - Increased hole penalties to prevent early hole creation");
 
-const AI_VERSION = "5.26.0";
+const AI_VERSION = "5.27.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -894,18 +894,18 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
         holePenaltyMultiplier = Math.min(1.0, holePenaltyMultiplier + (excessHoles * 0.1));
     }
     
-    // Base hole penalty calculation
+    // Base hole penalty calculation - INCREASED to prevent hole creation
     if (holes <= 2) {
-        breakdown.holes.penalty = holes * 15;
+        breakdown.holes.penalty = holes * 30;  // Increased from 15
     } else if (holes <= 5) {
-        breakdown.holes.penalty = 30 + (holes - 2) * 20;
+        breakdown.holes.penalty = 60 + (holes - 2) * 25;  // Increased from 30 + 20
     } else if (holes <= 10) {
-        breakdown.holes.penalty = 90 + (holes - 5) * 25;
+        breakdown.holes.penalty = 135 + (holes - 5) * 30;  // Increased from 90 + 25
     } else if (holes <= 20) {
-        breakdown.holes.penalty = 215 + (holes - 10) * 30;
+        breakdown.holes.penalty = 285 + (holes - 10) * 35;  // Increased from 215 + 30
     } else {
         // 20+ holes is catastrophic regardless of tsunami
-        breakdown.holes.penalty = 515 + (holes - 20) * 40;
+        breakdown.holes.penalty = 635 + (holes - 20) * 45;  // Increased from 515 + 40
     }
     
     // Apply tsunami tolerance multiplier
@@ -921,13 +921,14 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.holes.penalty += Math.round(scatteredPenalty * holePenaltyMultiplier);
     
     // FOUNDATION PENALTY - only if NOT building a strong tsunami
+    // Creating holes early is VERY BAD - they compound over time
     if (stackHeight <= 6 && holes > 0 && holePenaltyMultiplier >= 0.9) {
-        breakdown.holes.penalty += holes * 25;
+        breakdown.holes.penalty += holes * 60;  // Increased from 50
         if (columnsWithHoles >= 2) {
-            breakdown.holes.penalty += columnsWithHoles * 15;
+            breakdown.holes.penalty += columnsWithHoles * 30;  // Increased from 25
         }
     } else if (stackHeight <= 10 && holes > 1 && holePenaltyMultiplier >= 0.9) {
-        breakdown.holes.penalty += (holes - 1) * 15;
+        breakdown.holes.penalty += (holes - 1) * 40;  // Increased from 30
     }
     
     // Extra penalty at HIGH stacks - holes are deadly regardless of tsunami
@@ -2112,18 +2113,18 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         holePenaltyMultiplier = Math.min(1.0, holePenaltyMultiplier + (excessHoles * 0.1));
     }
     
-    // Base hole penalty
+    // Base hole penalty - INCREASED to prevent hole creation
     let holePenalty = 0;
     if (holes <= 2) {
-        holePenalty = holes * 15;
+        holePenalty = holes * 30;  // Increased from 15
     } else if (holes <= 5) {
-        holePenalty = 30 + (holes - 2) * 20;
+        holePenalty = 60 + (holes - 2) * 25;  // Increased from 30 + 20
     } else if (holes <= 10) {
-        holePenalty = 90 + (holes - 5) * 25;
+        holePenalty = 135 + (holes - 5) * 30;  // Increased from 90 + 25
     } else if (holes <= 20) {
-        holePenalty = 215 + (holes - 10) * 30;
+        holePenalty = 285 + (holes - 10) * 35;  // Increased from 215 + 30
     } else {
-        holePenalty = 515 + (holes - 20) * 40;
+        holePenalty = 635 + (holes - 20) * 45;  // Increased from 515 + 40
     }
     
     // Apply tsunami tolerance
@@ -2138,14 +2139,14 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     holePenalty += Math.round(scatteredPenalty * holePenaltyMultiplier);
     
-    // Foundation penalty only if NOT building strong tsunami
+    // Foundation penalty only if NOT building strong tsunami - INCREASED
     if (stackHeight <= 6 && holes > 0 && holePenaltyMultiplier >= 0.9) {
-        holePenalty += holes * 25;
+        holePenalty += holes * 60;  // Increased from 50
         if (columnsWithHoles >= 2) {
-            holePenalty += columnsWithHoles * 15;
+            holePenalty += columnsWithHoles * 30;  // Increased from 25
         }
     } else if (stackHeight <= 10 && holes > 1 && holePenaltyMultiplier >= 0.9) {
-        holePenalty += (holes - 1) * 15;
+        holePenalty += (holes - 1) * 40;  // Increased from 30
     }
     
     // Extra at high stacks - survival regardless of tsunami
