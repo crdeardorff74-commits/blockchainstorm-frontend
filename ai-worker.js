@@ -1,7 +1,7 @@
-// AI Worker v5.23.0 - Foundation stability: block tsunami bonuses when board has deep valleys
-console.log("🤖 AI Worker v5.23.0 loaded - Foundation stability check for tsunami building");
+// AI Worker v5.24.0 - Quadratic foundation leveling bonus (fills lowest columns first)
+console.log("🤖 AI Worker v5.24.0 loaded - Quadratic foundation leveling bonus");
 
-const AI_VERSION = "5.23.0";
+const AI_VERSION = "5.24.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1270,43 +1270,44 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     // ====== FOUNDATION LEVELING BONUS ======
     // When the board is uneven (some columns much lower than others), give a bonus
-    // for filling the low columns. This applies even at lower stacks to prevent
-    // building tsunamis on top of unfillable foundations.
+    // for filling the low columns. Bonus scales with HOW LOW the column is.
     const minHeightForLeveling = Math.min(...colHeights);
     const maxHeightForLeveling = Math.max(...colHeights);
     const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
     
     let foundationLevelingBonus = 0;
     if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
-        // Find which columns the piece touches that are very low
-        let touchesVeryLowColumn = false;
-        let lowColsTotal = 0;
-        
+        // Check each cell the piece touches
         for (let py = 0; py < shape.length; py++) {
             for (let px = 0; px < shape[py].length; px++) {
                 if (shape[py][px]) {
                     const col = x + px;
                     if (col >= 0 && col < cols) {
-                        // Column is "very low" if it's 4+ below the max
-                        if (colHeights[col] <= maxHeightForLeveling - 4) {
-                            touchesVeryLowColumn = true;
-                            lowColsTotal++;
+                        // How far below max is this column?
+                        const colDepth = maxHeightForLeveling - colHeights[col];
+                        
+                        // Only give bonus for columns 4+ below max
+                        if (colDepth >= 4) {
+                            // Bonus scales QUADRATICALLY with depth
+                            // Column 4 below max: (4-3)^2 * 15 = 15
+                            // Column 6 below max: (6-3)^2 * 15 = 135
+                            // Column 8 below max: (8-3)^2 * 15 = 375
+                            // Column 10 below max: (10-3)^2 * 15 = 735
+                            const depthBonus = Math.pow(colDepth - 3, 2) * 15;
+                            foundationLevelingBonus += depthBonus;
                         }
                     }
                 }
             }
         }
         
-        if (touchesVeryLowColumn) {
-            // Bonus scales with how uneven the board is
-            foundationLevelingBonus = (heightImbalance - 4) * 10 + lowColsTotal * 15;
-            
-            // Extra bonus if max height is getting dangerous
-            if (maxHeightForLeveling >= 10) {
-                foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.5);
-            } else if (maxHeightForLeveling >= 8) {
-                foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.25);
-            }
+        // Extra multiplier if max height is getting dangerous
+        if (maxHeightForLeveling >= 12) {
+            foundationLevelingBonus = Math.round(foundationLevelingBonus * 2.0);
+        } else if (maxHeightForLeveling >= 10) {
+            foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.5);
+        } else if (maxHeightForLeveling >= 8) {
+            foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.25);
         }
     }
     score += foundationLevelingBonus;
@@ -2319,30 +2320,33 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     }
     
     // ====== FOUNDATION LEVELING BONUS ======
-    // When board is uneven, bonus for filling low columns (even at lower stacks)
+    // When board is uneven, bonus scales with HOW LOW each column is
     const minHeightForLeveling = Math.min(...colHeights);
     const maxHeightForLeveling = Math.max(...colHeights);
     const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
     
     if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
-        let touchesVeryLowColumn = false;
-        let lowColsTotal = 0;
+        let foundationBonus = 0;
         
         for (let py = 0; py < shape.length; py++) {
             for (let px = 0; px < shape[py].length; px++) {
                 if (shape[py][px]) {
                     const col = x + px;
-                    if (col >= 0 && col < cols && colHeights[col] <= maxHeightForLeveling - 4) {
-                        touchesVeryLowColumn = true;
-                        lowColsTotal++;
+                    if (col >= 0 && col < cols) {
+                        const colDepth = maxHeightForLeveling - colHeights[col];
+                        if (colDepth >= 4) {
+                            // Quadratic scaling with depth
+                            foundationBonus += Math.pow(colDepth - 3, 2) * 15;
+                        }
                     }
                 }
             }
         }
         
-        if (touchesVeryLowColumn) {
-            let foundationBonus = (heightImbalance - 4) * 10 + lowColsTotal * 15;
-            if (maxHeightForLeveling >= 10) {
+        if (foundationBonus > 0) {
+            if (maxHeightForLeveling >= 12) {
+                foundationBonus = Math.round(foundationBonus * 2.0);
+            } else if (maxHeightForLeveling >= 10) {
                 foundationBonus = Math.round(foundationBonus * 1.5);
             } else if (maxHeightForLeveling >= 8) {
                 foundationBonus = Math.round(foundationBonus * 1.25);
