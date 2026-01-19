@@ -11532,11 +11532,13 @@ function update(time = 0) {
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.lineWidth = 2;
         
-        // Draw AI MODE on left
+        // Draw AI MODE on left (with survival indicator if active)
         ctx.textAlign = 'left';
-        ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
-        ctx.strokeText('🤖 AI MODE', 10, 10);
-        ctx.fillText('🤖 AI MODE', 10, 10);
+        const survivalActive = typeof AIPlayer !== 'undefined' && AIPlayer.getSurvivalMode && AIPlayer.getSurvivalMode();
+        const aiModeText = survivalActive ? '🤖 AI MODE (Survival)' : '🤖 AI MODE';
+        ctx.fillStyle = survivalActive ? 'rgba(255, 100, 100, 0.9)' : 'rgba(0, 255, 255, 0.8)';
+        ctx.strokeText(aiModeText, 10, 10);
+        ctx.fillText(aiModeText, 10, 10);
         
         // Draw EXIT on right (clickable)
         ctx.textAlign = 'right';

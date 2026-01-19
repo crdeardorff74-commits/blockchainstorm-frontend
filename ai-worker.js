@@ -1365,6 +1365,7 @@ self.onmessage = function(e) {
                 self.postMessage({
                     bestPlacement: result.placement,
                     stackHeight,
+                    survivalMode: inSurvivalMode,
                     decisionMeta: result.decisionMeta,
                     requestId: requestId
                 });
@@ -1372,6 +1373,7 @@ self.onmessage = function(e) {
                 self.postMessage({
                     bestPlacement: result,
                     stackHeight,
+                    survivalMode: inSurvivalMode,
                     requestId: requestId
                 });
             }

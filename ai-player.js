@@ -949,6 +949,17 @@ const AIPlayer = (() => {
         lastDecisionMeta = null;
     }
     
+    /**
+     * Get current survival mode state from last AI decision
+     * Returns true if AI is in survival mode, false otherwise
+     */
+    function getSurvivalMode() {
+        if (lastDecisionMeta && lastDecisionMeta.chosen && lastDecisionMeta.chosen.breakdown) {
+            return lastDecisionMeta.chosen.breakdown.survivalMode || false;
+        }
+        return false;
+    }
+    
     // ==================== SHADOW MODE (for human game analysis) ====================
     
     let shadowCallback = null;
@@ -1020,6 +1031,7 @@ const AIPlayer = (() => {
         terminate,
         getMode,
         getStackHeight,
+        getSurvivalMode,
         modeThresholds,
         // Recording API
         startRecording,
