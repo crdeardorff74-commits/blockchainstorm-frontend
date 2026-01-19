@@ -1,7 +1,7 @@
-// AI Worker v5.22.0 - Row-blocking penalty + increased bumpiness penalty for flatter stacks
-console.log("🤖 AI Worker v5.22.0 loaded - Row-blocking penalty, bumpiness 2.5x base");
+// AI Worker v5.23.0 - Foundation stability: block tsunami bonuses when board has deep valleys
+console.log("🤖 AI Worker v5.23.0 loaded - Foundation stability check for tsunami building");
 
-const AI_VERSION = "5.22.0";
+const AI_VERSION = "5.23.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -1268,6 +1268,49 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     breakdown.survivalFill = survivalFillBonus;
     score += survivalFillBonus;
     
+    // ====== FOUNDATION LEVELING BONUS ======
+    // When the board is uneven (some columns much lower than others), give a bonus
+    // for filling the low columns. This applies even at lower stacks to prevent
+    // building tsunamis on top of unfillable foundations.
+    const minHeightForLeveling = Math.min(...colHeights);
+    const maxHeightForLeveling = Math.max(...colHeights);
+    const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
+    
+    let foundationLevelingBonus = 0;
+    if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
+        // Find which columns the piece touches that are very low
+        let touchesVeryLowColumn = false;
+        let lowColsTotal = 0;
+        
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    const col = x + px;
+                    if (col >= 0 && col < cols) {
+                        // Column is "very low" if it's 4+ below the max
+                        if (colHeights[col] <= maxHeightForLeveling - 4) {
+                            touchesVeryLowColumn = true;
+                            lowColsTotal++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (touchesVeryLowColumn) {
+            // Bonus scales with how uneven the board is
+            foundationLevelingBonus = (heightImbalance - 4) * 10 + lowColsTotal * 15;
+            
+            // Extra bonus if max height is getting dangerous
+            if (maxHeightForLeveling >= 10) {
+                foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.5);
+            } else if (maxHeightForLeveling >= 8) {
+                foundationLevelingBonus = Math.round(foundationLevelingBonus * 1.25);
+            }
+        }
+    }
+    score += foundationLevelingBonus;
+    
     // ====== VERTICAL PIECE PENALTY AT HIGH STACKS ======
     // Tall vertical placements are DEADLY at high stacks - they make the situation worse
     // Detect piece orientation: height > width = vertical
@@ -1537,7 +1580,33 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // CONSERVATIVE: Only give tsunami bonus if holes are manageable
     const maxHolesForTsunamiBonus = tsunamiImminent ? 10 : (tsunamiNearCompletion ? 6 : 4);
     
-    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus) {
+    // ====== FOUNDATION IMBALANCE CHECK ======
+    // Don't give tsunami bonuses if the board has deep valleys that will become
+    // unfillable after the tsunami clears. A tsunami built on an uneven foundation
+    // will expose those valleys and lead to rapid hole accumulation.
+    const minColHeight = Math.min(...colHeights);
+    const maxColHeight = Math.max(...colHeights);
+    const foundationImbalance = maxColHeight - minColHeight;
+    
+    // Count columns with very low height compared to the max
+    let veryLowColumns = 0;
+    for (let c = 0; c < cols; c++) {
+        if (colHeights[c] <= maxColHeight - 5) {
+            veryLowColumns++;
+        }
+    }
+    
+    // Foundation is unstable if:
+    // - Height difference is 6+ AND there are 2+ very low columns, OR
+    // - Height difference is 8+ (extreme imbalance)
+    const foundationUnstable = (foundationImbalance >= 6 && veryLowColumns >= 2) || 
+                               (foundationImbalance >= 8);
+    
+    // Only block tsunami bonuses if foundation is unstable AND we're not already imminent
+    // (if imminent, better to complete and clear than abandon)
+    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && maxColHeight >= 6;
+    
+    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus && !tsunamiBlockedByFoundation) {
         const tsunamiRun = bestRuns[bestTsunamiColor];
         
         // Base bonus scales with how close we are to completion
@@ -2249,6 +2318,39 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         }
     }
     
+    // ====== FOUNDATION LEVELING BONUS ======
+    // When board is uneven, bonus for filling low columns (even at lower stacks)
+    const minHeightForLeveling = Math.min(...colHeights);
+    const maxHeightForLeveling = Math.max(...colHeights);
+    const heightImbalance = maxHeightForLeveling - minHeightForLeveling;
+    
+    if (heightImbalance >= 5 && maxHeightForLeveling >= 5) {
+        let touchesVeryLowColumn = false;
+        let lowColsTotal = 0;
+        
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    const col = x + px;
+                    if (col >= 0 && col < cols && colHeights[col] <= maxHeightForLeveling - 4) {
+                        touchesVeryLowColumn = true;
+                        lowColsTotal++;
+                    }
+                }
+            }
+        }
+        
+        if (touchesVeryLowColumn) {
+            let foundationBonus = (heightImbalance - 4) * 10 + lowColsTotal * 15;
+            if (maxHeightForLeveling >= 10) {
+                foundationBonus = Math.round(foundationBonus * 1.5);
+            } else if (maxHeightForLeveling >= 8) {
+                foundationBonus = Math.round(foundationBonus * 1.25);
+            }
+            score += foundationBonus;
+        }
+    }
+    
     // ====== VERTICAL PIECE PENALTY AT HIGH STACKS ======
     const pieceHeight = shape.length;
     const pieceWidth = shape[0] ? shape[0].length : 1;
@@ -2556,7 +2658,24 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     // CONSERVATIVE: Only give tsunami bonus if holes are manageable
     const maxHolesForTsunamiBonus = tsunamiImminent ? 10 : (tsunamiNearCompletion ? 6 : 4);
     
-    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus) {
+    // ====== FOUNDATION IMBALANCE CHECK ======
+    // Don't give tsunami bonuses if board has deep valleys
+    const minColHeight = Math.min(...colHeights);
+    const maxColHeight = Math.max(...colHeights);
+    const foundationImbalance = maxColHeight - minColHeight;
+    
+    let veryLowColumns = 0;
+    for (let c = 0; c < cols; c++) {
+        if (colHeights[c] <= maxColHeight - 5) {
+            veryLowColumns++;
+        }
+    }
+    
+    const foundationUnstable = (foundationImbalance >= 6 && veryLowColumns >= 2) || 
+                               (foundationImbalance >= 8);
+    const tsunamiBlockedByFoundation = foundationUnstable && !tsunamiImminent && maxColHeight >= 6;
+    
+    if (!isBreeze && tsunamiWorthPursuing && bestTsunamiColor && color === bestTsunamiColor && holes <= maxHolesForTsunamiBonus && !tsunamiBlockedByFoundation) {
         const tsunamiRun = bestRuns[bestTsunamiColor];
         
         // Base bonus scales with how close we are
