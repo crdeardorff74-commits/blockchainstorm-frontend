@@ -18,7 +18,7 @@ const SURVIVAL_MODE_ENTER_HOLES = 8;
 const SURVIVAL_MODE_EXIT_HOLES = 3;
 
 // UFO easter egg state - when active, avoid clearing lines (unless dangerous)
-let ufoActive = false;
+let currentUfoActive = false;
 
 // ==================== GAME RECORDING ====================
 let gameRecording = {
@@ -31,7 +31,7 @@ let gameRecording = {
 function startRecording() {
     // Reset survival mode and UFO state at game start
     inSurvivalMode = false;
-    ufoActive = false;
+    currentUfoActive = false;
     
     gameRecording = {
         version: AI_VERSION,
@@ -625,7 +625,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
         blackHole: { potential: blackHolePotential, bonus: 0 },
         phase,
         survivalMode: inSurvivalMode,
-        ufoActive: ufoActive,
+        ufoActive: currentUfoActive,
         classification: 'neutral'
     } : null;
     
@@ -889,7 +889,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     if (completeRows > 0) {
         // UFO EASTER EGG: When UFO is active, avoid clearing lines to let it complete
         // Exception: If we're in danger, survival takes priority
-        if (ufoActive && !inSurvivalMode && phase !== 'critical' && phase !== 'danger') {
+        if (currentUfoActive && !inSurvivalMode && phase !== 'critical' && phase !== 'danger') {
             // UFO is circling! Heavily penalize line clears to preserve the 42 line count
             lineClearBonus = -300 * completeRows;
             if (breakdown) breakdown.classification = 'ufo_preserve';
@@ -1368,7 +1368,7 @@ self.onmessage = function(e) {
         currentSkillLevel = 'tempest';
         pieceQueue = [];
         inSurvivalMode = false;
-        ufoActive = false;
+        currentUfoActive = false;
         self.postMessage({ reset: true });
         return;
     }
@@ -1437,7 +1437,7 @@ self.onmessage = function(e) {
         // Update globals
         if (skillLevel) currentSkillLevel = skillLevel;
         if (queue) pieceQueue = queue;
-        ufoActive = e.data.ufoActive || false;  // Update UFO state
+        currentUfoActive = ufoActive || false;  // Update UFO state from message
         
         const shouldCapture = captureDecisionMeta || false;
         
