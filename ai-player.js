@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.21 loaded - fixed piece identity tracking (was using color which isn't unique)");
+console.log("🎮 AI Player v3.22 loaded - simplified move calculation, fixed piece identity tracking");
 
 const AIPlayer = (() => {
     // Configuration
@@ -246,68 +246,26 @@ const AIPlayer = (() => {
     
     /**
      * Calculate moves needed to reach target placement
-     * FIXED: Smart move ordering based on piece dimensions
-     * - If target shape is NARROWER than current, rotate first (can reach more x positions)
-     * - If target shape is WIDER than current, move first while narrow
+     * Simple approach: rotate first, then move horizontally
      * @param {boolean} skipDrop - If true, don't add drop command (for earthquake positioning)
      */
     function calculateMoves(currentPiece, targetPlacement, skipDrop = false) {
         const moves = [];
         const xDiff = targetPlacement.x - currentPiece.x;
-        const needsRotation = targetPlacement.rotationIndex > 0;
         
-        // Get current and target dimensions
-        const currentShape = currentPiece.shape;
-        const currentWidth = currentShape[0] ? currentShape[0].length : 1;
-        
-        // Estimate target width after rotation
-        // For most pieces, 90° rotation swaps width and height
-        let targetWidth = currentWidth;
-        if (needsRotation && currentPiece.type === 'I') {
-            // I-piece: horizontal (4 wide) <-> vertical (1 wide)
-            targetWidth = (targetPlacement.rotationIndex % 2 === 1) ? 1 : 4;
-            if (currentWidth === 1) targetWidth = (targetPlacement.rotationIndex % 2 === 1) ? 4 : 1;
-        } else if (needsRotation) {
-            // Other pieces: approximate by swapping
-            const currentHeight = currentShape.length;
-            if (targetPlacement.rotationIndex === 1 || targetPlacement.rotationIndex === 3) {
-                targetWidth = currentHeight;
-            }
+        // Rotate first
+        for (let i = 0; i < targetPlacement.rotationIndex; i++) {
+            moves.push('rotate');
         }
         
-        // DECISION: Rotate first if target is narrower or same width
-        // Move first only if target is wider (piece will get stuck if we rotate first)
-        const rotateFirst = targetWidth <= currentWidth;
-        
-        if (rotateFirst) {
-            // ROTATE FIRST - target is narrower, so rotating gives more movement freedom
-            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-                moves.push('rotate');
+        // Then move horizontally
+        if (xDiff < 0) {
+            for (let i = 0; i < Math.abs(xDiff); i++) {
+                moves.push('left');
             }
-            
-            if (xDiff < 0) {
-                for (let i = 0; i < Math.abs(xDiff); i++) {
-                    moves.push('left');
-                }
-            } else if (xDiff > 0) {
-                for (let i = 0; i < xDiff; i++) {
-                    moves.push('right');
-                }
-            }
-        } else {
-            // MOVE FIRST - target is wider, move while still narrow
-            if (xDiff < 0) {
-                for (let i = 0; i < Math.abs(xDiff); i++) {
-                    moves.push('left');
-                }
-            } else if (xDiff > 0) {
-                for (let i = 0; i < xDiff; i++) {
-                    moves.push('right');
-                }
-            }
-            
-            for (let i = 0; i < targetPlacement.rotationIndex; i++) {
-                moves.push('rotate');
+        } else if (xDiff > 0) {
+            for (let i = 0; i < xDiff; i++) {
+                moves.push('right');
             }
         }
         
