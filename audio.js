@@ -77,12 +77,21 @@ function playMP3SoundEffect(effectId, soundToggle) {
 }
 
 // Play banjo sound effect while pausing music, resume when done (UFO easter egg)
-function playBanjoWithMusicPause(soundToggle) {
-    if (!soundToggle || !soundToggle.checked) return;
-    if (sfxMuted) return;
+function playBanjoWithMusicPause(soundToggle, onComplete = null) {
+    if (!soundToggle || !soundToggle.checked) {
+        if (onComplete) onComplete();
+        return;
+    }
+    if (sfxMuted) {
+        if (onComplete) onComplete();
+        return;
+    }
     
     const audio = soundEffectElements['banjo'];
-    if (!audio) return;
+    if (!audio) {
+        if (onComplete) onComplete();
+        return;
+    }
     
     // Pause current music
     const wasPaused = musicPaused;
@@ -94,9 +103,13 @@ function playBanjoWithMusicPause(soundToggle) {
     const clone = audio.cloneNode();
     clone.volume = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
     
-    // Resume music when banjo finishes (unless it was already paused)
+    // When banjo finishes, either call the callback or resume music
     clone.onended = () => {
-        if (!wasPaused) {
+        if (onComplete) {
+            // Custom callback provided - call it instead of resuming
+            onComplete();
+            console.log('🎵 Banjo finished, running callback');
+        } else if (!wasPaused) {
             resumeCurrentMusic();
             console.log('🎵 Music resumed after banjo');
         }
@@ -104,8 +117,10 @@ function playBanjoWithMusicPause(soundToggle) {
     
     clone.play().catch(e => {
         console.log('Banjo autoplay prevented:', e);
-        // Resume music if banjo couldn't play
-        if (!wasPaused) {
+        // Call callback or resume music if banjo couldn't play
+        if (onComplete) {
+            onComplete();
+        } else if (!wasPaused) {
             resumeCurrentMusic();
         }
     });

@@ -2165,9 +2165,6 @@ StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
 
 // Set up UFO swoop callback for 42 lines easter egg
 StarfieldSystem.setUFOSwoopCallback(() => {
-    // Play banjo sound effect (pauses music until banjo finishes)
-    playBanjoWithMusicPause(soundToggle);
-    
     // During replay, use the recorded F Word song; otherwise pick random and record it
     if (replayActive && replayFWordSongId) {
         insertFWordSongById(replayFWordSongId);
@@ -2180,6 +2177,13 @@ StarfieldSystem.setUFOSwoopCallback(() => {
         }
         console.log('🛸 UFO delivered special song!');
     }
+    
+    // Play banjo sound effect, then skip to the F Word song when banjo finishes
+    playBanjoWithMusicPause(soundToggle, () => {
+        // After banjo finishes, immediately skip to the queued F Word song
+        skipToNextSong();
+        console.log('🎵 Skipped to F Word song after banjo');
+    });
 });
 
 // Initialize Color Palette Dropdown
