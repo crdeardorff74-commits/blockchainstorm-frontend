@@ -1,8 +1,8 @@
-// AI Worker v6.6.2 - UFO protection only bypasses for truly critical (h>=15+critical or h>=17)
+// AI Worker v6.7.0 - Survival exit at height 6, 5-ply lookahead
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.6.2 loaded - Better UFO protection");
+console.log("🤖 AI Worker v6.7.0 loaded - Exit survival at 6, 5-ply lookahead");
 
-const AI_VERSION = "6.6.2";
+const AI_VERSION = "6.7.0";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -13,7 +13,7 @@ let pieceQueue = [];
 // Exit survival mode when stack <= 4 AND holes <= 3
 let inSurvivalMode = false;
 const SURVIVAL_MODE_ENTER_HEIGHT = 11;
-const SURVIVAL_MODE_EXIT_HEIGHT = 4;
+const SURVIVAL_MODE_EXIT_HEIGHT = 6;
 const SURVIVAL_MODE_ENTER_HOLES = 8;
 const SURVIVAL_MODE_EXIT_HOLES = 3;
 
@@ -1280,8 +1280,8 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
         return captureDecisionMeta ? { placement: null, decisionMeta: null } : null;
     }
     
-    // 4-ply lookahead: evaluate with next 3 pieces in queue
-    const lookaheadDepth = Math.min(3, queue.length);
+    // 5-ply lookahead: evaluate with next 4 pieces in queue
+    const lookaheadDepth = Math.min(4, queue.length);
     
     for (const placement of placements) {
         let lookaheadScore = 0;
