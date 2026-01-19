@@ -581,7 +581,15 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     }
     
     // Reduce if I-piece in queue
-    const hasIPieceInQueue = pieceQueue.some(p => p && p.type === 'I');
+    // Check if I-piece in queue (reduces well urgency)
+    // Detect I-piece by shape: 1x4 or 4x1
+    const isIPiece = (p) => {
+        if (!p || !p.shape) return false;
+        const h = p.shape.length;
+        const w = p.shape[0] ? p.shape[0].length : 0;
+        return (h === 4 && w === 1) || (h === 1 && w === 4);
+    };
+    const hasIPieceInQueue = pieceQueue.some(isIPiece);
     if (hasIPieceInQueue && iPieceWells.length === 1 && iPieceWells[0].depth <= 6) {
         wellPenalty = Math.round(wellPenalty * 0.6);
     }
@@ -940,9 +948,31 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
 // ==================== MESSAGE HANDLER ====================
 
 self.onmessage = function(e) {
-    const { type, board, piece, cols, rows, queue, skillLevel, captureDecisionMeta } = e.data;
+    const { board, piece, cols, rows, queue, skillLevel, captureDecisionMeta, requestId, command } = e.data;
     
-    if (type === 'findBestPlacement') {
+    // Handle reset command
+    if (command === 'reset') {
+        currentSkillLevel = 'tempest';
+        pieceQueue = [];
+        self.postMessage({ reset: true });
+        return;
+    }
+    
+    // Handle ping
+    if (e.data.type === 'ping') {
+        self.postMessage({ type: 'pong' });
+        return;
+    }
+    
+    // Handle setSkillLevel
+    if (e.data.type === 'setSkillLevel') {
+        currentSkillLevel = e.data.skillLevel;
+        self.postMessage({ type: 'skillLevelSet', skillLevel: currentSkillLevel });
+        return;
+    }
+    
+    // Main placement request
+    if (board && piece) {
         // Update globals
         if (skillLevel) currentSkillLevel = skillLevel;
         if (queue) pieceQueue = queue;
@@ -951,23 +981,18 @@ self.onmessage = function(e) {
         
         if (captureDecisionMeta) {
             self.postMessage({
-                type: 'result',
-                placement: result.placement,
-                decisionMeta: result.decisionMeta
+                bestPlacement: result.placement,
+                decisionMeta: result.decisionMeta,
+                requestId: requestId
             });
         } else {
             self.postMessage({
-                type: 'result',
-                placement: result
+                bestPlacement: result,
+                requestId: requestId
             });
         }
-    } else if (type === 'setSkillLevel') {
-        currentSkillLevel = skillLevel;
-        self.postMessage({ type: 'skillLevelSet', skillLevel });
-    } else if (type === 'ping') {
-        self.postMessage({ type: 'pong' });
     }
 };
 
 // Ready signal
-self.postMessage({ type: 'ready', version: AI_VERSION });
+self.postMessage({ ready: true, version: AI_VERSION });
