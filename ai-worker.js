@@ -1,8 +1,8 @@
-// AI Worker v6.4.0 - Proper survival mode with hysteresis
+// AI Worker v6.4.1 - Fixed survival mode hysteresis (check once per move, not per evaluation)
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.4.0 loaded - Survival mode with hysteresis (enter at 13, exit at 4)");
+console.log("🤖 AI Worker v6.4.1 loaded - Fixed survival mode check location");
 
-const AI_VERSION = "6.4.0";
+const AI_VERSION = "6.4.1";
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
@@ -550,14 +550,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     const edgeVertical = isEdgeVerticalProblem(shape, x, colHeights, cols);
     const adjacencies = countColorAdjacencies(board, shape, x, y, color, cols);
     
-    // ===== SURVIVAL MODE WITH HYSTERESIS =====
-    // Enter survival mode when stack >= 13, exit when stack <= 4
-    if (stackHeight >= SURVIVAL_MODE_ENTER_HEIGHT) {
-        inSurvivalMode = true;
-    } else if (stackHeight <= SURVIVAL_MODE_EXIT_HEIGHT) {
-        inSurvivalMode = false;
-    }
-    // Otherwise, maintain current state (hysteresis)
+    // NOTE: Survival mode is determined ONCE in findBestPlacement() based on
+    // the actual board state, not here during individual placement evaluation.
+    // The global inSurvivalMode is read but not modified here.
     
     // ===== GAME PHASE =====
     // Phase is more granular than survival mode
@@ -1152,6 +1147,18 @@ function generatePlacements(board, piece, cols, rows, captureBreakdown = false) 
 // ==================== LOOKAHEAD ====================
 
 function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta = false) {
+    // UPDATE SURVIVAL MODE based on CURRENT board state (before any placements)
+    // This ensures consistent behavior for all placement evaluations
+    const currentHeights = getColumnHeights(board, cols, rows);
+    const currentStackHeight = Math.max(...currentHeights);
+    
+    if (currentStackHeight >= SURVIVAL_MODE_ENTER_HEIGHT) {
+        inSurvivalMode = true;
+    } else if (currentStackHeight <= SURVIVAL_MODE_EXIT_HEIGHT) {
+        inSurvivalMode = false;
+    }
+    // Otherwise maintain current state (hysteresis)
+    
     const placements = generatePlacements(board, piece, cols, rows, captureDecisionMeta);
     
     if (placements.length === 0) {
