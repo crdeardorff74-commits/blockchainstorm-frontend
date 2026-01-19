@@ -1,7 +1,7 @@
-// AI Worker v5.21.0 - Conservative tsunami: only tolerate holes for width 8+ tsunamis
-console.log("🤖 AI Worker v5.21.0 loaded - Conservative: width 8+ required for hole tolerance");
+// AI Worker v5.22.0 - Row-blocking penalty + increased bumpiness penalty for flatter stacks
+console.log("🤖 AI Worker v5.22.0 loaded - Row-blocking penalty, bumpiness 2.5x base");
 
-const AI_VERSION = "5.21.0";
+const AI_VERSION = "5.22.0";
 
 /**
  * AI for TaNTЯiS / BLOCKCHaiNSTORM
@@ -969,25 +969,25 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     score -= breakdown.height.penalty;
     
     // ====== BUMPINESS ======
-    // Only reduce for STRONG tsunami prospects
-    let bumpinessMultiplier = 2.0;  // Higher base
+    // INCREASED base penalty to encourage flatter stacks and reduce hole creation
+    let bumpinessMultiplier = 2.5;  // Was 2.0
     
     if (tsunamiImminent && stackHeight < 14 && holes <= maxTolerableHoles) {
-        bumpinessMultiplier = 0.6;
+        bumpinessMultiplier = 0.8;  // Was 0.6
     } else if (tsunamiNearCompletion && stackHeight < 12 && holes <= maxTolerableHoles) {
-        bumpinessMultiplier = 0.8;
+        bumpinessMultiplier = 1.0;  // Was 0.8
     } else if (tsunamiAchievableWithQueue && stackHeight < 10 && holes <= 6) {
-        bumpinessMultiplier = 1.2;
+        bumpinessMultiplier = 1.5;  // Was 1.2
     }
     // Width 7 or less: no bumpiness reduction
     
     // Scale up at dangerous heights
     if (stackHeight >= 16) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.5);
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.5);
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.5);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
     }
     
     breakdown.bumpiness.penalty = bumpiness * bumpinessMultiplier;
@@ -1318,6 +1318,41 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     // Extra penalty for severe overhangs (2+ empty below) - creates unfillable patterns
     overhangPenalty += overhangInfo.severeOverhangs * 40;  // Was 20
     
+    // ====== CRITICAL: Penalty for covering nearly-complete rows ======
+    // If this piece creates an overhang over a cell in a row that's 8+ filled,
+    // that row becomes UNFILLABLE and will prevent line clears forever
+    // This is extremely costly - apply massive penalty
+    let rowBlockingPenalty = 0;
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const cellX = x + px;
+                const cellY = y + py;
+                
+                // Check rows BELOW this cell for nearly-complete rows with gaps at this column
+                for (let checkRow = cellY + 1; checkRow < rows; checkRow++) {
+                    // Skip if this cell in the row is already filled
+                    if (board[checkRow] && board[checkRow][cellX]) continue;
+                    
+                    // Count how many cells are filled in this row
+                    let filledInRow = 0;
+                    for (let c = 0; c < cols; c++) {
+                        if (board[checkRow] && board[checkRow][c]) filledInRow++;
+                    }
+                    
+                    // If row is 8+ filled and this column is empty, covering it is catastrophic
+                    if (filledInRow >= 8) {
+                        // This piece is covering a cell that, if filled, would clear a line
+                        // The row will now be unfillable forever
+                        const severity = filledInRow - 7;  // 1 for 8/10, 2 for 9/10
+                        rowBlockingPenalty += 80 * severity;  // Heavy penalty: 80 for 8/10, 160 for 9/10
+                    }
+                }
+            }
+        }
+    }
+    overhangPenalty += rowBlockingPenalty;
+    
     // Scale overhang penalty with stack height - overhangs are more costly when stack is high
     if (stackHeight >= 14) {
         overhangPenalty = Math.round(overhangPenalty * 1.5);
@@ -1346,15 +1381,16 @@ function evaluateBoardWithBreakdown(board, shape, x, y, color, cols, rows) {
     
     // Reduce overhang penalty if building toward special events (creating holes is acceptable)
     // BUT only reduce if this piece actually contributes to the blob/tsunami
+    // AND only reduce the base overhang penalty, not the row-blocking penalty
     if (tsunamiImminent && color === bestTsunamiColor) {
-        // Extending imminent tsunami - overhangs are fine
-        overhangPenalty = Math.round(overhangPenalty * 0.2);
+        // Extending imminent tsunami - overhangs are fine, but row blocking still matters
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.2) + rowBlockingPenalty;
     } else if (buildingSpecialEvent && color === bestTsunamiColor) {
         // Building tsunami with matching color - some reduction
-        overhangPenalty = Math.round(overhangPenalty * 0.5);
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.5) + rowBlockingPenalty;
     } else if (buildingSpecialEvent) {
         // Building special event but wrong color - less reduction
-        overhangPenalty = Math.round(overhangPenalty * 0.7);
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.7) + rowBlockingPenalty;
     }
     // If NOT building special event, full penalty applies
     
@@ -2118,25 +2154,25 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     score -= stackHeight * heightMultiplier;
     
     // ====== BUMPINESS ======
-    // Only reduce for STRONG tsunami prospects
-    let bumpinessMultiplier = 2.0;  // Higher base
+    // INCREASED base penalty to encourage flatter stacks
+    let bumpinessMultiplier = 2.5;  // Was 2.0
     
     if (tsunamiImminent && stackHeight < 14 && holes <= maxTolerableHoles) {
-        bumpinessMultiplier = 0.6;
-    } else if (tsunamiNearCompletion && stackHeight < 12 && holes <= maxTolerableHoles) {
         bumpinessMultiplier = 0.8;
+    } else if (tsunamiNearCompletion && stackHeight < 12 && holes <= maxTolerableHoles) {
+        bumpinessMultiplier = 1.0;
     } else if (tsunamiAchievableWithQueue && stackHeight < 10 && holes <= 6) {
-        bumpinessMultiplier = 1.2;
+        bumpinessMultiplier = 1.5;
     }
     // Width 7 or less: no bumpiness reduction
     
     // Scale up at dangerous heights
     if (stackHeight >= 16) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 4.5);
     } else if (stackHeight >= 14) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.5);
     } else if (stackHeight >= 12) {
-        bumpinessMultiplier = Math.max(bumpinessMultiplier, 2.5);
+        bumpinessMultiplier = Math.max(bumpinessMultiplier, 3.0);
     }
     
     score -= bumpiness * bumpinessMultiplier;
@@ -2378,6 +2414,35 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
     let overhangPenalty = overhangInfo.overhangCount * 12;
     overhangPenalty += overhangInfo.severeOverhangs * 20;
     
+    // ====== CRITICAL: Penalty for covering nearly-complete rows ======
+    // If this piece creates an overhang over a cell in a row that's 8+ filled,
+    // that row becomes UNFILLABLE - apply heavy penalty
+    let rowBlockingPenalty = 0;
+    for (let py = 0; py < shape.length; py++) {
+        for (let px = 0; px < shape[py].length; px++) {
+            if (shape[py][px]) {
+                const cellX = x + px;
+                const cellY = y + py;
+                
+                // Check rows BELOW this cell for nearly-complete rows with gaps at this column
+                for (let checkRow = cellY + 1; checkRow < rows; checkRow++) {
+                    if (board[checkRow] && board[checkRow][cellX]) continue;
+                    
+                    let filledInRow = 0;
+                    for (let c = 0; c < cols; c++) {
+                        if (board[checkRow] && board[checkRow][c]) filledInRow++;
+                    }
+                    
+                    if (filledInRow >= 8) {
+                        const severity = filledInRow - 7;
+                        rowBlockingPenalty += 80 * severity;
+                    }
+                }
+            }
+        }
+    }
+    overhangPenalty += rowBlockingPenalty;
+    
     // MASSIVE penalty for vertical Z/S at edges - scale with height
     if (overhangInfo.edgeVerticalProblem) {
         let edgePenalty = 80;
@@ -2393,13 +2458,13 @@ function evaluateBoard(board, shape, x, y, color, cols, rows) {
         overhangPenalty += edgePenalty;
     }
     
-    // Reduce penalty if building toward imminent tsunami
+    // Reduce penalty if building toward imminent tsunami (but keep row-blocking penalty)
     if (tsunamiImminent && color === bestTsunamiColor) {
-        overhangPenalty = Math.round(overhangPenalty * 0.2);
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.2) + rowBlockingPenalty;
     } else if (buildingSpecialEvent && color === bestTsunamiColor) {
-        overhangPenalty = Math.round(overhangPenalty * 0.5);
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.5) + rowBlockingPenalty;
     } else if (buildingSpecialEvent) {
-        overhangPenalty = Math.round(overhangPenalty * 0.7);
+        overhangPenalty = Math.round((overhangPenalty - rowBlockingPenalty) * 0.7) + rowBlockingPenalty;
     }
     
     score -= overhangPenalty;
