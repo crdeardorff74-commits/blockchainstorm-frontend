@@ -1,18 +1,17 @@
-// AI Worker v6.9.0 - Tuned parameters from AI Tuner analysis
+// AI Worker v6.10.0 - Tuned parameters: earlier survival entry, lower hole tolerance
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.9.0 loaded - Tuned parameters");
+console.log("🤖 AI Worker v6.10.0 loaded - Tuned parameters");
 
-const AI_VERSION = "6.9.0";
+const AI_VERSION = "6.10.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
-// Values tuned via ai-tuner.html analysis of 4 games
 const DEFAULT_CONFIG = {
-    // Survival mode thresholds (tuned: enter earlier, more conservative)
-    survivalEnterHeight: 10,    // was 11
-    survivalExitHeight: 6,
-    survivalEnterHoles: 7,      // was 8
-    survivalExitHoles: 4,       // was 3
+    // Survival mode thresholds
+    survivalEnterHeight: 9,
+    survivalExitHeight: 7,
+    survivalEnterHoles: 5,
+    survivalExitHoles: 3,
     
     // Phase thresholds
     criticalHeight: 16,
@@ -22,25 +21,25 @@ const DEFAULT_CONFIG = {
     cautionHeight: 12,
     cautionHoles: 5,
     
-    // Lookahead (tuned: shorter, more discounted)
-    lookaheadDepth: 3,          // was 4
-    lookaheadDiscount: 0.5,     // was 0.7
+    // Lookahead
+    lookaheadDepth: 2,
+    lookaheadDiscount: 0.6,
     
-    // Blob building bonuses (tuned: less aggressive)
-    horizontalAdjacencyBonus: 12,   // was 18
+    // Blob building bonuses
+    horizontalAdjacencyBonus: 16,
     verticalAdjacencyBonus: 4,
     tsunamiRowBonusMultiplier: 15,
     tsunamiEdgeExtensionBonus: 60,
     tsunamiMatchingColorBonus: 6,
     
     // Tsunami bonuses by width
-    tsunamiImminentBonus: 180,      // Width 9+
+    tsunamiImminentBonus: 180,
     tsunamiImminentPerExtra: 100,
-    tsunamiAchievableBonus: 120,    // Width 7+ with queue
+    tsunamiAchievableBonus: 120,
     tsunamiAchievablePerQueue: 25,
-    tsunamiNearCompleteBonus: 60,   // Width 7-8
+    tsunamiNearCompleteBonus: 60,
     tsunamiNearCompletePerExtra: 20,
-    tsunamiBuildingBonus: 30,       // Width 5-6
+    tsunamiBuildingBonus: 30,
     tsunamiBuildingPerExtra: 15,
     
     // Line clear bonuses in survival mode
@@ -54,8 +53,8 @@ const DEFAULT_CONFIG = {
     normalHeightMultiplier: 2.5,
     normalHeightThreshold: 8,
     
-    // Hole penalties (tuned: slightly more tolerant)
-    holePenaltyBase: 30,        // was 40
+    // Hole penalties
+    holePenaltyBase: 20,
     holePenaltyMedium: 50,
     holePenaltyHigh: 60,
     
@@ -65,7 +64,7 @@ const DEFAULT_CONFIG = {
     // Stacking penalty
     stackingPenaltyPerExcess: 12,
     stackingPenaltySmall: 5,
-    stackingSurvivalMultiplier: 2.0,
+    stackingSurvivalMultiplier: 2,
     
     // Vertical I-piece penalties
     verticalISlightPenalty: 40,
