@@ -41,9 +41,6 @@ const AIPlayer = (() => {
     // Decision metadata for recording
     let lastDecisionMeta = null;
     
-    // Survival mode state (received from worker)
-    let currentSurvivalMode = false;
-    
     // Mode thresholds (reference - actual logic is in worker)
     const modeThresholds = {
         breeze: { upper: 12, lower: 6 },
@@ -173,16 +170,11 @@ const AIPlayer = (() => {
                     console.log('🤖 AI Worker confirmed ready');
                 }
                 
-                const { bestPlacement, reset, stackHeight, survivalMode, decisionMeta, requestId } = e.data;
+                const { bestPlacement, reset, stackHeight, decisionMeta, requestId } = e.data;
                 
                 // Track stack height for display
                 if (typeof stackHeight === 'number') {
                     currentStackHeight = stackHeight;
-                }
-                
-                // Track survival mode state
-                if (typeof survivalMode === 'boolean') {
-                    currentSurvivalMode = survivalMode;
                 }
                 
                 // Store decision metadata for recording
@@ -594,6 +586,13 @@ const AIPlayer = (() => {
         const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
+        // Update UFO state IMMEDIATELY so executeMove can check it
+        // This must happen BEFORE move execution below
+        currentUfoActive = ufoActive || false;
+        
+        // During UFO easter egg: soft drop only (no hard drops) to let the UFO circle
+        const duringUFO = ufoActive || false;
+        
         // Generate piece identity - must be unique per piece spawn
         // Color is NOT unique (consecutive pieces can have same color)
         // Shape/position isn't unique either (pieces spawn at same position)
@@ -640,10 +639,18 @@ const AIPlayer = (() => {
         // Don't start thinking if already thinking
         if (thinking) return;
         
+        // During UFO: if we've already positioned the piece, just keep soft dropping
+        // This ensures the piece lands naturally while the UFO circles
+        if (duringUFO && lastCalculatedPieceId === currentPieceId) {
+            // Queue a soft drop and return - don't recalculate
+            moveQueue = ['down'];
+            return;
+        }
+        
         // If we already calculated for this piece and have no moves, force drop
         // This handles the case where calculation completed but moves didn't execute
-        // But NOT during earthquake - we're intentionally waiting for natural fall
-        if (lastCalculatedPieceId === currentPieceId && !duringEarthquake) {
+        // But NOT during earthquake or UFO - we're intentionally waiting for natural fall
+        if (lastCalculatedPieceId === currentPieceId && !duringEarthquake && !duringUFO) {
             samePieceCount++;
             if (samePieceCount >= STUCK_THRESHOLD) {
                 console.log(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
@@ -659,9 +666,9 @@ const AIPlayer = (() => {
         }
         
         // Stuck detection: check if piece is in same position as last calculation
-        // Skip stuck detection during earthquake since we're intentionally not dropping
+        // Skip stuck detection during earthquake or UFO since we're intentionally not dropping
         const pieceKey = getPieceKey(currentPiece);
-        if (!duringEarthquake) {
+        if (!duringEarthquake && !duringUFO) {
             if (pieceKey === lastPieceKey) {
                 samePositionCount++;
                 if (samePositionCount >= STUCK_THRESHOLD) {
@@ -704,11 +711,13 @@ const AIPlayer = (() => {
             // Request placement from worker
             requestBestPlacement(board, currentPiece, pieceQueue, cols, rows, (bestPlacement, decisionMeta) => {
                 if (bestPlacement) {
-                    // During earthquake: position piece but don't hard drop (let it fall naturally)
-                    moveQueue = calculateMoves(currentPiece, bestPlacement, duringEarthquake);
+                    // During earthquake or UFO: position piece but don't hard drop
+                    // During UFO: let it fall naturally so the UFO can circle the score
+                    const skipHardDrop = duringEarthquake || duringUFO;
+                    moveQueue = calculateMoves(currentPiece, bestPlacement, skipHardDrop);
                 } else {
-                    // Only drop if not during earthquake
-                    moveQueue = duringEarthquake ? [] : ['drop'];
+                    // Only drop if not during earthquake or UFO
+                    moveQueue = (duringEarthquake || duringUFO) ? [] : ['drop'];
                 }
                 
                 thinking = false;
@@ -732,7 +741,12 @@ const AIPlayer = (() => {
                 if (callbacks.rotate) callbacks.rotate();
                 break;
             case 'drop':
-                if (callbacks.hardDrop) {
+                // Check UFO state at EXECUTION time, not planning time
+                // If UFO is active, do soft drop instead of hard drop
+                if (currentUfoActive) {
+                    if (callbacks.softDrop) callbacks.softDrop();
+                    // Don't set expectingNewPiece - piece hasn't landed yet
+                } else if (callbacks.hardDrop) {
                     callbacks.hardDrop();
                     expectingNewPiece = true;  // Next piece we see will be new
                 }
@@ -753,7 +767,6 @@ const AIPlayer = (() => {
         lastMoveTime = 0;
         pendingCallback = null;
         currentMode = 'colorBuilding'; // Reset to color building mode
-        currentSurvivalMode = false; // Reset survival mode state
         
         // Reset stuck detection
         lastPieceKey = null;
@@ -958,6 +971,17 @@ const AIPlayer = (() => {
         lastDecisionMeta = null;
     }
     
+    /**
+     * Get current survival mode state from last AI decision
+     * Returns true if AI is in survival mode, false otherwise
+     */
+    function getSurvivalMode() {
+        if (lastDecisionMeta && lastDecisionMeta.chosen && lastDecisionMeta.chosen.breakdown) {
+            return lastDecisionMeta.chosen.breakdown.survivalMode || false;
+        }
+        return false;
+    }
+    
     // ==================== SHADOW MODE (for human game analysis) ====================
     
     let shadowCallback = null;
@@ -1029,7 +1053,7 @@ const AIPlayer = (() => {
         terminate,
         getMode,
         getStackHeight,
-        getSurvivalMode: function() { return currentSurvivalMode; },
+        getSurvivalMode,
         modeThresholds,
         // Recording API
         startRecording,
