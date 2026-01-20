@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaNTЯiS AI Tuner</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            margin: 0;
+            padding: 2vh;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            margin-bottom: 2vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1vh;
+            padding: 2vh;
+            margin-bottom: 2vh;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            color: #00d4ff;
+            font-size: 2.5vh;
+        }
+        .controls {
+            display: flex;
+            gap: 2vh;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+        }
+        label {
+            font-size: 1.5vh;
+            color: #aaa;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-label {
+            background: #00d4ff;
+            color: #000;
+            padding: 1vh 2vh;
+            border-radius: 0.5vh;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .file-label:hover {
+            background: #00a8cc;
+            transform: scale(1.05);
+        }
+        input[type="number"], select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 1vh;
+            border-radius: 0.5vh;
+            width: 12vh;
+            font-size: 1.8vh;
+        }
+        button {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #000;
+            border: none;
+            padding: 1.5vh 3vh;
+            border-radius: 0.5vh;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 2vh;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 3vh;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 1.5vh;
+            overflow: hidden;
+            margin: 1vh 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff 0%, #00ff88 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .status {
+            font-size: 1.8vh;
+            color: #aaa;
+            margin: 1vh 0;
+        }
+        .results {
+            display: none;
+        }
+        .results.visible {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.6vh;
+        }
+        th, td {
+            padding: 1vh;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        th {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .highlight {
+            background: rgba(0, 255, 136, 0.1) !important;
+        }
+        .param-analysis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(25vh, 1fr));
+            gap: 2vh;
+        }
+        .param-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.5vh;
+            border-radius: 0.5vh;
+        }
+        .param-card h3 {
+            margin: 0 0 1vh 0;
+            color: #00d4ff;
+            font-size: 1.8vh;
+        }
+        .param-value {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5vh 0;
+            font-size: 1.5vh;
+        }
+        .param-value.best {
+            color: #00ff88;
+            font-weight: bold;
+        }
+        .file-info {
+            color: #00ff88;
+            margin-left: 2vh;
+            font-size: 1.8vh;
+        }
+        .best-config {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 2vh;
+            border-radius: 0.5vh;
+            font-family: monospace;
+            font-size: 1.4vh;
+            white-space: pre-wrap;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        .copy-btn {
+            background: #00ff88;
+            font-size: 1.5vh;
+            padding: 1vh 2vh;
+            margin-top: 1vh;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 TaNTЯiS AI Tuner</h1>
+        
+        <div class="panel">
+            <h2>📁 Load Recording(s)</h2>
+            <div class="controls">
+                <div>
+                    <input type="file" id="fileInput" accept=".json" multiple>
+                    <label class="file-label" for="fileInput">Choose Recording Files</label>
+                    <span class="file-info" id="fileInfo"></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>⚙️ Settings</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Variations per game</label>
+                    <input type="number" id="variations" value="50" min="10" max="500">
+                </div>
+                <div class="control-group">
+                    <label>Max pieces to simulate</label>
+                    <input type="number" id="maxPieces" value="300" min="50" max="1000">
+                </div>
+                <div class="control-group">
+                    <label>Parameter set</label>
+                    <select id="paramSet">
+                        <option value="focused">Focused (faster)</option>
+                        <option value="full">Full (slower)</option>
+                    </select>
+                </div>
+                <button id="runBtn" disabled>🚀 Run Tuning</button>
+            </div>
+        </div>
+        
+        <div class="panel" id="progressPanel" style="display: none;">
+            <h2>🏃 Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status" id="status">Preparing...</div>
+        </div>
+        
+        <div class="panel results" id="resultsPanel">
+            <h2>🏆 Results</h2>
+            
+            <h3>Top 10 Configurations</h3>
+            <table id="topTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Score</th>
+                        <th>🌊</th>
+                        <th>🕳️</th>
+                        <th>Pieces</th>
+                        <th>Lines</th>
+                        <th>Key Parameters</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <h3 style="margin-top: 3vh;">📊 Parameter Analysis</h3>
+            <div class="param-analysis" id="paramAnalysis"></div>
+            
+            <h3 style="margin-top: 3vh;">✅ Best Configuration</h3>
+            <div class="best-config" id="bestConfig"></div>
+            <button class="copy-btn" onclick="copyConfig()">📋 Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+// ==================== SCORING ====================
+// Based on actual game scoring
+function calculateLineScore(linesCleared, level) {
+    const baseScores = { 1: 100, 2: 300, 3: 500, 4: 800 };
+    return (baseScores[linesCleared] || 0) * (level + 1);
+}
+
+function calculateTsunamiScore(blobSize, level) {
+    // Tsunami scoring: base + size bonus, multiplied by level
+    const baseScore = 50000;
+    const sizeBonus = blobSize * 1000;
+    return (baseScore + sizeBonus) * (level + 1);
+}
+
+function calculateBlackHoleScore(innerSize, outerSize, level) {
+    // Black hole scoring: based on both blob sizes
+    const baseScore = 30000;
+    const sizeBonus = (innerSize + outerSize) * 500;
+    return (baseScore + sizeBonus) * (level + 1);
+}
+
+// ==================== BLOB PHYSICS ENGINE ====================
+// Full replication of game.js blob detection and gravity
+
+/**
+ * Find all connected same-color blobs on the board using flood fill
+ * Returns array of blobs: {color, positions: [{x, y}, ...]}
+ */
+function findAllBlobs(board) {
+    const rows = board.length;
+    const cols = board[0].length;
+    const visited = Array(rows).fill(null).map(() => Array(cols).fill(false));
+    const blobs = [];
+    
+    function floodFill(startX, startY, color) {
+        const positions = [];
+        const stack = [[startX, startY]];
+        
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
+            
+            if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+            if (visited[y][x] || board[y][x] !== color) continue;
+            
+            visited[y][x] = true;
+            positions.push({x, y});
+            
+            stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        }
+        
+        return positions;
+    }
+    
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (!visited[y][x] && board[y][x] !== null) {
+                const color = board[y][x];
+                const positions = floodFill(x, y, color);
+                if (positions.length > 0) {
+                    blobs.push({ color, positions });
+                }
+            }
+        }
+    }
+    
+    return blobs;
+}
+
+/**
+ * Calculate how far a blob can fall
+ */
+function calculateBlobFallDistance(blob, board) {
+    const rows = board.length;
+    const cols = board[0].length;
+    let minFall = rows;
+    
+    // Create set of blob positions for quick lookup
+    const blobPositions = new Set(blob.positions.map(p => `${p.x},${p.y}`));
+    
+    // Group by column and find lowest block in each
+    const columnBottoms = new Map();
+    blob.positions.forEach(pos => {
+        if (!columnBottoms.has(pos.x) || pos.y > columnBottoms.get(pos.x)) {
+            columnBottoms.set(pos.x, pos.y);
+        }
+    });
+    
+    // Check each column
+    for (const [x, bottomY] of columnBottoms) {
+        let fall = 0;
+        
+        for (let y = bottomY + 1; y < rows; y++) {
+            // Skip if this is part of our own blob
+            if (blobPositions.has(`${x},${y}`)) continue;
+            
+            if (board[y][x] !== null) {
+                // Hit an obstacle
+                break;
+            }
+            fall++;
+        }
+        
+        minFall = Math.min(minFall, fall);
+    }
+    
+    return minFall;
+}
+
+/**
+ * Move a blob down by fallDistance on the board
+ */
+function moveBlobDown(blob, fallDistance, board) {
+    // Remove from old positions
+    blob.positions.forEach(pos => {
+        board[pos.y][pos.x] = null;
+    });
+    
+    // Move to new positions
+    blob.positions.forEach(pos => {
+        pos.y += fallDistance;
+    });
+    
+    // Place at new positions
+    blob.positions.forEach(pos => {
+        board[pos.y][pos.x] = blob.color;
+    });
+}
+
+/**
+ * Apply gravity to all blobs - blobs fall as units until settled
+ * This is the core physics simulation matching game.js runTwoPhaseGravity
+ */
+function applyBlobGravity(board) {
+    let iterations = 0;
+    const maxIterations = 100;
+    
+    while (iterations < maxIterations) {
+        iterations++;
+        let somethingMoved = false;
+        
+        // Find all current blobs
+        const blobs = findAllBlobs(board);
+        
+        // Sort from bottom to top (so bottom blobs settle first)
+        blobs.sort((a, b) => {
+            const maxYA = Math.max(...a.positions.map(p => p.y));
+            const maxYB = Math.max(...b.positions.map(p => p.y));
+            return maxYB - maxYA;
+        });
+        
+        // Try to drop each blob
+        for (const blob of blobs) {
+            const fall = calculateBlobFallDistance(blob, board);
+            if (fall > 0) {
+                moveBlobDown(blob, fall, board);
+                somethingMoved = true;
+            }
+        }
+        
+        if (!somethingMoved) break;
+    }
+    
+    return board;
+}
+
+/**
+ * Check if any blob triggers a tsunami (spans full width)
+ * Returns {triggered, blob, blobSize} or {triggered: false}
+ */
+function checkTsunami(board) {
+    const cols = board[0].length;
+    const blobs = findAllBlobs(board);
+    
+    for (const blob of blobs) {
+        const xs = blob.positions.map(p => p.x);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        
+        if (minX === 0 && maxX === cols - 1) {
+            return { triggered: true, blob, blobSize: blob.positions.length };
+        }
+    }
+    
+    return { triggered: false };
+}
+
+/**
+ * Clear a tsunami blob from the board
+ */
+function clearTsunamiBlob(board, blob) {
+    blob.positions.forEach(pos => {
+        board[pos.y][pos.x] = null;
+    });
+    return board;
+}
+
+/**
+ * Check if innerBlob is completely surrounded by outerBlob (black hole)
+ */
+function isBlobEnveloped(innerBlob, outerBlob, board) {
+    const rows = board.length;
+    const cols = board[0].length;
+    
+    const outerSet = new Set(outerBlob.positions.map(p => `${p.x},${p.y}`));
+    const innerSet = new Set(innerBlob.positions.map(p => `${p.x},${p.y}`));
+    
+    // Check all 8 directions for each inner blob cell
+    for (const pos of innerBlob.positions) {
+        const adjacents = [
+            [pos.x - 1, pos.y],     // left
+            [pos.x + 1, pos.y],     // right
+            [pos.x, pos.y - 1],     // top
+            [pos.x, pos.y + 1],     // bottom
+            [pos.x - 1, pos.y - 1], // top-left
+            [pos.x + 1, pos.y - 1], // top-right
+            [pos.x - 1, pos.y + 1], // bottom-left
+            [pos.x + 1, pos.y + 1]  // bottom-right
+        ];
+        
+        for (const [ax, ay] of adjacents) {
+            // If adjacent is out of bounds, not enveloped
+            if (ax < 0 || ax >= cols || ay < 0 || ay >= rows) {
+                return false;
+            }
+            
+            const key = `${ax},${ay}`;
+            // Adjacent must be either outer or inner blob
+            if (!outerSet.has(key) && !innerSet.has(key)) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Detect black holes (outer blob completely surrounding inner blob)
+ */
+function detectBlackHoles(board) {
+    const blobs = findAllBlobs(board);
+    const blackHoles = [];
+    
+    for (let i = 0; i < blobs.length; i++) {
+        for (let j = 0; j < blobs.length; j++) {
+            if (i === j) continue;
+            
+            const outer = blobs[i];
+            const inner = blobs[j];
+            
+            if (isBlobEnveloped(inner, outer, board)) {
+                blackHoles.push({ outerBlob: outer, innerBlob: inner });
+            }
+        }
+    }
+    
+    return blackHoles;
+}
+
+/**
+ * Clear black hole blobs from board
+ */
+function clearBlackHoleBlobs(board, innerBlob, outerBlob) {
+    innerBlob.positions.forEach(pos => {
+        board[pos.y][pos.x] = null;
+    });
+    outerBlob.positions.forEach(pos => {
+        board[pos.y][pos.x] = null;
+    });
+    return board;
+}
+
+/**
+ * Clear completed lines and return count
+ */
+function clearCompletedLines(board) {
+    const rows = board.length;
+    const cols = board[0].length;
+    let linesCleared = 0;
+    
+    // Find and remove completed rows
+    const newBoard = board.filter(row => {
+        const isFull = row.every(cell => cell !== null);
+        if (isFull) linesCleared++;
+        return !isFull;
+    });
+    
+    // Add empty rows at top
+    while (newBoard.length < rows) {
+        newBoard.unshift(Array(cols).fill(null));
+    }
+    
+    // Copy back to original board
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            board[y][x] = newBoard[y][x];
+        }
+    }
+    
+    return linesCleared;
+}
+
+// ==================== PIECE DEFINITIONS ====================
+const PIECES = {
+    I: [[1, 1, 1, 1]],
+    O: [[1, 1], [1, 1]],
+    T: [[0, 1, 0], [1, 1, 1]],
+    S: [[0, 1, 1], [1, 1, 0]],
+    Z: [[1, 1, 0], [0, 1, 1]],
+    J: [[1, 0, 0], [1, 1, 1]],
+    L: [[0, 0, 1], [1, 1, 1]]
+};
+
+// ==================== DEFAULT CONFIG ====================
+// Tuned values from AI Tuner analysis (v6.9.0)
+const DEFAULT_CONFIG = {
+    survivalEnterHeight: 10,
+    survivalExitHeight: 6,
+    survivalEnterHoles: 7,
+    survivalExitHoles: 4,
+    criticalHeight: 16,
+    criticalHoles: 10,
+    dangerHeight: 14,
+    dangerHoles: 7,
+    cautionHeight: 12,
+    cautionHoles: 5,
+    lookaheadDepth: 3,
+    lookaheadDiscount: 0.5,
+    horizontalAdjacencyBonus: 12,
+    verticalAdjacencyBonus: 4,
+    tsunamiRowBonusMultiplier: 15,
+    tsunamiEdgeExtensionBonus: 60,
+    tsunamiMatchingColorBonus: 6,
+    tsunamiImminentBonus: 180,
+    tsunamiImminentPerExtra: 100,
+    tsunamiAchievableBonus: 120,
+    tsunamiAchievablePerQueue: 25,
+    tsunamiNearCompleteBonus: 60,
+    tsunamiNearCompletePerExtra: 20,
+    tsunamiBuildingBonus: 30,
+    tsunamiBuildingPerExtra: 15,
+    survivalClear4Bonus: 600,
+    survivalClear3Bonus: 400,
+    survivalClear2Bonus: 250,
+    survivalClear1Bonus: 150,
+    survivalHeightMultiplier: 3.5,
+    normalHeightMultiplier: 2.5,
+    normalHeightThreshold: 8,
+    holePenaltyBase: 30,
+    holePenaltyMedium: 50,
+    holePenaltyHigh: 60,
+    bumpinessPenalty: 2.5,
+    stackingPenaltyPerExcess: 12,
+    stackingPenaltySmall: 5,
+    stackingSurvivalMultiplier: 2.0,
+    verticalISlightPenalty: 40,
+    verticalIModeratePenalty: 120,
+    verticalISeverePenalty: 200,
+    verticalISurvivalExtraPenalty: 100,
+    towerThresholdSevere: 8,
+    towerThresholdBad: 6,
+    towerThresholdModerate: 4,
+    towerPenaltySevere: 10,
+    towerPenaltyBad: 6,
+    towerPenaltyModerate: 3
+};
+
+// ==================== PARAMETER SETS ====================
+const FOCUSED_PARAMETERS = {
+    survivalEnterHeight: [9, 10, 11, 12],         // centered on 10
+    survivalExitHeight: [5, 6, 7, 8],             // centered on 6
+    survivalEnterHoles: [6, 7, 8, 9],             // centered on 7
+    lookaheadDepth: [2, 3, 4],                    // centered on 3
+    horizontalAdjacencyBonus: [10, 12, 14, 16],   // centered on 12
+};
+
+const FULL_PARAMETERS = {
+    survivalEnterHeight: [8, 9, 10, 11, 12],      // centered on 10
+    survivalExitHeight: [4, 5, 6, 7, 8],          // centered on 6
+    survivalEnterHoles: [5, 6, 7, 8, 9],          // centered on 7
+    survivalExitHoles: [2, 3, 4, 5, 6],           // centered on 4
+    lookaheadDepth: [2, 3, 4, 5],                 // centered on 3
+    lookaheadDiscount: [0.4, 0.5, 0.6, 0.7],      // centered on 0.5
+    horizontalAdjacencyBonus: [8, 10, 12, 14, 16], // centered on 12
+    holePenaltyBase: [20, 25, 30, 35, 40],        // centered on 30
+};
+
+// ==================== UTILITY FUNCTIONS ====================
+function extractPieceSequence(recording) {
+    const rd = recording.recording_data || recording;
+    const pieces = rd.pieceData || [];
+    
+    return pieces.map(p => ({
+        type: p.type,
+        color: p.color,
+        shape: PIECES[p.type] || PIECES.T
+    }));
+}
+
+function createEmptyBoard(rows = 20, cols = 10) {
+    return Array(rows).fill(null).map(() => Array(cols).fill(null));
+}
+
+function cloneBoard(board) {
+    return board.map(row => [...row]);
+}
+
+function getColumnHeights(board, cols, rows) {
+    const heights = [];
+    for (let col = 0; col < cols; col++) {
+        let height = 0;
+        for (let row = 0; row < rows; row++) {
+            if (board[row][col] !== null) {
+                height = rows - row;
+                break;
+            }
+        }
+        heights.push(height);
+    }
+    return heights;
+}
+
+function countHoles(board) {
+    let holes = 0;
+    const rows = board.length;
+    const cols = board[0].length;
+    
+    for (let col = 0; col < cols; col++) {
+        let foundBlock = false;
+        for (let row = 0; row < rows; row++) {
+            if (board[row][col] !== null) {
+                foundBlock = true;
+            } else if (foundBlock) {
+                holes++;
+            }
+        }
+    }
+    return holes;
+}
+
+function getAllRotations(shape) {
+    const rotations = [shape];
+    let current = shape;
+    
+    for (let i = 0; i < 3; i++) {
+        const rotated = [];
+        const rows = current.length;
+        const cols = current[0].length;
+        
+        for (let col = 0; col < cols; col++) {
+            const newRow = [];
+            for (let row = rows - 1; row >= 0; row--) {
+                newRow.push(current[row][col]);
+            }
+            rotated.push(newRow);
+        }
+        
+        const rotStr = JSON.stringify(rotated);
+        if (!rotations.some(r => JSON.stringify(r) === rotStr)) {
+            rotations.push(rotated);
+        }
+        current = rotated;
+    }
+    
+    return rotations;
+}
+
+function canPlace(board, shape, x, y, cols, rows) {
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col]) {
+                const boardX = x + col;
+                const boardY = y + row;
+                
+                if (boardX < 0 || boardX >= cols || boardY >= rows) {
+                    return false;
+                }
+                if (boardY >= 0 && board[boardY][boardX] !== null) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+function placePiece(board, shape, x, y, color) {
+    const newBoard = cloneBoard(board);
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col]) {
+                const boardY = y + row;
+                const boardX = x + col;
+                if (boardY >= 0 && boardY < newBoard.length && boardX >= 0 && boardX < newBoard[0].length) {
+                    newBoard[boardY][boardX] = color;
+                }
+            }
+        }
+    }
+    return newBoard;
+}
+
+function dropPiece(board, shape, x, cols, rows) {
+    let y = -shape.length;
+    while (canPlace(board, shape, x, y + 1, cols, rows)) {
+        y++;
+    }
+    return y;
+}
+
+function clearLines(board) {
+    const rows = board.length;
+    const cols = board[0].length;
+    let linesCleared = 0;
+    
+    const newBoard = board.filter(row => {
+        const isFull = row.every(cell => cell !== null);
+        if (isFull) linesCleared++;
+        return !isFull;
+    });
+    
+    while (newBoard.length < rows) {
+        newBoard.unshift(Array(cols).fill(null));
+    }
+    
+    return { board: newBoard, linesCleared };
+}
+
+// ==================== AI EVALUATION ====================
+function evaluatePlacement(board, shape, x, y, color, config, inSurvivalMode, pieceQueue) {
+    const cols = board[0].length;
+    const rows = board.length;
+    
+    let testBoard = placePiece(board, shape, x, y, color);
+    const clearResult = clearLines(testBoard);
+    testBoard = clearResult.board;
+    const linesCleared = clearResult.linesCleared;
+    
+    const heights = getColumnHeights(testBoard, cols, rows);
+    const stackHeight = Math.max(...heights);
+    const holes = countHoles(testBoard);
+    
+    let bumpiness = 0;
+    for (let i = 0; i < heights.length - 1; i++) {
+        bumpiness += Math.abs(heights[i] - heights[i + 1]);
+    }
+    
+    let score = 0;
+    
+    // Hole penalty
+    let holePenalty = 0;
+    if (holes > 0) {
+        if (holes <= 3) {
+            holePenalty = holes * config.holePenaltyBase;
+        } else if (holes <= 6) {
+            holePenalty = 3 * config.holePenaltyBase + (holes - 3) * config.holePenaltyMedium;
+        } else {
+            holePenalty = 3 * config.holePenaltyBase + 3 * config.holePenaltyMedium + (holes - 6) * config.holePenaltyHigh;
+        }
+        if (inSurvivalMode) holePenalty *= 1.5;
+    }
+    score -= holePenalty;
+    
+    // Height penalty
+    if (inSurvivalMode) {
+        score -= stackHeight * config.survivalHeightMultiplier;
+    } else if (stackHeight > config.normalHeightThreshold) {
+        score -= (stackHeight - config.normalHeightThreshold) * config.normalHeightMultiplier;
+    }
+    
+    // Bumpiness penalty
+    score -= bumpiness * config.bumpinessPenalty;
+    
+    // Line clear bonus
+    if (linesCleared > 0) {
+        if (inSurvivalMode) {
+            if (linesCleared >= 4) score += config.survivalClear4Bonus;
+            else if (linesCleared >= 3) score += config.survivalClear3Bonus;
+            else if (linesCleared >= 2) score += config.survivalClear2Bonus;
+            else score += config.survivalClear1Bonus;
+        } else {
+            score += linesCleared * 50;
+        }
+    }
+    
+    // Color adjacency bonus
+    if (!inSurvivalMode) {
+        let adjacencyBonus = 0;
+        for (let row = 0; row < shape.length; row++) {
+            for (let col = 0; col < shape[row].length; col++) {
+                if (shape[row][col]) {
+                    const bx = x + col;
+                    const by = y + row;
+                    if (bx > 0 && testBoard[by] && testBoard[by][bx - 1] === color) {
+                        adjacencyBonus += config.horizontalAdjacencyBonus;
+                    }
+                    if (bx < cols - 1 && testBoard[by] && testBoard[by][bx + 1] === color) {
+                        adjacencyBonus += config.horizontalAdjacencyBonus;
+                    }
+                }
+            }
+        }
+        score += adjacencyBonus;
+    }
+    
+    return { score, linesCleared, stackHeight, holes, board: testBoard };
+}
+
+function findBestPlacement(board, piece, queue, config) {
+    const cols = board[0].length;
+    const rows = board.length;
+    
+    const heights = getColumnHeights(board, cols, rows);
+    const stackHeight = Math.max(...heights);
+    const currentHoles = countHoles(board);
+    
+    let inSurvivalMode = stackHeight >= config.survivalEnterHeight || currentHoles >= config.survivalEnterHoles;
+    
+    const rotations = getAllRotations(piece.shape);
+    let bestPlacement = null;
+    let bestScore = -Infinity;
+    
+    for (let rotIdx = 0; rotIdx < rotations.length; rotIdx++) {
+        const shape = rotations[rotIdx];
+        const shapeWidth = shape[0].length;
+        
+        for (let x = 0; x <= cols - shapeWidth; x++) {
+            const y = dropPiece(board, shape, x, cols, rows);
+            if (y < 0) continue;
+            
+            const result = evaluatePlacement(board, shape, x, y, piece.color, config, inSurvivalMode, queue);
+            
+            // 1-ply lookahead for speed
+            let lookaheadScore = 0;
+            if (queue.length > 0 && config.lookaheadDepth > 0) {
+                const nextPiece = queue[0];
+                const nextRotations = getAllRotations(nextPiece.shape);
+                let bestNextScore = -Infinity;
+                
+                for (const nextShape of nextRotations) {
+                    const nextWidth = nextShape[0].length;
+                    for (let nx = 0; nx <= cols - nextWidth; nx++) {
+                        const ny = dropPiece(result.board, nextShape, nx, cols, rows);
+                        if (ny < 0) continue;
+                        
+                        const nextResult = evaluatePlacement(result.board, nextShape, nx, ny, nextPiece.color, config, inSurvivalMode, queue.slice(1));
+                        if (nextResult.score > bestNextScore) {
+                            bestNextScore = nextResult.score;
+                        }
+                    }
+                }
+                
+                if (bestNextScore > -Infinity) {
+                    lookaheadScore = bestNextScore * config.lookaheadDiscount;
+                }
+            }
+            
+            const totalScore = result.score + lookaheadScore;
+            
+            if (totalScore > bestScore) {
+                bestScore = totalScore;
+                bestPlacement = { x, y, shape, rotationIndex: rotIdx, score: result.score, combinedScore: totalScore, result };
+            }
+        }
+    }
+    
+    return bestPlacement;
+}
+
+// ==================== SIMULATION WITH FULL PHYSICS ====================
+function simulateGame(pieceSequence, config, maxPieces = Infinity) {
+    let board = createEmptyBoard();
+    const cols = 10;
+    const rows = 20;
+    
+    let totalLines = 0;
+    let totalScore = 0;
+    let tsunamiCount = 0;
+    let blackHoleCount = 0;
+    let piecesPlaced = 0;
+    let gameOver = false;
+    let level = 1;
+    
+    for (let i = 0; i < Math.min(pieceSequence.length, maxPieces); i++) {
+        const piece = pieceSequence[i];
+        const queue = pieceSequence.slice(i + 1, i + 1 + config.lookaheadDepth);
+        
+        const placement = findBestPlacement(board, piece, queue, config);
+        
+        if (!placement || placement.y < 0) {
+            gameOver = true;
+            break;
+        }
+        
+        // Step 1: Place piece on board
+        board = placePiece(board, placement.shape, placement.x, placement.y, piece.color);
+        piecesPlaced++;
+        
+        // Step 2: Run cascade loop (special formations → gravity → line clears → repeat)
+        let cascadeActive = true;
+        let cascadeIterations = 0;
+        const maxCascadeIterations = 20;
+        
+        while (cascadeActive && cascadeIterations < maxCascadeIterations) {
+            cascadeIterations++;
+            cascadeActive = false;
+            
+            // Check for tsunamis (blob spanning full width)
+            const tsunami = checkTsunami(board);
+            if (tsunami.triggered) {
+                tsunamiCount++;
+                totalScore += calculateTsunamiScore(tsunami.blobSize, level);
+                clearTsunamiBlob(board, tsunami.blob);
+                applyBlobGravity(board);
+                cascadeActive = true;
+                continue; // Restart cascade check
+            }
+            
+            // Check for black holes (blob enveloping another blob)
+            const blackHoles = detectBlackHoles(board);
+            if (blackHoles.length > 0) {
+                const bh = blackHoles[0]; // Process one at a time
+                blackHoleCount++;
+                totalScore += calculateBlackHoleScore(
+                    bh.innerBlob.positions.length,
+                    bh.outerBlob.positions.length,
+                    level
+                );
+                clearBlackHoleBlobs(board, bh.innerBlob, bh.outerBlob);
+                applyBlobGravity(board);
+                cascadeActive = true;
+                continue; // Restart cascade check
+            }
+            
+            // Check for line clears
+            const linesCleared = clearCompletedLines(board);
+            if (linesCleared > 0) {
+                totalLines += linesCleared;
+                totalScore += calculateLineScore(linesCleared, level);
+                
+                // Apply blob gravity after line clears
+                applyBlobGravity(board);
+                cascadeActive = true;
+                
+                // Level up every 10 lines
+                level = Math.floor(totalLines / 10) + 1;
+            }
+        }
+        
+        // Check for game over (stack too high)
+        const heights = getColumnHeights(board, cols, rows);
+        if (Math.max(...heights) >= rows - 1) {
+            gameOver = true;
+            break;
+        }
+    }
+    
+    return { 
+        piecesPlaced, 
+        totalLines, 
+        totalScore,
+        tsunamiCount,
+        blackHoleCount,
+        gameOver, 
+        finalHoles: countHoles(board),
+        finalLevel: level
+    };
+}
+
+// ==================== CONFIG GENERATION ====================
+function generateRandomConfigs(baseConfig, parameters, count) {
+    const configs = [];
+    const paramNames = Object.keys(parameters);
+    
+    for (let i = 0; i < count; i++) {
+        const config = { ...baseConfig };
+        for (const param of paramNames) {
+            const values = parameters[param];
+            config[param] = values[Math.floor(Math.random() * values.length)];
+        }
+        configs.push(config);
+    }
+    
+    return configs;
+}
+
+// ==================== UI ====================
+let loadedRecordings = [];
+let bestConfigResult = null;
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    loadedRecordings = [];
+    const files = Array.from(e.target.files);
+    
+    if (files.length === 0) {
+        document.getElementById('fileInfo').textContent = '';
+        document.getElementById('runBtn').disabled = true;
+        return;
+    }
+    
+    let loaded = 0;
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const recording = JSON.parse(e.target.result);
+                loadedRecordings.push({ name: file.name, data: recording });
+            } catch (err) {
+                console.error('Failed to parse', file.name, err);
+            }
+            loaded++;
+            if (loaded === files.length) {
+                document.getElementById('fileInfo').textContent = `${loadedRecordings.length} recording(s) loaded`;
+                document.getElementById('runBtn').disabled = loadedRecordings.length === 0;
+            }
+        };
+        reader.readAsText(file);
+    });
+});
+
+document.getElementById('runBtn').addEventListener('click', runTuning);
+
+async function runTuning() {
+    const variations = parseInt(document.getElementById('variations').value);
+    const maxPieces = parseInt(document.getElementById('maxPieces').value);
+    const paramSet = document.getElementById('paramSet').value;
+    const parameters = paramSet === 'full' ? FULL_PARAMETERS : FOCUSED_PARAMETERS;
+    
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('progressPanel').style.display = 'block';
+    document.getElementById('resultsPanel').classList.remove('visible');
+    
+    const allResults = [];
+    const totalConfigs = variations * loadedRecordings.length;
+    let completed = 0;
+    
+    for (const recording of loadedRecordings) {
+        const pieceSequence = extractPieceSequence(recording.data);
+        const configs = generateRandomConfigs(DEFAULT_CONFIG, parameters, variations);
+        
+        for (let i = 0; i < configs.length; i++) {
+            const config = configs[i];
+            const result = simulateGame(pieceSequence, config, maxPieces);
+            
+            allResults.push({
+                recording: recording.name,
+                config: { ...config },
+                ...result
+            });
+            
+            completed++;
+            const progress = (completed / totalConfigs) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('status').textContent = 
+                `Testing ${recording.name}: ${i + 1}/${configs.length} (${completed}/${totalConfigs} total)`;
+            
+            // Yield to UI
+            if (i % 5 === 0) {
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+    }
+    
+    // Sort results by SCORE (primary), then pieces, then lines
+    allResults.sort((a, b) => {
+        // Primary: score (tsunamis make a huge difference)
+        if (a.totalScore !== b.totalScore) return b.totalScore - a.totalScore;
+        // Secondary: pieces placed (survival)
+        if (a.piecesPlaced !== b.piecesPlaced) return b.piecesPlaced - a.piecesPlaced;
+        // Tertiary: lines cleared
+        if (a.totalLines !== b.totalLines) return b.totalLines - a.totalLines;
+        // Finally: fewer final holes
+        return a.finalHoles - b.finalHoles;
+    });
+    
+    // Display results
+    displayResults(allResults, parameters);
+    
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('status').textContent = `Complete! Tested ${totalConfigs} configurations. Ranked by score (tsunamis matter!)`;
+}
+
+function displayResults(results, parameters) {
+    // Top 10 table
+    const tbody = document.querySelector('#topTable tbody');
+    tbody.innerHTML = '';
+    
+    for (let i = 0; i < Math.min(10, results.length); i++) {
+        const r = results[i];
+        const row = document.createElement('tr');
+        if (i === 0) row.classList.add('highlight');
+        
+        const keyParams = [
+            `sEH:${r.config.survivalEnterHeight}`,
+            `sXH:${r.config.survivalExitHeight}`,
+            `LA:${r.config.lookaheadDepth}`,
+            `hAdj:${r.config.horizontalAdjacencyBonus}`
+        ].join(' ');
+        
+        // Format score with commas
+        const scoreStr = r.totalScore.toLocaleString();
+        
+        row.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${scoreStr}</td>
+            <td>${r.tsunamiCount}</td>
+            <td>${r.blackHoleCount || 0}</td>
+            <td>${r.piecesPlaced}</td>
+            <td>${r.totalLines}</td>
+            <td>${keyParams}</td>
+        `;
+        tbody.appendChild(row);
+    }
+    
+    // Parameter analysis - now using score as primary metric
+    const analysisDiv = document.getElementById('paramAnalysis');
+    analysisDiv.innerHTML = '';
+    
+    for (const param of Object.keys(parameters)) {
+        const values = parameters[param];
+        const avgByValue = {};
+        
+        for (const value of values) {
+            const matching = results.filter(r => r.config[param] === value);
+            if (matching.length > 0) {
+                avgByValue[value] = {
+                    avgScore: matching.reduce((sum, r) => sum + r.totalScore, 0) / matching.length,
+                    avgTsunamis: matching.reduce((sum, r) => sum + r.tsunamiCount, 0) / matching.length,
+                    avgBlackHoles: matching.reduce((sum, r) => sum + (r.blackHoleCount || 0), 0) / matching.length,
+                    avgPieces: matching.reduce((sum, r) => sum + r.piecesPlaced, 0) / matching.length,
+                    count: matching.length
+                };
+            }
+        }
+        
+        // Find best value by score
+        let bestValue = values[0];
+        let bestAvg = 0;
+        for (const [value, stats] of Object.entries(avgByValue)) {
+            if (stats.avgScore > bestAvg) {
+                bestAvg = stats.avgScore;
+                bestValue = value;
+            }
+        }
+        
+        const card = document.createElement('div');
+        card.className = 'param-card';
+        card.innerHTML = `<h3>${param}</h3>`;
+        
+        for (const value of values) {
+            if (avgByValue[value]) {
+                const v = avgByValue[value];
+                const div = document.createElement('div');
+                div.className = 'param-value' + (value == bestValue ? ' best' : '');
+                const scoreK = (v.avgScore / 1000).toFixed(0) + 'K';
+                const events = v.avgTsunamis + v.avgBlackHoles;
+                div.innerHTML = `<span>${value}:</span><span>${scoreK}, ${events.toFixed(1)} events</span>`;
+                card.appendChild(div);
+            }
+        }
+        
+        analysisDiv.appendChild(card);
+    }
+    
+    // Best config
+    bestConfigResult = results[0].config;
+    document.getElementById('bestConfig').textContent = JSON.stringify(bestConfigResult, null, 2);
+    
+    document.getElementById('resultsPanel').classList.add('visible');
+}
+
+function copyConfig() {
+    if (bestConfigResult) {
+        navigator.clipboard.writeText(JSON.stringify(bestConfigResult, null, 2))
+            .then(() => alert('Configuration copied to clipboard!'))
+            .catch(err => console.error('Failed to copy:', err));
+    }
+}
+    </script>
+</body>
+</html>

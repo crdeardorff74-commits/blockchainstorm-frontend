@@ -1,21 +1,107 @@
-// AI Worker v6.7.0 - Survival exit at height 6, 5-ply lookahead
+// AI Worker v6.9.0 - Tuned parameters from AI Tuner analysis
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.7.0 loaded - Exit survival at 6, 5-ply lookahead");
+console.log("🤖 AI Worker v6.9.0 loaded - Tuned parameters");
 
-const AI_VERSION = "6.7.0";
+const AI_VERSION = "6.9.0";
+
+// ==================== TUNABLE PARAMETERS ====================
+// All tunable parameters in one object for easy experimentation
+// Values tuned via ai-tuner.html analysis of 4 games
+const DEFAULT_CONFIG = {
+    // Survival mode thresholds (tuned: enter earlier, more conservative)
+    survivalEnterHeight: 10,    // was 11
+    survivalExitHeight: 6,
+    survivalEnterHoles: 7,      // was 8
+    survivalExitHoles: 4,       // was 3
+    
+    // Phase thresholds
+    criticalHeight: 16,
+    criticalHoles: 10,
+    dangerHeight: 14,
+    dangerHoles: 7,
+    cautionHeight: 12,
+    cautionHoles: 5,
+    
+    // Lookahead (tuned: shorter, more discounted)
+    lookaheadDepth: 3,          // was 4
+    lookaheadDiscount: 0.5,     // was 0.7
+    
+    // Blob building bonuses (tuned: less aggressive)
+    horizontalAdjacencyBonus: 12,   // was 18
+    verticalAdjacencyBonus: 4,
+    tsunamiRowBonusMultiplier: 15,
+    tsunamiEdgeExtensionBonus: 60,
+    tsunamiMatchingColorBonus: 6,
+    
+    // Tsunami bonuses by width
+    tsunamiImminentBonus: 180,      // Width 9+
+    tsunamiImminentPerExtra: 100,
+    tsunamiAchievableBonus: 120,    // Width 7+ with queue
+    tsunamiAchievablePerQueue: 25,
+    tsunamiNearCompleteBonus: 60,   // Width 7-8
+    tsunamiNearCompletePerExtra: 20,
+    tsunamiBuildingBonus: 30,       // Width 5-6
+    tsunamiBuildingPerExtra: 15,
+    
+    // Line clear bonuses in survival mode
+    survivalClear4Bonus: 600,
+    survivalClear3Bonus: 400,
+    survivalClear2Bonus: 250,
+    survivalClear1Bonus: 150,
+    
+    // Height penalties
+    survivalHeightMultiplier: 3.5,
+    normalHeightMultiplier: 2.5,
+    normalHeightThreshold: 8,
+    
+    // Hole penalties (tuned: slightly more tolerant)
+    holePenaltyBase: 30,        // was 40
+    holePenaltyMedium: 50,
+    holePenaltyHigh: 60,
+    
+    // Bumpiness
+    bumpinessPenalty: 2.5,
+    
+    // Stacking penalty
+    stackingPenaltyPerExcess: 12,
+    stackingPenaltySmall: 5,
+    stackingSurvivalMultiplier: 2.0,
+    
+    // Vertical I-piece penalties
+    verticalISlightPenalty: 40,
+    verticalIModeratePenalty: 120,
+    verticalISeverePenalty: 200,
+    verticalISurvivalExtraPenalty: 100,
+    
+    // Tower penalties
+    towerThresholdSevere: 8,
+    towerThresholdBad: 6,
+    towerThresholdModerate: 4,
+    towerPenaltySevere: 10,
+    towerPenaltyBad: 6,
+    towerPenaltyModerate: 3
+};
+
+// Current active config (can be modified for testing)
+let config = { ...DEFAULT_CONFIG };
+
+// Function to update config
+function setConfig(newConfig) {
+    config = { ...DEFAULT_CONFIG, ...newConfig };
+    console.log('🔧 AI Config updated:', Object.keys(newConfig).join(', '));
+}
+
+// Function to get current config
+function getConfig() {
+    return { ...config };
+}
 
 // ==================== GLOBAL STATE ====================
 let currentSkillLevel = 'tempest';
 let pieceQueue = [];
 
 // Survival mode state (hysteresis-based)
-// Enter survival mode when stack >= 11 OR holes >= 8
-// Exit survival mode when stack <= 4 AND holes <= 3
 let inSurvivalMode = false;
-const SURVIVAL_MODE_ENTER_HEIGHT = 11;
-const SURVIVAL_MODE_EXIT_HEIGHT = 6;
-const SURVIVAL_MODE_ENTER_HOLES = 8;
-const SURVIVAL_MODE_EXIT_HOLES = 3;
 
 // UFO easter egg state - when active, avoid clearing lines (unless dangerous)
 let currentUfoActive = false;
@@ -25,7 +111,8 @@ let gameRecording = {
     startTime: null,
     decisions: [],
     events: [],
-    finalState: null
+    finalState: null,
+    config: null  // Record which config was used
 };
 
 function startRecording() {
@@ -37,6 +124,7 @@ function startRecording() {
         version: AI_VERSION,
         startTime: Date.now(),
         skillLevel: currentSkillLevel,
+        config: { ...config },  // Record the config used
         decisions: [],
         events: [],
         finalState: null
@@ -564,11 +652,11 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     // ===== GAME PHASE =====
     // Phase is more granular than survival mode
     let phase = 'safe';
-    if (stackHeight >= 16 || holes >= 10) {
+    if (stackHeight >= config.criticalHeight || holes >= config.criticalHoles) {
         phase = 'critical';
-    } else if (stackHeight >= 14 || holes >= 7) {
+    } else if (stackHeight >= config.dangerHeight || holes >= config.dangerHoles) {
         phase = 'danger';
-    } else if (stackHeight >= 12 || holes >= 5) {
+    } else if (stackHeight >= config.cautionHeight || holes >= config.cautionHoles) {
         phase = 'caution';
     }
     
@@ -1267,9 +1355,9 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
     
     // Enter survival mode on high stack OR too many holes
     // Exit only when BOTH stack is low AND holes are cleared
-    if (currentStackHeight >= SURVIVAL_MODE_ENTER_HEIGHT || currentHoles >= SURVIVAL_MODE_ENTER_HOLES) {
+    if (currentStackHeight >= config.survivalEnterHeight || currentHoles >= config.survivalEnterHoles) {
         inSurvivalMode = true;
-    } else if (currentStackHeight <= SURVIVAL_MODE_EXIT_HEIGHT && currentHoles <= SURVIVAL_MODE_EXIT_HOLES) {
+    } else if (currentStackHeight <= config.survivalExitHeight && currentHoles <= config.survivalExitHoles) {
         inSurvivalMode = false;
     }
     // Otherwise maintain current state (hysteresis)
@@ -1280,8 +1368,8 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
         return captureDecisionMeta ? { placement: null, decisionMeta: null } : null;
     }
     
-    // 5-ply lookahead: evaluate with next 4 pieces in queue
-    const lookaheadDepth = Math.min(4, queue.length);
+    // Configurable lookahead depth
+    const lookaheadDepth = Math.min(config.lookaheadDepth, queue.length);
     
     for (const placement of placements) {
         let lookaheadScore = 0;
@@ -1315,7 +1403,7 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
             }
             
             // Weight future moves less (discount factor)
-            const discount = Math.pow(0.7, depth + 1);
+            const discount = Math.pow(config.lookaheadDiscount, depth + 1);
             lookaheadScore += bestNextScore * discount;
             
             // Update board for next iteration
@@ -1371,7 +1459,22 @@ self.onmessage = function(e) {
         pieceQueue = [];
         inSurvivalMode = false;
         currentUfoActive = false;
+        config = { ...DEFAULT_CONFIG };  // Reset config to defaults
         self.postMessage({ reset: true });
+        return;
+    }
+    
+    // Handle setConfig command - update tunable parameters
+    if (command === 'setConfig') {
+        const newConfig = e.data.config || {};
+        setConfig(newConfig);
+        self.postMessage({ configSet: true, config: getConfig() });
+        return;
+    }
+    
+    // Handle getConfig command - return current configuration
+    if (command === 'getConfig') {
+        self.postMessage({ config: getConfig(), defaultConfig: DEFAULT_CONFIG });
         return;
     }
     
