@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.10 loaded - AI shadow evaluation for human game recordings");
+console.log("🎮 Game v3.12 loaded - Replay timing speedup (95%) + sync indicator");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
@@ -13568,6 +13568,10 @@ let replayMusicIndex = 0;
 let replayGameStartTime = 0;     // When replay started (for music timing)
 let replayFWordSongId = null;    // Which F Word song was used (easter egg)
 
+// Replay timing speedup: Execute inputs at 95% of recorded time to prevent drift
+// As pieces fall faster, small timing discrepancies accumulate - this compensates
+const REPLAY_INPUT_SPEEDUP = 1.0 / 0.95;  // ~1.053x - inputs fire 5% earlier
+
 /**
  * Start deterministic game replay (v2.0 piece-indexed)
  * Runs an actual game with recorded pieces and inputs
@@ -13872,6 +13876,10 @@ function spawnReplayPiece() {
         }
         if (differences > 0) {
             console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
+            // Show visual indicator if significant differences
+            if (differences > 2) {
+                showReplaySyncIndicator();
+            }
         }
     } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
         let reason;
@@ -13962,8 +13970,8 @@ function processReplayInputs() {
     const pieceEntry = replayPieceData[replayPieceIndex];
     if (!pieceEntry) return;
     
-    // Calculate elapsed time since this piece spawned
-    replayPieceElapsedTime = Date.now() - replayPieceSpawnTime;
+    // Calculate elapsed time since this piece spawned, with speedup to prevent drift
+    replayPieceElapsedTime = (Date.now() - replayPieceSpawnTime) * REPLAY_INPUT_SPEEDUP;
     
     // Debug: Log if piece is stuck for a long time
     if (replayPieceElapsedTime > 10000 && !pieceEntry._stuckLogged) {
@@ -14194,6 +14202,57 @@ let replayTornadoDropIndex = 0;
 // Lava projectile velocities (collected as events are processed)
 let replayLavaProjectiles = [];
 let replayLavaProjectileIndex = 0;
+
+/**
+ * Show visual indicator that replay was resynced
+ */
+function showReplaySyncIndicator() {
+    // Remove any existing indicator
+    const existing = document.getElementById('replaySyncIndicator');
+    if (existing) existing.remove();
+    
+    const indicator = document.createElement('div');
+    indicator.id = 'replaySyncIndicator';
+    indicator.innerHTML = '🔄 RESYNCING';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 165, 0, 0.9);
+        color: #000;
+        padding: 1vh 2vw;
+        border-radius: 1vh;
+        font-family: Arial, sans-serif;
+        font-size: 2vh;
+        font-weight: bold;
+        z-index: 1001;
+        animation: replaySyncPulse 0.5s ease-out;
+        pointer-events: none;
+    `;
+    
+    // Add animation keyframes if not already present
+    if (!document.getElementById('replaySyncStyles')) {
+        const style = document.createElement('style');
+        style.id = 'replaySyncStyles';
+        style.textContent = `
+            @keyframes replaySyncPulse {
+                0% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(indicator);
+    
+    // Fade out and remove after delay
+    setTimeout(() => {
+        indicator.style.transition = 'opacity 0.3s ease-out';
+        indicator.style.opacity = '0';
+        setTimeout(() => indicator.remove(), 300);
+    }, 700);
+}
 
 /**
  * Show replay UI controls
@@ -14476,6 +14535,8 @@ function stopReplay() {
     // Remove replay controls
     const controls = document.getElementById('replayControls');
     if (controls) controls.remove();
+    const syncIndicator = document.getElementById('replaySyncIndicator');
+    if (syncIndicator) syncIndicator.remove();
     
     // Reset game state
     gameRunning = false;
