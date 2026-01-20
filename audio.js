@@ -232,7 +232,7 @@ const menuOnlySongs = [
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
 const F_WORD_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
 const fWordSongs = [];
-for (let i = 1; i <= 21; i++) {
+for (let i = 1; i <= 20; i++) {
     fWordSongs.push({
         id: `f_word_${i}`,
         name: `F Word (${i})`,
