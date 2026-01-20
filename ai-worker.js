@@ -1,8 +1,8 @@
-// AI Worker v6.11.0 - Much stronger tsunami pursuit
+// AI Worker v6.12.0 - Row-aware tsunami extension, waste penalty
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.11.0 loaded - Stronger tsunami pursuit");
+console.log("🤖 AI Worker v6.12.0 loaded - Smart tsunami extension");
 
-const AI_VERSION = "6.11.0";
+const AI_VERSION = "6.12.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
@@ -41,7 +41,9 @@ const DEFAULT_CONFIG = {
     tsunamiNearCompletePerExtra: 30, // Per width over 6 (was 20)
     tsunamiBuildingBonus: 50,       // Width 5-6 (was 30)
     tsunamiBuildingPerExtra: 20,    // Per width over 4 (was 15)
-    tsunamiEdgeExtensionBonus: 80,  // Bonus for extending blob (was 60, now used!)
+    tsunamiEdgeExtensionBonus: 80,  // Base extension bonus (scales up to 350 for width 8+)
+    tsunamiWastePenaltyW8: 150,     // Penalty for not extending width 8+ tsunami
+    tsunamiWastePenaltyW7: 80,      // Penalty for not extending width 7 tsunami
     
     // Line clear bonuses in survival mode
     survivalClear4Bonus: 600,
@@ -1127,6 +1129,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     // ----- TSUNAMI BONUS -----
     let tsunamiBonus = 0;
+    let didExtend = false;
     
     if (!isBreeze && tsunamiWorthBuilding && color === bestTsunamiColor) {
         if (tsunamiImminent) {
@@ -1144,19 +1147,51 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
             tsunamiBonus = 50 + (bestTsunamiWidth - 4) * 20;
         }
         
-        // EDGE EXTENSION BONUS: Big bonus for actually extending the blob
+        // EDGE EXTENSION BONUS: HUGE bonus for actually extending the blob
+        // This should be the dominant factor for near-complete tsunamis
+        // Must check that piece lands ON the tsunami row to actually extend it
         if (tsunamiRun && bestTsunamiWidth >= 5) {
             const pieceMinX = x;
             const pieceMaxX = x + (shape[0]?.length || 1) - 1;
+            const pieceMinY = y;
+            const pieceMaxY = y + shape.length - 1;
+            const tsunamiRow = tsunamiRun.row;
             
-            // Check if this placement extends left
-            if (!tsunamiRun.touchesLeft && pieceMinX <= tsunamiRun.startX - 1) {
-                tsunamiBonus += 80;  // Significant extension bonus
+            // Check if piece spans the tsunami row
+            const pieceTouchesRow = tsunamiRow >= pieceMinY && tsunamiRow <= pieceMaxY;
+            
+            if (pieceTouchesRow) {
+                // Calculate extension bonus based on how close we are to completion
+                // Width 8-9: MASSIVE bonus - we're so close!
+                // Width 7: Big bonus
+                // Width 5-6: Moderate bonus
+                let extensionBonus;
+                if (bestTsunamiWidth >= 8) {
+                    extensionBonus = 350;  // Near completion - this should dominate
+                } else if (bestTsunamiWidth >= 7) {
+                    extensionBonus = 200;
+                } else {
+                    extensionBonus = 100;
+                }
+                
+                // Check if this placement extends left
+                if (!tsunamiRun.touchesLeft && pieceMinX <= tsunamiRun.startX - 1) {
+                    tsunamiBonus += extensionBonus;
+                    didExtend = true;
+                }
+                // Check if this placement extends right  
+                if (!tsunamiRun.touchesRight && pieceMaxX >= tsunamiRun.endX + 1) {
+                    tsunamiBonus += extensionBonus;
+                    didExtend = true;
+                }
             }
-            // Check if this placement extends right  
-            if (!tsunamiRun.touchesRight && pieceMaxX >= tsunamiRun.endX + 1) {
-                tsunamiBonus += 80;
-            }
+        }
+        
+        // PENALTY for matching pieces that DON'T extend a near-complete tsunami
+        // If we have a width 7+ blob and we're placing a matching piece elsewhere, that's wasteful
+        if (tsunamiRun && bestTsunamiWidth >= 7 && !didExtend) {
+            const wastePenalty = (bestTsunamiWidth >= 8) ? 150 : 80;
+            tsunamiBonus -= wastePenalty;
         }
         
         // Reduce if foundation is unstable (will die after tsunami clears)
@@ -1166,7 +1201,10 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     }
     
     score += tsunamiBonus;
-    if (breakdown) breakdown.tsunami.bonus = tsunamiBonus;
+    if (breakdown) {
+        breakdown.tsunami.bonus = tsunamiBonus;
+        breakdown.tsunami.didExtend = didExtend;
+    }
     
     // ----- POST-TSUNAMI HEIGHT PENALTY -----
     // When building a tsunami, penalize placements that leave tall non-tsunami stacks
