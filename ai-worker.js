@@ -1,8 +1,8 @@
-// AI Worker v6.10.2 - Tsunami preservation + blocking penalty
+// AI Worker v6.11.0 - Much stronger tsunami pursuit
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.10.2 loaded - Tsunami preservation + blocking");
+console.log("🤖 AI Worker v6.11.0 loaded - Stronger tsunami pursuit");
 
-const AI_VERSION = "6.10.2";
+const AI_VERSION = "6.11.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
@@ -32,15 +32,16 @@ const DEFAULT_CONFIG = {
     tsunamiEdgeExtensionBonus: 60,
     tsunamiMatchingColorBonus: 6,
     
-    // Tsunami bonuses by width
-    tsunamiImminentBonus: 180,
-    tsunamiImminentPerExtra: 100,
-    tsunamiAchievableBonus: 120,
-    tsunamiAchievablePerQueue: 25,
-    tsunamiNearCompleteBonus: 60,
-    tsunamiNearCompletePerExtra: 20,
-    tsunamiBuildingBonus: 30,
-    tsunamiBuildingPerExtra: 15,
+    // Tsunami bonuses by width (increased significantly)
+    tsunamiImminentBonus: 300,      // Width 9+ (was 180)
+    tsunamiImminentPerExtra: 150,   // Per width over 9 (was 100)
+    tsunamiAchievableBonus: 200,    // Width 7+ with queue (was 120)
+    tsunamiAchievablePerQueue: 40,  // Per matching piece in queue (was 25)
+    tsunamiNearCompleteBonus: 120,  // Width 7-8 without queue (was 60)
+    tsunamiNearCompletePerExtra: 30, // Per width over 6 (was 20)
+    tsunamiBuildingBonus: 50,       // Width 5-6 (was 30)
+    tsunamiBuildingPerExtra: 20,    // Per width over 4 (was 15)
+    tsunamiEdgeExtensionBonus: 80,  // Bonus for extending blob (was 60, now used!)
     
     // Line clear bonuses in survival mode
     survivalClear4Bonus: 600,
@@ -679,7 +680,9 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     const matchingInQueue = pieceQueue.filter(p => p && p.color === bestTsunamiColor).length;
     const blocksNeeded = 10 - bestTsunamiWidth;
     const tsunamiImminent = bestTsunamiWidth >= 9;
-    const tsunamiAchievable = bestTsunamiWidth >= 7 && matchingInQueue >= blocksNeeded;
+    // Lower threshold for achievable: width 6+ with enough pieces, or width 7+ with half the pieces needed
+    const tsunamiAchievable = (bestTsunamiWidth >= 7 && matchingInQueue >= Math.ceil(blocksNeeded / 2)) ||
+                              (bestTsunamiWidth >= 6 && matchingInQueue >= blocksNeeded);
     
     // In survival mode: only pursue if imminent (direct path to completion)
     // Otherwise: start building at width 5+
@@ -1127,18 +1130,33 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     
     if (!isBreeze && tsunamiWorthBuilding && color === bestTsunamiColor) {
         if (tsunamiImminent) {
-            // Width 9+: Very close to completion - big bonus
-            tsunamiBonus = 180 + (bestTsunamiWidth - 9) * 100;
+            // Width 9+: Very close to completion - huge bonus
+            tsunamiBonus = 300 + (bestTsunamiWidth - 9) * 150;
             if (breakdown) breakdown.classification = 'offensive';
         } else if (tsunamiAchievable) {
-            // Width 7+ with pieces in queue to complete
-            tsunamiBonus = 120 + matchingInQueue * 25;
+            // Width 7+ with pieces in queue to complete - strong bonus
+            tsunamiBonus = 200 + matchingInQueue * 40;
         } else if (tsunamiNearComplete) {
-            // Width 7-8: significant bonus
-            tsunamiBonus = 60 + (bestTsunamiWidth - 6) * 20;
+            // Width 7-8 without full queue: still prioritize extension
+            tsunamiBonus = 120 + (bestTsunamiWidth - 6) * 30;
         } else if (bestTsunamiWidth >= 5) {
             // Width 5-6: meaningful bonus to encourage building
-            tsunamiBonus = 30 + (bestTsunamiWidth - 4) * 15;
+            tsunamiBonus = 50 + (bestTsunamiWidth - 4) * 20;
+        }
+        
+        // EDGE EXTENSION BONUS: Big bonus for actually extending the blob
+        if (tsunamiRun && bestTsunamiWidth >= 5) {
+            const pieceMinX = x;
+            const pieceMaxX = x + (shape[0]?.length || 1) - 1;
+            
+            // Check if this placement extends left
+            if (!tsunamiRun.touchesLeft && pieceMinX <= tsunamiRun.startX - 1) {
+                tsunamiBonus += 80;  // Significant extension bonus
+            }
+            // Check if this placement extends right  
+            if (!tsunamiRun.touchesRight && pieceMaxX >= tsunamiRun.endX + 1) {
+                tsunamiBonus += 80;
+            }
         }
         
         // Reduce if foundation is unstable (will die after tsunami clears)
