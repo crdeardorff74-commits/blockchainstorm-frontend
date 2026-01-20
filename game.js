@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.12 loaded - Replay timing speedup (95%) + sync indicator");
+console.log("🎮 Game v3.12 loaded - Adaptive replay speedup (+2% per resync)");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
@@ -13568,9 +13568,10 @@ let replayMusicIndex = 0;
 let replayGameStartTime = 0;     // When replay started (for music timing)
 let replayFWordSongId = null;    // Which F Word song was used (easter egg)
 
-// Replay timing speedup: Execute inputs at 95% of recorded time to prevent drift
+// Replay timing speedup: Execute inputs faster than recorded to prevent drift
 // As pieces fall faster, small timing discrepancies accumulate - this compensates
-const REPLAY_INPUT_SPEEDUP = 1.0 / 0.95;  // ~1.053x - inputs fire 5% earlier
+// Starts at ~1.053x (95% of recorded time), increases 2% each resync
+let replayInputSpeedup = 1.0 / 0.95;
 
 /**
  * Start deterministic game replay (v2.0 piece-indexed)
@@ -13607,6 +13608,7 @@ window.startGameReplay = function(recording) {
     replayRandomEventIndex = 0;
     replayPieceSpawnTime = 0;
     replayPieceElapsedTime = 0;
+    replayInputSpeedup = 1.0 / 0.95;  // Reset to initial 5% speedup
     
     // Music tracks use global timing
     replayMusicTracks = recData.musicTracks || [];
@@ -13879,6 +13881,9 @@ function spawnReplayPiece() {
             // Show visual indicator if significant differences
             if (differences > 2) {
                 showReplaySyncIndicator();
+                // Increase speedup by 2% to prevent further drift
+                replayInputSpeedup *= 1.02;
+                console.log('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
             }
         }
     } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
@@ -13971,7 +13976,7 @@ function processReplayInputs() {
     if (!pieceEntry) return;
     
     // Calculate elapsed time since this piece spawned, with speedup to prevent drift
-    replayPieceElapsedTime = (Date.now() - replayPieceSpawnTime) * REPLAY_INPUT_SPEEDUP;
+    replayPieceElapsedTime = (Date.now() - replayPieceSpawnTime) * replayInputSpeedup;
     
     // Debug: Log if piece is stuck for a long time
     if (replayPieceElapsedTime > 10000 && !pieceEntry._stuckLogged) {
@@ -14480,6 +14485,7 @@ function stopReplay() {
     replayRandomEventIndex = 0;
     replayPieceSpawnTime = 0;
     replayPieceElapsedTime = 0;
+    replayInputSpeedup = 1.0 / 0.95;  // Reset to initial speedup
     replayMusicTracks = [];
     replayMusicIndex = 0;
     replayGameStartTime = 0;
