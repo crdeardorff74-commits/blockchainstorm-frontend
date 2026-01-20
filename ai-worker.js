@@ -1,8 +1,8 @@
-// AI Worker v6.10.0 - Tuned parameters: earlier survival entry, lower hole tolerance
+// AI Worker v6.10.2 - Tsunami preservation + blocking penalty
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.10.0 loaded - Tuned parameters");
+console.log("🤖 AI Worker v6.10.2 loaded - Tsunami preservation + blocking");
 
-const AI_VERSION = "6.10.0";
+const AI_VERSION = "6.10.2";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
@@ -1015,7 +1015,25 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
                 
                 if (!survivalCheck.survives && bestTsunamiWidth >= 5) {
                     // Line clear destroys tsunami progress - penalty proportional to width
-                    const widthPenalty = (bestTsunamiWidth - 4) * 15;
+                    // Much stronger penalty for near-complete tsunamis (width 7+)
+                    let widthPenalty;
+                    if (bestTsunamiWidth >= 8) {
+                        widthPenalty = 150;  // Near-complete, severe penalty
+                    } else if (bestTsunamiWidth >= 7) {
+                        widthPenalty = 100;  // Close to complete
+                    } else if (bestTsunamiWidth >= 6) {
+                        widthPenalty = 60;
+                    } else {
+                        widthPenalty = 30;
+                    }
+                    
+                    // Extra penalty if matching pieces are in queue (tsunami is achievable)
+                    if (tsunamiAchievable) {
+                        widthPenalty += 80;  // Strong extra penalty - we have the pieces to complete it!
+                    } else if (matchingInQueue >= 1) {
+                        widthPenalty += 30;  // Some matching pieces coming
+                    }
+                    
                     lineClearBonus = -completeRows * widthPenalty;
                 } else if (survivalCheck.newWidth < bestTsunamiWidth - 1) {
                     // Significant damage to tsunami - reduced bonus
@@ -1176,6 +1194,62 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
             maxHeight: postTsunamiInfo?.maxHeight || 0, 
             penalty: postTsunamiPenalty 
         };
+    }
+    
+    // ----- TSUNAMI BLOCKING PENALTY -----
+    // Penalize non-matching pieces that block tsunami extension points
+    let tsunamiBlockingPenalty = 0;
+    
+    if (tsunamiRun && tsunamiWorthBuilding && color !== bestTsunamiColor && bestTsunamiWidth >= 5) {
+        // This piece doesn't match the tsunami color - check if it blocks extension
+        const leftExtensionCol = tsunamiRun.startX - 1;  // Column needed to extend left
+        const rightExtensionCol = tsunamiRun.endX + 1;   // Column needed to extend right
+        
+        // Track if we block either extension
+        let blocksLeft = false;
+        let blocksRight = false;
+        
+        // Check each cell of the placed piece
+        for (let py = 0; py < shape.length; py++) {
+            for (let px = 0; px < shape[py].length; px++) {
+                if (shape[py][px]) {
+                    const pieceCol = x + px;
+                    
+                    // Check if this cell blocks left extension
+                    if (!tsunamiRun.touchesLeft && pieceCol === leftExtensionCol && leftExtensionCol >= 0) {
+                        blocksLeft = true;
+                    }
+                    
+                    // Check if this cell blocks right extension
+                    if (!tsunamiRun.touchesRight && pieceCol === rightExtensionCol && rightExtensionCol < cols) {
+                        blocksRight = true;
+                    }
+                }
+            }
+        }
+        
+        // Apply penalty for each blocked extension
+        if (blocksLeft || blocksRight) {
+            // Base penalty scales with tsunami width
+            const blockPenalty = (bestTsunamiWidth >= 8) ? 100 :
+                                 (bestTsunamiWidth >= 7) ? 70 :
+                                 (bestTsunamiWidth >= 6) ? 45 : 25;
+            
+            if (blocksLeft) tsunamiBlockingPenalty += blockPenalty;
+            if (blocksRight) tsunamiBlockingPenalty += blockPenalty;
+            
+            // Extra penalty if tsunami is achievable (we have pieces in queue)
+            if (tsunamiAchievable) {
+                tsunamiBlockingPenalty += 50;  // We have the pieces to complete, don't block!
+            } else if (matchingInQueue >= 1) {
+                tsunamiBlockingPenalty += 20;
+            }
+        }
+    }
+    
+    score -= tsunamiBlockingPenalty;
+    if (breakdown) {
+        breakdown.tsunamiBlocking = { penalty: tsunamiBlockingPenalty };
     }
     
     // ----- BLACK HOLE BONUS -----
