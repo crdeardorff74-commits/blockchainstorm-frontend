@@ -2027,64 +2027,82 @@ function adjustPanelForSongInfo() {
     }
 }
 
-// Show purge notification popup
+// Show purge notification popup in side panel (where planet stats is)
 function showPurgeNotification(songName, duration) {
     // Remove any existing notification
     const existing = document.getElementById('purgeNotification');
     if (existing) existing.remove();
     
+    // Hide planet stats temporarily
+    const planetStats = document.getElementById('planetStats');
+    if (planetStats) {
+        planetStats.style.display = 'none';
+    }
+    
+    // Find side panel to insert notification
+    const sidePanel = document.querySelector('.side-panel');
+    if (!sidePanel) return;
+    
     const notification = document.createElement('div');
     notification.id = 'purgeNotification';
     notification.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.9);
-        border: 2px solid #ff6b6b;
-        border-radius: 1vh;
-        padding: 2vh 3vw;
-        z-index: 10000;
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid #ff6b6b;
+        border-radius: 0.5vh;
+        padding: 1vh 0.8vw;
+        margin-top: 1vh;
         text-align: center;
-        animation: fadeInOut 3s ease-in-out forwards;
-        max-width: 80vw;
+        animation: purgeNotifFade 3s ease-in-out forwards;
+        font-size: 0.85em;
     `;
     
     let message;
     if (duration === 'indefinite') {
-        message = `<span style="color: #ff6b6b; font-size: 1.2em;">🚫</span><br>
-            <span style="color: #fff; font-size: 0.9em;">"${songName}"</span><br>
+        message = `<span style="color: #ff6b6b;">🚫</span>
+            <span style="color: #fff;">"${songName}"</span><br>
             <span style="color: #ff6b6b;">purged indefinitely</span>`;
     } else if (duration === 'week') {
-        message = `<span style="color: #ffaa00; font-size: 1.2em;">⏭️</span><br>
-            <span style="color: #fff; font-size: 0.9em;">"${songName}"</span><br>
+        message = `<span style="color: #ffaa00;">⏭️</span>
+            <span style="color: #fff;">"${songName}"</span><br>
             <span style="color: #ffaa00;">purged for 1 week</span><br>
-            <span style="color: #888; font-size: 0.7em; margin-top: 0.5vh; display: block;">
-                Tip: Hold ⏭ to purge indefinitely
+            <span style="color: #888; font-size: 0.8em;">
+                Hold ⏭ to purge indefinitely
             </span>`;
     }
     
     notification.innerHTML = message;
-    document.body.appendChild(notification);
+    
+    // Insert after song info or at appropriate spot in side panel
+    const songInfo = document.getElementById('songInfo');
+    if (songInfo) {
+        songInfo.after(notification);
+    } else if (planetStats) {
+        planetStats.after(notification);
+    } else {
+        sidePanel.appendChild(notification);
+    }
     
     // Add animation keyframes if not already present
     if (!document.getElementById('purgeNotificationStyles')) {
         const style = document.createElement('style');
         style.id = 'purgeNotificationStyles';
         style.textContent = `
-            @keyframes fadeInOut {
-                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-                15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            @keyframes purgeNotifFade {
+                0% { opacity: 0; }
+                15% { opacity: 1; }
+                85% { opacity: 1; }
+                100% { opacity: 0; }
             }
         `;
         document.head.appendChild(style);
     }
     
-    // Remove after animation
+    // Remove after animation and restore planet stats
     setTimeout(() => {
         if (notification.parentNode) notification.remove();
+        if (planetStats) {
+            planetStats.style.display = '';
+        }
     }, 3000);
 }
 
