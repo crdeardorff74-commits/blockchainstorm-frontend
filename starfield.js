@@ -17,11 +17,21 @@ const StarfieldSystem = (function() {
         left: 0;
         width: 100vw;
         height: 100vh;
+        min-height: 100%;
         z-index: 0;
         pointer-events: none;
+        border: none;
+        margin: 0;
+        padding: 0;
+        display: block;
+        object-fit: fill;
     `;
     document.body.appendChild(ufoCanvas);
     const ufoCtx = ufoCanvas.getContext('2d');
+    
+    // Initialize UFO canvas size to match starfield
+    ufoCanvas.width = window.innerWidth * 1.1;
+    ufoCanvas.height = window.innerHeight * 1.1;
     
     // Stars configuration
     const stars = [];
