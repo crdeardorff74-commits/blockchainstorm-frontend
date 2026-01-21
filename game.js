@@ -2072,12 +2072,14 @@ function showPurgeNotification(songName, duration) {
     
     notification.innerHTML = message;
     
-    // Insert after song info or at appropriate spot in side panel
+    // Insert where planet stats is (above song info)
     const songInfo = document.getElementById('songInfo');
-    if (songInfo) {
-        songInfo.after(notification);
-    } else if (planetStats) {
-        planetStats.after(notification);
+    if (planetStats && planetStats.parentNode) {
+        // Insert in place of planet stats
+        planetStats.parentNode.insertBefore(notification, planetStats);
+    } else if (songInfo) {
+        // Insert before song info
+        songInfo.parentNode.insertBefore(notification, songInfo);
     } else {
         sidePanel.appendChild(notification);
     }
