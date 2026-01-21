@@ -8,6 +8,21 @@ const StarfieldSystem = (function() {
     const starfieldCanvas = document.getElementById('starfield');
     const starfieldCtx = starfieldCanvas.getContext('2d');
     
+    // Create separate UFO canvas for independent z-index control
+    const ufoCanvas = document.createElement('canvas');
+    ufoCanvas.id = 'ufoCanvas';
+    ufoCanvas.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        pointer-events: none;
+    `;
+    document.body.appendChild(ufoCanvas);
+    const ufoCtx = ufoCanvas.getContext('2d');
+    
     // Stars configuration
     const stars = [];
     const numStars = 400;
@@ -729,6 +744,10 @@ const StarfieldSystem = (function() {
         centerX = starfieldCanvas.width / 2;
         centerY = starfieldCanvas.height / 2;
         
+        // Also resize UFO canvas
+        ufoCanvas.width = starfieldCanvas.width;
+        ufoCanvas.height = starfieldCanvas.height;
+        
         stars.length = 0;
         for (let i = 0; i < numStars; i++) {
             stars.push(createStar());
@@ -1248,9 +1267,9 @@ const StarfieldSystem = (function() {
                 
                 ufoBeamOpacity = Math.sin(ufoCircleTime * 0.1) * 0.3 + 0.5;
                 
-                // After 2 circles, bring UFO to front (above side panels)
+                // After 2 circles, bring UFO to front (raise UFO canvas z-index)
                 if (!ufoZIndexBoosted && ufoCircleAngle > Math.PI * 4) {
-                    starfieldCanvas.style.zIndex = '10';
+                    ufoCanvas.style.zIndex = '10';
                     ufoZIndexBoosted = true;
                     console.log('🛸 UFO now in front of panels');
                 }
@@ -1326,9 +1345,9 @@ const StarfieldSystem = (function() {
                     ufoY += (exitDy / exitDist) * ufoSpeed * 1.5;
                 } else {
                     ufoActive = false;
-                    // Reset z-index back to normal
+                    // Reset UFO canvas z-index back to normal
                     if (ufoZIndexBoosted) {
-                        starfieldCanvas.style.zIndex = '0';
+                        ufoCanvas.style.zIndex = '0';
                         ufoZIndexBoosted = false;
                     }
                     console.log('🛸 UFO has departed after celebrating the ultimate answer!');
@@ -1346,56 +1365,59 @@ const StarfieldSystem = (function() {
     }
     
     function drawUFO() {
+        // Clear UFO canvas
+        ufoCtx.clearRect(0, 0, ufoCanvas.width, ufoCanvas.height);
+        
         if (!ufoActive) return;
         
-        starfieldCtx.save();
+        ufoCtx.save();
         
         if (ufoPhase === 'circling' && ufoBeamOpacity > 0) {
-            starfieldCtx.save();
-            starfieldCtx.globalAlpha = ufoBeamOpacity;
+            ufoCtx.save();
+            ufoCtx.globalAlpha = ufoBeamOpacity;
             
-            const gradient = starfieldCtx.createLinearGradient(ufoX, ufoY, ufoTargetX, ufoTargetY);
+            const gradient = ufoCtx.createLinearGradient(ufoX, ufoY, ufoTargetX, ufoTargetY);
             gradient.addColorStop(0, 'rgba(100, 255, 100, 0.8)');
             gradient.addColorStop(1, 'rgba(100, 255, 100, 0)');
             
-            starfieldCtx.beginPath();
-            starfieldCtx.moveTo(ufoX - 20, ufoY);
-            starfieldCtx.lineTo(ufoX + 20, ufoY);
-            starfieldCtx.lineTo(ufoTargetX + 10, ufoTargetY + 10);
-            starfieldCtx.lineTo(ufoTargetX - 10, ufoTargetY + 10);
-            starfieldCtx.closePath();
-            starfieldCtx.fillStyle = gradient;
-            starfieldCtx.fill();
+            ufoCtx.beginPath();
+            ufoCtx.moveTo(ufoX - 20, ufoY);
+            ufoCtx.lineTo(ufoX + 20, ufoY);
+            ufoCtx.lineTo(ufoTargetX + 10, ufoTargetY + 10);
+            ufoCtx.lineTo(ufoTargetX - 10, ufoTargetY + 10);
+            ufoCtx.closePath();
+            ufoCtx.fillStyle = gradient;
+            ufoCtx.fill();
             
-            starfieldCtx.restore();
+            ufoCtx.restore();
         }
         
         const wobble = Math.sin(Date.now() * 0.01) * 2;
         
-        starfieldCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        starfieldCtx.beginPath();
-        starfieldCtx.ellipse(ufoX, ufoY + 25, 35, 8, 0, 0, Math.PI * 2);
-        starfieldCtx.fill();
+        ufoCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ufoCtx.beginPath();
+        ufoCtx.ellipse(ufoX, ufoY + 25, 35, 8, 0, 0, Math.PI * 2);
+        ufoCtx.fill();
         
-        const bottomGradient = starfieldCtx.createRadialGradient(ufoX, ufoY + 5, 0, ufoX, ufoY + 5, 30);
+        const bottomGradient = ufoCtx.createRadialGradient(ufoX, ufoY + 5, 0, ufoX, ufoY + 5, 30);
         bottomGradient.addColorStop(0, '#445566');
         bottomGradient.addColorStop(0.7, '#223344');
         bottomGradient.addColorStop(1, '#112233');
         
-        starfieldCtx.fillStyle = bottomGradient;
-        starfieldCtx.beginPath();
-        starfieldCtx.ellipse(ufoX, ufoY + 5 + wobble, 30, 10, 0, 0, Math.PI * 2);
-        starfieldCtx.fill();
+        ufoCtx.fillStyle = bottomGradient;
+        ufoCtx.beginPath();
+        ufoCtx.ellipse(ufoX, ufoY + 5 + wobble, 30, 10, 0, 0, Math.PI * 2);
+        ufoCtx.fill();
         
-        const domeGradient = starfieldCtx.createRadialGradient(ufoX, ufoY - 5, 0, ufoX, ufoY, 20);
+        const domeGradient = ufoCtx.createRadialGradient(ufoX, ufoY - 5, 0, ufoX, ufoY, 20);
         domeGradient.addColorStop(0, 'rgba(150, 200, 255, 0.8)');
         domeGradient.addColorStop(0.5, 'rgba(100, 150, 255, 0.6)');
         domeGradient.addColorStop(1, 'rgba(50, 100, 200, 0.4)');
         
-        starfieldCtx.fillStyle = domeGradient;
-        starfieldCtx.beginPath();
-        starfieldCtx.ellipse(ufoX, ufoY - 5 + wobble, 20, 15, 0, Math.PI, Math.PI * 2);
-        starfieldCtx.fill();
+        ufoCtx.fillStyle = domeGradient;
+        ufoCtx.beginPath();
+        ufoCtx.ellipse(ufoX, ufoY - 5 + wobble, 20, 15, 0, Math.PI, Math.PI * 2);
+        ufoCtx.fill();
         
         const lightPhase = Date.now() * 0.005;
         for (let i = 0; i < 8; i++) {
@@ -1403,23 +1425,23 @@ const StarfieldSystem = (function() {
             const lightX = ufoX + Math.cos(angle) * 25;
             const lightY = ufoY + 5 + Math.sin(angle) * 8 + wobble;
             
-            starfieldCtx.fillStyle = `rgba(100, 255, 100, ${0.3 + Math.sin(lightPhase + i) * 0.3})`;
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(lightX, lightY, 5, 0, Math.PI * 2);
-            starfieldCtx.fill();
+            ufoCtx.fillStyle = `rgba(100, 255, 100, ${0.3 + Math.sin(lightPhase + i) * 0.3})`;
+            ufoCtx.beginPath();
+            ufoCtx.arc(lightX, lightY, 5, 0, Math.PI * 2);
+            ufoCtx.fill();
             
-            starfieldCtx.fillStyle = `rgba(200, 255, 200, ${0.5 + Math.sin(lightPhase + i) * 0.5})`;
-            starfieldCtx.beginPath();
-            starfieldCtx.arc(lightX, lightY, 2, 0, Math.PI * 2);
-            starfieldCtx.fill();
+            ufoCtx.fillStyle = `rgba(200, 255, 200, ${0.5 + Math.sin(lightPhase + i) * 0.5})`;
+            ufoCtx.beginPath();
+            ufoCtx.arc(lightX, lightY, 2, 0, Math.PI * 2);
+            ufoCtx.fill();
         }
         
-        starfieldCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        starfieldCtx.beginPath();
-        starfieldCtx.ellipse(ufoX - 5, ufoY - 10 + wobble, 8, 5, -Math.PI / 6, 0, Math.PI * 2);
-        starfieldCtx.fill();
+        ufoCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ufoCtx.beginPath();
+        ufoCtx.ellipse(ufoX - 5, ufoY - 10 + wobble, 8, 5, -Math.PI / 6, 0, Math.PI * 2);
+        ufoCtx.fill();
         
-        starfieldCtx.restore();
+        ufoCtx.restore();
     }
     
     // ============================================
@@ -1844,9 +1866,9 @@ const StarfieldSystem = (function() {
             asteroids = [];
             ufoActive = false;
             ufoCompletedCircle = false;
-            // Reset z-index if it was boosted
+            // Reset UFO canvas z-index if it was raised
             if (ufoZIndexBoosted) {
-                starfieldCanvas.style.zIndex = '0';
+                ufoCanvas.style.zIndex = '0';
                 ufoZIndexBoosted = false;
             }
         },
