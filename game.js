@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.12 loaded - Adaptive replay speedup (+2% per resync)");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -1924,12 +1924,84 @@ function createSongInfoElement() {
     }
     
     if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            if (replayActive) return; // Don't allow during replay
-            if (typeof skipToNextSong === 'function') {
+        // Hold detection for indefinite purge
+        let holdTimeout = null;
+        let holdTriggered = false;
+        const HOLD_DURATION = 800; // ms to trigger hold
+        
+        const startHold = (e) => {
+            if (replayActive) return;
+            holdTriggered = false;
+            holdTimeout = setTimeout(() => {
+                holdTriggered = true;
+                // Indefinite purge
+                const songInfo = getCurrentSongInfo();
+                if (songInfo && typeof skipToNextSongWithPurge === 'function') {
+                    const result = skipToNextSongWithPurge('indefinite');
+                    if (result.purgeInfo) {
+                        showPurgeNotification(result.purgeInfo.songName, 'indefinite');
+                        updateMusicDropdownPurgeIndicators();
+                    }
+                }
+            }, HOLD_DURATION);
+        };
+        
+        const cancelHold = (e) => {
+            if (holdTimeout) {
+                clearTimeout(holdTimeout);
+                holdTimeout = null;
+            }
+        };
+        
+        const handleClick = (e) => {
+            if (replayActive) return;
+            if (holdTriggered) {
+                // Already handled by hold
+                holdTriggered = false;
+                return;
+            }
+            cancelHold();
+            
+            // Determine purge type based on current song time
+            const songInfo = getCurrentSongInfo();
+            if (songInfo && typeof skipToNextSongWithPurge === 'function') {
+                const currentTime = songInfo.currentTime || 0;
+                let purgeType;
+                if (currentTime < 30) {
+                    purgeType = 'short'; // 1 week
+                } else {
+                    purgeType = 'long'; // 3 days
+                }
+                const result = skipToNextSongWithPurge(purgeType);
+                // Only show notification for short purge (before 30 sec)
+                if (result.purgeInfo && purgeType === 'short') {
+                    showPurgeNotification(result.purgeInfo.songName, 'week');
+                }
+                // Update dropdown indicators
+                if (result.purgeInfo) {
+                    updateMusicDropdownPurgeIndicators();
+                }
+            } else if (typeof skipToNextSong === 'function') {
                 skipToNextSong();
             }
+        };
+        
+        // Mouse events
+        nextBtn.addEventListener('mousedown', startHold);
+        nextBtn.addEventListener('mouseup', handleClick);
+        nextBtn.addEventListener('mouseleave', cancelHold);
+        
+        // Touch events for mobile
+        nextBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startHold(e);
         });
+        nextBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleClick(e);
+        });
+        nextBtn.addEventListener('touchcancel', cancelHold);
+        
         // Hover effect
         nextBtn.addEventListener('mouseenter', () => { nextBtn.style.background = 'rgba(255,255,255,0.2)'; nextBtn.style.color = '#fff'; });
         nextBtn.addEventListener('mouseleave', () => { nextBtn.style.background = 'rgba(255,255,255,0.1)'; nextBtn.style.color = '#aaa'; });
@@ -1952,6 +2024,153 @@ function adjustPanelForSongInfo() {
     if (planetStats) {
         planetStats.style.padding = '8px';
         planetStats.style.marginTop = '8px';
+    }
+}
+
+// Show purge notification popup
+function showPurgeNotification(songName, duration) {
+    // Remove any existing notification
+    const existing = document.getElementById('purgeNotification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.id = 'purgeNotification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        border: 2px solid #ff6b6b;
+        border-radius: 1vh;
+        padding: 2vh 3vw;
+        z-index: 10000;
+        text-align: center;
+        animation: fadeInOut 3s ease-in-out forwards;
+        max-width: 80vw;
+    `;
+    
+    let message;
+    if (duration === 'indefinite') {
+        message = `<span style="color: #ff6b6b; font-size: 1.2em;">🚫</span><br>
+            <span style="color: #fff; font-size: 0.9em;">"${songName}"</span><br>
+            <span style="color: #ff6b6b;">purged indefinitely</span>`;
+    } else if (duration === 'week') {
+        message = `<span style="color: #ffaa00; font-size: 1.2em;">⏭️</span><br>
+            <span style="color: #fff; font-size: 0.9em;">"${songName}"</span><br>
+            <span style="color: #ffaa00;">purged for 1 week</span><br>
+            <span style="color: #888; font-size: 0.7em; margin-top: 0.5vh; display: block;">
+                Tip: Hold ⏭ to purge indefinitely
+            </span>`;
+    }
+    
+    notification.innerHTML = message;
+    document.body.appendChild(notification);
+    
+    // Add animation keyframes if not already present
+    if (!document.getElementById('purgeNotificationStyles')) {
+        const style = document.createElement('style');
+        style.id = 'purgeNotificationStyles';
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Remove after animation
+    setTimeout(() => {
+        if (notification.parentNode) notification.remove();
+    }, 3000);
+}
+
+// Update music dropdown to show purged songs with asterisk
+function updateMusicDropdownPurgeIndicators() {
+    const musicSelect = document.getElementById('musicSelect');
+    const introMusicSelect = document.getElementById('introMusicSelect');
+    
+    if (!musicSelect) return;
+    
+    const purgedSongs = typeof getPurgedSongs === 'function' ? getPurgedSongs() : [];
+    const purgedIds = new Set(purgedSongs.map(p => p.songId));
+    
+    // Update both dropdowns
+    [musicSelect, introMusicSelect].forEach(select => {
+        if (!select) return;
+        
+        Array.from(select.options).forEach(option => {
+            const songId = option.value;
+            // Skip special options
+            if (songId === 'shuffle' || songId === 'none' || option.disabled) return;
+            
+            // Get original text (remove any existing asterisk)
+            let text = option.getAttribute('data-original-text') || option.textContent;
+            if (!option.getAttribute('data-original-text')) {
+                option.setAttribute('data-original-text', text);
+            }
+            
+            // Add or remove asterisk
+            if (purgedIds.has(songId)) {
+                option.textContent = text + ' *';
+                option.style.color = '#888';
+            } else {
+                option.textContent = text;
+                option.style.color = '';
+            }
+        });
+    });
+    
+    // Update or create the purge info section in settings
+    updatePurgeInfoInSettings(purgedSongs.length);
+}
+
+// Update purge info section in settings
+function updatePurgeInfoInSettings(purgeCount) {
+    const musicSelect = document.getElementById('musicSelect');
+    if (!musicSelect) return;
+    
+    const settingsOption = musicSelect.closest('.settings-option');
+    if (!settingsOption) return;
+    
+    // Find or create the purge info div
+    let purgeInfo = document.getElementById('purgeInfoSection');
+    
+    if (purgeCount > 0) {
+        if (!purgeInfo) {
+            purgeInfo = document.createElement('div');
+            purgeInfo.id = 'purgeInfoSection';
+            purgeInfo.style.cssText = `
+                font-size: 0.75em;
+                color: #888;
+                margin-top: 0.5vh;
+                padding: 0.5vh 0;
+            `;
+            settingsOption.appendChild(purgeInfo);
+        }
+        purgeInfo.innerHTML = `
+            <span style="color: #ffaa00;">* = purged song (skipped in shuffle)</span><br>
+            <a href="#" id="unpurgeAllLink" style="color: #6b9fff; text-decoration: underline; cursor: pointer;">
+                Un-purge all ${purgeCount} song${purgeCount > 1 ? 's' : ''}
+            </a>
+        `;
+        
+        // Add click handler for un-purge link
+        const unpurgeLink = document.getElementById('unpurgeAllLink');
+        if (unpurgeLink) {
+            unpurgeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof clearAllPurgedSongs === 'function') {
+                    clearAllPurgedSongs();
+                    updateMusicDropdownPurgeIndicators();
+                }
+            });
+        }
+    } else if (purgeInfo) {
+        purgeInfo.remove();
     }
 }
 
@@ -11965,6 +12184,9 @@ function startGame(mode) {
     // Create volume controls if not exists
     createVolumeControls();
     
+    // Update music dropdown purge indicators
+    updateMusicDropdownPurgeIndicators();
+    
     startMusic(gameMode, musicSelect);
     
     // Update song display after a short delay (to let audio load)
@@ -12436,6 +12658,8 @@ settingsBtn.addEventListener('click', () => {
     if (typeof ControlsConfig !== 'undefined' && ControlsConfig.updateUI) {
         ControlsConfig.updateUI();
     }
+    // Update music dropdown purge indicators
+    updateMusicDropdownPurgeIndicators();
 });
 
 settingsCloseBtn.addEventListener('click', () => {
@@ -12948,6 +13172,9 @@ drawCanvasBackground();
 
 // Initialize UI elements to show state (settings button visible, etc.)
 toggleUIElements(true);
+
+// Initialize music dropdown purge indicators on page load
+updateMusicDropdownPurgeIndicators();
 
 // Handle start overlay - required for audio autoplay
 const startOverlay = document.getElementById('startOverlay');

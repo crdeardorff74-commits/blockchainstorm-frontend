@@ -291,6 +291,7 @@ let lastPlayedCreditsSong = null;
 // localStorage keys for queue persistence
 const GAMEPLAY_QUEUE_KEY = 'blockchainstorm_gameplayQueue';
 const FWORD_QUEUE_KEY = 'blockchainstorm_fwordQueue';
+const PURGED_SONGS_KEY = 'blockchainstorm_purgedSongs';
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -758,6 +759,158 @@ function saveQueuesToStorage() {
     }
 }
 
+// ============================================
+// SONG PURGE SYSTEM
+// ============================================
+// Purged songs are stored as {songId: expirationTimestamp} where null = indefinite
+
+// Load purged songs from localStorage
+function loadPurgedSongs() {
+    try {
+        const saved = localStorage.getItem(PURGED_SONGS_KEY);
+        if (saved) {
+            return JSON.parse(saved);
+        }
+    } catch (e) {
+        console.warn('🎵 Failed to load purged songs:', e);
+    }
+    return {};
+}
+
+// Save purged songs to localStorage
+function savePurgedSongs(purgedSongs) {
+    try {
+        localStorage.setItem(PURGED_SONGS_KEY, JSON.stringify(purgedSongs));
+    } catch (e) {
+        console.warn('🎵 Failed to save purged songs:', e);
+    }
+}
+
+// Check if a song is currently purged
+function isSongPurged(songId) {
+    const purgedSongs = loadPurgedSongs();
+    if (!purgedSongs[songId]) return false;
+    
+    const expiration = purgedSongs[songId];
+    // null means indefinite purge
+    if (expiration === null) return true;
+    
+    // Check if expired
+    if (Date.now() > expiration) {
+        // Expired - remove from purge list
+        delete purgedSongs[songId];
+        savePurgedSongs(purgedSongs);
+        console.log('🎵 Purge expired for:', songId);
+        return false;
+    }
+    
+    return true;
+}
+
+// Purge a song with optional duration
+// duration: milliseconds, or null for indefinite
+function purgeSong(songId, duration) {
+    const purgedSongs = loadPurgedSongs();
+    const expiration = duration ? Date.now() + duration : null;
+    purgedSongs[songId] = expiration;
+    savePurgedSongs(purgedSongs);
+    
+    // Also remove from the current queue so it won't play next
+    const index = gameplayShuffleQueue.indexOf(songId);
+    if (index > -1) {
+        gameplayShuffleQueue.splice(index, 1);
+        saveQueuesToStorage();
+    }
+    
+    const song = allSongs.find(s => s.id === songId);
+    const songName = song ? song.name : songId;
+    if (duration === null) {
+        console.log('🚫 Purged indefinitely:', songName);
+    } else {
+        const days = Math.round(duration / (24 * 60 * 60 * 1000));
+        console.log(`🚫 Purged for ${days} days:`, songName);
+    }
+}
+
+// Get all currently purged songs (with expiration info)
+function getPurgedSongs() {
+    const purgedSongs = loadPurgedSongs();
+    const result = [];
+    const now = Date.now();
+    let changed = false;
+    
+    for (const [songId, expiration] of Object.entries(purgedSongs)) {
+        // Skip expired purges
+        if (expiration !== null && now > expiration) {
+            delete purgedSongs[songId];
+            changed = true;
+            continue;
+        }
+        
+        const song = allSongs.find(s => s.id === songId);
+        result.push({
+            songId,
+            songName: song ? song.name : songId,
+            expiration,
+            isIndefinite: expiration === null
+        });
+    }
+    
+    if (changed) {
+        savePurgedSongs(purgedSongs);
+    }
+    
+    return result;
+}
+
+// Clear all purged songs
+function clearAllPurgedSongs() {
+    savePurgedSongs({});
+    console.log('🎵 Cleared all purged songs');
+}
+
+// Skip to next song with purge support
+// purgeType: 'none', 'short' (1 week), 'long' (3 days), 'indefinite'
+function skipToNextSongWithPurge(purgeType = 'none') {
+    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
+        console.log('🎵 Skip next: Not in shuffle mode or not playing');
+        return { skipped: false };
+    }
+    
+    const skippedSongId = currentPlayingTrack;
+    const skippedSong = skippedSongId ? allSongs.find(s => s.id === skippedSongId) : null;
+    let purgeInfo = null;
+    
+    // Handle purge based on type
+    if (skippedSongId && purgeType !== 'none') {
+        const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+        const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+        
+        switch (purgeType) {
+            case 'short':
+                // Skipped before 30 seconds - purge for 1 week
+                purgeSong(skippedSongId, ONE_WEEK);
+                purgeInfo = { duration: 'week', songName: skippedSong?.name };
+                break;
+            case 'long':
+                // Skipped after 30 seconds - purge for 3 days
+                purgeSong(skippedSongId, THREE_DAYS);
+                purgeInfo = { duration: '3days', songName: skippedSong?.name };
+                break;
+            case 'indefinite':
+                // Hold skip - purge indefinitely
+                purgeSong(skippedSongId, null);
+                purgeInfo = { duration: 'indefinite', songName: skippedSong?.name };
+                break;
+        }
+    }
+    
+    // Now do the regular skip
+    skipToNextSong();
+    
+    return { skipped: true, purgeInfo };
+}
+
 // Reset shuffle queue (for replay consistency)
 function resetShuffleQueue() {
     gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
@@ -796,10 +949,36 @@ function getNextReplayTrack() {
 }
 
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
+// Also filters out purged songs
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
+    // First, filter out any purged songs from the queue (for gameplay queue only)
+    if (queueName === 'gameplay') {
+        const beforeLength = queue.length;
+        for (let i = queue.length - 1; i >= 0; i--) {
+            if (isSongPurged(queue[i])) {
+                queue.splice(i, 1);
+            }
+        }
+        if (queue.length < beforeLength) {
+            console.log(`🎵 Filtered ${beforeLength - queue.length} purged songs from queue`);
+            saveQueuesToStorage();
+        }
+    }
+    
     if (queue.length === 0) {
-        // Refill and reshuffle
+        // Refill and reshuffle, excluding purged songs
         let newQueue = shuffleArray(songList.map(s => s.id));
+        
+        // Filter out purged songs when refilling (gameplay only)
+        if (queueName === 'gameplay') {
+            newQueue = newQueue.filter(id => !isSongPurged(id));
+            if (newQueue.length === 0) {
+                // All songs are purged! Clear purges and try again
+                console.warn('🎵 All songs purged! Clearing purge list.');
+                clearAllPurgedSongs();
+                newQueue = shuffleArray(songList.map(s => s.id));
+            }
+        }
         
         // If the last played song is at the end of the new queue (will be popped first),
         // move it somewhere else to prevent immediate repeat
@@ -2652,6 +2831,11 @@ function getEffectiveSfxVolume(effectId) {
         setSfxMuted,
         isSfxMuted,
         toggleSfxMute,
-        getEffectiveSfxVolume
+        getEffectiveSfxVolume,
+        // Purge controls
+        skipToNextSongWithPurge,
+        isSongPurged,
+        getPurgedSongs,
+        clearAllPurgedSongs
     };
 })(); // End IIFE
