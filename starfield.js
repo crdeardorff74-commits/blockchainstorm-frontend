@@ -34,6 +34,7 @@ const StarfieldSystem = (function() {
     let ufoSwoopTargetX = 0;
     let ufoSwoopTargetY = 0;
     let ufoSwoopCallback = null; // Callback when swoop completes
+    let ufoZIndexBoosted = false; // Track if canvas z-index has been raised
     
     // Stranger Mode - Upside Down particles (ash/spore flakes)
     let strangerMode = false;
@@ -1167,6 +1168,7 @@ const StarfieldSystem = (function() {
         ufoCircleTime = 0;
         ufoCircleAngle = 0;
         ufoBeamOpacity = 0;
+        ufoZIndexBoosted = false; // Start behind panels
         
         const linesDisplay = document.getElementById('lines');
         if (!linesDisplay) {
@@ -1246,6 +1248,13 @@ const StarfieldSystem = (function() {
                 
                 ufoBeamOpacity = Math.sin(ufoCircleTime * 0.1) * 0.3 + 0.5;
                 
+                // After 2 circles, bring UFO to front (above side panels)
+                if (!ufoZIndexBoosted && ufoCircleAngle > Math.PI * 4) {
+                    starfieldCanvas.style.zIndex = '10';
+                    ufoZIndexBoosted = true;
+                    console.log('🛸 UFO now in front of panels');
+                }
+                
                 if (ufoCircleAngle > Math.PI * 6) {
                     // Circle completed naturally - swoop to music info instead of exiting
                     ufoCompletedCircle = true;
@@ -1317,6 +1326,11 @@ const StarfieldSystem = (function() {
                     ufoY += (exitDy / exitDist) * ufoSpeed * 1.5;
                 } else {
                     ufoActive = false;
+                    // Reset z-index back to normal
+                    if (ufoZIndexBoosted) {
+                        starfieldCanvas.style.zIndex = '0';
+                        ufoZIndexBoosted = false;
+                    }
                     console.log('🛸 UFO has departed after celebrating the ultimate answer!');
                 }
                 break;
@@ -1830,6 +1844,11 @@ const StarfieldSystem = (function() {
             asteroids = [];
             ufoActive = false;
             ufoCompletedCircle = false;
+            // Reset z-index if it was boosted
+            if (ufoZIndexBoosted) {
+                starfieldCanvas.style.zIndex = '0';
+                ufoZIndexBoosted = false;
+            }
         },
         
         // Access to planets data (for developer mode)
