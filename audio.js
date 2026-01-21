@@ -281,11 +281,16 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
 
-// Persistent shuffle queues - initialized once at load, persist across games
+// Persistent shuffle queues - saved to localStorage, persist across sessions
 let gameplayShuffleQueue = [];
 let creditsShuffleQueue = [];
+let fWordShuffleQueue = [];
 let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
+
+// localStorage keys for queue persistence
+const GAMEPLAY_QUEUE_KEY = 'blockchainstorm_gameplayQueue';
+const FWORD_QUEUE_KEY = 'blockchainstorm_fwordQueue';
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -371,16 +376,26 @@ function getCurrentSongInfo() {
 }
 
 // Skip to next song (only works in shuffle mode)
-// Insert a random F Word song to be played next (UFO easter egg)
+// Insert the next F Word song from the shuffle queue (UFO easter egg)
 function insertFWordSong() {
-    const randomIndex = Math.floor(Math.random() * fWordSongs.length);
-    const selectedSong = fWordSongs[randomIndex];
+    // Get next song from F Word queue (refills when empty)
+    if (fWordShuffleQueue.length === 0) {
+        fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
+        console.log('🛸 Refilled F Word queue:', fWordShuffleQueue.length, 'songs');
+    }
+    
+    const songId = fWordShuffleQueue.pop();
+    const selectedSong = fWordSongs.find(s => s.id === songId);
+    
+    // Save updated queue to storage
+    saveQueuesToStorage();
+    
     nextSongOverride = selectedSong;
-    console.log('🛸 F Word song queued:', selectedSong.name);
+    console.log('🛸 F Word song queued:', selectedSong.name, '| Queue remaining:', fWordShuffleQueue.length);
     return selectedSong;
 }
 
-// Insert a specific F Word song by ID (for replay)
+// Insert a specific F Word song by ID (for replay - doesn't affect queue)
 function insertFWordSongById(songId) {
     const selectedSong = fWordSongs.find(s => s.id === songId);
     if (selectedSong) {
@@ -388,7 +403,7 @@ function insertFWordSongById(songId) {
         console.log('🛸 F Word song queued (replay):', selectedSong.name);
         return selectedSong;
     }
-    // Fallback to random if not found
+    // Fallback to queue if not found
     return insertFWordSong();
 }
 
@@ -683,18 +698,71 @@ function shuffleArray(array) {
     return shuffled;
 }
 
-// Initialize shuffle queues at load time
+// Initialize shuffle queues at load time - load from localStorage or create new
 function initShuffleQueues() {
-    gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+    // Try to load gameplay queue from localStorage
+    const savedGameplayQueue = localStorage.getItem(GAMEPLAY_QUEUE_KEY);
+    if (savedGameplayQueue) {
+        try {
+            gameplayShuffleQueue = JSON.parse(savedGameplayQueue);
+            // Validate that saved IDs are still valid songs
+            gameplayShuffleQueue = gameplayShuffleQueue.filter(id => 
+                gameplaySongs.some(s => s.id === id)
+            );
+            console.log('🎵 Loaded gameplay queue from storage:', gameplayShuffleQueue.length, 'songs remaining');
+        } catch (e) {
+            console.warn('🎵 Failed to parse saved gameplay queue, creating new');
+            gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+        }
+    } else {
+        gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+        console.log('🎵 Created new gameplay shuffle queue');
+    }
+    
+    // Try to load F Word queue from localStorage
+    const savedFWordQueue = localStorage.getItem(FWORD_QUEUE_KEY);
+    if (savedFWordQueue) {
+        try {
+            fWordShuffleQueue = JSON.parse(savedFWordQueue);
+            // Validate that saved IDs are still valid songs
+            fWordShuffleQueue = fWordShuffleQueue.filter(id => 
+                fWordSongs.some(s => s.id === id)
+            );
+            console.log('🛸 Loaded F Word queue from storage:', fWordShuffleQueue.length, 'songs remaining');
+        } catch (e) {
+            console.warn('🛸 Failed to parse saved F Word queue, creating new');
+            fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
+        }
+    } else {
+        fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
+        console.log('🛸 Created new F Word shuffle queue');
+    }
+    
+    // Credits queue doesn't need persistence (only used during end credits)
     creditsShuffleQueue = shuffleArray(creditsSongs.map(s => s.id));
-    console.log('🎵 Initialized gameplay shuffle queue:', gameplayShuffleQueue);
-    console.log('🎵 Initialized credits shuffle queue:', creditsShuffleQueue);
+    
+    // Save initial queues
+    saveQueuesToStorage();
+    
+    console.log('🎵 Gameplay queue:', gameplayShuffleQueue.length, 'songs');
+    console.log('🛸 F Word queue:', fWordShuffleQueue.length, 'songs');
+}
+
+// Save queues to localStorage
+function saveQueuesToStorage() {
+    try {
+        localStorage.setItem(GAMEPLAY_QUEUE_KEY, JSON.stringify(gameplayShuffleQueue));
+        localStorage.setItem(FWORD_QUEUE_KEY, JSON.stringify(fWordShuffleQueue));
+    } catch (e) {
+        console.warn('🎵 Failed to save queues to storage:', e);
+    }
 }
 
 // Reset shuffle queue (for replay consistency)
 function resetShuffleQueue() {
     gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
     lastPlayedGameplaySong = null;
+    saveQueuesToStorage();
     console.log('🎵 Reset gameplay shuffle queue for replay');
 }
 
@@ -793,6 +861,8 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     // Track what we just played
     if (queueName === 'gameplay') {
         lastPlayedGameplaySong = song;
+        // Save queue state to localStorage
+        saveQueuesToStorage();
     } else {
         lastPlayedCreditsSong = song;
     }
