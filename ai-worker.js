@@ -1,8 +1,8 @@
-// AI Worker v6.12.0 - Row-aware tsunami extension, waste penalty
+// AI Worker v6.13.0 - Tsunami-aware phase/survival, less defensive
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.12.0 loaded - Smart tsunami extension");
+console.log("🤖 AI Worker v6.13.0 loaded - Tsunami-aware phases");
 
-const AI_VERSION = "6.12.0";
+const AI_VERSION = "6.13.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
@@ -651,18 +651,7 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
     // the actual board state, not here during individual placement evaluation.
     // The global inSurvivalMode is read but not modified here.
     
-    // ===== GAME PHASE =====
-    // Phase is more granular than survival mode
-    let phase = 'safe';
-    if (stackHeight >= config.criticalHeight || holes >= config.criticalHoles) {
-        phase = 'critical';
-    } else if (stackHeight >= config.dangerHeight || holes >= config.dangerHoles) {
-        phase = 'danger';
-    } else if (stackHeight >= config.cautionHeight || holes >= config.cautionHoles) {
-        phase = 'caution';
-    }
-    
-    // ===== TSUNAMI DETECTION =====
+    // ===== TSUNAMI DETECTION (moved before phase for tsunami-aware adjustments) =====
     let bestTsunamiWidth = 0;
     let bestTsunamiColor = null;
     let tsunamiRun = null;
@@ -675,6 +664,35 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
                 bestTsunamiColor = runColor;
                 tsunamiRun = run;
             }
+        }
+    }
+    
+    // ===== GAME PHASE =====
+    // Phase is more granular than survival mode
+    let phase = 'safe';
+    if (stackHeight >= config.criticalHeight || holes >= config.criticalHoles) {
+        phase = 'critical';
+    } else if (stackHeight >= config.dangerHeight || holes >= config.dangerHoles) {
+        phase = 'danger';
+    } else if (stackHeight >= config.cautionHeight || holes >= config.cautionHoles) {
+        phase = 'caution';
+    }
+    
+    // TSUNAMI-AWARE PHASE ADJUSTMENT
+    // When building a good tsunami, be more tolerant of higher stacks
+    // because the tsunami will clear lots of lines when it completes
+    if (bestTsunamiWidth >= 6 && holes <= 4) {
+        // Downgrade danger to caution, caution to safe when tsunami is progressing
+        if (phase === 'danger' && stackHeight < config.criticalHeight - 2) {
+            phase = 'caution';
+        } else if (phase === 'caution') {
+            phase = 'safe';
+        }
+    }
+    if (bestTsunamiWidth >= 8 && holes <= 3) {
+        // Near-complete tsunami: be even more tolerant
+        if (phase === 'danger') {
+            phase = 'caution';
         }
     }
     
@@ -1482,9 +1500,28 @@ function findBestPlacement(board, piece, cols, rows, queue, captureDecisionMeta 
     const currentStackHeight = Math.max(...currentHeights);
     const currentHoles = countHoles(board);
     
+    // Check for tsunami in progress before deciding survival mode
+    const currentColorRuns = analyzeColorRuns(board, cols, rows);
+    let currentBestTsunamiWidth = 0;
+    for (const runColor in currentColorRuns) {
+        const run = currentColorRuns[runColor];
+        if (run.width > currentBestTsunamiWidth) {
+            currentBestTsunamiWidth = run.width;
+        }
+    }
+    
+    // TSUNAMI-AWARE SURVIVAL MODE
+    // Be more tolerant when a good tsunami is in progress
+    let effectiveSurvivalEnterHeight = config.survivalEnterHeight;
+    if (currentBestTsunamiWidth >= 7 && currentHoles <= 4) {
+        effectiveSurvivalEnterHeight += 3;  // Allow 3 more rows when tsunami building
+    } else if (currentBestTsunamiWidth >= 6 && currentHoles <= 3) {
+        effectiveSurvivalEnterHeight += 2;
+    }
+    
     // Enter survival mode on high stack OR too many holes
     // Exit only when BOTH stack is low AND holes are cleared
-    if (currentStackHeight >= config.survivalEnterHeight || currentHoles >= config.survivalEnterHoles) {
+    if (currentStackHeight >= effectiveSurvivalEnterHeight || currentHoles >= config.survivalEnterHoles) {
         inSurvivalMode = true;
     } else if (currentStackHeight <= config.survivalExitHeight && currentHoles <= config.survivalExitHoles) {
         inSurvivalMode = false;
