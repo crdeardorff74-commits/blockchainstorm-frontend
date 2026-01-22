@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.19 loaded - Fixed AI tuning config application");
+console.log("🎮 Game v3.20 loaded - Tuning mode only downloads leaderboard games");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -11317,29 +11317,27 @@ async function gameOver() {
         if (aiTuningMode) {
             console.log(`🔧 TUNING MODE: Game #${aiTuningGamesPlayed} complete - Score: ${score}, Lines: ${lines}`);
             
-            // Always download the recording
-            if (tuningRecordingData) {
+            // Check if makes leaderboard - only download and submit if it does
+            const makesLeaderboard = await window.leaderboard.checkIfTopTen(gameMode, score, aiMode, skillLevel);
+            if (makesLeaderboard && tuningRecordingData) {
+                console.log('🔧 TUNING: Score makes leaderboard! Downloading and submitting...');
+                
+                // Download the recording
                 const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
                 const filename = `tuning_${aiTuningDifficulty}_${aiTuningSkillLevel}_game${aiTuningGamesPlayed}_${score}_${timestamp}.json`;
-                
-                // Create full recording object with all metadata
                 const fullRecording = {
                     ...tuningRecordingData.gameData,
                     recording_data: tuningRecordingData.recording
                 };
                 downloadRecordingJSON(fullRecording, filename);
-            }
-            
-            // Check if makes leaderboard - only submit if it does (but skip email notification)
-            const makesLeaderboard = await window.leaderboard.checkIfTopTen(gameMode, score, aiMode, skillLevel);
-            if (makesLeaderboard && tuningRecordingData) {
-                console.log('🔧 TUNING: Score makes leaderboard! Submitting (no email)...');
-                scoreData.skipNotification = true; // Don't send email in tuning mode
+                
+                // Submit to leaderboard (no email)
+                scoreData.skipNotification = true;
                 await window.leaderboard.submitAIScore(scoreData);
                 tuningRecordingData.gameData.skipNotification = true;
                 GameRecorder.submitRecording(tuningRecordingData.recording, tuningRecordingData.gameData);
             } else {
-                console.log('🔧 TUNING: Score does not make leaderboard, skipping submission');
+                console.log('🔧 TUNING: Score does not make leaderboard, skipping download/submission');
             }
             
             // Brief pause then auto-restart with new config (no game over screen)
@@ -12203,7 +12201,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.19',
+            gameVersion: '3.20',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
