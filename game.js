@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.13 loaded - AI mode faster drop speed (5ms floor)");
+console.log("🎮 Game v3.14 loaded - AI mode 1ms floor drop speed");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -4320,9 +4320,9 @@ function spawnTornado() {
 // Calculate drop interval based on number of lines cleared
 function calculateDropInterval(linesCleared) {
     if (aiModeEnabled) {
-        // AI mode: faster progression, lower floor (5ms)
-        // Reaches 5ms around 123 lines (level 12)
-        return Math.max(5, 1000 - (linesCleared * 8.1));
+        // AI mode: faster progression, lower floor (1ms)
+        // Reaches 1ms around 123 lines (level 12)
+        return Math.max(1, 1000 - (linesCleared * 8.1));
     }
     // Human mode: standard progression, 20ms floor
     return Math.max(20, 1000 - (linesCleared * 8.1));
@@ -11842,7 +11842,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.13',
+            gameVersion: '3.14',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
