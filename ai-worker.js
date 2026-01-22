@@ -1,17 +1,17 @@
-// AI Worker v6.14.0 - Tuned from AI tuner results
+// AI Worker v6.15.0 - Tuned from AI tuner results
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.14.0 loaded - Tuned parameters");
+console.log("🤖 AI Worker v6.15.0 loaded - Tuned parameters");
 
-const AI_VERSION = "6.14.0";
+const AI_VERSION = "6.15.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
 const DEFAULT_CONFIG = {
     // Survival mode thresholds
-    survivalEnterHeight: 7,
-    survivalExitHeight: 9,
-    survivalEnterHoles: 7,
-    survivalExitHoles: 4,
+    survivalEnterHeight: 9,
+    survivalExitHeight: 8,
+    survivalEnterHoles: 9,
+    survivalExitHoles: 5,
     
     // Phase thresholds
     criticalHeight: 16,
@@ -22,11 +22,11 @@ const DEFAULT_CONFIG = {
     cautionHoles: 5,
     
     // Lookahead
-    lookaheadDepth: 0,
-    lookaheadDiscount: 0.7,
+    lookaheadDepth: 2,
+    lookaheadDiscount: 0.9,
     
     // Blob building bonuses
-    horizontalAdjacencyBonus: 18,
+    horizontalAdjacencyBonus: 14,
     verticalAdjacencyBonus: 4,
     tsunamiRowBonusMultiplier: 15,
     tsunamiEdgeExtensionBonus: 80,
