@@ -245,6 +245,22 @@ const AIPlayer = (() => {
     }
     
     /**
+     * Set AI configuration (tunable parameters)
+     * Sends config to the worker thread
+     */
+    function setConfig(config) {
+        if (worker && workerReady) {
+            console.log('🔧 AIPlayer: Sending new config to worker', config);
+            worker.postMessage({
+                command: 'setConfig',
+                newConfig: config
+            });
+        } else {
+            console.warn('🔧 AIPlayer: Worker not ready, cannot set config');
+        }
+    }
+    
+    /**
      * Calculate moves needed to reach target placement
      * Simple approach: rotate first, then move horizontally
      * @param {boolean} skipDrop - If true, don't add drop command (for earthquake positioning)
@@ -1048,6 +1064,7 @@ const AIPlayer = (() => {
         isEnabled,
         setSpeed,
         setSkillLevel,
+        setConfig,
         update,
         reset,
         terminate,

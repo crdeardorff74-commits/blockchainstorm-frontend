@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.15 loaded - AI mode 0ms floor (game loop limited)");
+console.log("🎮 Game v3.16 loaded - AI Tuning Mode (SHIFT+click difficulty)");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -1532,6 +1532,13 @@ let creditsScrollY = 0;
 let creditsContentHeight = 0;
 let creditsMusicTimeoutId = null;
 let aiAutoRestartTimerId = null;
+
+// AI Tuning Mode - for automated parameter testing
+let aiTuningMode = false;
+let aiTuningConfig = null; // Current random config being tested
+let aiTuningDifficulty = null; // Difficulty to use for all tuning games
+let aiTuningSkillLevel = null; // Skill level to use for all tuning games
+let aiTuningGamesPlayed = 0; // Counter for games played in tuning session
 
 function getCreditsElements() {
     return {
@@ -11106,6 +11113,7 @@ async function gameOver() {
     
     // Stop GameRecorder (unified recording for both human and AI games)
     let pendingRecording = null;
+    let tuningRecordingData = null; // Store for tuning mode
     if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
         const finalStats = {
             score: score,
@@ -11118,6 +11126,13 @@ async function gameOver() {
             board: board,
             endCause: 'game_over'
         };
+        
+        // Add tuning config to finalStats if in tuning mode
+        if (aiTuningMode && aiTuningConfig) {
+            finalStats.tuningConfig = aiTuningConfig;
+            finalStats.tuningGameNumber = aiTuningGamesPlayed;
+        }
+        
         const recording = GameRecorder.stopRecording(finalStats);
         // v2.0 uses pieceData instead of moves
         const hasPieceData = recording && recording.pieceData && recording.pieceData.length > 0;
@@ -11128,28 +11143,37 @@ async function gameOver() {
             console.log(`📹 ${playerTypeLabel} Recording complete: ${recording.pieceData.length} pieces${shadowInfo}`);
             
             if (aiModeEnabled) {
-                // AI games: submit immediately with auto-generated username
-                GameRecorder.submitRecording(recording, {
-                    username: '🤖 Claude',
-                    game: 'blockchainstorm',
-                    playerType: 'ai',
-                    difficulty: gameMode,
-                    skillLevel: skillLevel,
-                    mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
-                    challenges: Array.from(activeChallenges),
-                    speedBonus: speedBonusAverage,
-                    score: score,
-                    lines: lines,
-                    level: level,
-                    strikes: strikeCount,
-                    tsunamis: tsunamiCount,
-                    blackholes: blackHoleCount,
-                    volcanoes: volcanoCount,
-                    durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
-                    endCause: 'game_over',
-                    debugLog: logQueue.join('\n')
-                });
-                console.log('📤 AI Recording submitted to server');
+                // Store recording data for tuning mode or normal submission
+                tuningRecordingData = {
+                    recording: recording,
+                    gameData: {
+                        username: '🤖 Claude',
+                        game: 'blockchainstorm',
+                        playerType: 'ai',
+                        difficulty: gameMode,
+                        skillLevel: skillLevel,
+                        mode: challengeMode !== 'normal' ? 'challenge' : 'normal',
+                        challenges: Array.from(activeChallenges),
+                        speedBonus: speedBonusAverage,
+                        score: score,
+                        lines: lines,
+                        level: level,
+                        strikes: strikeCount,
+                        tsunamis: tsunamiCount,
+                        blackholes: blackHoleCount,
+                        volcanoes: volcanoCount,
+                        durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
+                        endCause: 'game_over',
+                        tuningConfig: aiTuningMode ? aiTuningConfig : undefined,
+                        tuningGameNumber: aiTuningMode ? aiTuningGamesPlayed : undefined
+                    }
+                };
+                
+                // In tuning mode, don't submit yet - wait to check leaderboard
+                if (!aiTuningMode) {
+                    GameRecorder.submitRecording(recording, tuningRecordingData.gameData);
+                    console.log('📤 AI Recording submitted to server');
+                }
             } else {
                 // Human games: Store recording data for submission after name entry
                 pendingRecording = {
@@ -11249,11 +11273,50 @@ async function gameOver() {
     // Check if score makes top 20 (but not in AI mode)
     console.log('Checking if score makes top 20...');
     
-    // AI Mode: Auto-submit score and go straight to game over screen
+    // AI Mode: Handle differently based on tuning mode
     if (aiModeEnabled && window.leaderboard) {
         const aiMode = isChallenge ? 'ai-challenge' : 'ai';
-        console.log(`AI Mode: Auto-submitting score as "🤖 Claude" (mode: ${aiMode})`);
         scoreData.mode = aiMode;
+        
+        // TUNING MODE: Special handling
+        if (aiTuningMode) {
+            console.log(`🔧 TUNING MODE: Game #${aiTuningGamesPlayed} complete - Score: ${score}, Lines: ${lines}`);
+            
+            // Always download the recording
+            if (tuningRecordingData) {
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+                const filename = `tuning_${aiTuningDifficulty}_${aiTuningSkillLevel}_game${aiTuningGamesPlayed}_${score}_${timestamp}.json`;
+                
+                // Create full recording object with all metadata
+                const fullRecording = {
+                    ...tuningRecordingData.gameData,
+                    recording_data: tuningRecordingData.recording
+                };
+                downloadRecordingJSON(fullRecording, filename);
+            }
+            
+            // Check if makes leaderboard - only submit if it does
+            const makesLeaderboard = await window.leaderboard.checkIfTopTen(gameMode, score, aiMode, skillLevel);
+            if (makesLeaderboard && tuningRecordingData) {
+                console.log('🔧 TUNING: Score makes leaderboard! Submitting...');
+                await window.leaderboard.submitAIScore(scoreData);
+                GameRecorder.submitRecording(tuningRecordingData.recording, tuningRecordingData.gameData);
+            } else {
+                console.log('🔧 TUNING: Score does not make leaderboard, skipping submission');
+            }
+            
+            // Brief pause then auto-restart with new config (no game over screen)
+            setTimeout(() => {
+                if (aiTuningMode) {
+                    startTuningGame();
+                }
+            }, 500);
+            
+            return;
+        }
+        
+        // Normal AI mode (not tuning)
+        console.log(`AI Mode: Auto-submitting score as "🤖 Claude" (mode: ${aiMode})`);
         await window.leaderboard.submitAIScore(scoreData);
         showGameOverScreen();
         await window.leaderboard.displayLeaderboard(gameMode, score, aiMode, skillLevel);
@@ -11483,6 +11546,227 @@ function cancelAIAutoRestartTimer() {
         aiAutoRestartTimerId = null;
         console.log('🤖 AI Auto-restart: Timer cancelled');
     }
+}
+
+// ==================== AI TUNING MODE ====================
+// Generate a random valid AI configuration for testing
+function generateRandomTuningConfig() {
+    // Helper to pick random value from range
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const randFloat = (min, max, decimals = 1) => {
+        const val = Math.random() * (max - min) + min;
+        return Math.round(val * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    };
+    
+    // Generate survival thresholds with valid hysteresis (enter > exit)
+    const survivalEnterHeight = randInt(8, 14);
+    const survivalExitHeight = randInt(5, survivalEnterHeight - 1);
+    const survivalEnterHoles = randInt(6, 15);
+    const survivalExitHoles = randInt(2, survivalEnterHoles - 1);
+    
+    return {
+        // Survival mode thresholds (with valid hysteresis)
+        survivalEnterHeight,
+        survivalExitHeight,
+        survivalEnterHoles,
+        survivalExitHoles,
+        
+        // Phase thresholds
+        criticalHeight: randInt(14, 18),
+        criticalHoles: randInt(8, 15),
+        dangerHeight: randInt(12, 16),
+        dangerHoles: randInt(5, 10),
+        cautionHeight: randInt(10, 14),
+        cautionHoles: randInt(3, 8),
+        
+        // Lookahead
+        lookaheadDepth: randInt(0, 6),
+        lookaheadDiscount: randFloat(0.5, 1.0),
+        
+        // Blob building bonuses
+        horizontalAdjacencyBonus: randInt(8, 25),
+        verticalAdjacencyBonus: randInt(2, 8),
+        tsunamiRowBonusMultiplier: randInt(10, 25),
+        tsunamiEdgeExtensionBonus: randInt(50, 120),
+        tsunamiMatchingColorBonus: randInt(3, 12),
+        
+        // Tsunami bonuses by width
+        tsunamiImminentBonus: randInt(200, 500),
+        tsunamiImminentPerExtra: randInt(100, 250),
+        tsunamiAchievableBonus: randInt(150, 350),
+        tsunamiAchievablePerQueue: randInt(25, 80),
+        tsunamiNearCompleteBonus: randInt(80, 200),
+        tsunamiNearCompletePerExtra: randInt(15, 60),
+        tsunamiBuildingBonus: randInt(30, 100),
+        tsunamiBuildingPerExtra: randInt(10, 40),
+        tsunamiWastePenaltyW8: randInt(100, 250),
+        tsunamiWastePenaltyW7: randInt(50, 150),
+        
+        // Line clear bonuses in survival mode
+        survivalClear4Bonus: randInt(400, 900),
+        survivalClear3Bonus: randInt(250, 600),
+        survivalClear2Bonus: randInt(150, 400),
+        survivalClear1Bonus: randInt(80, 250),
+        
+        // Height penalties
+        survivalHeightMultiplier: randFloat(2.0, 5.0),
+        normalHeightMultiplier: randFloat(1.5, 4.0),
+        normalHeightThreshold: randInt(6, 12),
+        
+        // Hole penalties
+        holePenaltyBase: randInt(10, 35),
+        holePenaltyMedium: randInt(35, 80),
+        holePenaltyHigh: randInt(45, 100),
+        
+        // Bumpiness
+        bumpinessPenalty: randFloat(1.5, 5.0),
+        
+        // Stacking penalty
+        stackingPenaltyPerExcess: randInt(8, 20),
+        stackingPenaltySmall: randInt(3, 10),
+        stackingSurvivalMultiplier: randFloat(1.5, 3.0),
+        
+        // Vertical I-piece penalties
+        verticalISlightPenalty: randInt(20, 80),
+        verticalIModeratePenalty: randInt(80, 180),
+        verticalISeverePenalty: randInt(150, 300),
+        verticalISurvivalExtraPenalty: randInt(60, 180),
+        
+        // Tower penalties
+        towerThresholdSevere: randInt(6, 12),
+        towerThresholdBad: randInt(4, 8),
+        towerThresholdModerate: randInt(2, 6),
+        towerPenaltySevere: randInt(6, 18),
+        towerPenaltyBad: randInt(4, 12),
+        towerPenaltyModerate: randInt(2, 6)
+    };
+}
+
+// Start AI tuning mode
+function startAITuningMode(difficulty, skill) {
+    aiTuningMode = true;
+    aiTuningDifficulty = difficulty;
+    aiTuningSkillLevel = skill;
+    aiTuningGamesPlayed = 0;
+    
+    console.log(`🔧 AI TUNING MODE STARTED - ${difficulty} / ${skill}`);
+    console.log('🔧 Games will auto-restart with random configs. Click STOP to end.');
+    
+    // Show tuning mode indicator
+    showTuningModeIndicator();
+    
+    // Start first game
+    startTuningGame();
+}
+
+// Stop AI tuning mode
+function stopAITuningMode() {
+    aiTuningMode = false;
+    aiTuningConfig = null;
+    aiTuningDifficulty = null;
+    aiTuningSkillLevel = null;
+    
+    console.log(`🔧 AI TUNING MODE STOPPED after ${aiTuningGamesPlayed} games`);
+    
+    // Hide tuning mode indicator
+    hideTuningModeIndicator();
+    
+    // Cancel any pending restart
+    cancelAIAutoRestartTimer();
+}
+
+// Start a single tuning game with random config
+function startTuningGame() {
+    if (!aiTuningMode) return;
+    
+    aiTuningGamesPlayed++;
+    
+    // Generate new random config
+    aiTuningConfig = generateRandomTuningConfig();
+    
+    console.log(`🔧 TUNING GAME #${aiTuningGamesPlayed} starting with config:`, aiTuningConfig);
+    
+    // Send config to AI worker
+    if (typeof AIPlayer !== 'undefined' && AIPlayer.setConfig) {
+        AIPlayer.setConfig(aiTuningConfig);
+    }
+    
+    // Set skill level
+    skillLevel = aiTuningSkillLevel;
+    window.skillLevel = aiTuningSkillLevel;
+    
+    // Hide game over screen
+    gameOverDiv.style.display = 'none';
+    if (window.leaderboard && window.leaderboard.hideLeaderboard) {
+        window.leaderboard.hideLeaderboard();
+    }
+    stopCreditsAnimation();
+    
+    // Update tuning indicator
+    updateTuningModeIndicator();
+    
+    // Start the game
+    startGame(aiTuningDifficulty);
+}
+
+// Show tuning mode indicator overlay
+function showTuningModeIndicator() {
+    let indicator = document.getElementById('tuningModeIndicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'tuningModeIndicator';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 1vh;
+            right: 1vw;
+            background: rgba(255, 165, 0, 0.9);
+            color: black;
+            padding: 1vh 2vw;
+            border-radius: 1vh;
+            font-family: monospace;
+            font-size: 1.8vh;
+            z-index: 10001;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+        `;
+        indicator.innerHTML = '🔧 TUNING MODE<br><span id="tuningGameCount">Game #1</span><br><span style="color: #600; font-weight: bold;">[CLICK TO STOP]</span>';
+        indicator.addEventListener('click', () => {
+            stopAITuningMode();
+        });
+        document.body.appendChild(indicator);
+    }
+    indicator.style.display = 'block';
+}
+
+// Update tuning mode indicator
+function updateTuningModeIndicator() {
+    const countSpan = document.getElementById('tuningGameCount');
+    if (countSpan) {
+        countSpan.textContent = `Game #${aiTuningGamesPlayed}`;
+    }
+}
+
+// Hide tuning mode indicator
+function hideTuningModeIndicator() {
+    const indicator = document.getElementById('tuningModeIndicator');
+    if (indicator) {
+        indicator.style.display = 'none';
+    }
+}
+
+// Download recording as JSON file
+function downloadRecordingJSON(recording, filename) {
+    const jsonStr = JSON.stringify(recording, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log(`📥 Downloaded: ${filename}`);
 }
 
 function update(time = 0) {
@@ -11825,6 +12109,12 @@ function startGame(mode) {
     cancelAIAutoRestartTimer(); // Cancel any pending AI auto-restart
     scoreSubmittedHandled = false; // Reset for new game
     
+    // If tuning mode was active but this isn't a tuning restart, stop tuning mode
+    // (This handles cases where user manually starts a game while tuning was running)
+    if (aiTuningMode && !aiTuningConfig) {
+        stopAITuningMode();
+    }
+    
     // Reset AI player state
     if (typeof AIPlayer !== 'undefined') {
         AIPlayer.reset();
@@ -11842,7 +12132,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.15',
+            gameVersion: '3.16',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
@@ -12509,8 +12799,16 @@ document.addEventListener('keyup', e => {
 
 // Mode selection handlers
 modeButtons.forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
         const mode = button.getAttribute('data-mode');
+        
+        // SHIFT+click in AI mode = start Tuning Mode
+        if (event.shiftKey && aiModeEnabled) {
+            console.log('🔧 SHIFT+click detected - starting AI Tuning Mode');
+            startAITuningMode(mode, skillLevel);
+            return;
+        }
+        
         startGame(mode);
     });
 });
@@ -12786,6 +13084,10 @@ if (aiModeToggle) {
         // Cancel auto-restart timer if AI mode is disabled
         if (!aiModeEnabled) {
             cancelAIAutoRestartTimer();
+            // Also stop tuning mode if it was running
+            if (aiTuningMode) {
+                stopAITuningMode();
+            }
         }
         // Show/hide speed slider
         const aiSpeedOption = document.getElementById('aiSpeedOption');
