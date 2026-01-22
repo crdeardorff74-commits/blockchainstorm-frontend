@@ -590,7 +590,7 @@ const AIPlayer = (() => {
     
     /**
      * Main AI update function - call each frame
-     * gameState optional parameter includes: { earthquakeActive, earthquakePhase, ufoActive }
+     * gameState optional parameter includes: { earthquakeActive, earthquakePhase, ufoActive, tuningMode }
      */
     function update(board, currentPiece, nextPieceOrQueue, cols, rows, callbacks, gameState = {}) {
         if (!enabled || !currentPiece) return;
@@ -599,15 +599,17 @@ const AIPlayer = (() => {
         updateModeFromBoard(board, rows);
         
         const now = Date.now();
-        const { earthquakeActive, earthquakePhase, ufoActive } = gameState;
+        const { earthquakeActive, earthquakePhase, ufoActive, tuningMode } = gameState;
         const duringEarthquake = earthquakeActive && (earthquakePhase === 'shake' || earthquakePhase === 'crack' || earthquakePhase === 'shift');
         
         // Update UFO state IMMEDIATELY so executeMove can check it
         // This must happen BEFORE move execution below
-        currentUfoActive = ufoActive || false;
+        // In tuning mode, ignore UFO state to keep games running fast
+        currentUfoActive = tuningMode ? false : (ufoActive || false);
         
         // During UFO easter egg: soft drop only (no hard drops) to let the UFO circle
-        const duringUFO = ufoActive || false;
+        // In tuning mode, skip this behavior entirely - always hard drop
+        const duringUFO = tuningMode ? false : (ufoActive || false);
         
         // Generate piece identity - must be unique per piece spawn
         // Color is NOT unique (consecutive pieces can have same color)

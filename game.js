@@ -11295,11 +11295,13 @@ async function gameOver() {
                 downloadRecordingJSON(fullRecording, filename);
             }
             
-            // Check if makes leaderboard - only submit if it does
+            // Check if makes leaderboard - only submit if it does (but skip email notification)
             const makesLeaderboard = await window.leaderboard.checkIfTopTen(gameMode, score, aiMode, skillLevel);
             if (makesLeaderboard && tuningRecordingData) {
-                console.log('🔧 TUNING: Score makes leaderboard! Submitting...');
+                console.log('🔧 TUNING: Score makes leaderboard! Submitting (no email)...');
+                scoreData.skipNotification = true; // Don't send email in tuning mode
                 await window.leaderboard.submitAIScore(scoreData);
+                tuningRecordingData.gameData.skipNotification = true;
                 GameRecorder.submitRecording(tuningRecordingData.recording, tuningRecordingData.gameData);
             } else {
                 console.log('🔧 TUNING: Score does not make leaderboard, skipping submission');
@@ -11786,6 +11788,7 @@ function update(time = 0) {
         // Pass the full queue so AI can plan ahead based on upcoming colors
         // Also pass earthquake state so AI can hold off during earthquakes
         // Pass UFO state so AI can avoid clearing lines during easter egg
+        // Pass tuning mode so AI can skip UFO soft-drop behavior
         AIPlayer.update(board, currentPiece, nextPieceQueue, COLS, ROWS, {
             moveLeft: () => movePiece(-1),
             moveRight: () => movePiece(1),
@@ -11795,7 +11798,8 @@ function update(time = 0) {
         }, {
             earthquakeActive: earthquakeActive,
             earthquakePhase: earthquakePhase,
-            ufoActive: StarfieldSystem.isUFOActive()
+            ufoActive: StarfieldSystem.isUFOActive(),
+            tuningMode: aiTuningMode
         });
     }
     

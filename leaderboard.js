@@ -1170,7 +1170,8 @@ async function submitAIScore(scoreData) {
     
     const dataToSubmit = {
         ...scoreData,
-        username: '🤖 Claude'
+        username: '🤖 Claude',
+        skipNotification: scoreData.skipNotification || false // Pass through notification flag
         // mode is already set in scoreData ('ai' or 'ai-challenge')
     };
     
