@@ -168,6 +168,8 @@ const AIPlayer = (() => {
                     workerReady = true;
                     clearTimeout(initTimeout);
                     console.log('🤖 AI Worker confirmed ready');
+                    // Apply any pending config that was set before worker was ready
+                    applyPendingConfig();
                 }
                 
                 const { bestPlacement, reset, stackHeight, decisionMeta, requestId } = e.data;
@@ -244,6 +246,9 @@ const AIPlayer = (() => {
         currentSkillLevel = level;
     }
     
+    // Pending config to apply when worker becomes ready
+    let pendingConfig = null;
+    
     /**
      * Set AI configuration (tunable parameters)
      * Sends config to the worker thread
@@ -255,8 +260,25 @@ const AIPlayer = (() => {
                 command: 'setConfig',
                 newConfig: config
             });
+            pendingConfig = null;
         } else {
-            console.warn('🔧 AIPlayer: Worker not ready, cannot set config');
+            console.log('🔧 AIPlayer: Worker not ready, queuing config for later');
+            pendingConfig = config;
+        }
+    }
+    
+    /**
+     * Apply pending config if worker becomes ready
+     * Called internally when worker signals ready
+     */
+    function applyPendingConfig() {
+        if (pendingConfig && worker && workerReady) {
+            console.log('🔧 AIPlayer: Applying queued config now that worker is ready');
+            worker.postMessage({
+                command: 'setConfig',
+                newConfig: pendingConfig
+            });
+            pendingConfig = null;
         }
     }
     

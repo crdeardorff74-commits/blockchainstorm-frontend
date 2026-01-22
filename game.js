@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.18 loaded - AI Tuning Mode extends piece sequence");
+console.log("🎮 Game v3.19 loaded - Fixed AI tuning config application");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -12188,6 +12188,12 @@ function startGame(mode) {
         AIPlayer.setSkillLevel(skillLevel);
         AIPlayer.setEnabled(aiModeEnabled); // Re-enable if AI mode is on
         
+        // TUNING MODE: Apply config AFTER reset/init (otherwise it gets wiped)
+        if (aiTuningMode && aiTuningConfig && AIPlayer.setConfig) {
+            console.log('🔧 Applying tuning config after init');
+            AIPlayer.setConfig(aiTuningConfig);
+        }
+        
         // Start recording if AI mode is enabled
         if (aiModeEnabled && AIPlayer.startRecording) {
             AIPlayer.startRecording();
@@ -12197,7 +12203,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.18',
+            gameVersion: '3.19',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,

@@ -1631,7 +1631,7 @@ self.onmessage = function(e) {
     
     // Handle setConfig command - update tunable parameters
     if (command === 'setConfig') {
-        const newConfig = e.data.config || {};
+        const newConfig = e.data.newConfig || e.data.config || {};
         setConfig(newConfig);
         self.postMessage({ configSet: true, config: getConfig() });
         return;
