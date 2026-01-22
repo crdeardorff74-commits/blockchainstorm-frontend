@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.16 loaded - AI Tuning Mode (SHIFT+click difficulty)");
+console.log("🎮 Game v3.18 loaded - AI Tuning Mode extends piece sequence");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -1539,6 +1539,8 @@ let aiTuningConfig = null; // Current random config being tested
 let aiTuningDifficulty = null; // Difficulty to use for all tuning games
 let aiTuningSkillLevel = null; // Skill level to use for all tuning games
 let aiTuningGamesPlayed = 0; // Counter for games played in tuning session
+let aiTuningPieceSequence = null; // Fixed piece sequence for fair comparison (captured from game 1)
+let aiTuningPieceIndex = 0; // Current index in the fixed piece sequence
 
 function getCreditsElements() {
     return {
@@ -6220,6 +6222,27 @@ function createPiece() {
     // v2.0: During replay, pieces come from spawnReplayPiece() not createPiece()
     // This function is only used for normal gameplay
     
+    // TUNING MODE game 2+: Use fixed piece sequence for fair comparison
+    if (aiTuningMode && aiTuningGamesPlayed > 1 && aiTuningPieceSequence) {
+        if (aiTuningPieceIndex < aiTuningPieceSequence.length) {
+            const fixedPiece = aiTuningPieceSequence[aiTuningPieceIndex++];
+            const shapeSet = getShapeSetForType(fixedPiece.type);
+            const shape = shapeSet[fixedPiece.type];
+            const pieceHeight = shape.length;
+            
+            return {
+                shape: shape,
+                type: fixedPiece.type,
+                color: fixedPiece.color,
+                x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
+                y: -pieceHeight
+            };
+        }
+        // Sequence exhausted - this game survived longer than any before!
+        // Fall through to generate random piece, which will be added to sequence below
+        console.log(`🔧 TUNING: Game #${aiTuningGamesPlayed} exceeded sequence (${aiTuningPieceSequence.length} pieces) - extending...`);
+    }
+    
     // Normal random piece generation
     let shapeSet;
     let type;
@@ -6247,14 +6270,23 @@ function createPiece() {
     
     const shape = shapeSet[type];
     const pieceHeight = shape.length;
+    const color = randomColor();
     
     const piece = {
         shape: shape,
         type: type,
-        color: randomColor(),
+        color: color,
         x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
         y: -pieceHeight  // Spawn completely above the well
     };
+    
+    // TUNING MODE: Capture pieces to extend the sequence
+    // Game 1: Captures all pieces
+    // Game 2+: Only captures pieces that exceed the current sequence length
+    if (aiTuningMode && aiTuningPieceSequence) {
+        aiTuningPieceSequence.push({ type: type, color: color });
+        aiTuningPieceIndex++; // Keep index in sync with sequence length
+    }
     
     return piece;
 }
@@ -11131,6 +11163,9 @@ async function gameOver() {
         if (aiTuningMode && aiTuningConfig) {
             finalStats.tuningConfig = aiTuningConfig;
             finalStats.tuningGameNumber = aiTuningGamesPlayed;
+            finalStats.tuningPiecesUsed = aiTuningPieceIndex;
+            finalStats.tuningSequenceLength = aiTuningPieceSequence ? aiTuningPieceSequence.length : 0;
+            finalStats.tuningExceededSequence = aiTuningPieceIndex > (aiTuningPieceSequence ? aiTuningPieceSequence.length : 0);
         }
         
         const recording = GameRecorder.stopRecording(finalStats);
@@ -11650,9 +11685,12 @@ function startAITuningMode(difficulty, skill) {
     aiTuningDifficulty = difficulty;
     aiTuningSkillLevel = skill;
     aiTuningGamesPlayed = 0;
+    aiTuningPieceSequence = null; // Will be captured during game 1
+    aiTuningPieceIndex = 0;
     
     console.log(`🔧 AI TUNING MODE STARTED - ${difficulty} / ${skill}`);
-    console.log('🔧 Games will auto-restart with random configs. Click STOP to end.');
+    console.log('🔧 Game 1 will capture piece sequence. Subsequent games use same pieces.');
+    console.log('🔧 Click STOP indicator to end tuning session.');
     
     // Show tuning mode indicator
     showTuningModeIndicator();
@@ -11667,6 +11705,8 @@ function stopAITuningMode() {
     aiTuningConfig = null;
     aiTuningDifficulty = null;
     aiTuningSkillLevel = null;
+    aiTuningPieceSequence = null; // Clear piece sequence
+    aiTuningPieceIndex = 0;
     
     console.log(`🔧 AI TUNING MODE STOPPED after ${aiTuningGamesPlayed} games`);
     
@@ -11682,11 +11722,21 @@ function startTuningGame() {
     if (!aiTuningMode) return;
     
     aiTuningGamesPlayed++;
+    aiTuningPieceIndex = 0; // Reset piece index for this game
+    
+    // Game 1: Initialize empty sequence to capture pieces
+    // Game 2+: Keep existing sequence for replay
+    if (aiTuningGamesPlayed === 1) {
+        aiTuningPieceSequence = []; // Will be populated as pieces are created
+        console.log('🔧 TUNING GAME #1: Capturing piece sequence...');
+    } else {
+        console.log(`🔧 TUNING GAME #${aiTuningGamesPlayed}: Using captured sequence (${aiTuningPieceSequence.length} pieces)`);
+    }
     
     // Generate new random config
     aiTuningConfig = generateRandomTuningConfig();
     
-    console.log(`🔧 TUNING GAME #${aiTuningGamesPlayed} starting with config:`, aiTuningConfig);
+    console.log(`🔧 Config:`, aiTuningConfig);
     
     // Send config to AI worker
     if (typeof AIPlayer !== 'undefined' && AIPlayer.setConfig) {
@@ -11731,7 +11781,7 @@ function showTuningModeIndicator() {
             cursor: pointer;
             box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
         `;
-        indicator.innerHTML = '🔧 TUNING MODE<br><span id="tuningGameCount">Game #1</span><br><span style="color: #600; font-weight: bold;">[CLICK TO STOP]</span>';
+        indicator.innerHTML = '🔧 TUNING MODE<br><span id="tuningGameCount">Game #1</span><br><span id="tuningPieceStatus">Capturing pieces...</span><br><span style="color: #600; font-weight: bold;">[CLICK TO STOP]</span>';
         indicator.addEventListener('click', () => {
             stopAITuningMode();
         });
@@ -11743,8 +11793,19 @@ function showTuningModeIndicator() {
 // Update tuning mode indicator
 function updateTuningModeIndicator() {
     const countSpan = document.getElementById('tuningGameCount');
+    const statusSpan = document.getElementById('tuningPieceStatus');
     if (countSpan) {
         countSpan.textContent = `Game #${aiTuningGamesPlayed}`;
+    }
+    if (statusSpan) {
+        if (aiTuningGamesPlayed === 1) {
+            statusSpan.textContent = 'Capturing pieces...';
+            statusSpan.style.color = '#600';
+        } else {
+            const pieceCount = aiTuningPieceSequence ? aiTuningPieceSequence.length : 0;
+            statusSpan.textContent = `Replaying ${pieceCount} pieces`;
+            statusSpan.style.color = '#060';
+        }
     }
 }
 
@@ -12136,7 +12197,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.16',
+            gameVersion: '3.18',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
