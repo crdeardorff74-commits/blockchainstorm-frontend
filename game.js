@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.12 loaded - Adaptive replay speedup (+2% per resync)");
+console.log("🎮 Game v3.13 loaded - Replay row sync (wait for piece to reach recorded row)");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -14250,6 +14250,13 @@ function processReplayInputs() {
            pieceEntry.inputs[replayInputIndex].t <= replayPieceElapsedTime) {
         
         const input = pieceEntry.inputs[replayInputIndex];
+        
+        // Row sync check: if input was recorded at a specific row, wait until piece reaches it
+        // This prevents timing drift from causing moves at wrong positions
+        if (input.y !== undefined && currentPiece.y < input.y) {
+            // Piece hasn't fallen to the row where this input occurred - wait
+            break;
+        }
         
         switch (input.type) {
             case 'left':
