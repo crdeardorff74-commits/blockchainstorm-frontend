@@ -1,17 +1,17 @@
-// AI Worker v6.13.0 - Tsunami-aware phase/survival, less defensive
+// AI Worker v6.14.0 - Tuned from AI tuner results
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.13.0 loaded - Tsunami-aware phases");
+console.log("🤖 AI Worker v6.14.0 loaded - Tuned parameters");
 
-const AI_VERSION = "6.13.0";
+const AI_VERSION = "6.14.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
 const DEFAULT_CONFIG = {
     // Survival mode thresholds
-    survivalEnterHeight: 9,
-    survivalExitHeight: 7,
-    survivalEnterHoles: 5,
-    survivalExitHoles: 3,
+    survivalEnterHeight: 7,
+    survivalExitHeight: 9,
+    survivalEnterHoles: 7,
+    survivalExitHoles: 4,
     
     // Phase thresholds
     criticalHeight: 16,
@@ -22,28 +22,27 @@ const DEFAULT_CONFIG = {
     cautionHoles: 5,
     
     // Lookahead
-    lookaheadDepth: 2,
-    lookaheadDiscount: 0.6,
+    lookaheadDepth: 0,
+    lookaheadDiscount: 0.7,
     
     // Blob building bonuses
-    horizontalAdjacencyBonus: 16,
+    horizontalAdjacencyBonus: 18,
     verticalAdjacencyBonus: 4,
     tsunamiRowBonusMultiplier: 15,
-    tsunamiEdgeExtensionBonus: 60,
+    tsunamiEdgeExtensionBonus: 80,
     tsunamiMatchingColorBonus: 6,
     
-    // Tsunami bonuses by width (increased significantly)
-    tsunamiImminentBonus: 300,      // Width 9+ (was 180)
-    tsunamiImminentPerExtra: 150,   // Per width over 9 (was 100)
-    tsunamiAchievableBonus: 200,    // Width 7+ with queue (was 120)
-    tsunamiAchievablePerQueue: 40,  // Per matching piece in queue (was 25)
-    tsunamiNearCompleteBonus: 120,  // Width 7-8 without queue (was 60)
-    tsunamiNearCompletePerExtra: 30, // Per width over 6 (was 20)
-    tsunamiBuildingBonus: 50,       // Width 5-6 (was 30)
-    tsunamiBuildingPerExtra: 20,    // Per width over 4 (was 15)
-    tsunamiEdgeExtensionBonus: 80,  // Base extension bonus (scales up to 350 for width 8+)
-    tsunamiWastePenaltyW8: 150,     // Penalty for not extending width 8+ tsunami
-    tsunamiWastePenaltyW7: 80,      // Penalty for not extending width 7 tsunami
+    // Tsunami bonuses by width
+    tsunamiImminentBonus: 300,
+    tsunamiImminentPerExtra: 150,
+    tsunamiAchievableBonus: 200,
+    tsunamiAchievablePerQueue: 40,
+    tsunamiNearCompleteBonus: 120,
+    tsunamiNearCompletePerExtra: 30,
+    tsunamiBuildingBonus: 50,
+    tsunamiBuildingPerExtra: 20,
+    tsunamiWastePenaltyW8: 150,
+    tsunamiWastePenaltyW7: 80,
     
     // Line clear bonuses in survival mode
     survivalClear4Bonus: 600,
