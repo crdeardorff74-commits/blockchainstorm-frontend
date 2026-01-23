@@ -11063,11 +11063,12 @@ function toggleUIElements(show) {
         // Show instructions and controls, hide histogram, show title
         // Respect user's saved preference for which panel to show
         const savedView = localStorage.getItem('rulesPanelView') || 'instructions';
-        if (savedView === 'leaderboard') {
+        if (savedView.startsWith('leaderboard-')) {
             // Show leaderboard
+            const leaderboardMode = savedView.replace('leaderboard-', '');
             rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
-                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, leaderboardMode, skillLevel);
             }
         } else {
             // Show instructions (default)
@@ -12905,11 +12906,16 @@ function updateSelectedMode() {
         }
     });
     
-    // Update leaderboard to match selected mode if visible
+    // Update leaderboard to match selected mode if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
 }
 
@@ -12927,12 +12933,13 @@ if (rulesPanelViewSelect) {
     if (savedView) {
         rulesPanelViewSelect.value = savedView;
         // Trigger the view change immediately
-        if (savedView === 'leaderboard') {
+        if (savedView.startsWith('leaderboard-')) {
+            const leaderboardMode = savedView.replace('leaderboard-', '');
             const rulesInstructions = document.querySelector('.rules-instructions');
             if (rulesInstructions) rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
             }
         }
     }
@@ -12947,12 +12954,14 @@ if (rulesPanelViewSelect) {
         // Save preference
         localStorage.setItem('rulesPanelView', view);
         
-        if (view === 'leaderboard') {
+        if (view.startsWith('leaderboard-')) {
+            // Extract the leaderboard mode from the value
+            const leaderboardMode = view.replace('leaderboard-', '');
             // Show leaderboard, hide rules
             if (rulesInstructions) rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
             }
         } else {
             // Show rules, hide leaderboard
@@ -13165,11 +13174,16 @@ if (aiModeToggle) {
         }
         console.log('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
         
-        // Refresh leaderboard to show AI or normal leaderboard
+        // Refresh leaderboard if visible (use dropdown selection, not auto-detected mode)
         const leaderboardContent = document.getElementById('leaderboardContent');
-        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+        const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
             const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+            const viewValue = rulesPanelViewSelect.value;
+            if (viewValue.startsWith('leaderboard-')) {
+                const leaderboardMode = viewValue.replace('leaderboard-', '');
+                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+            }
         }
         
         // Update menu overlay
@@ -13434,11 +13448,16 @@ comboApplyBtn.addEventListener('click', () => {
     updateChallengeButtonLabel();
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to show correct mode
+    // Refresh leaderboard if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
     
     console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
@@ -13447,11 +13466,16 @@ comboApplyBtn.addEventListener('click', () => {
 comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to match current mode
+    // Refresh leaderboard if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
 });
 
@@ -14015,11 +14039,16 @@ if (startOverlay) {
     if (rulesSkillLevelSelect) {
         rulesSkillLevelSelect.addEventListener('change', () => {
             setSkillLevel(rulesSkillLevelSelect.value);
-            // If leaderboard is visible, refresh it with new skill level
+            // If leaderboard is visible, refresh it with new skill level (use dropdown selection)
             const leaderboardContent = document.getElementById('leaderboardContent');
-            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+            const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), rulesSkillLevelSelect.value);
+                const viewValue = rulesPanelViewSelect.value;
+                if (viewValue.startsWith('leaderboard-')) {
+                    const leaderboardMode = viewValue.replace('leaderboard-', '');
+                    window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, rulesSkillLevelSelect.value);
+                }
             }
         });
     }
