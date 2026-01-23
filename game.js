@@ -3836,8 +3836,9 @@ function triggerTsunamiAnimation(blob) {
     
     // Find all blocks that need to be pushed up
     // A block needs to be pushed if:
-    // 1. It's directly above a tsunami block (tsunami at y+1), OR
-    // 2. It's directly above another block that needs pushing
+    // 1. It's directly above a tsunami block, OR
+    // 2. Its blob is sitting on another blob that is being pushed
+    // Push amounts propagate upward through stacked blobs
     tsunamiPushedBlocks = [];
     
     // Create a set of tsunami positions for fast lookup
@@ -3849,7 +3850,7 @@ function triggerTsunamiAnimation(blob) {
     console.log('Tsunami color:', blob.color);
     console.log('Tsunami positions:', blob.positions.length, 'blocks');
     
-    // Step 1: Calculate tsunami column heights (how tall the tsunami is in each column)
+    // Step 1: Calculate tsunami column heights
     const tsunamiColumnHeight = {};
     for (let x = 0; x < COLS; x++) {
         let height = 0;
@@ -3862,34 +3863,7 @@ function triggerTsunamiAnimation(blob) {
         }
     }
     
-    // Step 2: Calculate push amount for each block position, processing bottom-up
-    // This propagates push amounts upward through the stack
-    const blockPush = {}; // "x,y" -> push amount in blocks
-    
-    // Process from bottom to top (starting just above the tsunami's top row)
-    for (let y = minY - 1; y >= 0; y--) {
-        for (let x = 0; x < COLS; x++) {
-            if (!board[y] || board[y][x] === null) continue;
-            if (tsunamiPositions.has(`${x},${y}`)) continue; // Skip tsunami blocks
-            
-            const belowKey = `${x},${y + 1}`;
-            
-            // Check if directly above tsunami
-            if (tsunamiPositions.has(belowKey)) {
-                // Push = tsunami column height at this x position
-                blockPush[`${x},${y}`] = tsunamiColumnHeight[x] || 1;
-            }
-            // Check if above another block that has push
-            else if (blockPush[belowKey] !== undefined) {
-                // Inherit push from the block below
-                blockPush[`${x},${y}`] = blockPush[belowKey];
-            }
-        }
-    }
-    
-    console.log(`Blocks with calculated push: ${Object.keys(blockPush).length}`);
-    
-    // Track which cells we've already processed into blobs
+    // Track which cells we've already assigned to blobs
     const processed = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
     
     // Mark tsunami blocks as processed
@@ -3897,8 +3871,8 @@ function triggerTsunamiAnimation(blob) {
         processed[y][x] = true;
     });
     
-    // Find connected sections - normal flood fill
-    function findConnectedSection(startX, startY, color) {
+    // Find connected blob starting from a position
+    function findBlob(startX, startY, color) {
         const section = [];
         const stack = [[startX, startY]];
         const visited = new Set();
@@ -3916,13 +3890,7 @@ function triggerTsunamiAnimation(blob) {
             if (board[y][x] !== color) continue;
             
             processed[y][x] = true;
-            section.push({
-                x: x,
-                y: y,
-                color: color,
-                isRandom: isRandomBlock[y][x],
-                directPush: blockPush[`${x},${y}`] // May be undefined
-            });
+            section.push({ x, y, color, isRandom: isRandomBlock[y][x] });
             
             stack.push([x + 1, y]);
             stack.push([x - 1, y]);
@@ -3933,46 +3901,94 @@ function triggerTsunamiAnimation(blob) {
         return section;
     }
     
-    // Step 3: Find all blobs that need pushing
-    const blobsToPush = [];
-    
-    // Only process blocks that have a calculated push amount
-    Object.keys(blockPush).forEach(key => {
-        const [x, y] = key.split(',').map(Number);
-        
-        if (!processed[y][x] && board[y] && board[y][x] !== null) {
-            const section = findConnectedSection(x, y, board[y][x]);
-            
-            if (section.length > 0) {
-                // Find max push needed for any block in this blob
-                let maxPushNeeded = 0;
-                section.forEach(block => {
-                    if (block.directPush !== undefined) {
-                        maxPushNeeded = Math.max(maxPushNeeded, block.directPush);
-                    }
-                });
-                
-                if (maxPushNeeded > 0) {
-                    console.log(`  Blob with ${section.length} blocks, color: ${section[0].color}, push: ${maxPushNeeded}`);
-                    
-                    const blocksToPush = section.map(block => ({
-                        x: block.x,
-                        y: block.y,
-                        color: block.color,
-                        isRandom: block.isRandom,
-                        tsunamiHeightBelow: maxPushNeeded
-                    }));
-                    
-                    blobsToPush.push(blocksToPush);
+    // Step 2: Find ALL blobs on the board (above tsunami)
+    const allBlobs = [];
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (!processed[y][x] && board[y] && board[y][x] !== null) {
+                const blobBlocks = findBlob(x, y, board[y][x]);
+                if (blobBlocks.length > 0) {
+                    allBlobs.push({
+                        blocks: blobBlocks,
+                        color: blobBlocks[0].color,
+                        push: 0 // Will be calculated
+                    });
                 }
             }
         }
+    }
+    
+    console.log(`Found ${allBlobs.length} blobs above tsunami`);
+    
+    // Create a lookup: position -> which blob index owns it
+    const positionToBlob = {};
+    allBlobs.forEach((blob, blobIndex) => {
+        blob.blocks.forEach(block => {
+            positionToBlob[`${block.x},${block.y}`] = blobIndex;
+        });
     });
     
-    // Now push all blocks from all identified blobs
-    blobsToPush.forEach(section => {
-        section.forEach(block => {
-            tsunamiPushedBlocks.push(block);
+    // Step 3: Calculate initial push for blobs directly touching tsunami
+    allBlobs.forEach((blobData, blobIndex) => {
+        let maxPush = 0;
+        blobData.blocks.forEach(block => {
+            // Check if this block is directly above tsunami
+            if (tsunamiPositions.has(`${block.x},${block.y + 1}`)) {
+                const columnPush = tsunamiColumnHeight[block.x] || 1;
+                maxPush = Math.max(maxPush, columnPush);
+            }
+        });
+        blobData.push = maxPush;
+        if (maxPush > 0) {
+            console.log(`  Blob ${blobIndex} (${blobData.color}) directly on tsunami, push=${maxPush}`);
+        }
+    });
+    
+    // Step 4: Propagate push upward through blob stack (iterate until stable)
+    let changed = true;
+    let iterations = 0;
+    while (changed && iterations < 20) {
+        changed = false;
+        iterations++;
+        
+        allBlobs.forEach((blobData, blobIndex) => {
+            // For each block in this blob, check if it's sitting on a pushed blob
+            let maxPushBelow = 0;
+            blobData.blocks.forEach(block => {
+                const belowKey = `${block.x},${block.y + 1}`;
+                const belowBlobIndex = positionToBlob[belowKey];
+                
+                if (belowBlobIndex !== undefined && belowBlobIndex !== blobIndex) {
+                    const belowBlob = allBlobs[belowBlobIndex];
+                    if (belowBlob.push > 0) {
+                        maxPushBelow = Math.max(maxPushBelow, belowBlob.push);
+                    }
+                }
+            });
+            
+            if (maxPushBelow > blobData.push) {
+                console.log(`  Blob ${blobIndex} inherits push=${maxPushBelow} from blob below`);
+                blobData.push = maxPushBelow;
+                changed = true;
+            }
+        });
+    }
+    
+    console.log(`Push propagation took ${iterations} iterations`);
+    
+    // Step 5: Collect all blobs that need pushing
+    const blobsToPush = allBlobs.filter(b => b.push > 0);
+    
+    // Add all blocks from pushed blobs to tsunamiPushedBlocks
+    blobsToPush.forEach(blobData => {
+        blobData.blocks.forEach(block => {
+            tsunamiPushedBlocks.push({
+                x: block.x,
+                y: block.y,
+                color: block.color,
+                isRandom: block.isRandom,
+                tsunamiHeightBelow: blobData.push
+            });
             // Remove from board temporarily
             board[block.y][block.x] = null;
             isRandomBlock[block.y][block.x] = false;
