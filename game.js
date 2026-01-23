@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.25 loaded - Tsunami push with interlocking blob detection");
+console.log("🎮 Game v3.26 loaded - Tsunami interlock only for true wrap-around");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -3959,6 +3959,8 @@ function triggerTsunamiAnimation(blob) {
     });
     
     // Check all pairs of blobs for interlocking
+    // For tsunami push, we only care about TRUE interlocking (one blob wraps around another)
+    // Simple vertical stacking is handled by cascade detection, not interlocking
     for (let i = 0; i < allBlobs.length; i++) {
         const blobA = allBlobs[i];
         const columnsA = blobColumns.get(blobA.id);
@@ -3978,23 +3980,28 @@ function triggerTsunamiAnimation(blob) {
                 const minYB = Math.min(...rowsB);
                 const maxYB = Math.max(...rowsB);
                 
-                // Check wrapping
+                // Only check for TRUE wrapping (one blob contains another in this column)
+                // This catches the "S sitting inside a C" case
                 if ((minYB < minYA && maxYB > maxYA) || (minYA < minYB && maxYA > maxYB)) {
                     isInterlocked = true;
+                    console.log(`  🔗 True interlock: ${blobA.color} and ${blobB.color} wrap in col ${colX}`);
                     break;
                 }
                 
-                // Check overlap or adjacency
+                // Also check if they actually OVERLAP (share rows), not just adjacent
+                // overlap > 0 means they truly share vertical space
                 const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
-                if (overlap >= -1) {
+                if (overlap > 0) {
                     isInterlocked = true;
+                    console.log(`  🔗 Overlap interlock: ${blobA.color} and ${blobB.color} overlap in col ${colX}`);
                     break;
                 }
+                // Note: overlap == 0 means touching, overlap == -1 means adjacent
+                // Neither of these count as interlocking for tsunami push
             }
             
             if (isInterlocked) {
                 union(blobA.id, blobB.id);
-                console.log(`  🔗 Interlocked: ${blobA.color} + ${blobB.color}`);
             }
         }
     }
@@ -12316,7 +12323,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.25',
+            gameVersion: '3.26',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
