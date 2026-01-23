@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.24 loaded - Tsunami cascading push for stacked blobs");
+console.log("🎮 Game v3.25 loaded - Tsunami push with interlocking blob detection");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -3847,7 +3847,7 @@ function triggerTsunamiAnimation(blob) {
     
     console.log('Tsunami color:', blob.color);
     console.log('Tsunami positions:', blob.positions.length, 'blocks');
-    console.log('Analyzing which blocks need to be pushed (including cascading)...');
+    console.log('Analyzing which blocks need to be pushed (with interlocking detection)...');
     
     // Track which cells we've already processed for blob detection
     const processed = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
@@ -3857,11 +3857,8 @@ function triggerTsunamiAnimation(blob) {
         processed[y][x] = true;
     });
     
-    // Track push amount for each position (for cascading detection)
-    const pushAmountAt = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
-    
-    // Find connected sections - normal flood fill, don't jump over tsunami
-    function findConnectedSection(startX, startY, color, processedTracker) {
+    // Find connected sections - normal flood fill
+    function findConnectedSection(startX, startY, color) {
         const section = [];
         const stack = [[startX, startY]];
         const visited = new Set();
@@ -3873,18 +3870,12 @@ function triggerTsunamiAnimation(blob) {
             if (visited.has(key)) continue;
             visited.add(key);
             
-            // Check bounds
             if (y < 0 || y >= ROWS || x < 0 || x >= COLS) continue;
             if (!board[y] || board[y][x] === null) continue;
-            
-            // Skip already processed blocks
-            if (processedTracker[y][x]) continue;
-            
-            // Only add blocks of matching color
+            if (processed[y][x]) continue;
             if (board[y][x] !== color) continue;
             
-            // Mark as processed and add to section
-            processedTracker[y][x] = true;
+            processed[y][x] = true;
             section.push({
                 x: x,
                 y: y,
@@ -3892,7 +3883,6 @@ function triggerTsunamiAnimation(blob) {
                 isRandom: isRandomBlock[y][x]
             });
             
-            // Check adjacent cells
             stack.push([x + 1, y]);
             stack.push([x - 1, y]);
             stack.push([x, y + 1]);
@@ -3906,12 +3896,124 @@ function triggerTsunamiAnimation(blob) {
     function getTsunamiHeightBelow(x, y) {
         for (let checkY = y + 1; checkY < ROWS; checkY++) {
             if (tsunamiPositions.has(`${x},${checkY}`)) {
-                // Found tsunami - calculate height from here to bottom of tsunami
                 return maxY - checkY + 1;
             }
         }
         return 0;
     }
+    
+    // STEP 1: Find all non-tsunami blobs
+    console.log('=== Step 1: Finding all blobs ===');
+    const allBlobs = [];
+    let blobId = 0;
+    
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (board[y] && board[y][x] !== null && !processed[y][x]) {
+                const section = findConnectedSection(x, y, board[y][x]);
+                if (section.length > 0) {
+                    allBlobs.push({
+                        id: `blob_${blobId++}`,
+                        color: section[0].color,
+                        blocks: section,
+                        positions: section.map(b => ({ x: b.x, y: b.y }))
+                    });
+                }
+            }
+        }
+    }
+    console.log(`  Found ${allBlobs.length} blobs`);
+    
+    // STEP 2: Detect interlocking blobs (same algorithm as gravity)
+    console.log('=== Step 2: Detecting interlocking blobs ===');
+    
+    const parent = new Map();
+    allBlobs.forEach(b => parent.set(b.id, b.id));
+    
+    function find(id) {
+        if (parent.get(id) !== id) {
+            parent.set(id, find(parent.get(id)));
+        }
+        return parent.get(id);
+    }
+    
+    function union(id1, id2) {
+        const root1 = find(id1);
+        const root2 = find(id2);
+        if (root1 !== root2) {
+            parent.set(root1, root2);
+            return true;
+        }
+        return false;
+    }
+    
+    // Pre-compute column data for each blob
+    const blobColumns = new Map();
+    allBlobs.forEach(b => {
+        const columns = new Map();
+        b.positions.forEach(pos => {
+            if (!columns.has(pos.x)) columns.set(pos.x, []);
+            columns.get(pos.x).push(pos.y);
+        });
+        blobColumns.set(b.id, columns);
+    });
+    
+    // Check all pairs of blobs for interlocking
+    for (let i = 0; i < allBlobs.length; i++) {
+        const blobA = allBlobs[i];
+        const columnsA = blobColumns.get(blobA.id);
+        
+        for (let j = i + 1; j < allBlobs.length; j++) {
+            const blobB = allBlobs[j];
+            const columnsB = blobColumns.get(blobB.id);
+            
+            let isInterlocked = false;
+            
+            for (let [colX, rowsA] of columnsA) {
+                const rowsB = columnsB.get(colX);
+                if (!rowsB || rowsB.length === 0) continue;
+                
+                const minYA = Math.min(...rowsA);
+                const maxYA = Math.max(...rowsA);
+                const minYB = Math.min(...rowsB);
+                const maxYB = Math.max(...rowsB);
+                
+                // Check wrapping
+                if ((minYB < minYA && maxYB > maxYA) || (minYA < minYB && maxYA > maxYB)) {
+                    isInterlocked = true;
+                    break;
+                }
+                
+                // Check overlap or adjacency
+                const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
+                if (overlap >= -1) {
+                    isInterlocked = true;
+                    break;
+                }
+            }
+            
+            if (isInterlocked) {
+                union(blobA.id, blobB.id);
+                console.log(`  🔗 Interlocked: ${blobA.color} + ${blobB.color}`);
+            }
+        }
+    }
+    
+    // Build blob groups from union-find
+    const blobGroups = new Map();
+    allBlobs.forEach(b => {
+        const root = find(b.id);
+        if (!blobGroups.has(root)) blobGroups.set(root, []);
+        blobGroups.get(root).push(b);
+    });
+    
+    console.log(`  Found ${blobGroups.size} blob groups (including singles)`);
+    
+    // STEP 3: Calculate push for each blob group
+    console.log('=== Step 3: Calculating push distances ===');
+    
+    // Track push amount for each position (for cascading)
+    const pushAmountAt = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
     
     // Helper: get push amount of block directly below a position
     function getPushAmountBelow(x, y) {
@@ -3921,108 +4023,91 @@ function triggerTsunamiAnimation(blob) {
         return 0;
     }
     
-    const blobsToPush = [];
+    const groupsToPush = [];
     
-    // PASS 1: Find all blobs directly sitting on tsunami
-    console.log('=== Pass 1: Finding blobs directly on tsunami ===');
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y] && board[y][x] !== null && !processed[y][x]) {
-                const tsunamiHeight = getTsunamiHeightBelow(x, y);
-                if (tsunamiHeight > 0) {
-                    // This block sits directly on tsunami
-                    const section = findConnectedSection(x, y, board[y][x], processed);
-                    
-                    if (section.length > 0) {
-                        // Calculate max push needed by any block in this blob
-                        let maxPush = 0;
-                        section.forEach(block => {
-                            const push = getTsunamiHeightBelow(block.x, block.y);
-                            maxPush = Math.max(maxPush, push);
-                        });
-                        
-                        if (maxPush > 0) {
-                            console.log(`  Blob at (${x},${y}): ${section.length} blocks, push=${maxPush} (directly on tsunami)`);
-                            
-                            // Record push amount for each block position
-                            section.forEach(block => {
-                                pushAmountAt[block.y][block.x] = maxPush;
-                            });
-                            
-                            blobsToPush.push({
-                                blocks: section,
-                                pushAmount: maxPush
-                            });
-                        }
-                    }
-                }
-            }
+    // PASS 1: Find groups directly on tsunami
+    console.log('--- Pass 1: Groups directly on tsunami ---');
+    const processedGroups = new Set();
+    
+    blobGroups.forEach((groupBlobs, groupId) => {
+        // Calculate max push needed by any block in this entire group
+        let maxPush = 0;
+        
+        groupBlobs.forEach(b => {
+            b.blocks.forEach(block => {
+                const push = getTsunamiHeightBelow(block.x, block.y);
+                maxPush = Math.max(maxPush, push);
+            });
+        });
+        
+        if (maxPush > 0) {
+            processedGroups.add(groupId);
+            
+            const allBlocks = [];
+            groupBlobs.forEach(b => {
+                b.blocks.forEach(block => {
+                    pushAmountAt[block.y][block.x] = maxPush;
+                    allBlocks.push(block);
+                });
+            });
+            
+            console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush}`);
+            groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
         }
-    }
+    });
     
-    // PASS 2+: Find blobs sitting on already-pushed blobs (cascading)
+    // PASS 2+: Find groups sitting on pushed blocks (cascading)
     let pass = 2;
     let foundNew = true;
     
     while (foundNew) {
         foundNew = false;
-        console.log(`=== Pass ${pass}: Finding blobs on pushed blobs ===`);
+        console.log(`--- Pass ${pass}: Cascading ---`);
         
-        for (let y = 0; y < ROWS; y++) {
-            for (let x = 0; x < COLS; x++) {
-                if (board[y] && board[y][x] !== null && !processed[y][x]) {
-                    // Check if this block sits on a pushed block
-                    const pushBelow = getPushAmountBelow(x, y);
-                    if (pushBelow > 0) {
-                        // This block sits on something that's being pushed
-                        const section = findConnectedSection(x, y, board[y][x], processed);
-                        
-                        if (section.length > 0) {
-                            // Calculate max push: could be from tsunami OR from pushed blocks below
-                            let maxPush = 0;
-                            section.forEach(block => {
-                                // Check tsunami directly below
-                                const tsunamiPush = getTsunamiHeightBelow(block.x, block.y);
-                                // Check pushed block directly below
-                                const cascadePush = getPushAmountBelow(block.x, block.y);
-                                maxPush = Math.max(maxPush, tsunamiPush, cascadePush);
-                            });
-                            
-                            if (maxPush > 0) {
-                                console.log(`  Blob at (${x},${y}): ${section.length} blocks, push=${maxPush} (cascading)`);
-                                
-                                // Record push amount for each block position
-                                section.forEach(block => {
-                                    pushAmountAt[block.y][block.x] = maxPush;
-                                });
-                                
-                                blobsToPush.push({
-                                    blocks: section,
-                                    pushAmount: maxPush
-                                });
-                                
-                                foundNew = true;
-                            }
-                        }
-                    }
-                }
+        blobGroups.forEach((groupBlobs, groupId) => {
+            if (processedGroups.has(groupId)) return;
+            
+            // Check if any block in this group sits on a pushed block
+            let maxPush = 0;
+            
+            groupBlobs.forEach(b => {
+                b.blocks.forEach(block => {
+                    const tsunamiPush = getTsunamiHeightBelow(block.x, block.y);
+                    const cascadePush = getPushAmountBelow(block.x, block.y);
+                    maxPush = Math.max(maxPush, tsunamiPush, cascadePush);
+                });
+            });
+            
+            if (maxPush > 0) {
+                processedGroups.add(groupId);
+                
+                const allBlocks = [];
+                groupBlobs.forEach(b => {
+                    b.blocks.forEach(block => {
+                        pushAmountAt[block.y][block.x] = maxPush;
+                        allBlocks.push(block);
+                    });
+                });
+                
+                console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush} (cascade)`);
+                groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
+                foundNew = true;
             }
-        }
-        pass++;
+        });
         
-        // Safety limit
+        pass++;
         if (pass > 20) {
             console.warn('Tsunami cascade detection exceeded 20 passes, stopping');
             break;
         }
     }
     
-    // Now push all blocks from all identified blobs
-    blobsToPush.forEach(blobData => {
-        blobData.blocks.forEach(block => {
+    // Now push all blocks from all groups
+    groupsToPush.forEach(group => {
+        group.blocks.forEach(block => {
             tsunamiPushedBlocks.push({
                 ...block,
-                tsunamiHeightBelow: blobData.pushAmount
+                tsunamiHeightBelow: group.pushAmount
             });
             // Remove from board temporarily
             board[block.y][block.x] = null;
@@ -4030,7 +4115,7 @@ function triggerTsunamiAnimation(blob) {
         });
     });
     
-    console.log(`Total blobs to push: ${blobsToPush.length}`);
+    console.log(`Total groups to push: ${groupsToPush.length}`);
     console.log(`Total blocks to push: ${tsunamiPushedBlocks.length}`);
     
     // Remove tsunami blocks from board immediately (we'll animate them)
@@ -12231,7 +12316,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.24',
+            gameVersion: '3.25',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
