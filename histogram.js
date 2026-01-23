@@ -397,59 +397,60 @@ const Histogram = (() => {
         
         // Draw gold bar (replicating color histogram approach exactly)
         if (scoreHistogramBar > 0) {
+            const silverColor = '#C0C0C0';
             const goldColor = '#FFD700';
-            const b = 4;
+            const b = 5;
             
             const minBarHeight = b * 2;
             const barHeight = Math.max(minBarHeight, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
             const x = padding;
             const y = height - padding - barHeight;
             
-            // Edge colors
+            // Edge colors (gold)
             const topGold = adjustBrightness(goldColor, 1.3);
             const leftGold = adjustBrightness(goldColor, 1.15);
             const bottomGold = adjustBrightness(goldColor, 0.7);
             const rightGold = adjustBrightness(goldColor, 0.85);
             
-            // Main face
+            // Main face (silver)
             ctx.save();
             ctx.globalAlpha = faceOpacity;
-            ctx.fillStyle = goldColor;
+            ctx.fillStyle = silverColor;
             ctx.fillRect(x, y, scoreBarWidth, barHeight);
             ctx.restore();
             
-            // Top edge
+            // Top edge (gold)
             const topGradient = ctx.createLinearGradient(x, y, x, y + b);
             topGradient.addColorStop(0, topGold);
             topGradient.addColorStop(1, adjustBrightness(topGold, 0.85));
             ctx.fillStyle = topGradient;
             ctx.fillRect(x, y, scoreBarWidth, b);
             
-            // Left edge
+            // Left edge (gold)
             const leftGradient = ctx.createLinearGradient(x, y, x + b, y);
             leftGradient.addColorStop(0, leftGold);
             leftGradient.addColorStop(1, adjustBrightness(leftGold, 0.85));
             ctx.fillStyle = leftGradient;
             ctx.fillRect(x, y, b, barHeight);
             
-            // Bottom edge
+            // Bottom edge (gold)
             const bottomGradient = ctx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
             bottomGradient.addColorStop(0, adjustBrightness(bottomGold, 1.15));
             bottomGradient.addColorStop(1, bottomGold);
             ctx.fillStyle = bottomGradient;
             ctx.fillRect(x, y + barHeight - b, scoreBarWidth, b);
             
-            // Right edge
+            // Right edge (gold)
             const rightGradient = ctx.createLinearGradient(x + scoreBarWidth - b, y, x + scoreBarWidth, y);
             rightGradient.addColorStop(0, adjustBrightness(rightGold, 1.15));
             rightGradient.addColorStop(1, rightGold);
             ctx.fillStyle = rightGradient;
             ctx.fillRect(x + scoreBarWidth - b, y, b, barHeight);
             
-            // Corners
+            // Corners (gold)
             drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
             
-            // Bitcoin symbol above bar
+            // Bitcoin symbol above bar (gold)
             const bitcoinY = y - 15;
             ctx.save();
             ctx.fillStyle = '#FFD700';
