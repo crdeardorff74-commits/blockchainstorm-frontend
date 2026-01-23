@@ -397,7 +397,7 @@ const Histogram = (() => {
         
         // Draw gold bar (replicating color histogram approach exactly)
         if (scoreHistogramBar > 0) {
-            const silverColor = '#C0C0C0';
+            const silverColor = '#E8E8E8';
             const goldColor = '#FFD700';
             const b = 5;
             
@@ -412,12 +412,9 @@ const Histogram = (() => {
             const bottomGold = adjustBrightness(goldColor, 0.7);
             const rightGold = adjustBrightness(goldColor, 0.85);
             
-            // Main face (silver)
-            ctx.save();
-            ctx.globalAlpha = faceOpacity;
+            // Main face (silver - no opacity for brighter appearance)
             ctx.fillStyle = silverColor;
             ctx.fillRect(x, y, scoreBarWidth, barHeight);
-            ctx.restore();
             
             // Top edge (gold)
             const topGradient = ctx.createLinearGradient(x, y, x, y + b);
