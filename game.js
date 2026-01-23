@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.27 loaded - Tsunami push checks for blocks in between");
+console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -4113,6 +4113,45 @@ function triggerTsunamiAnimation(blob) {
             console.warn('Tsunami cascade detection exceeded 20 passes, stopping');
             break;
         }
+    }
+    
+    // RECONCILIATION PASS: Check if any pushed group is also sitting on another pushed group
+    // with a larger push distance, and if so, inherit that larger distance
+    console.log('=== Reconciliation: Checking for larger push distances from neighbors ===');
+    let reconciliationChanged = true;
+    let reconciliationPass = 0;
+    
+    while (reconciliationChanged && reconciliationPass < 20) {
+        reconciliationChanged = false;
+        reconciliationPass++;
+        
+        groupsToPush.forEach(group => {
+            let maxNeighborPush = group.pushAmount;
+            
+            // Check if any block in this group sits directly on another pushed block
+            group.blocks.forEach(block => {
+                const pushBelow = getPushAmountBelow(block.x, block.y);
+                if (pushBelow > maxNeighborPush) {
+                    maxNeighborPush = pushBelow;
+                }
+            });
+            
+            if (maxNeighborPush > group.pushAmount) {
+                console.log(`  Reconciliation: Group push ${group.pushAmount} -> ${maxNeighborPush}`);
+                group.pushAmount = maxNeighborPush;
+                
+                // Update pushAmountAt for this group's blocks
+                group.blocks.forEach(block => {
+                    pushAmountAt[block.y][block.x] = maxNeighborPush;
+                });
+                
+                reconciliationChanged = true;
+            }
+        });
+    }
+    
+    if (reconciliationPass > 1) {
+        console.log(`  Reconciliation completed in ${reconciliationPass} passes`);
     }
     
     // Now push all blocks from all groups
@@ -12329,7 +12368,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.27',
+            gameVersion: '3.28',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
