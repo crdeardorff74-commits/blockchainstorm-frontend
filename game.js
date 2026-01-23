@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.26 loaded - Tsunami interlock only for true wrap-around");
+console.log("🎮 Game v3.27 loaded - Tsunami push checks for blocks in between");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -3893,8 +3893,14 @@ function triggerTsunamiAnimation(blob) {
     }
     
     // Helper: get tsunami height directly below a position
+    // Returns 0 if there are any other blocks between this position and the tsunami
     function getTsunamiHeightBelow(x, y) {
         for (let checkY = y + 1; checkY < ROWS; checkY++) {
+            // If we hit a non-tsunami block first, this position is NOT directly on tsunami
+            if (board[checkY] && board[checkY][x] !== null && !tsunamiPositions.has(`${x},${checkY}`)) {
+                return 0;
+            }
+            // If we hit tsunami, return the height
             if (tsunamiPositions.has(`${x},${checkY}`)) {
                 return maxY - checkY + 1;
             }
@@ -12323,7 +12329,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.26',
+            gameVersion: '3.27',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
