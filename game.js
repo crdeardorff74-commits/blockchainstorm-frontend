@@ -4144,63 +4144,50 @@ function drawTsunami() {
     
     // Draw each color group as potentially multiple connected sections
     Object.entries(blocksByColor).forEach(([color, blocks]) => {
-        // For each color, group by push amount, then find connected components within each push group
-        const byPushAmount = {};
-        blocks.forEach(block => {
-            const key = block.tsunamiHeightBelow || 0;
-            if (!byPushAmount[key]) {
-                byPushAmount[key] = [];
-            }
-            byPushAmount[key].push(block);
-        });
+        // Find connected components within this color group
+        const visited = new Set();
         
-        // For each push-amount group, find connected components and draw each separately
-        Object.entries(byPushAmount).forEach(([pushAmount, groupBlocks]) => {
-            const visited = new Set();
+        blocks.forEach(startBlock => {
+            const key = `${startBlock.x},${startBlock.y}`;
+            if (visited.has(key)) return;
             
-            groupBlocks.forEach(startBlock => {
-                const key = `${startBlock.x},${startBlock.y}`;
-                if (visited.has(key)) return;
+            // Find all blocks connected to this one via flood fill
+            const connectedSection = [];
+            const stack = [startBlock];
+            
+            while (stack.length > 0) {
+                const block = stack.pop();
+                const blockKey = `${block.x},${block.y}`;
                 
-                // Find all blocks connected to this one via flood fill
-                const connectedSection = [];
-                const stack = [startBlock];
+                if (visited.has(blockKey)) continue;
+                visited.add(blockKey);
+                connectedSection.push(block);
                 
-                while (stack.length > 0) {
-                    const block = stack.pop();
-                    const blockKey = `${block.x},${block.y}`;
+                // Find adjacent blocks of the same color
+                blocks.forEach(other => {
+                    const otherKey = `${other.x},${other.y}`;
+                    if (visited.has(otherKey)) return;
                     
-                    if (visited.has(blockKey)) continue;
-                    visited.add(blockKey);
-                    connectedSection.push(block);
+                    const dx = Math.abs(other.x - block.x);
+                    const dy = Math.abs(other.y - block.y);
                     
-                    // Find adjacent blocks in the same push group
-                    groupBlocks.forEach(other => {
-                        const otherKey = `${other.x},${other.y}`;
-                        if (visited.has(otherKey)) return;
-                        
-                        const dx = Math.abs(other.x - block.x);
-                        const dy = Math.abs(other.y - block.y);
-                        
-                        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-                            stack.push(other);
-                        }
-                    });
-                }
+                    if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+                        stack.push(other);
+                    }
+                });
+            }
+            
+            // Draw this connected section (normal rendering, not gold)
+            if (connectedSection.length > 0) {
+                // All blocks pushed up by the same amount - the tsunami's expansion distance
+                const pushInBlocks = pushDistance / BLOCK_SIZE;
+                const positions = connectedSection.map(block => {
+                    const pushedY = block.y - pushInBlocks;
+                    return [block.x, pushedY];
+                });
                 
-                // Draw this connected section (normal rendering, not gold)
-                if (connectedSection.length > 0) {
-                    const positions = connectedSection.map(block => {
-                        const individualPush = (block.tsunamiHeightBelow || 0) * BLOCK_SIZE;
-                        const progressMultiplier = pushDistance / (tsunamiBlob.originalHeight * BLOCK_SIZE);
-                        const adjustedPush = individualPush * progressMultiplier;
-                        const pushedY = block.y - adjustedPush / BLOCK_SIZE;
-                        return [block.x, pushedY];
-                    });
-                    
-                    drawSolidShape(ctx, positions, color, BLOCK_SIZE, false, getFaceOpacity());
-                }
-            });
+                drawSolidShape(ctx, positions, color, BLOCK_SIZE, false, getFaceOpacity());
+            }
         });
     });
     
