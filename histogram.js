@@ -492,7 +492,7 @@ const Histogram = (() => {
         // Draw bars
         colors.forEach((color, index) => {
             const blockSize = Math.round(actualBarWidth);
-            const b = Math.max(Math.floor(blockSize * 0.2), 6);
+            const b = 7; // Fixed bevel size to match game piece rendering
             
             const minBarHeight = b * 2;
             const barHeight = Math.round(Math.max(minBarHeight, (histogramBars[color] / histogramMaxScale) * graphHeight));
@@ -546,11 +546,11 @@ const Histogram = (() => {
     }
     
     /**
-     * Draw beveled corners for a bar
+     * Draw beveled corners for a bar (matching game piece rendering)
      */
     function drawBarCorners(x, y, blockSize, barHeight, b, topColor, leftColor, bottomColor, rightColor) {
-        // Top-left corner
-        let grad = ctx.createLinearGradient(x, y, x + b, y + b);
+        // Top-left corner - use vertical gradient for top triangle, horizontal for left triangle
+        let grad = ctx.createLinearGradient(x, y, x, y + b);
         grad.addColorStop(0, topColor);
         grad.addColorStop(1, adjustBrightness(topColor, 0.85));
         ctx.fillStyle = grad;
@@ -561,7 +561,7 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        grad = ctx.createLinearGradient(x, y, x + b, y + b);
+        grad = ctx.createLinearGradient(x, y, x + b, y);
         grad.addColorStop(0, leftColor);
         grad.addColorStop(1, adjustBrightness(leftColor, 0.85));
         ctx.fillStyle = grad;
@@ -572,10 +572,10 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        // Top-right corner
-        grad = ctx.createLinearGradient(x + blockSize - b, y, x + blockSize, y + b);
-        grad.addColorStop(0, adjustBrightness(topColor, 0.85));
-        grad.addColorStop(1, topColor);
+        // Top-right corner - use vertical gradient for top triangle, horizontal for right triangle
+        grad = ctx.createLinearGradient(x + blockSize, y, x + blockSize, y + b);
+        grad.addColorStop(0, topColor);
+        grad.addColorStop(1, adjustBrightness(topColor, 0.85));
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.moveTo(x + blockSize, y);
@@ -584,7 +584,7 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        grad = ctx.createLinearGradient(x + blockSize - b, y, x + blockSize, y + b);
+        grad = ctx.createLinearGradient(x + blockSize - b, y, x + blockSize, y);
         grad.addColorStop(0, adjustBrightness(rightColor, 1.15));
         grad.addColorStop(1, rightColor);
         ctx.fillStyle = grad;
@@ -595,8 +595,8 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        // Bottom-left corner
-        grad = ctx.createLinearGradient(x, y + barHeight - b, x + b, y + barHeight);
+        // Bottom-left corner - use horizontal gradient for left triangle, vertical for bottom triangle
+        grad = ctx.createLinearGradient(x, y + barHeight, x + b, y + barHeight);
         grad.addColorStop(0, leftColor);
         grad.addColorStop(1, adjustBrightness(leftColor, 0.85));
         ctx.fillStyle = grad;
@@ -607,7 +607,7 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        grad = ctx.createLinearGradient(x, y + barHeight - b, x + b, y + barHeight);
+        grad = ctx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
         grad.addColorStop(0, adjustBrightness(bottomColor, 1.15));
         grad.addColorStop(1, bottomColor);
         ctx.fillStyle = grad;
@@ -618,8 +618,8 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        // Bottom-right corner
-        grad = ctx.createLinearGradient(x + blockSize - b, y + barHeight - b, x + blockSize, y + barHeight);
+        // Bottom-right corner - use vertical gradient for bottom triangle, horizontal for right triangle
+        grad = ctx.createLinearGradient(x + blockSize, y + barHeight - b, x + blockSize, y + barHeight);
         grad.addColorStop(0, adjustBrightness(bottomColor, 1.15));
         grad.addColorStop(1, bottomColor);
         ctx.fillStyle = grad;
@@ -630,7 +630,7 @@ const Histogram = (() => {
         ctx.closePath();
         ctx.fill();
         
-        grad = ctx.createLinearGradient(x + blockSize - b, y + barHeight - b, x + blockSize, y + barHeight);
+        grad = ctx.createLinearGradient(x + blockSize - b, y + barHeight, x + blockSize, y + barHeight);
         grad.addColorStop(0, adjustBrightness(rightColor, 1.15));
         grad.addColorStop(1, rightColor);
         ctx.fillStyle = grad;
