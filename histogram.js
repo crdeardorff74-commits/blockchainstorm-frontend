@@ -219,7 +219,7 @@ const Histogram = (() => {
         const graphHeight = height - padding * 2 - mainHistogramStart;
         
         // Reserve space for score histogram on the left
-        const scoreBarWidth = 20;
+        const scoreBarWidth = 30;
         const scoreBarPadding = 40;
         const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
         const graphWidth = width - colorGraphStart - padding;
@@ -265,62 +265,83 @@ const Histogram = (() => {
         const barActualWidth = Math.max(0, (speedBonusHistogramBar / 2.0) * barMaxWidth);
         
         // Calculate color based on value
-        let speedColor, speedColorLight, speedColorDark;
+        let speedColor;
         if (speedBonusHistogramBar <= 1.0) {
             const t = speedBonusHistogramBar;
             const r = 255;
             const g = Math.floor(200 * t);
             const b = 0;
             speedColor = `rgb(${r}, ${g}, ${b})`;
-            speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
-            speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
         } else {
             const t = speedBonusHistogramBar - 1.0;
             const r = Math.floor(255 * (1 - t));
             const g = Math.floor(200 + 55 * t);
             const b = 0;
             speedColor = `rgb(${r}, ${g}, ${b})`;
-            speedColorLight = `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`;
-            speedColorDark = `rgb(${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 20)})`;
         }
         
         // Draw bar with beveled edges
         const sb = 4;
-        if (barActualWidth > 0) {
+        if (barActualWidth > sb * 2) {
+            // Convert RGB to hex for adjustBrightness
+            function rgbToHex(r, g, b) {
+                return '#' + [r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('');
+            }
+            
+            // Parse speedColor to get RGB values
+            const rgbMatch = speedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            const hexColor = rgbMatch ? rgbToHex(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])) : '#FFD700';
+            
+            // Edge colors using adjustBrightness for consistency
+            const topColor = adjustBrightness(hexColor, 1.3);
+            const leftColor = adjustBrightness(hexColor, 1.15);
+            const bottomColor = adjustBrightness(hexColor, 0.7);
+            const rightColor = adjustBrightness(hexColor, 0.85);
+            
             // Main face
+            ctx.save();
+            ctx.globalAlpha = faceOpacity;
+            ctx.fillStyle = hexColor;
+            ctx.fillRect(barStartX, barY, barActualWidth, barHeight);
+            ctx.restore();
+            
+            // Top edge (leave space for corners)
+            const topGrad = ctx.createLinearGradient(barStartX, barY, barStartX, barY + sb);
+            topGrad.addColorStop(0, topColor);
+            topGrad.addColorStop(1, adjustBrightness(topColor, 0.85));
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(barStartX + sb, barY, barActualWidth - sb * 2, sb);
+            
+            // Left edge (leave space for corners)
+            const leftGrad = ctx.createLinearGradient(barStartX, barY, barStartX + sb, barY);
+            leftGrad.addColorStop(0, leftColor);
+            leftGrad.addColorStop(1, adjustBrightness(leftColor, 0.85));
+            ctx.fillStyle = leftGrad;
+            ctx.fillRect(barStartX, barY + sb, sb, barHeight - sb * 2);
+            
+            // Bottom edge (leave space for corners)
+            const bottomGrad = ctx.createLinearGradient(barStartX, barY + barHeight - sb, barStartX, barY + barHeight);
+            bottomGrad.addColorStop(0, adjustBrightness(bottomColor, 1.15));
+            bottomGrad.addColorStop(1, bottomColor);
+            ctx.fillStyle = bottomGrad;
+            ctx.fillRect(barStartX + sb, barY + barHeight - sb, barActualWidth - sb * 2, sb);
+            
+            // Right edge (leave space for corners)
+            const rightGrad = ctx.createLinearGradient(barStartX + barActualWidth - sb, barY, barStartX + barActualWidth, barY);
+            rightGrad.addColorStop(0, adjustBrightness(rightColor, 1.15));
+            rightGrad.addColorStop(1, rightColor);
+            ctx.fillStyle = rightGrad;
+            ctx.fillRect(barStartX + barActualWidth - sb, barY + sb, sb, barHeight - sb * 2);
+            
+            // Draw corners
+            drawBarCorners(barStartX, barY, barActualWidth, barHeight, sb, topColor, leftColor, bottomColor, rightColor);
+        } else if (barActualWidth > 0) {
+            // Bar too small for corners, just draw simple filled rect
             ctx.save();
             ctx.globalAlpha = faceOpacity;
             ctx.fillStyle = speedColor;
             ctx.fillRect(barStartX, barY, barActualWidth, barHeight);
             ctx.restore();
-            
-            // Top edge
-            const topGrad = ctx.createLinearGradient(barStartX, barY, barStartX, barY + sb);
-            topGrad.addColorStop(0, speedColorLight);
-            topGrad.addColorStop(1, speedColor);
-            ctx.fillStyle = topGrad;
-            ctx.fillRect(barStartX, barY, barActualWidth, sb);
-            
-            // Left edge
-            const leftGrad = ctx.createLinearGradient(barStartX, barY, barStartX + sb, barY);
-            leftGrad.addColorStop(0, speedColorLight);
-            leftGrad.addColorStop(1, speedColor);
-            ctx.fillStyle = leftGrad;
-            ctx.fillRect(barStartX, barY, sb, barHeight);
-            
-            // Bottom edge
-            const bottomGrad = ctx.createLinearGradient(barStartX, barY + barHeight - sb, barStartX, barY + barHeight);
-            bottomGrad.addColorStop(0, speedColor);
-            bottomGrad.addColorStop(1, speedColorDark);
-            ctx.fillStyle = bottomGrad;
-            ctx.fillRect(barStartX, barY + barHeight - sb, barActualWidth, sb);
-            
-            // Right edge
-            const rightGrad = ctx.createLinearGradient(barStartX + barActualWidth - sb, barY, barStartX + barActualWidth, barY);
-            rightGrad.addColorStop(0, speedColor);
-            rightGrad.addColorStop(1, speedColorDark);
-            ctx.fillStyle = rightGrad;
-            ctx.fillRect(barStartX + barActualWidth - sb, barY, sb, barHeight);
         }
         
         // Draw value
@@ -384,6 +405,12 @@ const Histogram = (() => {
             const x = padding;
             const y = height - padding - barHeight;
             
+            // Edge colors using adjustBrightness for consistency
+            const topGold = adjustBrightness(goldColor, 1.3);
+            const leftGold = adjustBrightness(goldColor, 1.15);
+            const bottomGold = adjustBrightness(goldColor, 0.7);
+            const rightGold = adjustBrightness(goldColor, 0.85);
+            
             // Main face
             ctx.save();
             ctx.globalAlpha = faceOpacity;
@@ -391,39 +418,36 @@ const Histogram = (() => {
             ctx.fillRect(x, y, scoreBarWidth, barHeight);
             ctx.restore();
             
-            // Beveled edges
-            const topGold = '#FFED4E';
-            const leftGold = '#FFDF00';
-            const bottomGold = '#B8860B';
-            const rightGold = '#DAA520';
-            
             // Top edge
             const topGradient = ctx.createLinearGradient(x, y, x, y + b);
             topGradient.addColorStop(0, topGold);
-            topGradient.addColorStop(1, goldColor);
+            topGradient.addColorStop(1, adjustBrightness(topGold, 0.85));
             ctx.fillStyle = topGradient;
-            ctx.fillRect(x, y, scoreBarWidth, b);
+            ctx.fillRect(x + b, y, scoreBarWidth - b * 2, b);
             
             // Left edge
             const leftGradient = ctx.createLinearGradient(x, y, x + b, y);
             leftGradient.addColorStop(0, leftGold);
-            leftGradient.addColorStop(1, goldColor);
+            leftGradient.addColorStop(1, adjustBrightness(leftGold, 0.85));
             ctx.fillStyle = leftGradient;
-            ctx.fillRect(x, y, b, barHeight);
+            ctx.fillRect(x, y + b, b, barHeight - b * 2);
             
             // Bottom edge
             const bottomGradient = ctx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
-            bottomGradient.addColorStop(0, goldColor);
+            bottomGradient.addColorStop(0, adjustBrightness(bottomGold, 1.15));
             bottomGradient.addColorStop(1, bottomGold);
             ctx.fillStyle = bottomGradient;
-            ctx.fillRect(x, y + barHeight - b, scoreBarWidth, b);
+            ctx.fillRect(x + b, y + barHeight - b, scoreBarWidth - b * 2, b);
             
             // Right edge
             const rightGradient = ctx.createLinearGradient(x + scoreBarWidth - b, y, x + scoreBarWidth, y);
-            rightGradient.addColorStop(0, goldColor);
+            rightGradient.addColorStop(0, adjustBrightness(rightGold, 1.15));
             rightGradient.addColorStop(1, rightGold);
             ctx.fillStyle = rightGradient;
-            ctx.fillRect(x + scoreBarWidth - b, y, b, barHeight);
+            ctx.fillRect(x + scoreBarWidth - b, y + b, b, barHeight - b * 2);
+            
+            // Corners
+            drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
             
             // Bitcoin symbol above bar
             const bitcoinY = y - 15;
