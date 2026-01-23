@@ -280,7 +280,7 @@ const Histogram = (() => {
             speedColor = `rgb(${r}, ${g}, ${b})`;
         }
         
-        // Draw bar with beveled edges
+        // Draw bar with beveled edges (replicating color histogram approach exactly)
         const sb = 4;
         if (barActualWidth > sb * 2) {
             // Convert RGB to hex for adjustBrightness
@@ -292,7 +292,7 @@ const Histogram = (() => {
             const rgbMatch = speedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
             const hexColor = rgbMatch ? rgbToHex(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])) : '#FFD700';
             
-            // Edge colors using adjustBrightness for consistency
+            // Edge colors
             const topColor = adjustBrightness(hexColor, 1.3);
             const leftColor = adjustBrightness(hexColor, 1.15);
             const bottomColor = adjustBrightness(hexColor, 0.7);
@@ -305,38 +305,38 @@ const Histogram = (() => {
             ctx.fillRect(barStartX, barY, barActualWidth, barHeight);
             ctx.restore();
             
-            // Top edge (full width, corners drawn on top)
+            // Top edge
             const topGrad = ctx.createLinearGradient(barStartX, barY, barStartX, barY + sb);
             topGrad.addColorStop(0, topColor);
             topGrad.addColorStop(1, adjustBrightness(topColor, 0.85));
             ctx.fillStyle = topGrad;
             ctx.fillRect(barStartX, barY, barActualWidth, sb);
             
-            // Left edge (full height, corners drawn on top)
+            // Left edge
             const leftGrad = ctx.createLinearGradient(barStartX, barY, barStartX + sb, barY);
             leftGrad.addColorStop(0, leftColor);
             leftGrad.addColorStop(1, adjustBrightness(leftColor, 0.85));
             ctx.fillStyle = leftGrad;
             ctx.fillRect(barStartX, barY, sb, barHeight);
             
-            // Bottom edge (full width, corners drawn on top)
+            // Bottom edge
             const bottomGrad = ctx.createLinearGradient(barStartX, barY + barHeight - sb, barStartX, barY + barHeight);
             bottomGrad.addColorStop(0, adjustBrightness(bottomColor, 1.15));
             bottomGrad.addColorStop(1, bottomColor);
             ctx.fillStyle = bottomGrad;
             ctx.fillRect(barStartX, barY + barHeight - sb, barActualWidth, sb);
             
-            // Right edge (full height, corners drawn on top)
+            // Right edge
             const rightGrad = ctx.createLinearGradient(barStartX + barActualWidth - sb, barY, barStartX + barActualWidth, barY);
             rightGrad.addColorStop(0, adjustBrightness(rightColor, 1.15));
             rightGrad.addColorStop(1, rightColor);
             ctx.fillStyle = rightGrad;
             ctx.fillRect(barStartX + barActualWidth - sb, barY, sb, barHeight);
             
-            // Draw corners on top
+            // Corners
             drawBarCorners(barStartX, barY, barActualWidth, barHeight, sb, topColor, leftColor, bottomColor, rightColor);
         } else if (barActualWidth > 0) {
-            // Bar too small for corners, just draw simple filled rect
+            // Bar too small for bevels, just draw simple filled rect
             ctx.save();
             ctx.globalAlpha = faceOpacity;
             ctx.fillStyle = speedColor;
@@ -395,7 +395,7 @@ const Histogram = (() => {
             }
         }
         
-        // Draw gold bar
+        // Draw gold bar (replicating color histogram approach exactly)
         if (scoreHistogramBar > 0) {
             const goldColor = '#FFD700';
             const b = 4;
@@ -405,7 +405,7 @@ const Histogram = (() => {
             const x = padding;
             const y = height - padding - barHeight;
             
-            // Edge colors using adjustBrightness for consistency
+            // Edge colors
             const topGold = adjustBrightness(goldColor, 1.3);
             const leftGold = adjustBrightness(goldColor, 1.15);
             const bottomGold = adjustBrightness(goldColor, 0.7);
@@ -418,35 +418,35 @@ const Histogram = (() => {
             ctx.fillRect(x, y, scoreBarWidth, barHeight);
             ctx.restore();
             
-            // Top edge (full width, corners drawn on top)
+            // Top edge
             const topGradient = ctx.createLinearGradient(x, y, x, y + b);
             topGradient.addColorStop(0, topGold);
             topGradient.addColorStop(1, adjustBrightness(topGold, 0.85));
             ctx.fillStyle = topGradient;
             ctx.fillRect(x, y, scoreBarWidth, b);
             
-            // Left edge (full height, corners drawn on top)
+            // Left edge
             const leftGradient = ctx.createLinearGradient(x, y, x + b, y);
             leftGradient.addColorStop(0, leftGold);
             leftGradient.addColorStop(1, adjustBrightness(leftGold, 0.85));
             ctx.fillStyle = leftGradient;
             ctx.fillRect(x, y, b, barHeight);
             
-            // Bottom edge (full width, corners drawn on top)
+            // Bottom edge
             const bottomGradient = ctx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
             bottomGradient.addColorStop(0, adjustBrightness(bottomGold, 1.15));
             bottomGradient.addColorStop(1, bottomGold);
             ctx.fillStyle = bottomGradient;
             ctx.fillRect(x, y + barHeight - b, scoreBarWidth, b);
             
-            // Right edge (full height, corners drawn on top)
+            // Right edge
             const rightGradient = ctx.createLinearGradient(x + scoreBarWidth - b, y, x + scoreBarWidth, y);
             rightGradient.addColorStop(0, adjustBrightness(rightGold, 1.15));
             rightGradient.addColorStop(1, rightGold);
             ctx.fillStyle = rightGradient;
             ctx.fillRect(x + scoreBarWidth - b, y, b, barHeight);
             
-            // Corners drawn on top
+            // Corners
             drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
             
             // Bitcoin symbol above bar
