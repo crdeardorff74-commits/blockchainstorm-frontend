@@ -219,7 +219,7 @@ const Histogram = (() => {
         const graphHeight = height - padding * 2 - mainHistogramStart;
         
         // Reserve space for score histogram on the left
-        const scoreBarWidth = 30;
+        const scoreBarWidth = 24;
         const scoreBarPadding = 40;
         const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
         const graphWidth = width - colorGraphStart - padding;
