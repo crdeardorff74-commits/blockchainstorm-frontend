@@ -159,10 +159,10 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     if (rulesInstructions) rulesInstructions.style.display = 'none';
     if (histogramCanvas) histogramCanvas.style.display = 'none';
     
-    // Update the view dropdown to show "Leaderboards"
+    // Update the view dropdown to show the correct leaderboard mode
     const viewSelect = document.getElementById('rulesPanelViewSelect');
     if (viewSelect) {
-        viewSelect.value = 'leaderboard';
+        viewSelect.value = 'leaderboard-' + mode;
     }
     
     // Get or create leaderboard content div inside rules-panel
@@ -175,14 +175,11 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     leaderboardContent.style.display = 'block';
     
-    const modeLabel = mode === 'challenge' ? ' (Challenge)' : (mode === 'ai' ? ' (AI)' : (mode === 'ai-challenge' ? ' (AI Challenge)' : ''));
-    const skillLabel = skillLevel === 'maelstrom' ? ' 🌀' : (skillLevel === 'breeze' ? ' 🌤️' : ' 🌪️');
-    
     // Update the panel title to show leaderboard info and hide skill label
     const panelTitle = document.getElementById('rulesPanelTitle');
     const skillLevelLabel = document.getElementById('skillLevelLabel');
     if (panelTitle) {
-        panelTitle.textContent = `${getModeDisplayName(difficulty)}${modeLabel}`;
+        panelTitle.textContent = getModeDisplayName(difficulty);
         panelTitle.style.display = 'block';
     }
     if (skillLevelLabel) {
@@ -191,7 +188,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
-            Loading ${difficulty}${modeLabel} leaderboard...
+            Loading ${difficulty} leaderboard...
         </div>
     `;
     

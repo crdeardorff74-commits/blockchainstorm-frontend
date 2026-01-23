@@ -12928,19 +12928,33 @@ createVolumeControls();
 // Rules panel view toggle handler
 const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
 if (rulesPanelViewSelect) {
-    // Restore saved preference
-    const savedView = localStorage.getItem('rulesPanelView');
+    // Restore saved preference (with migration for old format)
+    let savedView = localStorage.getItem('rulesPanelView');
+    
+    // Migrate old "leaderboard" value to new format
+    if (savedView === 'leaderboard') {
+        savedView = 'leaderboard-normal';
+        localStorage.setItem('rulesPanelView', savedView);
+    }
+    
     if (savedView) {
-        rulesPanelViewSelect.value = savedView;
-        // Trigger the view change immediately
-        if (savedView.startsWith('leaderboard-')) {
-            const leaderboardMode = savedView.replace('leaderboard-', '');
-            const rulesInstructions = document.querySelector('.rules-instructions');
-            if (rulesInstructions) rulesInstructions.style.display = 'none';
-            if (window.leaderboard) {
-                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        // Verify the value exists in the dropdown options
+        const optionExists = Array.from(rulesPanelViewSelect.options).some(opt => opt.value === savedView);
+        if (optionExists) {
+            rulesPanelViewSelect.value = savedView;
+            // Trigger the view change immediately
+            if (savedView.startsWith('leaderboard-')) {
+                const leaderboardMode = savedView.replace('leaderboard-', '');
+                const rulesInstructions = document.querySelector('.rules-instructions');
+                if (rulesInstructions) rulesInstructions.style.display = 'none';
+                if (window.leaderboard) {
+                    const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                    window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+                }
             }
+        } else {
+            // Invalid saved value, reset to default
+            localStorage.removeItem('rulesPanelView');
         }
     }
     
