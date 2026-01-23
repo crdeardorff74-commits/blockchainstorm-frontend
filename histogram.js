@@ -305,35 +305,35 @@ const Histogram = (() => {
             ctx.fillRect(barStartX, barY, barActualWidth, barHeight);
             ctx.restore();
             
-            // Top edge (leave space for corners)
+            // Top edge (full width, corners drawn on top)
             const topGrad = ctx.createLinearGradient(barStartX, barY, barStartX, barY + sb);
             topGrad.addColorStop(0, topColor);
             topGrad.addColorStop(1, adjustBrightness(topColor, 0.85));
             ctx.fillStyle = topGrad;
-            ctx.fillRect(barStartX + sb, barY, barActualWidth - sb * 2, sb);
+            ctx.fillRect(barStartX, barY, barActualWidth, sb);
             
-            // Left edge (leave space for corners)
+            // Left edge (full height, corners drawn on top)
             const leftGrad = ctx.createLinearGradient(barStartX, barY, barStartX + sb, barY);
             leftGrad.addColorStop(0, leftColor);
             leftGrad.addColorStop(1, adjustBrightness(leftColor, 0.85));
             ctx.fillStyle = leftGrad;
-            ctx.fillRect(barStartX, barY + sb, sb, barHeight - sb * 2);
+            ctx.fillRect(barStartX, barY, sb, barHeight);
             
-            // Bottom edge (leave space for corners)
+            // Bottom edge (full width, corners drawn on top)
             const bottomGrad = ctx.createLinearGradient(barStartX, barY + barHeight - sb, barStartX, barY + barHeight);
             bottomGrad.addColorStop(0, adjustBrightness(bottomColor, 1.15));
             bottomGrad.addColorStop(1, bottomColor);
             ctx.fillStyle = bottomGrad;
-            ctx.fillRect(barStartX + sb, barY + barHeight - sb, barActualWidth - sb * 2, sb);
+            ctx.fillRect(barStartX, barY + barHeight - sb, barActualWidth, sb);
             
-            // Right edge (leave space for corners)
+            // Right edge (full height, corners drawn on top)
             const rightGrad = ctx.createLinearGradient(barStartX + barActualWidth - sb, barY, barStartX + barActualWidth, barY);
             rightGrad.addColorStop(0, adjustBrightness(rightColor, 1.15));
             rightGrad.addColorStop(1, rightColor);
             ctx.fillStyle = rightGrad;
-            ctx.fillRect(barStartX + barActualWidth - sb, barY + sb, sb, barHeight - sb * 2);
+            ctx.fillRect(barStartX + barActualWidth - sb, barY, sb, barHeight);
             
-            // Draw corners
+            // Draw corners on top
             drawBarCorners(barStartX, barY, barActualWidth, barHeight, sb, topColor, leftColor, bottomColor, rightColor);
         } else if (barActualWidth > 0) {
             // Bar too small for corners, just draw simple filled rect
@@ -418,35 +418,35 @@ const Histogram = (() => {
             ctx.fillRect(x, y, scoreBarWidth, barHeight);
             ctx.restore();
             
-            // Top edge
+            // Top edge (full width, corners drawn on top)
             const topGradient = ctx.createLinearGradient(x, y, x, y + b);
             topGradient.addColorStop(0, topGold);
             topGradient.addColorStop(1, adjustBrightness(topGold, 0.85));
             ctx.fillStyle = topGradient;
-            ctx.fillRect(x + b, y, scoreBarWidth - b * 2, b);
+            ctx.fillRect(x, y, scoreBarWidth, b);
             
-            // Left edge
+            // Left edge (full height, corners drawn on top)
             const leftGradient = ctx.createLinearGradient(x, y, x + b, y);
             leftGradient.addColorStop(0, leftGold);
             leftGradient.addColorStop(1, adjustBrightness(leftGold, 0.85));
             ctx.fillStyle = leftGradient;
-            ctx.fillRect(x, y + b, b, barHeight - b * 2);
+            ctx.fillRect(x, y, b, barHeight);
             
-            // Bottom edge
+            // Bottom edge (full width, corners drawn on top)
             const bottomGradient = ctx.createLinearGradient(x, y + barHeight - b, x, y + barHeight);
             bottomGradient.addColorStop(0, adjustBrightness(bottomGold, 1.15));
             bottomGradient.addColorStop(1, bottomGold);
             ctx.fillStyle = bottomGradient;
-            ctx.fillRect(x + b, y + barHeight - b, scoreBarWidth - b * 2, b);
+            ctx.fillRect(x, y + barHeight - b, scoreBarWidth, b);
             
-            // Right edge
+            // Right edge (full height, corners drawn on top)
             const rightGradient = ctx.createLinearGradient(x + scoreBarWidth - b, y, x + scoreBarWidth, y);
             rightGradient.addColorStop(0, adjustBrightness(rightGold, 1.15));
             rightGradient.addColorStop(1, rightGold);
             ctx.fillStyle = rightGradient;
-            ctx.fillRect(x + scoreBarWidth - b, y + b, b, barHeight - b * 2);
+            ctx.fillRect(x + scoreBarWidth - b, y, b, barHeight);
             
-            // Corners
+            // Corners drawn on top
             drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
             
             // Bitcoin symbol above bar
