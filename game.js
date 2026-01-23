@@ -4197,12 +4197,12 @@ function drawTsunami() {
     ctx.scale(1, currentScale);
     ctx.translate(0, -bottomPixelY);
     
-    // Fade during collapse phase only (after 40% progress)
+    // Fade during collapse phase only (after 40% progress) - fade twice as fast
     const surgePhaseEnd = 0.4;
     if (progress > surgePhaseEnd) {
         const collapseProgress = (progress - surgePhaseEnd) / (1 - surgePhaseEnd);
-        const alpha = 1 - collapseProgress * 0.7;
-        ctx.globalAlpha = Math.max(0.3, alpha);
+        const alpha = 1 - collapseProgress * 1.4; // Twice as fast (was 0.7)
+        ctx.globalAlpha = Math.max(0, alpha);
     } else {
         ctx.globalAlpha = 1;
     }
