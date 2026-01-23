@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
+console.log("🎮 Game v3.21 loaded - Tuning mode downloads all games");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
@@ -3835,8 +3835,10 @@ function triggerTsunamiAnimation(blob) {
     tsunamiBlob.originalHeight = maxY - minY + 1;
     
     // Find all blocks that need to be pushed up
-    // A block needs to be pushed if there's ANY tsunami block below it in the same column
-    // (because that tsunami block will expand upward and hit it)
+    // A block needs to be pushed if:
+    // 1. It's directly above a tsunami block, OR
+    // 2. Its blob is sitting on another blob that is being pushed
+    // Push amounts propagate upward through stacked blobs
     tsunamiPushedBlocks = [];
     
     // Create a set of tsunami positions for fast lookup
@@ -3847,18 +3849,30 @@ function triggerTsunamiAnimation(blob) {
     
     console.log('Tsunami color:', blob.color);
     console.log('Tsunami positions:', blob.positions.length, 'blocks');
-    console.log('Analyzing which blocks need to be pushed (with interlocking detection)...');
     
-    // Track which cells we've already processed for blob detection
+    // Step 1: Calculate tsunami column heights
+    const tsunamiColumnHeight = {};
+    for (let x = 0; x < COLS; x++) {
+        let height = 0;
+        blob.positions.forEach(([px, py]) => {
+            if (px === x) height++;
+        });
+        if (height > 0) {
+            tsunamiColumnHeight[x] = height;
+            console.log(`  Tsunami column ${x}: height=${height}`);
+        }
+    }
+    
+    // Track which cells we've already assigned to blobs
     const processed = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
     
-    // Mark tsunami blocks as processed so we don't include them
+    // Mark tsunami blocks as processed
     blob.positions.forEach(([x, y]) => {
         processed[y][x] = true;
     });
     
-    // Find connected sections - normal flood fill
-    function findConnectedSection(startX, startY, color) {
+    // Find connected blob starting from a position
+    function findBlob(startX, startY, color) {
         const section = [];
         const stack = [[startX, startY]];
         const visited = new Set();
@@ -3876,12 +3890,7 @@ function triggerTsunamiAnimation(blob) {
             if (board[y][x] !== color) continue;
             
             processed[y][x] = true;
-            section.push({
-                x: x,
-                y: y,
-                color: color,
-                isRandom: isRandomBlock[y][x]
-            });
+            section.push({ x, y, color, isRandom: isRandomBlock[y][x] });
             
             stack.push([x + 1, y]);
             stack.push([x - 1, y]);
@@ -3892,274 +3901,93 @@ function triggerTsunamiAnimation(blob) {
         return section;
     }
     
-    // Helper: get tsunami height directly below a position
-    // Returns 0 if there are any other blocks between this position and the tsunami
-    function getTsunamiHeightBelow(x, y) {
-        for (let checkY = y + 1; checkY < ROWS; checkY++) {
-            // If we hit a non-tsunami block first, this position is NOT directly on tsunami
-            if (board[checkY] && board[checkY][x] !== null && !tsunamiPositions.has(`${x},${checkY}`)) {
-                return 0;
-            }
-            // If we hit tsunami, return the height
-            if (tsunamiPositions.has(`${x},${checkY}`)) {
-                return maxY - checkY + 1;
-            }
-        }
-        return 0;
-    }
-    
-    // STEP 1: Find all non-tsunami blobs
-    console.log('=== Step 1: Finding all blobs ===');
+    // Step 2: Find ALL blobs on the board (above tsunami)
     const allBlobs = [];
-    let blobId = 0;
-    
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
-            if (board[y] && board[y][x] !== null && !processed[y][x]) {
-                const section = findConnectedSection(x, y, board[y][x]);
-                if (section.length > 0) {
+            if (!processed[y][x] && board[y] && board[y][x] !== null) {
+                const blobBlocks = findBlob(x, y, board[y][x]);
+                if (blobBlocks.length > 0) {
                     allBlobs.push({
-                        id: `blob_${blobId++}`,
-                        color: section[0].color,
-                        blocks: section,
-                        positions: section.map(b => ({ x: b.x, y: b.y }))
+                        blocks: blobBlocks,
+                        color: blobBlocks[0].color,
+                        push: 0 // Will be calculated
                     });
                 }
             }
         }
     }
-    console.log(`  Found ${allBlobs.length} blobs`);
     
-    // STEP 2: Detect interlocking blobs (same algorithm as gravity)
-    console.log('=== Step 2: Detecting interlocking blobs ===');
+    console.log(`Found ${allBlobs.length} blobs above tsunami`);
     
-    const parent = new Map();
-    allBlobs.forEach(b => parent.set(b.id, b.id));
-    
-    function find(id) {
-        if (parent.get(id) !== id) {
-            parent.set(id, find(parent.get(id)));
-        }
-        return parent.get(id);
-    }
-    
-    function union(id1, id2) {
-        const root1 = find(id1);
-        const root2 = find(id2);
-        if (root1 !== root2) {
-            parent.set(root1, root2);
-            return true;
-        }
-        return false;
-    }
-    
-    // Pre-compute column data for each blob
-    const blobColumns = new Map();
-    allBlobs.forEach(b => {
-        const columns = new Map();
-        b.positions.forEach(pos => {
-            if (!columns.has(pos.x)) columns.set(pos.x, []);
-            columns.get(pos.x).push(pos.y);
+    // Create a lookup: position -> which blob index owns it
+    const positionToBlob = {};
+    allBlobs.forEach((blob, blobIndex) => {
+        blob.blocks.forEach(block => {
+            positionToBlob[`${block.x},${block.y}`] = blobIndex;
         });
-        blobColumns.set(b.id, columns);
     });
     
-    // Check all pairs of blobs for interlocking
-    // For tsunami push, we only care about TRUE interlocking (one blob wraps around another)
-    // Simple vertical stacking is handled by cascade detection, not interlocking
-    for (let i = 0; i < allBlobs.length; i++) {
-        const blobA = allBlobs[i];
-        const columnsA = blobColumns.get(blobA.id);
-        
-        for (let j = i + 1; j < allBlobs.length; j++) {
-            const blobB = allBlobs[j];
-            const columnsB = blobColumns.get(blobB.id);
-            
-            let isInterlocked = false;
-            
-            for (let [colX, rowsA] of columnsA) {
-                const rowsB = columnsB.get(colX);
-                if (!rowsB || rowsB.length === 0) continue;
-                
-                const minYA = Math.min(...rowsA);
-                const maxYA = Math.max(...rowsA);
-                const minYB = Math.min(...rowsB);
-                const maxYB = Math.max(...rowsB);
-                
-                // Only check for TRUE wrapping (one blob contains another in this column)
-                // This catches the "S sitting inside a C" case
-                if ((minYB < minYA && maxYB > maxYA) || (minYA < minYB && maxYA > maxYB)) {
-                    isInterlocked = true;
-                    console.log(`  🔗 True interlock: ${blobA.color} and ${blobB.color} wrap in col ${colX}`);
-                    break;
-                }
-                
-                // Also check if they actually OVERLAP (share rows), not just adjacent
-                // overlap > 0 means they truly share vertical space
-                const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
-                if (overlap > 0) {
-                    isInterlocked = true;
-                    console.log(`  🔗 Overlap interlock: ${blobA.color} and ${blobB.color} overlap in col ${colX}`);
-                    break;
-                }
-                // Note: overlap == 0 means touching, overlap == -1 means adjacent
-                // Neither of these count as interlocking for tsunami push
-            }
-            
-            if (isInterlocked) {
-                union(blobA.id, blobB.id);
-            }
-        }
-    }
-    
-    // Build blob groups from union-find
-    const blobGroups = new Map();
-    allBlobs.forEach(b => {
-        const root = find(b.id);
-        if (!blobGroups.has(root)) blobGroups.set(root, []);
-        blobGroups.get(root).push(b);
-    });
-    
-    console.log(`  Found ${blobGroups.size} blob groups (including singles)`);
-    
-    // STEP 3: Calculate push for each blob group
-    console.log('=== Step 3: Calculating push distances ===');
-    
-    // Track push amount for each position (for cascading)
-    const pushAmountAt = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
-    
-    // Helper: get push amount of block directly below a position
-    function getPushAmountBelow(x, y) {
-        if (y + 1 < ROWS) {
-            return pushAmountAt[y + 1][x];
-        }
-        return 0;
-    }
-    
-    const groupsToPush = [];
-    
-    // PASS 1: Find groups directly on tsunami
-    console.log('--- Pass 1: Groups directly on tsunami ---');
-    const processedGroups = new Set();
-    
-    blobGroups.forEach((groupBlobs, groupId) => {
-        // Calculate max push needed by any block in this entire group
+    // Step 3: Calculate initial push for blobs directly touching tsunami
+    allBlobs.forEach((blobData, blobIndex) => {
         let maxPush = 0;
-        
-        groupBlobs.forEach(b => {
-            b.blocks.forEach(block => {
-                const push = getTsunamiHeightBelow(block.x, block.y);
-                maxPush = Math.max(maxPush, push);
-            });
+        blobData.blocks.forEach(block => {
+            // Check if this block is directly above tsunami
+            if (tsunamiPositions.has(`${block.x},${block.y + 1}`)) {
+                const columnPush = tsunamiColumnHeight[block.x] || 1;
+                maxPush = Math.max(maxPush, columnPush);
+            }
         });
-        
+        blobData.push = maxPush;
         if (maxPush > 0) {
-            processedGroups.add(groupId);
-            
-            const allBlocks = [];
-            groupBlobs.forEach(b => {
-                b.blocks.forEach(block => {
-                    pushAmountAt[block.y][block.x] = maxPush;
-                    allBlocks.push(block);
-                });
-            });
-            
-            console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush}`);
-            groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
+            console.log(`  Blob ${blobIndex} (${blobData.color}) directly on tsunami, push=${maxPush}`);
         }
     });
     
-    // PASS 2+: Find groups sitting on pushed blocks (cascading)
-    let pass = 2;
-    let foundNew = true;
-    
-    while (foundNew) {
-        foundNew = false;
-        console.log(`--- Pass ${pass}: Cascading ---`);
+    // Step 4: Propagate push upward through blob stack (iterate until stable)
+    let changed = true;
+    let iterations = 0;
+    while (changed && iterations < 20) {
+        changed = false;
+        iterations++;
         
-        blobGroups.forEach((groupBlobs, groupId) => {
-            if (processedGroups.has(groupId)) return;
-            
-            // Check if any block in this group sits on a pushed block
-            let maxPush = 0;
-            
-            groupBlobs.forEach(b => {
-                b.blocks.forEach(block => {
-                    const tsunamiPush = getTsunamiHeightBelow(block.x, block.y);
-                    const cascadePush = getPushAmountBelow(block.x, block.y);
-                    maxPush = Math.max(maxPush, tsunamiPush, cascadePush);
-                });
-            });
-            
-            if (maxPush > 0) {
-                processedGroups.add(groupId);
+        allBlobs.forEach((blobData, blobIndex) => {
+            // For each block in this blob, check if it's sitting on a pushed blob
+            let maxPushBelow = 0;
+            blobData.blocks.forEach(block => {
+                const belowKey = `${block.x},${block.y + 1}`;
+                const belowBlobIndex = positionToBlob[belowKey];
                 
-                const allBlocks = [];
-                groupBlobs.forEach(b => {
-                    b.blocks.forEach(block => {
-                        pushAmountAt[block.y][block.x] = maxPush;
-                        allBlocks.push(block);
-                    });
-                });
-                
-                console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush} (cascade)`);
-                groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
-                foundNew = true;
-            }
-        });
-        
-        pass++;
-        if (pass > 20) {
-            console.warn('Tsunami cascade detection exceeded 20 passes, stopping');
-            break;
-        }
-    }
-    
-    // RECONCILIATION PASS: Check if any pushed group is also sitting on another pushed group
-    // with a larger push distance, and if so, inherit that larger distance
-    console.log('=== Reconciliation: Checking for larger push distances from neighbors ===');
-    let reconciliationChanged = true;
-    let reconciliationPass = 0;
-    
-    while (reconciliationChanged && reconciliationPass < 20) {
-        reconciliationChanged = false;
-        reconciliationPass++;
-        
-        groupsToPush.forEach(group => {
-            let maxNeighborPush = group.pushAmount;
-            
-            // Check if any block in this group sits directly on another pushed block
-            group.blocks.forEach(block => {
-                const pushBelow = getPushAmountBelow(block.x, block.y);
-                if (pushBelow > maxNeighborPush) {
-                    maxNeighborPush = pushBelow;
+                if (belowBlobIndex !== undefined && belowBlobIndex !== blobIndex) {
+                    const belowBlob = allBlobs[belowBlobIndex];
+                    if (belowBlob.push > 0) {
+                        maxPushBelow = Math.max(maxPushBelow, belowBlob.push);
+                    }
                 }
             });
             
-            if (maxNeighborPush > group.pushAmount) {
-                console.log(`  Reconciliation: Group push ${group.pushAmount} -> ${maxNeighborPush}`);
-                group.pushAmount = maxNeighborPush;
-                
-                // Update pushAmountAt for this group's blocks
-                group.blocks.forEach(block => {
-                    pushAmountAt[block.y][block.x] = maxNeighborPush;
-                });
-                
-                reconciliationChanged = true;
+            if (maxPushBelow > blobData.push) {
+                console.log(`  Blob ${blobIndex} inherits push=${maxPushBelow} from blob below`);
+                blobData.push = maxPushBelow;
+                changed = true;
             }
         });
     }
     
-    if (reconciliationPass > 1) {
-        console.log(`  Reconciliation completed in ${reconciliationPass} passes`);
-    }
+    console.log(`Push propagation took ${iterations} iterations`);
     
-    // Now push all blocks from all groups
-    groupsToPush.forEach(group => {
-        group.blocks.forEach(block => {
+    // Step 5: Collect all blobs that need pushing
+    const blobsToPush = allBlobs.filter(b => b.push > 0);
+    
+    // Add all blocks from pushed blobs to tsunamiPushedBlocks
+    blobsToPush.forEach(blobData => {
+        blobData.blocks.forEach(block => {
             tsunamiPushedBlocks.push({
-                ...block,
-                tsunamiHeightBelow: group.pushAmount
+                x: block.x,
+                y: block.y,
+                color: block.color,
+                isRandom: block.isRandom,
+                tsunamiHeightBelow: blobData.push
             });
             // Remove from board temporarily
             board[block.y][block.x] = null;
@@ -4167,7 +3995,6 @@ function triggerTsunamiAnimation(blob) {
         });
     });
     
-    console.log(`Total groups to push: ${groupsToPush.length}`);
     console.log(`Total blocks to push: ${tsunamiPushedBlocks.length}`);
     
     // Remove tsunami blocks from board immediately (we'll animate them)
@@ -4310,64 +4137,55 @@ function drawTsunami() {
     
     // Draw each color group as potentially multiple connected sections
     Object.entries(blocksByColor).forEach(([color, blocks]) => {
-        // For each color, group by push amount, then find connected components within each push group
-        const byPushAmount = {};
-        blocks.forEach(block => {
-            const key = block.tsunamiHeightBelow || 0;
-            if (!byPushAmount[key]) {
-                byPushAmount[key] = [];
-            }
-            byPushAmount[key].push(block);
-        });
+        // Find connected components within this color group
+        const visited = new Set();
         
-        // For each push-amount group, find connected components and draw each separately
-        Object.entries(byPushAmount).forEach(([pushAmount, groupBlocks]) => {
-            const visited = new Set();
+        blocks.forEach(startBlock => {
+            const key = `${startBlock.x},${startBlock.y}`;
+            if (visited.has(key)) return;
             
-            groupBlocks.forEach(startBlock => {
-                const key = `${startBlock.x},${startBlock.y}`;
-                if (visited.has(key)) return;
+            // Find all blocks connected to this one via flood fill
+            const connectedSection = [];
+            const stack = [startBlock];
+            
+            while (stack.length > 0) {
+                const block = stack.pop();
+                const blockKey = `${block.x},${block.y}`;
                 
-                // Find all blocks connected to this one via flood fill
-                const connectedSection = [];
-                const stack = [startBlock];
+                if (visited.has(blockKey)) continue;
+                visited.add(blockKey);
+                connectedSection.push(block);
                 
-                while (stack.length > 0) {
-                    const block = stack.pop();
-                    const blockKey = `${block.x},${block.y}`;
+                // Find adjacent blocks of the same color
+                blocks.forEach(other => {
+                    const otherKey = `${other.x},${other.y}`;
+                    if (visited.has(otherKey)) return;
                     
-                    if (visited.has(blockKey)) continue;
-                    visited.add(blockKey);
-                    connectedSection.push(block);
+                    const dx = Math.abs(other.x - block.x);
+                    const dy = Math.abs(other.y - block.y);
                     
-                    // Find adjacent blocks in the same push group
-                    groupBlocks.forEach(other => {
-                        const otherKey = `${other.x},${other.y}`;
-                        if (visited.has(otherKey)) return;
-                        
-                        const dx = Math.abs(other.x - block.x);
-                        const dy = Math.abs(other.y - block.y);
-                        
-                        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-                            stack.push(other);
-                        }
-                    });
-                }
+                    if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+                        stack.push(other);
+                    }
+                });
+            }
+            
+            // Draw this connected section (normal rendering, not gold)
+            if (connectedSection.length > 0) {
+                // Use the blob's specific push amount based on tsunami column height
+                // All blocks in this connected section share the same tsunamiHeightBelow
+                const blobPushHeight = connectedSection[0].tsunamiHeightBelow || 0;
+                const maxPushPixels = blobPushHeight * BLOCK_SIZE * 0.667; // 0.667 is the expansion factor
+                const progressMultiplier = pushDistance / (tsunamiBlob.originalHeight * BLOCK_SIZE * 0.667);
+                const currentPushPixels = maxPushPixels * progressMultiplier;
                 
-                // Draw this connected section (normal rendering, not gold)
-                if (connectedSection.length > 0) {
-                    const positions = connectedSection.map(block => {
-                        const individualPush = (block.tsunamiHeightBelow || 0) * BLOCK_SIZE;
-                        const progressMultiplier = pushDistance / (tsunamiBlob.originalHeight * BLOCK_SIZE);
-                        // Add 10% safety margin to ensure blocks stay above tsunami
-                        const adjustedPush = individualPush * progressMultiplier * 1.1;
-                        const pushedY = block.y - adjustedPush / BLOCK_SIZE;
-                        return [block.x, pushedY];
-                    });
-                    
-                    drawSolidShape(ctx, positions, color, BLOCK_SIZE, false, getFaceOpacity());
-                }
-            });
+                const positions = connectedSection.map(block => {
+                    const pushedY = block.y - currentPushPixels / BLOCK_SIZE;
+                    return [block.x, pushedY];
+                });
+                
+                drawSolidShape(ctx, positions, color, BLOCK_SIZE, false, getFaceOpacity());
+            }
         });
     });
     
@@ -11228,13 +11046,25 @@ function toggleUIElements(show) {
     
     if (show) {
         // Show instructions and controls, hide histogram, show title
-        // Respect user's saved preference for which panel to show
+        // Respect user's saved preference for which panel to show (rules vs leaderboard)
+        // But use current game settings to determine WHICH leaderboard
         const savedView = localStorage.getItem('rulesPanelView') || 'instructions';
-        if (savedView === 'leaderboard') {
-            // Show leaderboard
+        const wantsLeaderboard = savedView.startsWith('leaderboard-');
+        
+        if (wantsLeaderboard) {
+            // Show leaderboard matching current game settings
+            const currentLeaderboardMode = getLeaderboardMode();
+            const dropdownValue = 'leaderboard-' + currentLeaderboardMode;
+            
+            // Update dropdown to reflect current settings
+            if (rulesPanelViewSelect) {
+                rulesPanelViewSelect.value = dropdownValue;
+                localStorage.setItem('rulesPanelView', dropdownValue);
+            }
+            
             rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
-                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, currentLeaderboardMode, skillLevel);
             }
         } else {
             // Show instructions (default)
@@ -12368,7 +12198,7 @@ function startGame(mode) {
     // Start game recording (for both human and AI games via GameRecorder)
     if (typeof GameRecorder !== 'undefined') {
         GameRecorder.startRecording({
-            gameVersion: '3.28',
+            gameVersion: '3.21',
             playerType: aiModeEnabled ? 'ai' : 'human',
             difficulty: mode,
             skillLevel: skillLevel,
@@ -13072,11 +12902,16 @@ function updateSelectedMode() {
         }
     });
     
-    // Update leaderboard to match selected mode if visible
+    // Update leaderboard to match selected mode if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
 }
 
@@ -13089,19 +12924,40 @@ createVolumeControls();
 // Rules panel view toggle handler
 const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
 if (rulesPanelViewSelect) {
-    // Restore saved preference
-    const savedView = localStorage.getItem('rulesPanelView');
-    if (savedView) {
-        rulesPanelViewSelect.value = savedView;
-        // Trigger the view change immediately
-        if (savedView === 'leaderboard') {
-            const rulesInstructions = document.querySelector('.rules-instructions');
-            if (rulesInstructions) rulesInstructions.style.display = 'none';
-            if (window.leaderboard) {
-                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
-            }
+    // Migrate old "leaderboard" value to new format
+    let savedView = localStorage.getItem('rulesPanelView');
+    if (savedView === 'leaderboard') {
+        savedView = 'leaderboard-normal';
+        localStorage.setItem('rulesPanelView', savedView);
+    }
+    
+    // Determine if user wants to see leaderboard or rules
+    const wantsLeaderboard = savedView && savedView.startsWith('leaderboard-');
+    
+    if (wantsLeaderboard) {
+        // Show leaderboard, but use current game settings to determine WHICH leaderboard
+        const currentLeaderboardMode = getLeaderboardMode(); // Uses aiModeEnabled and challengeMode
+        const dropdownValue = 'leaderboard-' + currentLeaderboardMode;
+        
+        // Verify the value exists in the dropdown options
+        const optionExists = Array.from(rulesPanelViewSelect.options).some(opt => opt.value === dropdownValue);
+        if (optionExists) {
+            rulesPanelViewSelect.value = dropdownValue;
+            localStorage.setItem('rulesPanelView', dropdownValue);
+            
+            // Trigger the view change after a short delay to ensure leaderboard module is ready
+            setTimeout(() => {
+                const rulesInstructions = document.querySelector('.rules-instructions');
+                if (rulesInstructions) rulesInstructions.style.display = 'none';
+                if (window.leaderboard) {
+                    const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                    window.leaderboard.displayLeaderboard(selectedMode, null, currentLeaderboardMode, skillLevel);
+                }
+            }, 100);
         }
+    } else {
+        // Show rules (default) - ensure dropdown is set correctly
+        rulesPanelViewSelect.value = 'rules';
     }
     
     rulesPanelViewSelect.addEventListener('change', () => {
@@ -13114,12 +12970,14 @@ if (rulesPanelViewSelect) {
         // Save preference
         localStorage.setItem('rulesPanelView', view);
         
-        if (view === 'leaderboard') {
+        if (view.startsWith('leaderboard-')) {
+            // Extract the leaderboard mode from the value
+            const leaderboardMode = view.replace('leaderboard-', '');
             // Show leaderboard, hide rules
             if (rulesInstructions) rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
             }
         } else {
             // Show rules, hide leaderboard
@@ -13332,11 +13190,16 @@ if (aiModeToggle) {
         }
         console.log('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
         
-        // Refresh leaderboard to show AI or normal leaderboard
+        // Refresh leaderboard if visible (use dropdown selection, not auto-detected mode)
         const leaderboardContent = document.getElementById('leaderboardContent');
-        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+        const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+        if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
             const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-            window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+            const viewValue = rulesPanelViewSelect.value;
+            if (viewValue.startsWith('leaderboard-')) {
+                const leaderboardMode = viewValue.replace('leaderboard-', '');
+                window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+            }
         }
         
         // Update menu overlay
@@ -13601,11 +13464,16 @@ comboApplyBtn.addEventListener('click', () => {
     updateChallengeButtonLabel();
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to show correct mode
+    // Refresh leaderboard if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
     
     console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
@@ -13614,11 +13482,16 @@ comboApplyBtn.addEventListener('click', () => {
 comboCancelBtn.addEventListener('click', () => {
     comboModalOverlay.style.display = 'none';
     
-    // Refresh leaderboard to match current mode
+    // Refresh leaderboard if visible (use dropdown selection)
     const leaderboardContent = document.getElementById('leaderboardContent');
-    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+    const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+    if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        const viewValue = rulesPanelViewSelect.value;
+        if (viewValue.startsWith('leaderboard-')) {
+            const leaderboardMode = viewValue.replace('leaderboard-', '');
+            window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, skillLevel);
+        }
     }
 });
 
@@ -14182,11 +14055,16 @@ if (startOverlay) {
     if (rulesSkillLevelSelect) {
         rulesSkillLevelSelect.addEventListener('change', () => {
             setSkillLevel(rulesSkillLevelSelect.value);
-            // If leaderboard is visible, refresh it with new skill level
+            // If leaderboard is visible, refresh it with new skill level (use dropdown selection)
             const leaderboardContent = document.getElementById('leaderboardContent');
-            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+            const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
+            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard && rulesPanelViewSelect) {
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), rulesSkillLevelSelect.value);
+                const viewValue = rulesPanelViewSelect.value;
+                if (viewValue.startsWith('leaderboard-')) {
+                    const leaderboardMode = viewValue.replace('leaderboard-', '');
+                    window.leaderboard.displayLeaderboard(selectedMode, null, leaderboardMode, rulesSkillLevelSelect.value);
+                }
             }
         });
     }
