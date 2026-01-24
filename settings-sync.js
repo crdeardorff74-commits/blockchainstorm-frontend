@@ -242,9 +242,29 @@ const SettingsSync = {
         }
         if (settings.musicMuted !== undefined) {
             localStorage.setItem('blockchainstorm_musicMuted', settings.musicMuted.toString());
+            // Also update audio system state if available
+            if (typeof window.AudioSystem !== 'undefined' && window.AudioSystem.setMusicMuted) {
+                window.AudioSystem.setMusicMuted(settings.musicMuted);
+            }
+            // Update mute button icon if it exists
+            const musicMuteBtn = document.getElementById('musicMuteBtn');
+            if (musicMuteBtn) {
+                musicMuteBtn.textContent = settings.musicMuted ? '🔇' : '🔊';
+                musicMuteBtn.style.color = settings.musicMuted ? '#ff6666' : '#aaa';
+            }
         }
         if (settings.sfxMuted !== undefined) {
             localStorage.setItem('blockchainstorm_sfxMuted', settings.sfxMuted.toString());
+            // Also update audio system state if available
+            if (typeof window.AudioSystem !== 'undefined' && window.AudioSystem.setSfxMuted) {
+                window.AudioSystem.setSfxMuted(settings.sfxMuted);
+            }
+            // Update mute button icon if it exists
+            const sfxMuteBtn = document.getElementById('sfxMuteBtn');
+            if (sfxMuteBtn) {
+                sfxMuteBtn.textContent = settings.sfxMuted ? '🔇' : '🔊';
+                sfxMuteBtn.style.color = settings.sfxMuted ? '#ff6666' : '#aaa';
+            }
         }
         
         // Apply to dynamic volume sliders if they already exist
@@ -513,7 +533,9 @@ const SettingsSync = {
                 const elem = document.getElementById(id);
                 if (elem && !elem.hasAttribute('data-sync-attached')) {
                     elem.setAttribute('data-sync-attached', 'true');
-                    elem.addEventListener('change', () => {
+                    // Buttons need 'click', sliders need 'change'
+                    const eventType = id.includes('Btn') ? 'click' : 'change';
+                    elem.addEventListener(eventType, () => {
                         console.log(`⚙️ Volume setting changed: ${id}`);
                         this.saveSettings();
                     });
