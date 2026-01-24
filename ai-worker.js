@@ -1,86 +1,87 @@
-// AI Worker v6.18.0 - Tuned from AI tuner results
+// AI Worker v6.19.0 - Tuned from 601-game analysis
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.18.0 loaded - Tuned parameters");
+console.log("🤖 AI Worker v6.19.0 loaded - Data-tuned parameters");
 
-const AI_VERSION = "6.18.0";
+const AI_VERSION = "6.19.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
+// v6.19.0 - Tuned from 601 game analysis (top 10% median values)
 const DEFAULT_CONFIG = {
     // Survival mode thresholds
     survivalEnterHeight: 10,
-    survivalExitHeight: 8,
-    survivalEnterHoles: 12,
-    survivalExitHoles: 2,
+    survivalExitHeight: 7,
+    survivalEnterHoles: 11,
+    survivalExitHoles: 5,
     
     // Phase thresholds
     criticalHeight: 16,
-    criticalHoles: 10,
+    criticalHoles: 12,
     dangerHeight: 14,
     dangerHoles: 7,
     cautionHeight: 12,
-    cautionHoles: 5,
+    cautionHoles: 6,
     
     // Lookahead
-    lookaheadDepth: 5,
+    lookaheadDepth: 4,
     lookaheadDiscount: 0.8,
     
     // Blob building bonuses
-    horizontalAdjacencyBonus: 18,
-    verticalAdjacencyBonus: 4,
-    tsunamiRowBonusMultiplier: 15,
-    tsunamiEdgeExtensionBonus: 80,
-    tsunamiMatchingColorBonus: 6,
+    horizontalAdjacencyBonus: 16,
+    verticalAdjacencyBonus: 5,
+    tsunamiRowBonusMultiplier: 18,
+    tsunamiEdgeExtensionBonus: 85,
+    tsunamiMatchingColorBonus: 7,
     
     // Tsunami bonuses by width
-    tsunamiImminentBonus: 300,
-    tsunamiImminentPerExtra: 150,
-    tsunamiAchievableBonus: 200,
-    tsunamiAchievablePerQueue: 40,
-    tsunamiNearCompleteBonus: 120,
-    tsunamiNearCompletePerExtra: 30,
-    tsunamiBuildingBonus: 50,
-    tsunamiBuildingPerExtra: 20,
-    tsunamiWastePenaltyW8: 150,
-    tsunamiWastePenaltyW7: 80,
+    tsunamiImminentBonus: 323,
+    tsunamiImminentPerExtra: 170,
+    tsunamiAchievableBonus: 255,
+    tsunamiAchievablePerQueue: 56,
+    tsunamiNearCompleteBonus: 138,
+    tsunamiNearCompletePerExtra: 34,
+    tsunamiBuildingBonus: 68,
+    tsunamiBuildingPerExtra: 23,
+    tsunamiWastePenaltyW8: 165,
+    tsunamiWastePenaltyW7: 104,
     
     // Line clear bonuses in survival mode
-    survivalClear4Bonus: 600,
-    survivalClear3Bonus: 400,
-    survivalClear2Bonus: 250,
-    survivalClear1Bonus: 150,
+    survivalClear4Bonus: 651,
+    survivalClear3Bonus: 429,
+    survivalClear2Bonus: 292,
+    survivalClear1Bonus: 163,
     
     // Height penalties
-    survivalHeightMultiplier: 3.5,
-    normalHeightMultiplier: 2.5,
-    normalHeightThreshold: 8,
+    survivalHeightMultiplier: 3.7,
+    normalHeightMultiplier: 2.9,
+    normalHeightThreshold: 9,
     
     // Hole penalties
-    holePenaltyBase: 20,
-    holePenaltyMedium: 50,
-    holePenaltyHigh: 60,
+    holePenaltyBase: 22,
+    holePenaltyMedium: 58,
+    holePenaltyHigh: 72,
     
     // Bumpiness
-    bumpinessPenalty: 2.5,
+    bumpinessPenalty: 3.1,
     
     // Stacking penalty
-    stackingPenaltyPerExcess: 12,
-    stackingPenaltySmall: 5,
-    stackingSurvivalMultiplier: 2,
+    stackingPenaltyPerExcess: 14,
+    stackingPenaltySmall: 7,
+    stackingSurvivalMultiplier: 2.3,
     
     // Vertical I-piece penalties
-    verticalISlightPenalty: 40,
-    verticalIModeratePenalty: 120,
-    verticalISeverePenalty: 200,
-    verticalISurvivalExtraPenalty: 100,
+    verticalISlightPenalty: 56,
+    verticalIModeratePenalty: 127,
+    verticalISeverePenalty: 228,
+    verticalISurvivalExtraPenalty: 117,
     
     // Tower penalties
-    towerThresholdSevere: 8,
-    towerThresholdBad: 6,
+    towerThresholdSevere: 10,
+    towerThresholdBad: 7,
     towerThresholdModerate: 4,
-    towerPenaltySevere: 10,
-    towerPenaltyBad: 6,
-    towerPenaltyModerate: 3
+    towerPenaltySevere: 12,
+    towerPenaltyBad: 8,
+    towerPenaltyModerate: 4
 };
 
 // Current active config (can be modified for testing)

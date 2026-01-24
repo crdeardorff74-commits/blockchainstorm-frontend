@@ -1538,9 +1538,12 @@ let aiTuningMode = false;
 let aiTuningConfig = null; // Current random config being tested
 let aiTuningDifficulty = null; // Difficulty to use for all tuning games
 let aiTuningSkillLevel = null; // Skill level to use for all tuning games
-let aiTuningGamesPlayed = 0; // Counter for games played in tuning session
-let aiTuningPieceSequence = null; // Fixed piece sequence for fair comparison (captured from game 1)
+let aiTuningGamesPlayed = 0; // Counter for games played in tuning session (total)
+let aiTuningPieceSequence = null; // Fixed piece sequence for fair comparison (captured from game 1 of each set)
 let aiTuningPieceIndex = 0; // Current index in the fixed piece sequence
+let aiTuningSetNumber = 1; // Current set number (resets pieces every 300 games)
+let aiTuningGameInSet = 0; // Game number within current set (1-300)
+const TUNING_GAMES_PER_SET = 300; // Number of games before resetting piece sequence
 
 function getCreditsElements() {
     return {
@@ -6207,8 +6210,8 @@ function createPiece() {
     // v2.0: During replay, pieces come from spawnReplayPiece() not createPiece()
     // This function is only used for normal gameplay
     
-    // TUNING MODE game 2+: Use fixed piece sequence for fair comparison
-    if (aiTuningMode && aiTuningGamesPlayed > 1 && aiTuningPieceSequence) {
+    // TUNING MODE game 2+ within set: Use fixed piece sequence for fair comparison
+    if (aiTuningMode && aiTuningGameInSet > 1 && aiTuningPieceSequence) {
         if (aiTuningPieceIndex < aiTuningPieceSequence.length) {
             const fixedPiece = aiTuningPieceSequence[aiTuningPieceIndex++];
             const shapeSet = getShapeSetForType(fixedPiece.type);
@@ -6225,7 +6228,7 @@ function createPiece() {
         }
         // Sequence exhausted - this game survived longer than any before!
         // Fall through to generate random piece, which will be added to sequence below
-        console.log(`🔧 TUNING: Game #${aiTuningGamesPlayed} exceeded sequence (${aiTuningPieceSequence.length} pieces) - extending...`);
+        console.log(`🔧 TUNING: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} exceeded sequence (${aiTuningPieceSequence.length} pieces) - extending...`);
     }
     
     // Normal random piece generation
@@ -11159,6 +11162,8 @@ async function gameOver() {
         // Add tuning config to finalStats if in tuning mode
         if (aiTuningMode && aiTuningConfig) {
             finalStats.tuningConfig = aiTuningConfig;
+            finalStats.tuningSetNumber = aiTuningSetNumber;
+            finalStats.tuningGameInSet = aiTuningGameInSet;
             finalStats.tuningGameNumber = aiTuningGamesPlayed;
             finalStats.tuningPiecesUsed = aiTuningPieceIndex;
             finalStats.tuningSequenceLength = aiTuningPieceSequence ? aiTuningPieceSequence.length : 0;
@@ -11197,6 +11202,8 @@ async function gameOver() {
                         durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
                         endCause: 'game_over',
                         tuningConfig: aiTuningMode ? aiTuningConfig : undefined,
+                        tuningSetNumber: aiTuningMode ? aiTuningSetNumber : undefined,
+                        tuningGameInSet: aiTuningMode ? aiTuningGameInSet : undefined,
                         tuningGameNumber: aiTuningMode ? aiTuningGamesPlayed : undefined
                     }
                 };
@@ -11312,12 +11319,12 @@ async function gameOver() {
         
         // TUNING MODE: Special handling
         if (aiTuningMode) {
-            console.log(`🔧 TUNING MODE: Game #${aiTuningGamesPlayed} complete - Score: ${score}, Lines: ${lines}`);
+            console.log(`🔧 TUNING MODE: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} complete - Score: ${score}, Lines: ${lines}`);
             
             // Always download the recording for analysis
             if (tuningRecordingData) {
                 const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
-                const filename = `tuning_${aiTuningDifficulty}_${aiTuningSkillLevel}_game${aiTuningGamesPlayed}_${score}_${timestamp}.json`;
+                const filename = `tuning_${aiTuningDifficulty}_${aiTuningSkillLevel}_game_${aiTuningSetNumber}_${aiTuningGameInSet}_${score}_${timestamp}.json`;
                 const fullRecording = {
                     ...tuningRecordingData.gameData,
                     recording_data: tuningRecordingData.recording
@@ -11680,11 +11687,13 @@ function startAITuningMode(difficulty, skill) {
     aiTuningDifficulty = difficulty;
     aiTuningSkillLevel = skill;
     aiTuningGamesPlayed = 0;
-    aiTuningPieceSequence = null; // Will be captured during game 1
+    aiTuningPieceSequence = null; // Will be captured during game 1 of each set
     aiTuningPieceIndex = 0;
+    aiTuningSetNumber = 1;
+    aiTuningGameInSet = 0;
     
     console.log(`🔧 AI TUNING MODE STARTED - ${difficulty} / ${skill}`);
-    console.log('🔧 Game 1 will capture piece sequence. Subsequent games use same pieces.');
+    console.log(`🔧 Each set runs ${TUNING_GAMES_PER_SET} games with the same piece sequence.`);
     console.log('🔧 Click STOP indicator to end tuning session.');
     
     // Show tuning mode indicator
@@ -11702,6 +11711,8 @@ function stopAITuningMode() {
     aiTuningSkillLevel = null;
     aiTuningPieceSequence = null; // Clear piece sequence
     aiTuningPieceIndex = 0;
+    aiTuningSetNumber = 1;
+    aiTuningGameInSet = 0;
     
     console.log(`🔧 AI TUNING MODE STOPPED after ${aiTuningGamesPlayed} games`);
     
@@ -11717,15 +11728,24 @@ function startTuningGame() {
     if (!aiTuningMode) return;
     
     aiTuningGamesPlayed++;
+    aiTuningGameInSet++;
     aiTuningPieceIndex = 0; // Reset piece index for this game
     
-    // Game 1: Initialize empty sequence to capture pieces
-    // Game 2+: Keep existing sequence for replay
-    if (aiTuningGamesPlayed === 1) {
+    // Check if we need to start a new set (every TUNING_GAMES_PER_SET games)
+    if (aiTuningGameInSet > TUNING_GAMES_PER_SET) {
+        aiTuningSetNumber++;
+        aiTuningGameInSet = 1;
+        aiTuningPieceSequence = null; // Clear to capture new sequence
+        console.log(`🔧 STARTING NEW SET #${aiTuningSetNumber} - will capture new piece sequence`);
+    }
+    
+    // Game 1 of each set: Initialize empty sequence to capture pieces
+    // Game 2+ of set: Keep existing sequence for replay
+    if (aiTuningGameInSet === 1) {
         aiTuningPieceSequence = []; // Will be populated as pieces are created
-        console.log('🔧 TUNING GAME #1: Capturing piece sequence...');
+        console.log(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Capturing piece sequence...`);
     } else {
-        console.log(`🔧 TUNING GAME #${aiTuningGamesPlayed}: Using captured sequence (${aiTuningPieceSequence.length} pieces)`);
+        console.log(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Using captured sequence (${aiTuningPieceSequence.length} pieces)`);
     }
     
     // Generate new random config
@@ -11776,7 +11796,7 @@ function showTuningModeIndicator() {
             cursor: pointer;
             box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
         `;
-        indicator.innerHTML = '🔧 TUNING MODE<br><span id="tuningGameCount">Game #1</span><br><span id="tuningPieceStatus">Capturing pieces...</span><br><span style="color: #600; font-weight: bold;">[CLICK TO STOP]</span>';
+        indicator.innerHTML = '🔧 TUNING MODE<br><span id="tuningSetCount">Set #1</span> - <span id="tuningGameCount">Game #1</span><br><span id="tuningPieceStatus">Capturing pieces...</span><br><span style="color: #600; font-weight: bold;">[CLICK TO STOP]</span>';
         indicator.addEventListener('click', () => {
             stopAITuningMode();
         });
@@ -11787,13 +11807,17 @@ function showTuningModeIndicator() {
 
 // Update tuning mode indicator
 function updateTuningModeIndicator() {
+    const setSpan = document.getElementById('tuningSetCount');
     const countSpan = document.getElementById('tuningGameCount');
     const statusSpan = document.getElementById('tuningPieceStatus');
+    if (setSpan) {
+        setSpan.textContent = `Set #${aiTuningSetNumber}`;
+    }
     if (countSpan) {
-        countSpan.textContent = `Game #${aiTuningGamesPlayed}`;
+        countSpan.textContent = `Game #${aiTuningGameInSet}`;
     }
     if (statusSpan) {
-        if (aiTuningGamesPlayed === 1) {
+        if (aiTuningGameInSet === 1) {
             statusSpan.textContent = 'Capturing pieces...';
             statusSpan.style.color = '#600';
         } else {
