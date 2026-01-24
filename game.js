@@ -505,12 +505,6 @@ const GamepadController = {
         this.vibrationSupported = !!(gamepad.vibrationActuator || gamepad.hapticActuators);
         console.log('   Vibration:', this.vibrationSupported ? 'Supported' : 'Not supported');
         
-        // Show vibration option in settings if supported
-        const vibrationOption = document.getElementById('vibrationOption');
-        if (vibrationOption && this.vibrationSupported) {
-            vibrationOption.style.display = '';
-        }
-        
         // Update controls display to show controller buttons
         this.updateControlsDisplay();
         
@@ -529,12 +523,6 @@ const GamepadController = {
             this.enabled = false;
             this.vibrationSupported = false;
             this.showNotification('🎮 Controller Disconnected', '');
-            
-            // Hide vibration option in settings
-            const vibrationOption = document.getElementById('vibrationOption');
-            if (vibrationOption) {
-                vibrationOption.style.display = 'none';
-            }
             
             // Stop any ongoing vibration
             this.stopVibration();
@@ -1804,8 +1792,6 @@ const planetStatsContent = document.getElementById('planetStatsContent');
 // Create fake toggle that's always "on" so existing code works
 const soundToggle = { checked: true };
 const musicSelect = document.getElementById('musicSelect');
-const vibrationToggle = document.getElementById('vibrationToggle');
-const vibrationOption = document.getElementById('vibrationOption');
 
 // Update special events display based on skill level
 // Breeze: Only Strikes
@@ -1832,27 +1818,6 @@ function updateSpecialEventsDisplay(level) {
         if (tsunamisRow) tsunamisRow.style.display = '';
         if (blackholesRow) blackholesRow.style.display = '';
         if (volcanoesRow) volcanoesRow.style.display = '';
-    }
-}
-
-// Set up vibration toggle (main settings panel)
-if (vibrationToggle) {
-    vibrationToggle.addEventListener('change', () => {
-        GamepadController.vibrationEnabled = vibrationToggle.checked;
-        // Sync with ControlsConfig if available
-        if (typeof ControlsConfig !== 'undefined') {
-            ControlsConfig.vibrationEnabled = vibrationToggle.checked;
-        }
-        // Trigger settings sync save
-        if (typeof SettingsSync !== 'undefined' && SettingsSync.saveSettings) {
-            SettingsSync.saveSettings();
-        }
-    });
-    
-    // Sync with ControlsConfig on init
-    if (typeof ControlsConfig !== 'undefined' && typeof ControlsConfig.vibrationEnabled === 'boolean') {
-        vibrationToggle.checked = ControlsConfig.vibrationEnabled;
-        GamepadController.vibrationEnabled = ControlsConfig.vibrationEnabled;
     }
 }
 

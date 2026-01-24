@@ -88,7 +88,6 @@ const SettingsSync = {
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle',
             'aiModeToggle',
             'introFullscreenCheckbox'
         ];
@@ -168,7 +167,6 @@ const SettingsSync = {
             'stormEffectsToggle', 
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle',
             'aiModeToggle',
             'introFullscreenCheckbox'
         ];
@@ -429,7 +427,6 @@ const SettingsSync = {
             'stormEffectsToggle',
             'cameraOrientationToggle',
             'minimalistToggle',
-            'vibrationToggle',
             'aiModeToggle',
             'introFullscreenCheckbox'
         ];

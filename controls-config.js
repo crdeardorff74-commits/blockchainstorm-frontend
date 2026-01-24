@@ -329,11 +329,6 @@ const ControlsConfig = (() => {
                 if (typeof GamepadController !== 'undefined') {
                     GamepadController.vibrationEnabled = vibrationEnabled;
                 }
-                // Sync with main settings vibration toggle
-                const mainVibrationToggle = document.getElementById('vibrationToggle');
-                if (mainVibrationToggle) {
-                    mainVibrationToggle.checked = vibrationEnabled;
-                }
                 saveToLocalStorage();
                 
                 // Trigger settings sync save
