@@ -4513,8 +4513,26 @@ function calculateDropInterval(linesCleared) {
         // Formula goes negative around 124 lines, Math.max(0,...) keeps it non-negative
         return Math.max(0, 1000 - (linesCleared * 8.1));
     }
-    // Human mode: standard progression, 20ms floor
-    return Math.max(20, 1000 - (linesCleared * 8.1));
+    // Human mode: standard progression, 10ms floor (was 20ms)
+    return Math.max(10, 1000 - (linesCleared * 8.1));
+}
+
+// Calculate effective lock delay based on lines cleared
+// Starts at 500ms, begins decaying after speed maxes out (~122 lines), bottoms at 100ms
+function calculateLockDelayTime(linesCleared) {
+    const SPEED_MAX_LINES = 122; // Lines where drop speed hits minimum (1000 - 122*8.1 ≈ 10ms)
+    const LOCK_DECAY_RANGE = 80; // Lines over which lock delay decays to minimum
+    
+    if (linesCleared <= SPEED_MAX_LINES) {
+        return BASE_LOCK_DELAY_TIME;
+    }
+    
+    // Linear decay from BASE to MIN over LOCK_DECAY_RANGE lines after speed maxes
+    const linesOverMax = linesCleared - SPEED_MAX_LINES;
+    const decayProgress = Math.min(1, linesOverMax / LOCK_DECAY_RANGE);
+    const lockDelay = BASE_LOCK_DELAY_TIME - (BASE_LOCK_DELAY_TIME - MIN_LOCK_DELAY_TIME) * decayProgress;
+    
+    return Math.max(MIN_LOCK_DELAY_TIME, lockDelay);
 }
 
 // Calculate the maximum time for a piece to drop from top to bottom naturally
@@ -6370,7 +6388,8 @@ let dropCounter = 0;
 let dropInterval = 1000;
 let lockDelayCounter = 0; // Time spent resting on stack
 let lockDelayActive = false; // Whether piece is currently in lock delay
-const LOCK_DELAY_TIME = 500; // 500ms grace period when piece lands
+const BASE_LOCK_DELAY_TIME = 500; // Initial 500ms grace period when piece lands
+const MIN_LOCK_DELAY_TIME = 100; // Minimum lock delay at very high lines
 let lockDelayResets = 0; // Number of times lock delay has been reset by movement
 const MAX_LOCK_DELAY_RESETS = 15; // Maximum resets before piece must lock
 const LOCK_DELAY_DECAY = 0.85; // Each reset reduces remaining grace period to 85%
@@ -12096,15 +12115,18 @@ function update(time = 0) {
             }
             lockDelayCounter += deltaTime;
             
+            // Calculate effective lock delay (decays as lines increase)
+            const effectiveLockDelay = calculateLockDelayTime(lines);
+            
             // Only lock after lock delay time has elapsed
-            if (lockDelayCounter >= LOCK_DELAY_TIME) {
+            if (lockDelayCounter >= effectiveLockDelay) {
                 // During replay, don't lock if there are still inputs pending for this piece
                 if (replayActive && replayPieceIndex < replayPieceData.length) {
                     const pieceEntry = replayPieceData[replayPieceIndex];
                     if (pieceEntry && replayInputIndex < pieceEntry.inputs.length) {
                         // Still have inputs to process - don't lock yet
                         // Cap lock delay counter to prevent runaway values
-                        lockDelayCounter = LOCK_DELAY_TIME;
+                        lockDelayCounter = effectiveLockDelay;
                         // Don't return here! Just skip the lock, let animations continue
                     } else {
                         // All inputs processed - reset lock delay and lock the piece

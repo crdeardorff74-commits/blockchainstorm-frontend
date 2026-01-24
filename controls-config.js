@@ -259,10 +259,10 @@ const ControlsConfig = (() => {
                 <div class="controls-section" style="margin-top: 1.5vh;">
                     <div class="control-binding-row">
                         <span class="control-action-name">Vibration</span>
-                        <div class="toggle-switch" style="width: 5vh; height: 2.6vh;">
+                        <label class="toggle-switch">
                             <input type="checkbox" id="controlsVibrationToggle" ${vibrationEnabled ? 'checked' : ''}>
                             <span class="toggle-slider"></span>
-                        </div>
+                        </label>
                     </div>
                 </div>
             `;
