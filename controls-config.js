@@ -62,6 +62,7 @@ const ControlsConfig = (() => {
     // Current bindings
     let keyboardBindings = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD));
     let gamepadBindings = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD));
+    let vibrationEnabled = true; // Gamepad vibration setting
     
     // UI state
     let isCapturing = false;
@@ -114,6 +115,13 @@ const ControlsConfig = (() => {
                 if (parsed.gamepad) {
                     gamepadBindings = { ...DEFAULT_GAMEPAD, ...parsed.gamepad };
                 }
+                if (typeof parsed.vibrationEnabled === 'boolean') {
+                    vibrationEnabled = parsed.vibrationEnabled;
+                    // Sync with GamepadController
+                    if (typeof GamepadController !== 'undefined') {
+                        GamepadController.vibrationEnabled = vibrationEnabled;
+                    }
+                }
                 console.log('🎮 Loaded controls from localStorage');
             }
         } catch (e) {
@@ -128,7 +136,8 @@ const ControlsConfig = (() => {
         try {
             const data = {
                 keyboard: keyboardBindings,
-                gamepad: gamepadBindings
+                gamepad: gamepadBindings,
+                vibrationEnabled: vibrationEnabled
             };
             localStorage.setItem('controlsConfig', JSON.stringify(data));
             console.log('🎮 Saved controls to localStorage');
@@ -143,7 +152,8 @@ const ControlsConfig = (() => {
     function getBindings() {
         return {
             keyboard: keyboardBindings,
-            gamepad: gamepadBindings
+            gamepad: gamepadBindings,
+            vibrationEnabled: vibrationEnabled
         };
     }
     
@@ -156,6 +166,13 @@ const ControlsConfig = (() => {
         }
         if (bindings && bindings.gamepad) {
             gamepadBindings = { ...DEFAULT_GAMEPAD, ...bindings.gamepad };
+        }
+        if (bindings && typeof bindings.vibrationEnabled === 'boolean') {
+            vibrationEnabled = bindings.vibrationEnabled;
+            // Sync with GamepadController
+            if (typeof GamepadController !== 'undefined') {
+                GamepadController.vibrationEnabled = vibrationEnabled;
+            }
         }
         saveToLocalStorage();
         updateUI();
@@ -236,6 +253,19 @@ const ControlsConfig = (() => {
             }
             
             html += '</div>';
+            
+            // Add vibration toggle for gamepad
+            html += `
+                <div class="controls-section" style="margin-top: 1.5vh;">
+                    <div class="control-binding-row">
+                        <span class="control-action-name">Vibration</span>
+                        <div class="toggle-switch" style="width: 5vh; height: 2.6vh;">
+                            <input type="checkbox" id="controlsVibrationToggle" ${vibrationEnabled ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
             // Build keyboard controls section
             html += '<div class="controls-section"><div class="controls-section-title">⌨️ Keyboard</div>';
@@ -288,6 +318,29 @@ const ControlsConfig = (() => {
         const resetBtn = document.getElementById('controlsResetBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', resetToDefaults);
+        }
+        
+        // Vibration toggle listener
+        const vibrationToggle = document.getElementById('controlsVibrationToggle');
+        if (vibrationToggle) {
+            vibrationToggle.addEventListener('change', () => {
+                vibrationEnabled = vibrationToggle.checked;
+                // Sync with GamepadController
+                if (typeof GamepadController !== 'undefined') {
+                    GamepadController.vibrationEnabled = vibrationEnabled;
+                }
+                // Sync with main settings vibration toggle
+                const mainVibrationToggle = document.getElementById('vibrationToggle');
+                if (mainVibrationToggle) {
+                    mainVibrationToggle.checked = vibrationEnabled;
+                }
+                saveToLocalStorage();
+                
+                // Trigger settings sync save
+                if (typeof SettingsSync !== 'undefined' && SettingsSync.saveSettings) {
+                    SettingsSync.saveSettings();
+                }
+            });
         }
     }
     
@@ -457,6 +510,13 @@ const ControlsConfig = (() => {
     function resetToDefaults() {
         keyboardBindings = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD));
         gamepadBindings = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD));
+        vibrationEnabled = true;
+        
+        // Sync with GamepadController
+        if (typeof GamepadController !== 'undefined') {
+            GamepadController.vibrationEnabled = vibrationEnabled;
+        }
+        
         saveToLocalStorage();
         
         // Trigger settings sync save
@@ -488,7 +548,15 @@ const ControlsConfig = (() => {
         formatGamepadButton,
         // Expose bindings for direct access
         get keyboard() { return keyboardBindings; },
-        get gamepad() { return gamepadBindings; }
+        get gamepad() { return gamepadBindings; },
+        get vibrationEnabled() { return vibrationEnabled; },
+        set vibrationEnabled(val) { 
+            vibrationEnabled = val;
+            if (typeof GamepadController !== 'undefined') {
+                GamepadController.vibrationEnabled = val;
+            }
+            saveToLocalStorage();
+        }
     };
 })();
 

@@ -1835,15 +1835,25 @@ function updateSpecialEventsDisplay(level) {
     }
 }
 
-// Set up vibration toggle
+// Set up vibration toggle (main settings panel)
 if (vibrationToggle) {
     vibrationToggle.addEventListener('change', () => {
         GamepadController.vibrationEnabled = vibrationToggle.checked;
+        // Sync with ControlsConfig if available
+        if (typeof ControlsConfig !== 'undefined') {
+            ControlsConfig.vibrationEnabled = vibrationToggle.checked;
+        }
         // Trigger settings sync save
         if (typeof SettingsSync !== 'undefined' && SettingsSync.saveSettings) {
             SettingsSync.saveSettings();
         }
     });
+    
+    // Sync with ControlsConfig on init
+    if (typeof ControlsConfig !== 'undefined' && typeof ControlsConfig.vibrationEnabled === 'boolean') {
+        vibrationToggle.checked = ControlsConfig.vibrationEnabled;
+        GamepadController.vibrationEnabled = ControlsConfig.vibrationEnabled;
+    }
 }
 
 // Song info display - created dynamically
