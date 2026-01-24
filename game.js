@@ -11242,12 +11242,17 @@ function toggleUIElements(show) {
     if (show) {
         // Show instructions and controls, hide histogram, show title
         // Respect user's saved preference for which panel to show
-        const savedView = localStorage.getItem('rulesPanelView') || 'instructions';
-        if (savedView === 'leaderboard') {
+        const savedView = localStorage.getItem('rulesPanelView') || 'rules';
+        if (savedView.startsWith('leaderboard-')) {
             // Show leaderboard
             rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
-                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, getLeaderboardMode(), skillLevel);
+                // Parse mode from view value
+                let lbMode = 'normal';
+                if (savedView === 'leaderboard-challenge') lbMode = 'challenge';
+                else if (savedView === 'leaderboard-ai') lbMode = 'ai';
+                else if (savedView === 'leaderboard-ai-challenge') lbMode = 'ai-challenge';
+                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, lbMode, skillLevel);
             }
         } else {
             // Show instructions (default)
@@ -13128,12 +13133,17 @@ if (rulesPanelViewSelect) {
     if (savedView) {
         rulesPanelViewSelect.value = savedView;
         // Trigger the view change immediately
-        if (savedView === 'leaderboard') {
+        if (savedView.startsWith('leaderboard-')) {
             const rulesInstructions = document.querySelector('.rules-instructions');
             if (rulesInstructions) rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
+                // Parse mode from view value: leaderboard-normal, leaderboard-challenge, leaderboard-ai, leaderboard-ai-challenge
+                let lbMode = 'normal';
+                if (savedView === 'leaderboard-challenge') lbMode = 'challenge';
+                else if (savedView === 'leaderboard-ai') lbMode = 'ai';
+                else if (savedView === 'leaderboard-ai-challenge') lbMode = 'ai-challenge';
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(selectedMode, null, lbMode, skillLevel);
             }
         }
     }
@@ -13148,12 +13158,17 @@ if (rulesPanelViewSelect) {
         // Save preference
         localStorage.setItem('rulesPanelView', view);
         
-        if (view === 'leaderboard') {
+        if (view.startsWith('leaderboard-')) {
             // Show leaderboard, hide rules
             if (rulesInstructions) rulesInstructions.style.display = 'none';
             if (window.leaderboard) {
+                // Parse mode from view value
+                let lbMode = 'normal';
+                if (view === 'leaderboard-challenge') lbMode = 'challenge';
+                else if (view === 'leaderboard-ai') lbMode = 'ai';
+                else if (view === 'leaderboard-ai-challenge') lbMode = 'ai-challenge';
                 const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+                window.leaderboard.displayLeaderboard(selectedMode, null, lbMode, skillLevel);
             }
         } else {
             // Show rules, hide leaderboard
