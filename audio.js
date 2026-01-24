@@ -165,95 +165,153 @@ initSoundEffects();
 
 // Songs for during gameplay (non-Cascade songs)
 const gameplaySongs = [
-    { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling_Blocks_Reactor.mp3' },
-    { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade_Of_Colored_Bricks.mp3' },
-    { id: 'wind_fire', name: 'Wind & Fire', file: MUSIC_BASE_URL + 'Wind___Fire.mp3' },
-    { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind___Fire___Soot.mp3' },
-    { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic_Regae.mp3' },
-    { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic_Regae_Reverb.mp3' },
-    { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic_Fog.mp3' },
-    { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle_Puddles.mp3' },
+    // A
+    { id: 'a_bent_horizon', name: 'A Bent Horizon', file: MUSIC_BASE_URL + 'A.Bent.Horizon.mp3' },
+    { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A.Game.of.Falling.Blocks.mp3' },
+    { id: 'a_river_skips_through_it', name: 'A River Skips Through It', file: MUSIC_BASE_URL + 'A.River.Skips.Through.It.mp3' },
+    // B
+    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide.Your.Time.mp3' },
+    { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block.on.Fire.mp3' },
+    { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood.Rains.Down.mp3' },
+    { id: 'buzz_light_beer', name: 'Buzz Light Beer', file: MUSIC_BASE_URL + 'Buzz.Light.Beer.mp3' },
+    // C
+    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Nervous.Mix.mp3' },
+    { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade.of.Colored.Bricks.mp3' },
+    { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing.Skies.mp3' },
+    { id: 'cosmic_reggae', name: 'Cosmic Regae', file: MUSIC_BASE_URL + 'Cosmic.Regae.mp3' },
+    { id: 'cosmic_reggae_reverb', name: 'Cosmic Regae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Regae.Reverb.mp3' },
+    { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic.Sneeze.mp3' },
+    // D
+    { id: 'delayed_gravity', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed.Gravity.mp3' },
+    { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do.You.Want.a.Score.mp3' },
+    { id: 'drizzling_echoes', name: 'Drizzling Echoes', file: MUSIC_BASE_URL + 'Drizzling.Echoes.mp3' },
+    // E
+    { id: 'electric_wind_gusts', name: 'Electric Wind Gusts', file: MUSIC_BASE_URL + 'Electric.Wind.Gusts.mp3' },
+    { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental.Flow.mp3' },
+    // F
+    { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin.Down.mp3' },
+    { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling.Blocks.Reactor.mp3' },
+    { id: 'falling_for_you', name: 'Falling for You', file: MUSIC_BASE_URL + 'Falling.for.You.mp3' },
+    { id: 'falling_forever', name: 'Falling Forever', file: MUSIC_BASE_URL + 'Falling.Forever.mp3' },
+    { id: 'falling_skies', name: 'Falling Skies', file: MUSIC_BASE_URL + 'Falling.Skies.mp3' },
+    { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling.Tide.mp3' },
+    { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle.Puddles.mp3' },
+    { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood.Me.mp3' },
+    { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast.Calls.for.Blocks.mp3' },
+    { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking.Among.the.Ruins.mp3' },
+    // G
+    { id: 'get_some_tonight', name: 'Get Some Tonight', file: MUSIC_BASE_URL + 'Get.Some.Tonight.mp3' },
+    { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin.Tectonic.mp3' },
     { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' },
-    { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_Nervous_Mix.mp3' },
-    { id: 'lava_bells', name: 'Lava Bells', file: MUSIC_BASE_URL + 'Lava_Bells.mp3' },
-    { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling_Tide.mp3' },
-    { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling_Dewdrops.mp3' },
-    { id: 'haunted_hailstones', name: 'Haunted Hailstones', file: MUSIC_BASE_URL + 'Haunted_Hailstones.mp3' },
-    { id: 'pity_puddles', name: 'Pity Puddles', file: MUSIC_BASE_URL + 'Pity_Puddles.mp3' },
-    { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three_Ring_Gravity.mp3' },
-    { id: 'falling_forever', name: 'Falling Forever', file: MUSIC_BASE_URL + 'Falling_Forever.mp3' },
-    { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural_Disasters.mp3' },
-    { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes_._Pentominoes.mp3' },
-    { id: 'falling_for_you', name: 'Falling for You', file: MUSIC_BASE_URL + 'Falling_for_You.mp3' },
-    { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck_on_the_Grid.mp3' },
-    { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect_Storm.mp3' },
-    { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood_Me.mp3' },
-    { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental_Flow.mp3' },
-    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide_Your_Time.mp3' },
-    { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Techno_Mix.mp3' },
-    { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The_Pit_.House_Mix.mp3' },
-    { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Horny_Mix.mp3' },
-    { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The_Pit_.Banjo_Mix.mp3' },
-    { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing_Skies.mp3' },
-    { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow_Burn.mp3' },
-    { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The_Long_Game.mp3' },
-    { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin._Down.mp3' },
-    { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood_Rains_Down.mp3' },
-    { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic_Sneeze.mp3' },
-    { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar_Echoes.mp3' },
-    { id: 'delayed_gravitation', name: 'Delayed Gravitation', file: MUSIC_BASE_URL + 'Delayed_Gravitation.mp3' },
-    { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking_Among_the_Ruins.mp3' },
+    { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin.Swell.mp3' },
+    { id: 'gremlins_arcade', name: 'Gremlins Arcade', file: MUSIC_BASE_URL + 'Gremlins.Arcade.mp3' },
+    // H
+    { id: 'haunted_hailstones', name: 'Haunted Hailstones', file: MUSIC_BASE_URL + 'Haunted.Hailstones.mp3' },
+    { id: 'hold_it_in', name: 'Hold It In', file: MUSIC_BASE_URL + 'Hold.It.In.mp3' },
+    { id: 'hold_it', name: 'Hold It', file: MUSIC_BASE_URL + 'Hold.It.mp3' },
+    { id: 'hold_off_for_me', name: 'Hold Off for Me', file: MUSIC_BASE_URL + 'Hold.Off.for.Me.mp3' },
+    { id: 'holdin_back', name: "Holdin' Back", file: MUSIC_BASE_URL + 'Holdin.Back.mp3' },
+    // J
+    { id: 'just_a_game', name: 'Just a Game', file: MUSIC_BASE_URL + 'Just.a.Game.mp3' },
+    // L
+    { id: 'lava_bells', name: 'Lava Bells', file: MUSIC_BASE_URL + 'Lava.Bells.mp3' },
+    { id: 'lullaby_bye_bye', name: 'Lullaby Bye Bye', file: MUSIC_BASE_URL + 'Lullaby.Bye.Bye.mp3' },
+    // M
+    { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor.Shower.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
-    { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber_._Glue.mp3' },
-    { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin_._Tectonic.mp3' },
-    { id: 'untitled', name: 'Untitled', file: MUSIC_BASE_URL + 'Untitled.mp3' },
-    { id: 'lulaby_bye_bye', name: 'Lulaby Bye Bye', file: MUSIC_BASE_URL + 'Lulaby_Bye_Bye.mp3' },
-    { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin_Swell.mp3' },
-    { id: 'gremlins_arcade', name: "Gremlins Arcade", file: MUSIC_BASE_URL + 'Gremlins_Arcade.mp3' },
-    { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight_Mogwai.mp3' },
-    { id: 'hold_it', name: 'Hold It', file: MUSIC_BASE_URL + 'Hold_It.mp3' },
-    { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast_Calls_for_Blocks.mp3' },
-    { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor_Shower.mp3' },
-    { id: 'get_some_tonight', name: 'Get Some Tonight', file: MUSIC_BASE_URL + 'Get_Some_Tonight.mp3' },
-    { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do_You_Want_a_Score.mp3' },
-    { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The_Longer_Game.mp3' },
-    { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block_on_Fire.mp3' },
-    { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural_Selection.mp3' },
-    { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A_Game_of_Falling_Blocks.mp3' },
-    { id: 'what_the_flock', name: 'What the Flock', file: MUSIC_BASE_URL + 'What_the_Flock.mp3' },
-    { id: 'how_long_can_you_wait', name: 'How Long Can You Wait', file: MUSIC_BASE_URL + 'How_Long_Can_You_Wait.mp3' },
-    { id: 'cant_keep_my_mind_off_you', name: "Can't Keep My Mind Off You", file: MUSIC_BASE_URL + 'Can.t_Keep_My_Mind_Off_You.mp3' },
-    { id: 'under_the_weather', name: 'Under the Weather', file: MUSIC_BASE_URL + 'Under_the_Weather.mp3' },
-    { id: 'the_far_side_of_the_moooon', name: "The Far Side (of the Moooon)", file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
-    { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' },
+    { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight.Mogwai.mp3' },
+    // N
+    { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural.Disasters.mp3' },
+    { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural.Selection.mp3' },
+    // P
+    { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect.Storm.mp3' },
+    { id: 'pity_puddles', name: 'Pity Puddles', file: MUSIC_BASE_URL + 'Pity.Puddles.mp3' },
+    // R
+    { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber.Glue.mp3' },
+    // S
+    { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow.Burn.mp3' },
+    { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar.Echoes.mp3' },
     { id: 'stacked_like_dolly', name: 'Stacked (Like Dolly)', file: MUSIC_BASE_URL + 'Stacked.Like.Dolly.mp3' },
     { id: 'stacked_like_loni', name: 'Stacked (Like Loni)', file: MUSIC_BASE_URL + 'Stacked.Like.Loni.mp3' },
     { id: 'stacked_like_pam', name: 'Stacked (Like Pam)', file: MUSIC_BASE_URL + 'Stacked.Like.Pam.mp3' },
     { id: 'stacked_like_sofia', name: 'Stacked (Like Sofia)', file: MUSIC_BASE_URL + 'Stacked.Like.Sofia.mp3' },
-    { id: 'tantris_fever', name: 'TaNTЯiS Fever', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.mp3' },
+    { id: 'stilted_erosion', name: 'Stilted Erosion', file: MUSIC_BASE_URL + 'Stilted.Erosion.mp3' },
+    { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck.on.the.Grid.mp3' },
+    { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic.Fog.mp3' },
+    // T - TaNTЯiS Fever variants
+    { id: 'tantris_fever_70s_rock', name: "TaNTЯiS Fever ('70s Rock)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.70s.Rock.mp3' },
     { id: 'tantris_fever_80s_eurobeat', name: "TaNTЯiS Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.mp3' },
+    { id: 'tantris_fever_80s_eurobeat_redux', name: "TaNTЯiS Fever ('80s Eurobeat Redux)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.Redux.mp3' },
     { id: 'tantris_fever_80s_hair_band', name: "TaNTЯiS Fever ('80s Hair Band)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Hair.Band.mp3' },
     { id: 'tantris_fever_80s_pop', name: "TaNTЯiS Fever ('80s Pop)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Pop.mp3' },
     { id: 'tantris_fever_90s_alternative', name: "TaNTЯiS Fever ('90s Alternative)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.90s.Alternative.mp3' },
     { id: 'tantris_fever_a_capella', name: 'TaNTЯiS Fever (A Capella)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.mp3' },
+    { id: 'tantris_fever_a_capella_redux', name: 'TaNTЯiS Fever (A Capella Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.mp3' },
+    { id: 'tantris_fever_a_capella_redux_redux', name: 'TaNTЯiS Fever (A Capella Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.Redux.mp3' },
     { id: 'tantris_fever_barbershop', name: 'TaNTЯiS Fever (Barbershop Quartet)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Barbershop.Quartet.mp3' },
+    { id: 'tantris_fever_blues', name: 'TaNTЯiS Fever (Blues)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Blues.mp3' },
     { id: 'tantris_fever_boy_band', name: 'TaNTЯiS Fever (Boy Band)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.mp3' },
+    { id: 'tantris_fever_boy_band_redux', name: 'TaNTЯiS Fever (Boy Band Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.Redux.mp3' },
     { id: 'tantris_fever_country', name: 'TaNTЯiS Fever (Country)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Country.mp3' },
+    { id: 'tantris_fever_disco', name: 'TaNTЯiS Fever (Disco)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Disco.mp3' },
+    { id: 'tantris_fever_gospel', name: 'TaNTЯiS Fever (Gospel)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Gospel.mp3' },
+    { id: 'tantris_fever_heavy_metal', name: 'TaNTЯiS Fever (Heavy Metal)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Heavy.Metal.mp3' },
     { id: 'tantris_fever_instrumental_rap', name: 'TaNTЯiS Fever (Instrumental Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.mp3' },
+    { id: 'tantris_fever_instrumental_rap_redux', name: 'TaNTЯiS Fever (Instrumental Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.mp3' },
+    { id: 'tantris_fever_instrumental_rap_redux_redux', name: 'TaNTЯiS Fever (Instrumental Rap Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.Redux.mp3' },
+    { id: 'tantris_fever_k_pop', name: 'TaNTЯiS Fever (K-pop)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-pop.mp3' },
+    { id: 'tantris_fever_k_pop_redux', name: 'TaNTЯiS Fever (K-Pop Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.mp3' },
+    { id: 'tantris_fever_k_pop_redux_redux', name: 'TaNTЯiS Fever (K-Pop Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.Redux.mp3' },
+    { id: 'tantris_fever', name: 'TaNTЯiS Fever', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.mp3' },
     { id: 'tantris_fever_piano', name: 'TaNTЯiS Fever (Piano)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.mp3' },
-    { id: 'tantris_fever_rap', name: 'TaNTЯiS Fever (Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.mp3' }
+    { id: 'tantris_fever_piano_redux', name: 'TaNTЯiS Fever (Piano Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.mp3' },
+    { id: 'tantris_fever_piano_redux_redux', name: 'TaNTЯiS Fever (Piano Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.Redux.mp3' },
+    { id: 'tantris_fever_rap', name: 'TaNTЯiS Fever (Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.mp3' },
+    { id: 'tantris_fever_rap_redux', name: 'TaNTЯiS Fever (Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.Redux.mp3' },
+    { id: 'tantris_fever_redux', name: 'TaNTЯiS Fever Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.mp3' },
+    { id: 'tantris_fever_redux_redux', name: 'TaNTЯiS Fever Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.mp3' },
+    { id: 'tantris_fever_redux_redux_redux', name: 'TaNTЯiS Fever Redux Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.Redux.mp3' },
+    { id: 'tantris_fever_regae', name: 'TaNTЯiS Fever (Regae)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.mp3' },
+    { id: 'tantris_fever_regae_redux', name: 'TaNTЯiS Fever (Regae Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.mp3' },
+    { id: 'tantris_fever_regae_redux_redux', name: 'TaNTЯiS Fever (Regae Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.Redux.mp3' },
+    // T - TaNTЯiS other
+    { id: 'tantris_on_my_hands', name: 'TaNTЯiS on My Hands', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.mp3' },
+    { id: 'tantris_on_my_hands_redux', name: 'TaNTЯiS on My Hands Redux', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.Redux.mp3' },
+    { id: 'tantrizz', name: 'TaNTЯiZZ', file: MUSIC_BASE_URL + 'TaNT.iZZ.mp3' },
+    // T - Teeeerry
+    { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' },
+    { id: 'teeeerry_redux', name: 'Teeeerry Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.mp3' },
+    { id: 'teeeerry_redux_redux', name: 'Teeeerry Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.mp3' },
+    { id: 'teeeerry_redux_redux_redux', name: 'Teeeerry Redux Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.Redux.mp3' },
+    // T - Other
+    { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes.Pentominoes.mp3' },
+    { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
+    { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
+    { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The.Longer.Game.mp3' },
+    { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The.Pit.Banjo.Mix.mp3' },
+    { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The.Pit.Horny.Mix.mp3' },
+    { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The.Pit.House.Mix.mp3' },
+    { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The.Pit.Techno.Mix.mp3' },
+    { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three.Ring.Gravity.mp3' },
+    { id: 'trapeze_breeze', name: 'Trapeze Breeze', file: MUSIC_BASE_URL + 'Trapeze.Breeze.mp3' },
+    // W
+    { id: 'what_the_flock', name: 'What the Flock', file: MUSIC_BASE_URL + 'What.the.Flock.mp3' },
+    { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling.Dewdrops.mp3' },
+    { id: 'wind_fire', name: 'Wind & Fire', file: MUSIC_BASE_URL + 'Wind.Fire.mp3' },
+    { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind.Fire.Soot.mp3' },
+    { id: 'wormholio', name: 'Wormholio', file: MUSIC_BASE_URL + 'Wormholio.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
 const creditsSongs = [
-    { id: 'cascade_void_credits', name: 'Cascade into the Void (End Credits)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void_-_End_Credits.mp3' },
-    { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Intense_Mix_.mp3' },
-    { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Bork_Bork_Bork_Mix_.mp3' },
-    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Max_Headroom_Mix_.mp3' },
-    { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Eurobeat_Mix_.mp3' },
-    { id: 'cascade_void_acappella', name: 'Cascade into the Void (A Cappella Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__A_Cappella_Mix_.mp3' },
-    { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Folk_Mix_.mp3' },
-    { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance Mix)', file: MUSIC_BASE_URL + 'Cascade_into_the_Void__Dance_Mix_.mp3' }
+    { id: 'cascade_void', name: 'Cascade into the Void', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.mp3' },
+    { id: 'cascade_void_acappella', name: 'Cascade into the Void (A Capella)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.A.Capella.mp3' },
+    { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Bork.Bork.Bork.mp3' },
+    { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Dance.mp3' },
+    { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.mp3' },
+    { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Folk.mp3' },
+    { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Intense.mp3' },
+    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' }
 ];
 
 // Intro music only (not in any shuffle)
@@ -1056,6 +1114,15 @@ initShuffleQueues();
 // Get list of songs for UI (gameplay songs only, not credits variations)
 function getSongList() {
     return gameplaySongs.map(s => ({ id: s.id, name: s.name }));
+}
+
+// Get all song lists for populating dropdowns
+function getAllSongLists() {
+    return {
+        gameplay: gameplaySongs.map(s => ({ id: s.id, name: s.name })),
+        credits: creditsSongs.map(s => ({ id: s.id, name: s.name })),
+        menu: menuOnlySongs.map(s => ({ id: s.id, name: s.name }))
+    };
 }
 
 // Mark that a game has been played (call from game.js on game over)
@@ -2801,6 +2868,7 @@ function getEffectiveSfxVolume(effectId) {
         stopTornadoWind,
         playSmallExplosion,
         getSongList,
+        getAllSongLists,
         setHasPlayedGame,
         setGameInProgress,
         gameplayMusicElements,
