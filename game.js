@@ -11954,7 +11954,7 @@ function showTuningModeIndicator() {
         indicator.style.cssText = `
             position: fixed;
             top: 1vh;
-            right: 1vw;
+            left: 1vw;
             background: rgba(255, 165, 0, 0.9);
             color: black;
             padding: 1vh 2vw;
