@@ -220,6 +220,9 @@ const gameplaySongs = [
     { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor.Shower.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
     { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight.Mogwai.mp3' },
+    { id: 'meet_cute', name: 'Meet Cute (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cute.When.Claude.Met.Suno.mp3' },
+    { id: 'meet_cuter', name: 'Meet Cuter (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cuter.When.Claude.Met.Suno.mp3' },
+    { id: 'meet_cutest', name: 'Meet Cutest (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cutest.When.Claude.Met.Suno.mp3' },
     // N
     { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural.Disasters.mp3' },
     { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural.Selection.mp3' },
@@ -285,6 +288,7 @@ const gameplaySongs = [
     { id: 'teeeerry_redux_redux_redux', name: 'Teeeerry Redux Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.Redux.mp3' },
     // T - Other
     { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes.Pentominoes.mp3' },
+    { id: 'the_call_of_tantris', name: 'The Call of TaNTЯiS', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' },
     { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
     { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The.Longer.Game.mp3' },
