@@ -6188,60 +6188,62 @@ function applyTrainingWheelsPenalty(points) {
 function getChallengeModeMultiplier() {
     if (challengeMode === 'normal') {
         return 1.0; // No bonus
-    } else if (challengeMode === 'combo') {
-        // Variable bonus per challenge based on difficulty
-        const challengeBonuses = {
-            'stranger': 0.07,     // 7%
-            'dyslexic': 0.06,     // 6%
-            'phantom': 0.07,      // 7%
-            'gremlins': 0.06,     // 6%
-            'rubber': 0.05,       // 5%
-            'oz': 0.05,           // 5%
-            'lattice': 0.05,      // 5%
-            'yesand': 0.05,       // 5%
-            'sixseven': 0.04,     // 4%
-            'longago': 0.04,      // 4%
-            'comingsoon': 0.04,   // 4%
-            'thinner': 0.04,      // 4%
-            'mercurial': 0.04,    // 4%
-            'shadowless': 0.04,   // 4%
-            'thicker': 0.03,      // 3%
-            'carrie': 0.03,       // 3%
-            'nokings': 0.03,      // 3%
-            'nervous': 0.02       // 2%
-        };
-        
+    }
+    
+    // Visual-only challenges give 0% bonus in AI mode (AI doesn't experience visual effects)
+    const visualOnlyChallenges = new Set([
+        'stranger',    // Screen rotation - AI has direct board access
+        'dyslexic',    // Control swap - AI places directly
+        'phantom',     // Stack fades - AI has full board state
+        'oz',          // Grayscale pieces - AI knows colors
+        'longago',     // 3D perspective tilt - visual only
+        'comingsoon',  // 3D perspective tilt - visual only
+        'nervous',     // Screen vibration - visual only
+        'shadowless',  // Hides landing shadow - AI calculates positions
+        'carrie',      // Blood rain - visual distraction only
+        'nokings'      // Poo rain - visual distraction only
+    ]);
+    
+    // Challenge bonuses (only applied for non-visual challenges in AI mode)
+    const challengeBonuses = {
+        'stranger': 0.07,     // 7%
+        'dyslexic': 0.06,     // 6%
+        'phantom': 0.07,      // 7%
+        'gremlins': 0.06,     // 6%
+        'rubber': 0.05,       // 5%
+        'oz': 0.05,           // 5%
+        'lattice': 0.05,      // 5%
+        'yesand': 0.05,       // 5%
+        'sixseven': 0.04,     // 4%
+        'longago': 0.04,      // 4%
+        'comingsoon': 0.04,   // 4%
+        'thinner': 0.04,      // 4%
+        'mercurial': 0.04,    // 4%
+        'shadowless': 0.04,   // 4%
+        'thicker': 0.03,      // 3%
+        'carrie': 0.03,       // 3%
+        'nokings': 0.03,      // 3%
+        'nervous': 0.02,      // 2%
+        'sorandom': 0.00      // 0% in AI mode (mostly visual challenges)
+    };
+    
+    if (challengeMode === 'combo') {
         let totalBonus = 0;
         activeChallenges.forEach(challenge => {
-            totalBonus += challengeBonuses[challenge] || 0.05; // Default 5% if not found
+            // Skip visual-only challenges in AI mode
+            if (aiModeEnabled && visualOnlyChallenges.has(challenge)) {
+                return;
+            }
+            totalBonus += challengeBonuses[challenge] || 0.05;
         });
-        
         return 1.0 + totalBonus;
     } else {
-        // Single challenge mode - use specific bonus
-        const singleChallengeBonuses = {
-            'stranger': 0.07,
-            'dyslexic': 0.06,
-            'phantom': 0.07,
-            'gremlins': 0.06,
-            'rubber': 0.05,
-            'oz': 0.05,
-            'lattice': 0.05,
-            'yesand': 0.05,
-            'sixseven': 0.04,
-            'longago': 0.04,
-            'comingsoon': 0.04,
-            'thinner': 0.04,
-            'mercurial': 0.04,
-            'shadowless': 0.04,
-            'thicker': 0.03,
-            'carrie': 0.03,
-            'nokings': 0.03,
-            'nervous': 0.02,
-            'sorandom': 0.05  // So Random gets 5% as it varies
-        };
-        
-        return 1.0 + (singleChallengeBonuses[challengeMode] || 0.05);
+        // Single challenge mode
+        // In AI mode, visual-only challenges and sorandom get 0% bonus
+        if (aiModeEnabled && (visualOnlyChallenges.has(challengeMode) || challengeMode === 'sorandom')) {
+            return 1.0;
+        }
+        return 1.0 + (challengeBonuses[challengeMode] || 0.05);
     }
 }
 
@@ -14373,6 +14375,8 @@ document.addEventListener('touchend', handleUnpauseTap);
 let replayPaused = false;
 let replayData = null;
 let replaySavedAIMode = false; // Store AI mode state to restore after replay
+let replaySavedChallengeMode = 'normal'; // Store challenge mode state to restore after replay
+let replaySavedActiveChallenges = new Set(); // Store active challenges to restore after replay
 // Visual settings saved state for replay
 let replaySavedVisualSettings = {
     faceOpacity: 0.42,
@@ -14534,11 +14538,61 @@ window.startGameReplay = function(recording) {
     COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 12 : 10;
     updateCanvasSize();
     
+    // Save current challenge mode state before applying replay's challenge mode
+    replaySavedChallengeMode = challengeMode;
+    replaySavedActiveChallenges = new Set(activeChallenges);
+    
     // Set challenge mode if recorded
-    challengeMode = recData.mode === 'challenge' ? (recData.challenges?.[0] || 'normal') : 'normal';
     activeChallenges.clear();
-    if (recData.challenges) {
+    if (recData.challenges && recData.challenges.length > 0) {
         recData.challenges.forEach(c => activeChallenges.add(c));
+        // Determine if combo mode (multiple challenges) or single challenge
+        if (recData.challenges.length > 1) {
+            challengeMode = 'combo';
+        } else {
+            challengeMode = recData.challenges[0];
+        }
+    } else {
+        challengeMode = 'normal';
+    }
+    
+    // Apply challenge mode visual effects (CSS classes, stranger mode rotation, etc.)
+    // We need to apply effects without clearing activeChallenges, so we call the effect-applying
+    // portion directly rather than calling applyChallengeMode which would reset state
+    document.documentElement.classList.remove('stranger-mode');
+    StarfieldSystem.setStrangerMode(false);
+    StarfieldSystem.removeVineOverlay();
+    canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
+    bouncingPieces = [];
+    if (phantomFadeInterval) {
+        clearInterval(phantomFadeInterval);
+        phantomFadeInterval = null;
+    }
+    phantomOpacity = 1.0;
+    nervousVibrateOffset = 0;
+    StormEffects.reset();
+    
+    // Apply visual effects based on active challenges
+    if (challengeMode === 'stranger' || activeChallenges.has('stranger')) {
+        document.documentElement.classList.add('stranger-mode');
+        StarfieldSystem.setStrangerMode(true);
+        StarfieldSystem.createVineOverlay(canvas);
+        StarfieldSystem.createVineOverlay(nextCanvas);
+    }
+    if (challengeMode === 'phantom' || activeChallenges.has('phantom')) {
+        phantomOpacity = 0;
+    }
+    if (challengeMode === 'thinner' || activeChallenges.has('thinner')) {
+        canvas.classList.add('thinner-mode');
+    }
+    if (challengeMode === 'thicker' || activeChallenges.has('thicker')) {
+        canvas.classList.add('thicker-mode');
+    }
+    if (challengeMode === 'longago' || activeChallenges.has('longago')) {
+        canvas.classList.add('longago-mode');
+    }
+    if (challengeMode === 'comingsoon' || activeChallenges.has('comingsoon')) {
+        canvas.classList.add('comingsoon-mode');
     }
     
     // Set replay active BEFORE starting game
@@ -15383,6 +15437,23 @@ function stopReplay() {
     tsunamiCount = 0;
     blackHoleCount = 0;
     volcanoCount = 0;
+    
+    // Restore challenge mode to what it was before replay and apply visual effects
+    challengeMode = replaySavedChallengeMode;
+    activeChallenges = new Set(replaySavedActiveChallenges);
+    document.documentElement.classList.remove('stranger-mode');
+    StarfieldSystem.setStrangerMode(false);
+    StarfieldSystem.removeVineOverlay();
+    canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
+    bouncingPieces = [];
+    if (phantomFadeInterval) {
+        clearInterval(phantomFadeInterval);
+        phantomFadeInterval = null;
+    }
+    phantomOpacity = 1.0;
+    nervousVibrateOffset = 0;
+    StormEffects.reset();
+    updateChallengeButtonLabel();
     
     // Reset displays
     scoreDisplay.textContent = formatAsBitcoin(0);
