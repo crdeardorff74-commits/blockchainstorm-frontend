@@ -245,7 +245,18 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
         if (entry.volcanoes > 0) events.push(`🌋${entry.volcanoes}`);
         if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
-        const eventsCell = `<td class="events-col">${events.join(' ')}</td>`;
+        
+        // Format events in 2 rows: first 2 on line 1, rest on line 2
+        let eventsHtml = '';
+        if (events.length > 0) {
+            const line1 = events.slice(0, 2).join(' ');
+            const line2 = events.slice(2).join(' ');
+            eventsHtml = `<span style="white-space:nowrap">${line1}</span>`;
+            if (line2) {
+                eventsHtml += `<br><span style="white-space:nowrap">${line2}</span>`;
+            }
+        }
+        const eventsCell = `<td class="events-col">${eventsHtml}</td>`;
         
         // Build challenges display for challenge mode
         let challengesCell = '';
