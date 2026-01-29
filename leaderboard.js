@@ -220,7 +220,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                     <th class="events-col">Events</th>
                     <th class="score">Score</th>
                     <th>Lines</th>
-                    <th>Lvl</th>
                     ${mode === 'challenge' ? '<th class="challenges-col">🎯</th>' : ''}
                     <th class="replay-col" title="Watch Replay">▶</th>
                 </tr>
@@ -291,7 +290,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                 ${eventsCell}
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
                 <td>${entry.lines}</td>
-                <td>${entry.level}</td>
                 ${challengesCell}
                 ${replayCell}
             </tr>
