@@ -11789,8 +11789,7 @@ function generateRandomTuningConfig() {
         cautionHeight: randInt(10, 14),
         cautionHoles: randInt(3, 8),
         
-        // Lookahead
-        lookaheadDepth: randInt(0, 6),
+        // Lookahead (lookaheadDepth fixed at 6, not randomized)
         lookaheadDiscount: randFloat(0.5, 1.0),
         
         // Blob building bonuses
