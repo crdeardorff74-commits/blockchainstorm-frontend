@@ -11606,8 +11606,8 @@ function startLeaderboardCloseDetection() {
     // Stop any existing detection
     stopLeaderboardCloseDetection();
     
-    // Method 1: Timeout fallback - show game over after 5 seconds no matter what
-    // (Server usually responds in <1 second, so this is just a safety net)
+    // Method 1: Timeout fallback - show game over after 2 minutes no matter what
+    // This is a safety net for edge cases; normally onScoreSubmitted is called after name entry
     leaderboardTimeoutId = setTimeout(() => {
         console.log('Leaderboard timeout reached');
         console.log('gameOverDiv.style.display:', gameOverDiv.style.display);
@@ -11621,7 +11621,7 @@ function startLeaderboardCloseDetection() {
         } else {
             console.log('Game is running, skipping onScoreSubmitted');
         }
-    }, 5000); // 5 second timeout
+    }, 120000); // 2 minute timeout - gives user time to enter name
     
     // Method 2: Poll for leaderboard overlay disappearing
     leaderboardCloseInterval = setInterval(() => {
