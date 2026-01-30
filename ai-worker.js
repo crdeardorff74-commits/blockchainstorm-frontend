@@ -1,18 +1,18 @@
-// AI Worker v6.19.0 - Tuned from 601-game analysis
+// AI Worker v6.21.0 - Tuned from 2699-game analysis + black hole params
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.19.0 loaded - Data-tuned parameters");
+console.log("🤖 AI Worker v6.21.0 loaded - Data-tuned parameters");
 
-const AI_VERSION = "6.19.0";
+const AI_VERSION = "6.21.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
-// v6.19.0 - Tuned from 601 game analysis (top 10% median values)
+// v6.20.0 - Tuned from 2699 game analysis (top 20% of high-lookahead games)
 const DEFAULT_CONFIG = {
     // Survival mode thresholds
-    survivalEnterHeight: 10,
+    survivalEnterHeight: 11,
     survivalExitHeight: 7,
-    survivalEnterHoles: 11,
-    survivalExitHoles: 5,
+    survivalEnterHoles: 10,
+    survivalExitHoles: 6,
     
     // Phase thresholds
     criticalHeight: 16,
@@ -23,37 +23,44 @@ const DEFAULT_CONFIG = {
     cautionHoles: 6,
     
     // Lookahead
-    lookaheadDepth: 4,
+    lookaheadDepth: 6,
     lookaheadDiscount: 0.8,
     
     // Blob building bonuses
     horizontalAdjacencyBonus: 16,
     verticalAdjacencyBonus: 5,
-    tsunamiRowBonusMultiplier: 18,
-    tsunamiEdgeExtensionBonus: 85,
+    tsunamiRowBonusMultiplier: 17,
+    tsunamiEdgeExtensionBonus: 84,
     tsunamiMatchingColorBonus: 7,
     
     // Tsunami bonuses by width
-    tsunamiImminentBonus: 323,
-    tsunamiImminentPerExtra: 170,
-    tsunamiAchievableBonus: 255,
-    tsunamiAchievablePerQueue: 56,
-    tsunamiNearCompleteBonus: 138,
-    tsunamiNearCompletePerExtra: 34,
-    tsunamiBuildingBonus: 68,
-    tsunamiBuildingPerExtra: 23,
-    tsunamiWastePenaltyW8: 165,
-    tsunamiWastePenaltyW7: 104,
+    tsunamiImminentBonus: 342,
+    tsunamiImminentPerExtra: 175,
+    tsunamiAchievableBonus: 252,
+    tsunamiAchievablePerQueue: 52,
+    tsunamiNearCompleteBonus: 135,
+    tsunamiNearCompletePerExtra: 38,
+    tsunamiBuildingBonus: 64,
+    tsunamiBuildingPerExtra: 26,
+    tsunamiWastePenaltyW8: 169,
+    tsunamiWastePenaltyW7: 98,
+    
+    // Black hole bonuses
+    blackHoleNearCompleteBonus: 120,    // progress >= 0.8
+    blackHoleBuildingBonus: 60,         // progress >= 0.6
+    blackHoleEarlyBonus: 30,            // progress >= 0.5
+    blackHoleSizeMultiplier: 6,         // bonus per width + per height
+    blackHoleCautionScale: 0.6,         // multiplier in caution phase
     
     // Line clear bonuses in survival mode
-    survivalClear4Bonus: 651,
-    survivalClear3Bonus: 429,
-    survivalClear2Bonus: 292,
-    survivalClear1Bonus: 163,
+    survivalClear4Bonus: 620,
+    survivalClear3Bonus: 425,
+    survivalClear2Bonus: 273,
+    survivalClear1Bonus: 168,
     
     // Height penalties
-    survivalHeightMultiplier: 3.7,
-    normalHeightMultiplier: 2.9,
+    survivalHeightMultiplier: 3.5,
+    normalHeightMultiplier: 2.7,
     normalHeightThreshold: 9,
     
     // Hole penalties
@@ -62,7 +69,7 @@ const DEFAULT_CONFIG = {
     holePenaltyHigh: 72,
     
     // Bumpiness
-    bumpinessPenalty: 3.1,
+    bumpinessPenalty: 3.3,
     
     // Stacking penalty
     stackingPenaltyPerExcess: 14,
@@ -70,14 +77,14 @@ const DEFAULT_CONFIG = {
     stackingSurvivalMultiplier: 2.3,
     
     // Vertical I-piece penalties
-    verticalISlightPenalty: 56,
-    verticalIModeratePenalty: 127,
-    verticalISeverePenalty: 228,
-    verticalISurvivalExtraPenalty: 117,
+    verticalISlightPenalty: 51,
+    verticalIModeratePenalty: 132,
+    verticalISeverePenalty: 225,
+    verticalISurvivalExtraPenalty: 120,
     
     // Tower penalties
-    towerThresholdSevere: 10,
-    towerThresholdBad: 7,
+    towerThresholdSevere: 9,
+    towerThresholdBad: 6,
     towerThresholdModerate: 4,
     towerPenaltySevere: 12,
     towerPenaltyBad: 8,
@@ -1340,20 +1347,20 @@ function evaluateBoard(board, shape, x, y, color, cols, rows, includeBreakdown =
         if (color === blackHolePotential.color) {
             // Bonus based on progress toward enclosure
             if (blackHolePotential.progress >= 0.8) {
-                blackHoleBonus = 120;
+                blackHoleBonus = config.blackHoleNearCompleteBonus;
             } else if (blackHolePotential.progress >= 0.6) {
-                blackHoleBonus = 60;
+                blackHoleBonus = config.blackHoleBuildingBonus;
             } else if (blackHolePotential.progress >= 0.5) {
-                blackHoleBonus = 30;
+                blackHoleBonus = config.blackHoleEarlyBonus;
             }
             
             // Scale with size of potential black hole
-            blackHoleBonus += blackHolePotential.width * 6 + blackHolePotential.height * 6;
+            blackHoleBonus += (blackHolePotential.width + blackHolePotential.height) * config.blackHoleSizeMultiplier;
         }
         
         // Reduce in caution phase (but not in survival mode pursuing near-complete)
         if (phase === 'caution' && !inSurvivalMode) {
-            blackHoleBonus = Math.round(blackHoleBonus * 0.6);
+            blackHoleBonus = Math.round(blackHoleBonus * config.blackHoleCautionScale);
         }
     }
     

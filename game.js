@@ -11812,6 +11812,13 @@ function generateRandomTuningConfig() {
         tsunamiWastePenaltyW8: randInt(100, 250),
         tsunamiWastePenaltyW7: randInt(50, 150),
         
+        // Black hole bonuses
+        blackHoleNearCompleteBonus: randInt(60, 200),
+        blackHoleBuildingBonus: randInt(30, 120),
+        blackHoleEarlyBonus: randInt(15, 60),
+        blackHoleSizeMultiplier: randInt(3, 12),
+        blackHoleCautionScale: randFloat(0.4, 0.9),
+        
         // Line clear bonuses in survival mode
         survivalClear4Bonus: randInt(400, 900),
         survivalClear3Bonus: randInt(250, 600),
