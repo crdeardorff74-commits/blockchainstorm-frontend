@@ -175,6 +175,12 @@ const gameplaySongs = [
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood.Rains.Down.mp3' },
     { id: 'buzz_light_beer', name: 'Buzz Light Beer', file: MUSIC_BASE_URL + 'Buzz.Light.Beer.mp3' },
     // C
+    { id: 'canononymity', name: 'Canononymity', file: MUSIC_BASE_URL + 'Canononymity.mp3' },
+    { id: 'canononymity_dubstep', name: 'Canononymity (Dubstep)', file: MUSIC_BASE_URL + 'Canononymity.Dubstep.mp3' },
+    { id: 'canononymity_house', name: 'Canononymity (House)', file: MUSIC_BASE_URL + 'Canononymity.House.mp3' },
+    { id: 'canononymity_martin_kermit', name: 'Canononymity (Martin/Kermit)', file: MUSIC_BASE_URL + 'Canononymity.Martin_Kermit.mp3' },
+    { id: 'canononymity_orchestral', name: 'Canononymity (Orchestral)', file: MUSIC_BASE_URL + 'Canononymity.Orchestral.mp3' },
+    { id: 'canononymity_piano', name: 'Canononymity (Piano)', file: MUSIC_BASE_URL + 'Canononymity.Piano.mp3' },
     { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Nervous.Mix.mp3' },
     { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade.of.Colored.Bricks.mp3' },
     { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing.Skies.mp3' },
@@ -212,6 +218,7 @@ const gameplaySongs = [
     { id: 'hold_off_for_me', name: 'Hold Off for Me', file: MUSIC_BASE_URL + 'Hold.Off.for.Me.mp3' },
     { id: 'holdin_back', name: "Holdin' Back", file: MUSIC_BASE_URL + 'Holdin.Back.mp3' },
     // J
+    { id: 'joyful_odie', name: 'Joyful Odie', file: MUSIC_BASE_URL + 'Joyful.Odie.mp3' },
     { id: 'just_a_game', name: 'Just a Game', file: MUSIC_BASE_URL + 'Just.a.Game.mp3' },
     // L
     { id: 'lava_bells', name: 'Lava Bells', file: MUSIC_BASE_URL + 'Lava.Bells.mp3' },
