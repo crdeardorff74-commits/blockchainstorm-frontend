@@ -188,7 +188,7 @@ const gameplaySongs = [
     { id: 'cosmic_reggae_reverb', name: 'Cosmic Regae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Regae.Reverb.mp3' },
     { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic.Sneeze.mp3' },
     // D
-    { id: 'delayed_gravity', name: 'Delayed Gravity', file: MUSIC_BASE_URL + 'Delayed.Gravity.mp3' },
+    { id: 'delayed_gravitation', name: 'Delayed Gravitation', file: MUSIC_BASE_URL + 'Delayed.Gravitation.mp3' },
     { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do.You.Want.a.Score.mp3' },
     { id: 'drizzling_echoes', name: 'Drizzling Echoes', file: MUSIC_BASE_URL + 'Drizzling.Echoes.mp3' },
     // E
