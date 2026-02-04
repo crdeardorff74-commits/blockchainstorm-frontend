@@ -46,11 +46,52 @@ const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, play
             display: none !important;
         }
         #planetStats {
-            padding: 8px !important;
-            margin-top: 8px !important;
+            padding: 4px 8px !important;
+            margin-top: 4px !important;
         }
         #songInfo {
-            flex-shrink: 0;
+            flex: 0 0 auto !important;
+            height: auto !important;
+            display: block !important;
+            text-align: center !important;
+            line-height: 0 !important;
+            font-size: 0 !important;
+        }
+        #songInfo[style*="display: none"] {
+            display: none !important;
+        }
+        #songInfo > div {
+            padding: 0 !important;
+        }
+        #songInfo button {
+            vertical-align: middle !important;
+            box-sizing: border-box !important;
+        }
+        #songPrevBtn, #songPauseBtn, #songNextBtn {
+            height: 2.4vh !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+        }
+        .side-panel-bottom {
+            flex-grow: 0 !important;
+        }
+        @media (max-width: 1024px) {
+            #planetStats {
+                font-size: max(1.8vh, 9px) !important;
+            }
+            #planetStatsContent div {
+                font-size: max(1.8vh, 8px) !important;
+            }
+            #planetStatsContent div[style*="italic"] {
+                font-size: max(1.5vh, 7px) !important;
+            }
+            #songInfo div:first-child {
+                font-size: max(1.5vh, 7px) !important;
+                line-height: 1.3 !important;
+            }
+            #songName {
+                font-size: max(1.8vh, 9px) !important;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -115,6 +156,183 @@ const DeviceDetection = {
 };
 
 // Tablet Mode System
+// ============================================
+// SWIPE GESTURE CONTROLS
+// ============================================
+const SwipeControls = {
+    enabled: false,
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    tracking: false,
+    moveThreshold: 20,      // Min px to register a swipe
+    tapThreshold: 12,        // Max px movement for a tap
+    tapTimeMax: 250,         // Max ms for a tap
+    hardDropSpeed: 800,      // Min px/sec for hard drop
+    softDropInterval: null,
+    lastMoveX: 0,            // Track cumulative horizontal movement
+    movedColumns: 0,         // How many columns we've moved this gesture
+    
+    _onTouchStart: null,
+    _onTouchMove: null,
+    _onTouchEnd: null,
+    _onTouchCancel: null,
+    
+    enable() {
+        if (this.enabled) return;
+        this.enabled = true;
+        
+        const c = document.getElementById('gameCanvas');
+        if (!c) return;
+        
+        this._onTouchStart = this.handleStart.bind(this);
+        this._onTouchMove = this.handleMove.bind(this);
+        this._onTouchEnd = this.handleEnd.bind(this);
+        this._onTouchCancel = this.handleCancel.bind(this);
+        
+        c.addEventListener('touchstart', this._onTouchStart, { passive: false });
+        c.addEventListener('touchmove', this._onTouchMove, { passive: false });
+        c.addEventListener('touchend', this._onTouchEnd, { passive: false });
+        c.addEventListener('touchcancel', this._onTouchCancel, { passive: false });
+        
+        console.log('👆 Swipe gesture controls enabled');
+    },
+    
+    disable() {
+        if (!this.enabled) return;
+        this.enabled = false;
+        
+        const c = document.getElementById('gameCanvas');
+        if (!c) return;
+        
+        c.removeEventListener('touchstart', this._onTouchStart);
+        c.removeEventListener('touchmove', this._onTouchMove);
+        c.removeEventListener('touchend', this._onTouchEnd);
+        c.removeEventListener('touchcancel', this._onTouchCancel);
+        
+        this.stopSoftDrop();
+        console.log('👆 Swipe gesture controls disabled');
+    },
+    
+    getSwapDir() {
+        // Check if controls should be swapped (Stranger XOR Dyslexic)
+        const strangerActive = typeof challengeMode !== 'undefined' && 
+            (challengeMode === 'stranger' || (typeof activeChallenges !== 'undefined' && activeChallenges.has('stranger')));
+        const dyslexicActive = typeof challengeMode !== 'undefined' && 
+            (challengeMode === 'dyslexic' || (typeof activeChallenges !== 'undefined' && activeChallenges.has('dyslexic')));
+        return strangerActive !== dyslexicActive ? -1 : 1;
+    },
+    
+    handleStart(e) {
+        if (typeof isPaused !== 'undefined' && isPaused) return;
+        if (typeof gameRunning !== 'undefined' && !gameRunning) return;
+        
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.startX = touch.clientX;
+        this.startY = touch.clientY;
+        this.startTime = Date.now();
+        this.tracking = true;
+        this.lastMoveX = touch.clientX;
+        this.movedColumns = 0;
+    },
+    
+    handleMove(e) {
+        if (!this.tracking) return;
+        if (typeof isPaused !== 'undefined' && isPaused) return;
+        if (typeof currentPiece === 'undefined' || !currentPiece) return;
+        
+        e.preventDefault();
+        const touch = e.touches[0];
+        const dx = touch.clientX - this.lastMoveX;
+        const dy = touch.clientY - this.startY;
+        
+        // Horizontal movement: move piece per column-width of movement
+        const colWidth = typeof BLOCK_SIZE !== 'undefined' ? BLOCK_SIZE : 30;
+        if (Math.abs(dx) >= colWidth) {
+            const columns = Math.floor(Math.abs(dx) / colWidth);
+            const swap = this.getSwapDir();
+            const dir = (dx > 0 ? 1 : -1) * swap;
+            
+            for (let i = 0; i < columns; i++) {
+                if (!collides(currentPiece, dir, 0)) {
+                    currentPiece.x += dir;
+                    this.movedColumns++;
+                    playSoundEffect('move', soundToggle);
+                }
+            }
+            this.lastMoveX = touch.clientX;
+        }
+        
+        // Vertical: if swiping down significantly, start soft drop
+        if (dy > this.moveThreshold * 2 && !this.softDropInterval) {
+            this.startSoftDrop();
+        }
+    },
+    
+    handleEnd(e) {
+        if (!this.tracking) return;
+        this.tracking = false;
+        
+        if (typeof isPaused !== 'undefined' && isPaused) return;
+        if (typeof currentPiece === 'undefined' || !currentPiece) return;
+        
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - this.startX;
+        const dy = touch.clientY - this.startY;
+        const elapsed = Date.now() - this.startTime;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        this.stopSoftDrop();
+        
+        // Tap = rotate
+        if (dist < this.tapThreshold && elapsed < this.tapTimeMax && this.movedColumns === 0) {
+            // Tap on left half = rotate CCW, right half = rotate CW
+            const canvasRect = document.getElementById('gameCanvas').getBoundingClientRect();
+            const tapX = touch.clientX - canvasRect.left;
+            if (tapX < canvasRect.width * 0.4) {
+                rotatePieceCounterClockwise();
+            } else {
+                rotatePiece();
+            }
+            return;
+        }
+        
+        // Fast downward swipe = hard drop
+        if (dy > this.moveThreshold && this.movedColumns < 2) {
+            const speed = (dy / elapsed) * 1000; // px/sec
+            if (speed > this.hardDropSpeed) {
+                hardDrop();
+                return;
+            }
+        }
+    },
+    
+    handleCancel(e) {
+        this.tracking = false;
+        this.stopSoftDrop();
+    },
+    
+    startSoftDrop() {
+        if (this.softDropInterval) return;
+        this.softDropInterval = setInterval(() => {
+            if (typeof currentPiece !== 'undefined' && currentPiece && !collides(currentPiece, 0, 1)) {
+                currentPiece.y++;
+                if (typeof score !== 'undefined') score += 1;
+                if (typeof updateStats === 'function') updateStats();
+            }
+        }, 50);
+    },
+    
+    stopSoftDrop() {
+        if (this.softDropInterval) {
+            clearInterval(this.softDropInterval);
+            this.softDropInterval = null;
+        }
+    }
+};
+
 const TabletMode = {
     enabled: false,
     manualOverride: false, // For CTRL+T testing
@@ -151,41 +369,56 @@ const TabletMode = {
         const controls = document.querySelector('.controls');
         const pauseBtn = document.getElementById('pauseBtn');
         const settingsBtn = document.getElementById('settingsBtn');
+        const gestureGuide = document.getElementById('gestureGuide');
         
         // Sync with StarfieldSystem
         if (typeof StarfieldSystem !== 'undefined') {
             StarfieldSystem.setTabletModeEnabled(this.enabled);
         }
         
+        // Phones use swipe gestures, tablets use button controls
+        const useGestures = this.enabled && (DeviceDetection.isMobile || DeviceDetection.isTablet);
+        
         if (this.enabled) {
             // Add tablet-mode class to body for CSS styling
             document.body.classList.add('tablet-mode');
-            // Show touch controls in right panel
-            if (touchControls) touchControls.style.display = 'grid';
             // Hide keyboard controls
             if (controls) controls.style.display = 'none';
+            
+            if (useGestures) {
+                // Phone/tablet: hide button controls, show gesture guide, enable swipe
+                if (touchControls) touchControls.style.display = 'none';
+                if (gestureGuide) gestureGuide.style.display = 'block';
+                SwipeControls.enable();
+            } else {
+                // Manual override (desktop testing): show button controls
+                if (touchControls) touchControls.style.display = 'grid';
+                if (gestureGuide) gestureGuide.style.display = 'none';
+            }
+            
             // Hide planet stats from right panel
             if (planetStats) planetStats.style.display = 'none';
-            // Hide planet stats from left panel on menu (shown during gameplay via toggleUIElements)
+            // Hide planet stats from left panel on menu
             if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-            // Hide pause button on menu (shown during gameplay via toggleUIElements)
+            // Hide pause button on menu
             if (pauseBtn) pauseBtn.style.display = 'none';
-            // Show settings button in tablet mode (visible on menu, hidden during gameplay via class)
+            // Show settings button
             if (settingsBtn) settingsBtn.style.display = 'block';
         } else {
             // Remove tablet-mode class from body
             document.body.classList.remove('tablet-mode');
             // Hide touch controls
             if (touchControls) touchControls.style.display = 'none';
+            if (gestureGuide) gestureGuide.style.display = 'none';
             // Show keyboard controls
             if (controls) controls.style.display = 'block';
-            // Show planet stats in right panel (when active)
             // Hide planet stats from left panel
             if (planetStatsLeft) planetStatsLeft.style.display = 'none';
             // Hide pause button
             if (pauseBtn) pauseBtn.style.display = 'none';
-            // Show settings button in normal mode
+            // Show settings button
             if (settingsBtn) settingsBtn.style.display = 'block';
+            SwipeControls.disable();
         }
         
         // Recalculate panel positions for new width
@@ -1631,12 +1864,32 @@ function stopCreditsAnimation() {
 
 // Dynamic canvas sizing based on viewport
 let BLOCK_SIZE = 35;
+let nextDisplayBaseSize = 180; // Updated by updateCanvasSize
 
 function updateCanvasSize() {
     // Calculate block size based on viewport height
-    // Target: canvas should be ~85vh tall for 20 rows (larger blocks)
-    const targetHeight = window.innerHeight * 0.85;
-    BLOCK_SIZE = Math.floor(targetHeight / ROWS);
+    // At narrow viewports header is hidden, so use more vertical space
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const isNarrow = vw <= 1100;
+    const isPerspective = canvas.classList.contains('longago-mode') || canvas.classList.contains('comingsoon-mode');
+    const isPhone = isNarrow && vh <= 500;
+    const heightPercent = isNarrow ? 0.99 : 0.85;
+    const targetHeight = vh * heightPercent;
+    let blockFromHeight = Math.floor(targetHeight / ROWS);
+    
+    // Also constrain by available width (viewport minus panels)
+    // At narrow viewports, panels use flex:1 regardless of tablet mode
+    const estPanelPercent = isNarrow ? 0.20 : (TabletMode.enabled ? 0.33 : 0.22);
+    const estPanelMinWidth = isNarrow ? 80 : (TabletMode.enabled ? 280 : 180);
+    const estPanelWidth = Math.max(estPanelMinWidth, vw * estPanelPercent);
+    const gapSpace = isNarrow ? (vw * 0.012) : (vw * 0.02);
+    // Perspective modes need extra margin on phones so panels don't overlap
+    const perspectiveMargin = 0;
+    const availableWidth = vw - (2 * estPanelWidth) - gapSpace - perspectiveMargin;
+    const blockFromWidth = Math.floor(availableWidth / COLS);
+    
+    BLOCK_SIZE = Math.max(10, Math.min(blockFromHeight, blockFromWidth));
     
     // Update main canvas
     canvas.width = COLS * BLOCK_SIZE;
@@ -1654,10 +1907,22 @@ function updateCanvasSize() {
         canvas.style.height = '';
     }
     
+    // Constrain mode menu to canvas width so buttons don't overflow
+    const modeMenu = document.getElementById('modeMenu');
+    if (modeMenu) {
+        modeMenu.style.maxWidth = canvas.width + 'px';
+        modeMenu.style.left = '50%';
+        modeMenu.style.transform = 'translateX(-50%)';
+    }
+    
     // Update next piece canvas to be responsive
-    // Get the actual displayed size
-    const nextDisplayWidth = 180; // Base size
-    const nextDisplayHeight = 180;
+    // Use the side panel's actual width as reference
+    const sidePanelEl = document.querySelector('.side-panel');
+    const sidePanelWidth = sidePanelEl ? sidePanelEl.getBoundingClientRect().width : 220;
+    const nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
+    nextDisplayBaseSize = nextDisplaySize;
+    const nextDisplayWidth = nextDisplaySize;
+    const nextDisplayHeight = nextDisplaySize;
     
     // Make canvas larger to accommodate the piece queue extending up and right
     const nextCanvasScale = 2.5;
@@ -1672,41 +1937,54 @@ function updateCanvasSize() {
     nextCanvas.style.bottom = '0';
     nextCanvas.style.left = '0';
     
+    // Update wrapper size to match
+    const nextWrapper = document.querySelector('.next-canvas-wrapper');
+    if (nextWrapper) {
+        nextWrapper.style.width = nextDisplayWidth + 'px';
+        nextWrapper.style.height = nextDisplayHeight + 'px';
+    }
+    
     // Update side panel positions based on canvas width
     const rulesPanel = document.querySelector('.rules-panel');
     const sidePanel = document.querySelector('.side-panel');
     
-    // Use getBoundingClientRect to get the actual rendered size including CSS transforms
-    const canvasRect = canvas.getBoundingClientRect();
-    const canvasDisplayWidth = canvasRect.width;
-    
     const viewportWidth = window.innerWidth;
     
-    // Calculate panel width (22vw normal, 33vw tablet mode - 50% wider)
-    const panelWidthPercent = TabletMode.enabled ? 0.33 : 0.22;
-    const panelWidth = viewportWidth * panelWidthPercent;
-    
-    // Desired gap between canvas and panels (2.5vw for better spacing)
-    const desiredGap = viewportWidth * 0.025;
-    
-    // Calculate how much space is available on each side
-    const totalSpace = viewportWidth - canvasDisplayWidth;
-    const spacePerSide = totalSpace / 2;
-    
-    // Calculate panel positions
-    // Left panel: space on left side - panel width - gap
-    const leftPanelLeft = spacePerSide - panelWidth - desiredGap;
-    
-    // Right panel: same as left (symmetric)
-    const rightPanelRight = spacePerSide - panelWidth - desiredGap;
-    
-    // Position panels (but don't push them off screen)
-    if (rulesPanel) {
-        rulesPanel.style.left = Math.max(0, leftPanelLeft) + 'px';
-    }
-    
-    if (sidePanel) {
-        sidePanel.style.right = Math.max(0, rightPanelRight) + 'px';
+    // At narrow viewports, let CSS flexbox handle layout instead of JS positioning
+    if (viewportWidth <= 1100) {
+        if (rulesPanel) rulesPanel.style.left = '';
+        if (sidePanel) sidePanel.style.right = '';
+    } else {
+        // Use getBoundingClientRect to get the actual rendered size including CSS transforms
+        const canvasRect = canvas.getBoundingClientRect();
+        const canvasDisplayWidth = canvasRect.width;
+        
+        // Calculate panel width (22vw normal, 33vw tablet mode - 50% wider)
+        const panelWidthPercent = TabletMode.enabled ? 0.33 : 0.22;
+        const panelWidth = viewportWidth * panelWidthPercent;
+        
+        // Desired gap between canvas and panels (2.5vw for better spacing)
+        const desiredGap = viewportWidth * 0.025;
+        
+        // Calculate how much space is available on each side
+        const totalSpace = viewportWidth - canvasDisplayWidth;
+        const spacePerSide = totalSpace / 2;
+        
+        // Calculate panel positions
+        // Left panel: space on left side - panel width - gap
+        const leftPanelLeft = spacePerSide - panelWidth - desiredGap;
+        
+        // Right panel: same as left (symmetric)
+        const rightPanelRight = spacePerSide - panelWidth - desiredGap;
+        
+        // Position panels (but don't push them off screen)
+        if (rulesPanel) {
+            rulesPanel.style.left = Math.max(0, leftPanelLeft) + 'px';
+        }
+        
+        if (sidePanel) {
+            sidePanel.style.right = Math.max(0, rightPanelRight) + 'px';
+        }
     }
     
     // Redraw if game is running (but NOT during initialization)
@@ -1829,9 +2107,24 @@ function createSongInfoElement() {
     const sidePanel = document.querySelector('.side-panel');
     if (!sidePanel) return;
     
-    // Check if element already exists
+    // Check if element already exists - still update its content
     if (document.getElementById('songInfo')) {
         songInfoElement = document.getElementById('songInfo');
+        // Move to side panel if it's inside bottom wrapper
+        if (songInfoElement.parentNode !== sidePanel) {
+            sidePanel.appendChild(songInfoElement);
+        }
+        // Update styles and content in case code has changed
+        songInfoElement.style.cssText = `
+            margin-top: 0.5vh;
+            padding: 0.6vh 0.9vw;
+            background: rgba(26, 26, 46, 0.95);
+            border-radius: 0.6vh;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #aaa;
+            text-align: center;
+            display: none;
+        `;
         return;
     }
     
@@ -1839,37 +2132,28 @@ function createSongInfoElement() {
     songInfoElement = document.createElement('div');
     songInfoElement.id = 'songInfo';
     songInfoElement.style.cssText = `
-        margin-top: 1.2vh;
-        padding: 1vh 0.9vw;
-        background: rgba(26, 26, 46, 0.8);
+        margin-top: 0.5vh;
+        padding: 0.6vh 0.9vw;
+        background: rgba(26, 26, 46, 0.95);
         border-radius: 0.6vh;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 1.2vh;
         color: #aaa;
         text-align: center;
         display: none;
     `;
     
     songInfoElement.innerHTML = `
-        <div style="color: #888; font-size: 1vh; margin-bottom: 0.4vh; text-transform: uppercase; letter-spacing: 0.05vh;">♪ NOW PLAYING ♪</div>
-        <div id="songName" style="color: #e0e0e0; font-size: 1.3vh; word-wrap: break-word; line-height: 1.3;"></div>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 0.8vh; padding: 0px; height: 2.6vh; ">
-            <button id="songPrevBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #666; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: default; font-size: 1.2vh; opacity: 0.5;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>
-            <button id="songPauseBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh;" title="Pause/Resume music">⏸&#xFE0E;</button>
-            <button id="songNextBtn" style="position: relative; top: -0.6vh; background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.2vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh;" title="Next song (SHIFT+→)">⏭&#xFE0E;</button>
+        <div style="color: #888; font-size: max(1.2vh, 7px); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.05vh;">♪ NOW PLAYING ♪</div>
+        <div id="songName" style="color: #e0e0e0; font-size: max(1.5vh, 7px); word-wrap: break-word; line-height: 1.3;"></div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 0.8vh; font-size: 0; line-height: 0; margin-top: 0.4vh;">
+            <button id="songPrevBtn" style="background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #666; padding: 0.3vh 0.8vh; border-radius: 0.4vh; cursor: default; font-size: 1.2vh; opacity: 0.5; line-height: 1;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>
+            <button id="songPauseBtn" style="background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.3vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh; line-height: 1;" title="Pause/Resume music">⏸&#xFE0E;</button>
+            <button id="songNextBtn" style="background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 0.3vh 0.8vh; border-radius: 0.4vh; cursor: pointer; font-size: 1.2vh; line-height: 1;" title="Next song (SHIFT+→)">⏭&#xFE0E;</button>
         </div>
     `;
     
-    // Find the bottom wrapper and append there, or fall back to planet stats / side panel
-    const bottomWrapper = sidePanel.querySelector('.side-panel-bottom');
-    const planetStats = document.getElementById('planetStats');
-    if (bottomWrapper) {
-        bottomWrapper.appendChild(songInfoElement);
-    } else if (planetStats && planetStats.parentNode === sidePanel) {
-        planetStats.after(songInfoElement);
-    } else {
-        sidePanel.appendChild(songInfoElement);
-    }
+    // Append directly to side panel (not inside bottom wrapper to avoid flex stretching)
+    sidePanel.appendChild(songInfoElement);
     
     // Add click handlers for the buttons
     const prevBtn = document.getElementById('songPrevBtn');
@@ -2089,8 +2373,8 @@ function showPurgeNotification(songName, duration) {
     // Remove after animation and restore planet stats
     setTimeout(() => {
         if (notification.parentNode) notification.remove();
-        if (planetStats) {
-            planetStats.style.display = '';
+        if (planetStats && planetStats.querySelector('#planetStatsContent')?.innerHTML) {
+            planetStats.style.display = 'block';
         }
     }, 3000);
 }
@@ -2205,15 +2489,15 @@ function createVolumeControls() {
     volumeControls.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5vw; margin-bottom: 0.6vh;">
             <button id="musicMuteBtn" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 0.3vh 0.5vw; border-radius: 0.3vh; cursor: pointer; font-size: 1.2vh;" title="Mute/Unmute Music">🔊</button>
-            <label style="font-size: 1vh; color: #888; flex-shrink: 0;">MUSIC</label>
+            <label style="font-size: max(1vh, 9px); color: #888; flex-shrink: 0;">MUSIC</label>
             <input type="range" id="musicVolumeSlider" min="0" max="100" value="${getMusicVolume() * 100}" style="flex: 1; height: 0.8vh; cursor: pointer;">
-            <span id="musicVolumeDisplay" style="font-size: 1vh; color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getMusicVolume() * 100)}%</span>
+            <span id="musicVolumeDisplay" style="font-size: max(1vh, 9px); color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getMusicVolume() * 100)}%</span>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5vw;">
             <button id="sfxMuteBtn" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 0.3vh 0.5vw; border-radius: 0.3vh; cursor: pointer; font-size: 1.2vh;" title="Mute/Unmute Sound Effects">🔊</button>
-            <label style="font-size: 1vh; color: #888; flex-shrink: 0;">SFX</label>
+            <label style="font-size: max(1vh, 9px); color: #888; flex-shrink: 0;">SFX</label>
             <input type="range" id="sfxVolumeSlider" min="0" max="100" value="${getSfxVolume() * 100}" style="flex: 1; height: 0.8vh; cursor: pointer;">
-            <span id="sfxVolumeDisplay" style="font-size: 1vh; color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getSfxVolume() * 100)}%</span>
+            <span id="sfxVolumeDisplay" style="font-size: max(1vh, 9px); color: #aaa; min-width: 2.5vw; text-align: right;">${Math.round(getSfxVolume() * 100)}%</span>
         </div>
     `;
     
@@ -2283,7 +2567,7 @@ function updateSongInfoDisplay(songInfo) {
         return;
     }
     
-    songInfoElement.style.display = 'block';
+    songInfoElement.style.display = 'flex';
     
     const songNameEl = document.getElementById('songName');
     const songDurationEl = document.getElementById('songDuration');
@@ -8009,9 +8293,9 @@ function drawNextPiece() {
     // Fully clear the canvas first
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     
-    // The visible area is the lower-left portion (original 180x180 size)
-    const visibleWidth = 180;
-    const visibleHeight = 180;
+    // The visible area is the lower-left portion (responsive size)
+    const visibleWidth = nextDisplayBaseSize;
+    const visibleHeight = nextDisplayBaseSize;
     const visibleX = 0;
     const visibleY = nextCanvas.height - visibleHeight;
     
@@ -8129,11 +8413,12 @@ function drawCascadeBonus() {
     ctx.translate(centerX, centerY);
     ctx.scale(scale, scale);
     
-    // Draw glowing text - size increases with multiplier
+    // Draw glowing text - size scales with canvas width, increases with multiplier
     const text = cascadeBonusDisplay.text;
-    const baseSize = 24;
-    const sizeIncrease = 4 * (cascadeBonusDisplay.multiplier - 2); // x2 = 24px, x3 = 28px, x4 = 32px, etc.
-    const fontSize = baseSize + Math.max(0, sizeIncrease);
+    const canvasW = canvas.width;
+    const baseSize = Math.max(12, Math.min(24, canvasW / 15));
+    const sizeIncrease = Math.max(0, 2 * (cascadeBonusDisplay.multiplier - 2));
+    const fontSize = baseSize + sizeIncrease;
     ctx.font = `bold ${fontSize}px "Press Start 2P", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -11259,6 +11544,14 @@ function toggleUIElements(show) {
         // Hide tablet mode gameplay elements on menu
         if (pauseBtn) pauseBtn.style.display = 'none';
         if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+        
+        // Show gesture guide on menu if tablet mode
+        const gestureGuide = document.getElementById('gestureGuide');
+        if (gestureGuide && TabletMode.enabled) gestureGuide.style.display = 'block';
+        
+        // Hide planet stats on menu (tablet mode hides it)
+        const planetStats = document.getElementById('planetStats');
+        if (planetStats && TabletMode.enabled) planetStats.style.display = 'none';
     } else {
         // Hide instructions and controls, show histogram, hide title
         rulesInstructions.style.display = 'none';
@@ -11277,8 +11570,13 @@ function toggleUIElements(show) {
         // Show tablet mode gameplay elements during game
         if (TabletMode.enabled) {
             if (pauseBtn) pauseBtn.style.display = 'block';
-            if (planetStatsLeft) planetStatsLeft.style.display = 'block';
         }
+        // Always hide left planet stats during gameplay
+        if (planetStatsLeft) planetStatsLeft.style.display = 'none';
+        
+        // Hide gesture guide during gameplay
+        const gestureGuide = document.getElementById('gestureGuide');
+        if (gestureGuide) gestureGuide.style.display = 'none';
     }
 }
 
@@ -13818,302 +14116,7 @@ if (dontPanicText) {
     });
 }
 
-// Anagram Easter Egg System
-const anagrams = [
-    "MISERY YOU REAP",
-    "PURE SMOKE",
-    "RUSE POEM",
-    "PIOUS MAKER",
-    "RISKY POEM",
-    "SPARE ME",
-    "ERASE",
-    "POSER"
-];
-
-let unusedAnagrams = [...anagrams]; // Track which anagrams haven't been used yet
-let anagramTimers = { first: null, second: null };
-let anagramTriggered = false;
-let isAnimating = false; // Prevent overlapping animations
-
-function getNextAnagram() {
-    // If we've used all anagrams, reset the pool
-    if (unusedAnagrams.length === 0) {
-        unusedAnagrams = [...anagrams];
-    }
-    
-    // Pick a random one from unused pool
-    const randomIndex = Math.floor(Math.random() * unusedAnagrams.length);
-    const chosen = unusedAnagrams[randomIndex];
-    
-    // Remove it from unused pool
-    unusedAnagrams.splice(randomIndex, 1);
-    
-    return chosen;
-}
-
-function startAnagramTimers() {
-    // Anagram animation disabled - intro screen now uses button-based UI
-    return;
-}
-
-function resetToClickAnywhere() {
-    // Anagram animation disabled - intro screen now uses button-based UI
-    return;
-}
-
-function cancelAnagramTimers() {
-    anagramTriggered = true;
-    if (anagramTimers.first) clearTimeout(anagramTimers.first);
-    if (anagramTimers.second) clearTimeout(anagramTimers.second);
-}
-
-function animateToAnagram() {
-    // Guard: clickMessage element no longer exists in new UI
-    const clickMessage = document.getElementById('clickMessage');
-    if (!clickMessage) return;
-    
-    isAnimating = true;
-    const originalText = "YOU'RE OKAY, PROMISE...";
-    const targetAnagram = getNextAnagram(); // Get next unused anagram
-    
-    // Stop the pulse animation
-    clickMessage.style.animation = 'none';
-    
-    // Create temporary measuring element
-    const tempMeasure = document.createElement('span');
-    tempMeasure.style.cssText = 'position: absolute; visibility: hidden; font-size: 32px; font-weight: bold; font-family: Arial, sans-serif; white-space: pre;';
-    document.body.appendChild(tempMeasure);
-    
-    // Measure each character's width
-    const measureWidth = (char) => {
-        tempMeasure.textContent = char;
-        return tempMeasure.offsetWidth;
-    };
-    
-    // Calculate positions for original text
-    const originalPositions = [];
-    let x = 0;
-    for (let i = 0; i < originalText.length; i++) {
-        const char = originalText[i];
-        const width = measureWidth(char);
-        originalPositions.push({ char, x, width });
-        x += width;
-    }
-    
-    // Center original text
-    const originalWidth = x;
-    originalPositions.forEach(pos => pos.x -= originalWidth / 2);
-    
-    // Calculate positions for target text
-    const targetPositions = [];
-    x = 0;
-    for (let i = 0; i < targetAnagram.length; i++) {
-        const char = targetAnagram[i];
-        const width = measureWidth(char);
-        targetPositions.push({ char, x, width });
-        x += width;
-    }
-    
-    // Center target text
-    const targetWidth = x;
-    targetPositions.forEach(pos => pos.x -= targetWidth / 2);
-    
-    document.body.removeChild(tempMeasure);
-    
-    // Create letter mapping
-    const letterMapping = [];
-    const usedOriginalIndices = new Set();
-    const unusedIndices = new Set();
-    
-    for (let targetIdx = 0; targetIdx < targetAnagram.length; targetIdx++) {
-        const targetChar = targetAnagram[targetIdx];
-        
-        for (let origIdx = 0; origIdx < originalText.length; origIdx++) {
-            if (usedOriginalIndices.has(origIdx)) continue;
-            
-            const origChar = originalText[origIdx];
-            // ONLY match if characters are exactly the same (case insensitive)
-            // Don't match different punctuation/symbols
-            const matches = origChar.toUpperCase() === targetChar.toUpperCase();
-            
-            if (matches) {
-                letterMapping.push({
-                    fromIdx: origIdx,
-                    toIdx: targetIdx,
-                    fromX: originalPositions[origIdx].x,
-                    toX: targetPositions[targetIdx].x,
-                    origChar: originalText[origIdx],
-                    targetChar: targetChar,
-                    needsChange: originalText[origIdx] !== targetChar
-                });
-                usedOriginalIndices.add(origIdx);
-                break;
-            }
-        }
-    }
-    
-    // Mark unused letters (apostrophe, comma, periods will be here)
-    for (let i = 0; i < originalText.length; i++) {
-        if (!usedOriginalIndices.has(i)) {
-            unusedIndices.add(i);
-        }
-    }
-    
-    // Clear and rebuild with positioned letters
-    clickMessage.innerHTML = '';
-    
-    // Start with opacity 0 for fade in
-    clickMessage.style.opacity = '0';
-    
-    // Create letter spans at EXACT original positions
-    const letterSpans = [];
-    
-    for (let i = 0; i < originalText.length; i++) {
-        const span = document.createElement('span');
-        span.textContent = originalText[i];
-        span.style.cssText = `
-            position: absolute;
-            left: 50%;
-            top: 0;
-            transform: translateX(${originalPositions[i].x}px);
-            transition: none;
-            opacity: 1;
-            white-space: pre;
-        `;
-        clickMessage.appendChild(span);
-        letterSpans.push(span);
-    }
-    
-    // Force reflow
-    letterSpans[0].offsetHeight;
-    
-    // Fade in the letters to 50% opacity (2 seconds)
-    setTimeout(() => {
-        clickMessage.style.transition = 'opacity 2s ease-in';
-        clickMessage.style.opacity = '0.5';
-        
-        // Add class to enable middle finger cursor for clickable text
-        clickMessage.classList.add('anagram-active');
-    }, 50);
-    
-    // Enable SLOW transitions for letters AFTER fade in starts
-    setTimeout(() => {
-        letterSpans.forEach(span => {
-            span.style.transition = 'all 1.5s ease-in-out';
-        });
-    }, 100);
-    
-    // INITIAL PAUSE: Random 6-7 seconds before any animation
-    const initialPause = 6000 + Math.random() * 1000;
-    
-    // PHASE 1: Fade out unused letters including apostrophe (600ms)
-    setTimeout(() => {
-        unusedIndices.forEach(idx => {
-            letterSpans[idx].style.opacity = '0';
-        });
-    }, initialPause + 300);
-    
-    // PHASE 2: Shift ALL remaining letters to their final X positions (SLOW - 1.5s)
-    setTimeout(() => {
-        letterMapping.forEach(map => {
-            const span = letterSpans[map.fromIdx];
-            span.style.transform = `translateX(${map.toX}px)`;
-        });
-    }, initialPause + 1100);
-    
-    // PHASE 3: Animate only letters that need to change character
-    let delay = initialPause + 2900; // After pause + fade + shift
-    
-    letterMapping.forEach((map, mapIdx) => {
-        // Skip if letter doesn't need to change
-        if (!map.needsChange) {
-            return;
-        }
-        
-        // Animate character change
-        setTimeout(() => {
-            const movingSpan = letterSpans[map.fromIdx];
-            const isSpace = !/[A-Z]/i.test(map.targetChar);
-            
-            // Step 1: Drop DOWN
-            movingSpan.style.transform = `translateX(${map.toX}px) translateY(80px)`;
-            movingSpan.style.zIndex = `${1000 + mapIdx}`;
-            
-            // Step 2: Change character while down
-            setTimeout(() => {
-                movingSpan.textContent = map.targetChar;
-                if (isSpace) {
-                    movingSpan.style.opacity = '0';
-                }
-            }, 500);
-            
-            // Step 3: Rise back UP
-            setTimeout(() => {
-                movingSpan.style.transform = `translateX(${map.toX}px) translateY(0)`;
-            }, 600);
-            
-        }, delay);
-        
-        delay += 800; // 800ms per letter that needs to change
-    });
-    
-    // Animation complete - letters are already in final position, don't touch them!
-    const totalDuration = delay + 600;
-    setTimeout(() => {
-        // Don't replace innerHTML - letters are already positioned correctly
-        // Just ensure opacity stays at 50%
-        clickMessage.style.opacity = '0.5';
-        
-        // Class already added when YOU'RE OKAY first appeared
-        
-        // Wait 5 seconds, then start the cycle over
-        setTimeout(() => {
-            if (!anagramTriggered) {
-                resetToClickAnywhere();
-            }
-        }, 5000);
-    }, totalDuration);
-}
-
-// Initialize "Click anywhere..." to 50% opacity (legacy - element may not exist)
-const clickMessage = document.getElementById('clickMessage');
-if (clickMessage) {
-    clickMessage.style.opacity = '0.5';
-
-    // Check if on phone - show different message
-    if (DeviceDetection.isMobile) {
-        clickMessage.innerHTML = 'This game requires a full-size screen.<br><br>Please visit on a tablet or computer.';
-        clickMessage.style.fontSize = '1.5em';
-        clickMessage.style.lineHeight = '1.5';
-    }
-
-    // Add click event to clickMessage to open YouTube link (only when anagram is active)
-    clickMessage.addEventListener('click', (e) => {
-        // Only open link if anagram is active
-        if (clickMessage.classList.contains('anagram-active')) {
-            e.stopPropagation(); // Prevent the overlay click from firing
-            window.open('https://www.youtube.com/watch?v=NaFd8ucHLuo', '_blank');
-        }
-    });
-}
-
-// Handle mobile devices with intro controls
-if (DeviceDetection.isMobile) {
-    const introControls = document.getElementById('introControls');
-    const dontPanicText = document.getElementById('dontPanicText');
-    if (introControls) {
-        introControls.innerHTML = '<p style="color: white; font-size: 1.2em; text-align: center; padding: 20px;">This game requires a full-size screen.<br><br>Please visit on a tablet or computer.</p>';
-    }
-    if (dontPanicText) {
-        dontPanicText.style.display = 'none';
-    }
-}
-
-// Start timers when page loads (only if not on phone)
-if (!DeviceDetection.isMobile) {
-    startAnagramTimers();
-}
-
+// Initialize start overlay
 if (startOverlay) {
     // Get intro screen elements
     const startGameBtn = document.getElementById('startGameBtn');
@@ -14264,7 +14267,6 @@ if (startOverlay) {
     
     // Start Game button handler
     function dismissIntroScreen() {
-        cancelAnagramTimers();
         // Resume audio context (required by browsers)
         if (audioContext.state === 'suspended') {
             audioContext.resume();

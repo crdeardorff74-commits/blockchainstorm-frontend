@@ -72,7 +72,7 @@ const Histogram = (() => {
         
         const dpr = window.devicePixelRatio || 1;
         const displayWidth = rulesPanel.clientWidth - 40;
-        const displayHeight = rulesPanel.clientHeight - 40;
+        const displayHeight = rulesPanel.clientHeight - 20;
         
         // Set actual canvas size for high-DPI
         canvas.width = displayWidth * dpr;
@@ -203,24 +203,32 @@ const Histogram = (() => {
     /**
      * Draw the histogram (call each frame)
      */
+    // Layout scale factor (updated each draw)
+    let scaleFactor = 1;
+    
     function draw() {
         if (!gameRunning || !canvas || canvas.style.display === 'none') return;
         
         const dpr = window.devicePixelRatio || 1;
         const width = canvas.width / dpr;
         const height = canvas.height / dpr;
-        const padding = 40;
+        
+        // Scale factor: 1.0 at 200px+ width, proportionally smaller below
+        const sf = Math.min(1, width / 200);
+        scaleFactor = sf;
+        const padding = Math.max(15, 40 * sf);
+        const bottomPadding = Math.max(8, 15 * sf);
         
         // Reserve space for speed bonus bar at top
-        const speedBonusBarHeight = 16;
-        const speedBonusGap = 10;
+        const speedBonusBarHeight = Math.max(10, 16 * sf);
+        const speedBonusGap = Math.max(4, 10 * sf);
         const mainHistogramStart = speedBonusBarHeight + speedBonusGap;
         
-        const graphHeight = height - padding * 2 - mainHistogramStart;
+        const graphHeight = height - padding - bottomPadding - mainHistogramStart;
         
         // Reserve space for score histogram on the left
-        const scoreBarWidth = 24;
-        const scoreBarPadding = 40;
+        const scoreBarWidth = Math.max(12, 24 * sf);
+        const scoreBarPadding = Math.max(15, 40 * sf);
         const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
         const graphWidth = width - colorGraphStart - padding;
         
@@ -231,10 +239,10 @@ const Histogram = (() => {
         drawSpeedBonusBar(width, padding, speedBonusBarHeight);
         
         // ========== SCORE HISTOGRAM ==========
-        drawScoreHistogram(width, height, padding, graphHeight, scoreBarWidth, scoreBarPadding);
+        drawScoreHistogram(width, height, padding, bottomPadding, graphHeight, scoreBarWidth, scoreBarPadding);
         
         // ========== COLOR HISTOGRAM ==========
-        drawColorHistogram(width, height, padding, graphHeight, colorGraphStart, graphWidth);
+        drawColorHistogram(width, height, padding, bottomPadding, graphHeight, colorGraphStart, graphWidth);
     }
     
     /**
@@ -245,23 +253,25 @@ const Histogram = (() => {
         const animationSpeed = 0.05;
         speedBonusHistogramBar += (speedBonusAverage - speedBonusHistogramBar) * animationSpeed;
         
-        const barY = 8;
+        const sf = scaleFactor;
+        const barY = Math.max(4, 8 * sf);
+        const fontSize = Math.max(8, Math.round(11 * sf));
         
         // Draw "Speed Bonus" label
         ctx.save();
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 11px Arial';
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const labelX = padding;
         const labelY = barY + barHeight / 2;
         ctx.fillText('Speed Bonus', labelX, labelY);
-        const labelWidth = ctx.measureText('Speed Bonus').width + 8;
+        const labelWidth = ctx.measureText('Speed Bonus').width + 8 * sf;
         ctx.restore();
         
         // Bar dimensions
         const barStartX = padding + labelWidth;
-        const barMaxWidth = width - barStartX - padding - 45;
+        const barMaxWidth = width - barStartX - padding - 45 * sf;
         const barActualWidth = Math.max(0, (speedBonusHistogramBar / 2.0) * barMaxWidth);
         
         // Calculate color based on value
@@ -281,7 +291,7 @@ const Histogram = (() => {
         }
         
         // Draw bar with beveled edges (replicating color histogram approach exactly)
-        const sb = 4;
+        const sb = Math.max(2, Math.round(4 * sf));
         if (barActualWidth > sb * 2) {
             // Convert RGB to hex for adjustBrightness
             function rgbToHex(r, g, b) {
@@ -347,31 +357,34 @@ const Histogram = (() => {
         // Draw value
         ctx.save();
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 11px Arial';
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${speedBonusHistogramBar.toFixed(2)}x`, barStartX + barActualWidth + 8, labelY);
+        ctx.fillText(`${speedBonusHistogramBar.toFixed(2)}x`, barStartX + barActualWidth + 4 * sf, labelY);
         ctx.restore();
     }
     
     /**
      * Draw the score (Bitcoin) histogram bar
      */
-    function drawScoreHistogram(width, height, padding, graphHeight, scoreBarWidth, scoreBarPadding) {
+    function drawScoreHistogram(width, height, padding, bottomPadding, graphHeight, scoreBarWidth, scoreBarPadding) {
         const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
+        const sf = scaleFactor;
+        const tickFontSize = Math.max(7, Math.round(10 * sf));
+        const btcFontSize = Math.max(12, Math.round(20 * sf));
         
         // Draw tick marks and labels (skip in minimalist mode)
         if (!minimalistMode) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.font = '10px Arial';
+            ctx.font = `${tickFontSize}px Arial`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1;
             
             const tickCount = 5;
             for (let i = 0; i <= tickCount; i++) {
                 const value = (scoreHistogramMaxScale / tickCount) * i;
-                const y = height - padding - (graphHeight / tickCount) * i;
+                const y = height - bottomPadding - (graphHeight / tickCount) * i;
                 
                 if (value > 0) {
                     const tickX = padding + scoreBarWidth + 2;
@@ -390,7 +403,7 @@ const Histogram = (() => {
                     } else {
                         labelText = '₿' + btcValue.toFixed(4);
                     }
-                    ctx.fillText(labelText, tickX + 7, y + 3);
+                    ctx.fillText(labelText, tickX + 7 * sf, y + 3);
                 }
             }
         }
@@ -399,12 +412,12 @@ const Histogram = (() => {
         if (scoreHistogramBar > 0) {
             const silverColor = '#FAFAFA';
             const goldColor = '#FFD700';
-            const b = 6;
+            const b = Math.max(3, Math.round(6 * sf));
             
             const minBarHeight = b * 2;
             const barHeight = Math.max(minBarHeight, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
             const x = padding;
-            const y = height - padding - barHeight;
+            const y = height - bottomPadding - barHeight;
             
             // Edge colors (gold)
             const topGold = adjustBrightness(goldColor, 1.3);
@@ -451,12 +464,12 @@ const Histogram = (() => {
             drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
             
             // Bitcoin symbol above bar (gold)
-            const bitcoinY = y - 15;
+            const bitcoinY = y - 15 * sf;
             ctx.save();
             ctx.fillStyle = '#FFD700';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2;
-            ctx.font = 'bold 20px Arial';
+            ctx.font = `bold ${btcFontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const bitcoinX = x + scoreBarWidth / 2;
@@ -469,11 +482,11 @@ const Histogram = (() => {
             ctx.fillStyle = '#FFD700';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2;
-            ctx.font = 'bold 20px Arial';
+            ctx.font = `bold ${btcFontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const bitcoinX = padding + scoreBarWidth / 2;
-            const bitcoinY = height - padding - 10;
+            const bitcoinY = height - bottomPadding - 10 * sf;
             ctx.strokeText('₿', bitcoinX, bitcoinY);
             ctx.fillText('₿', bitcoinX, bitcoinY);
             ctx.restore();
@@ -483,33 +496,35 @@ const Histogram = (() => {
     /**
      * Draw the color histogram bars
      */
-    function drawColorHistogram(width, height, padding, graphHeight, colorGraphStart, graphWidth) {
+    function drawColorHistogram(width, height, padding, bottomPadding, graphHeight, colorGraphStart, graphWidth) {
         const colors = Object.keys(histogramBars);
         if (colors.length === 0) return;
         
+        const sf = scaleFactor;
         const barWidth = graphWidth / colors.length;
         const barSpacing = barWidth * 0.15;
         const actualBarWidth = barWidth - barSpacing;
+        const tickFontSize = Math.max(8, Math.round(12 * sf));
         
         // Draw tick marks on right side (skip in minimalist mode)
         if (!minimalistMode) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.font = '12px Arial';
+            ctx.font = `${tickFontSize}px Arial`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1;
             
             const tickCount = 5;
             for (let i = 0; i <= tickCount; i++) {
                 const value = Math.round((histogramMaxScale / tickCount) * i);
-                const y = height - padding - (graphHeight / tickCount) * i;
+                const y = height - bottomPadding - (graphHeight / tickCount) * i;
                 
                 if (value !== 0) {
                     ctx.beginPath();
                     ctx.moveTo(colorGraphStart + graphWidth, y);
                     ctx.lineTo(colorGraphStart + graphWidth + 5, y);
                     ctx.stroke();
-                    ctx.fillText(value.toString(), colorGraphStart + graphWidth + 8, y + 4);
+                    ctx.fillText(value.toString(), colorGraphStart + graphWidth + 4 * sf, y + 4);
                 }
             }
         }
@@ -517,12 +532,12 @@ const Histogram = (() => {
         // Draw bars
         colors.forEach((color, index) => {
             const blockSize = Math.round(actualBarWidth);
-            const b = 7; // Fixed bevel size to match game piece rendering
+            const b = Math.max(3, Math.round(7 * sf)); // Scaled bevel size
             
             const minBarHeight = b * 2;
             const barHeight = Math.round(Math.max(minBarHeight, (histogramBars[color] / histogramMaxScale) * graphHeight));
             const x = Math.round(colorGraphStart + index * barWidth + barSpacing / 2);
-            const y = Math.round(height - padding - barHeight);
+            const y = Math.round(height - bottomPadding - barHeight);
             
             // Edge colors
             const topColor = adjustBrightness(color, 1.3);

@@ -1471,44 +1471,44 @@ const StarfieldSystem = (function() {
             
             if (planet.isSun) {
                 html = `
-                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
+                    <div style="font-weight: 600; font-size: max(1.75vh, 9px); margin-bottom: 0.7vh; color: ${planet.color};">
                         ${planet.name}
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: 1.15vh;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: max(1.35vh, 8px);">
                         <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
                         <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
                         <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin}°C</div>
                         <div><strong style="color: #aaa;">Type:</strong> G-type star</div>
                         <div><strong style="color: #aaa;">Radius:</strong> 696,000 km</div>
                     </div>
-                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: 1.05vh;">
+                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: max(1.2vh, 7px);">
                         ${planet.funFact}
                     </div>
                 `;
             } else if (planet.isAsteroidBelt) {
                 html = `
-                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: #9B9489;">
+                    <div style="font-weight: 600; font-size: max(1.75vh, 9px); margin-bottom: 0.7vh; color: #9B9489;">
                         ${planet.name}
                     </div>
                     <div style="line-height: 1.5; color: #ccc;">
-                        <div style="font-style: italic; color: #888; font-size: 1.05vh;">
+                        <div style="font-style: italic; color: #888; font-size: max(1.2vh, 7px);">
                             ${planet.funFact}
                         </div>
                     </div>
                 `;
             } else {
                 html = `
-                    <div style="font-weight: 600; font-size: 1.55vh; margin-bottom: 0.7vh; color: ${planet.color};">
+                    <div style="font-weight: 600; font-size: max(1.75vh, 9px); margin-bottom: 0.7vh; color: ${planet.color};">
                         ${planet.name}
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: 1.15vh;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: max(1.35vh, 8px);">
                         <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
                         <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
                         <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin === planet.tempMax ? planet.tempMin : planet.tempMin + ' to ' + planet.tempMax}°C</div>
                         <div><strong style="color: #aaa;">Year:</strong> ${planet.yearLength}</div>
                         <div><strong style="color: #aaa;">Moons:</strong> ${planet.moons}</div>
                     </div>
-                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: 1.05vh;">
+                    <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: max(1.2vh, 7px);">
                         ${planet.funFact}
                     </div>
                 `;
@@ -1523,12 +1523,8 @@ const StarfieldSystem = (function() {
                 planetStatsLeftContent.innerHTML = html;
             }
             
-            if (tabletModeEnabled) {
-                const planetStatsLeft = document.getElementById('planetStatsLeft');
-                if (planetStatsLeft) {
-                    planetStatsLeft.style.display = 'block';
-                }
-            } else if (planetStatsDiv) {
+            // Always show planet stats in right panel
+            if (planetStatsDiv) {
                 planetStatsDiv.style.display = 'block';
             }
         }, 3000);
