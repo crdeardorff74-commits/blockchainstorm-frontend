@@ -12710,6 +12710,20 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // Request fullscreen on mobile if not already fullscreen (fallback if intro screen didn't trigger it)
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const fsCheckbox = document.getElementById('introFullscreenCheckbox');
+        if (DeviceDetection.isMobile || DeviceDetection.isTablet || 
+            (fsCheckbox && fsCheckbox.checked)) {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => {});
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            }
+        }
+    }
+    
     // Save selected difficulty to localStorage for persistence
     localStorage.setItem('tantris_difficulty', mode);
     
