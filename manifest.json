@@ -1,0 +1,17 @@
+{
+    "name": "TaNTЯiS",
+    "short_name": "TaNTЯiS",
+    "description": "A blockchain-themed Tetris puzzle game",
+    "start_url": "/",
+    "display": "fullscreen",
+    "orientation": "landscape",
+    "background_color": "#0a0a2e",
+    "theme_color": "#0a0a2e",
+    "icons": [
+        {
+            "src": "favicon.ico",
+            "sizes": "any",
+            "type": "image/x-icon"
+        }
+    ]
+}

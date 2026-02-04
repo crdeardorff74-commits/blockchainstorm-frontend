@@ -1681,6 +1681,38 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Canvas click handler for AI EXIT button
+// Auto-focus name entry input when overlay becomes visible (fixes Android keyboard not appearing)
+(function() {
+    const nameOverlay = document.getElementById('nameEntryOverlay');
+    const nameInput = document.getElementById('nameEntryInput');
+    if (nameOverlay && nameInput) {
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.attributeName === 'style' || m.attributeName === 'class') {
+                    const visible = nameOverlay.style.display !== 'none' && 
+                                    window.getComputedStyle(nameOverlay).display !== 'none';
+                    if (visible) {
+                        // Exit fullscreen so Android keyboard can appear
+                        if (document.fullscreenElement || document.webkitFullscreenElement) {
+                            if (document.exitFullscreen) {
+                                document.exitFullscreen().catch(() => {});
+                            } else if (document.webkitExitFullscreen) {
+                                document.webkitExitFullscreen();
+                            }
+                        }
+                        // Delay focus to let Android settle the layout
+                        setTimeout(() => {
+                            nameInput.focus();
+                            nameInput.click();
+                        }, 400);
+                    }
+                }
+            }
+        });
+        observer.observe(nameOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+})();
+
 canvas.addEventListener('click', (e) => {
     if (!aiModeEnabled || !gameRunning || !window.aiExitBounds) return;
     
@@ -12675,6 +12707,18 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // Request fullscreen on mobile if not already fullscreen
+    if (DeviceDetector.isMobile || DeviceDetector.isTablet) {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => {});
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            }
+        }
+    }
+    
     // Save selected difficulty to localStorage for persistence
     localStorage.setItem('tantris_difficulty', mode);
     
