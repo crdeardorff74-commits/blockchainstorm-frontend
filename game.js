@@ -1697,6 +1697,27 @@ canvas.addEventListener('click', (e) => {
     }
 });
 
+// Touch handler for AI EXIT button (click doesn't fire when touch preventDefault is used)
+canvas.addEventListener('touchend', (e) => {
+    if (!aiModeEnabled || !gameRunning || !window.aiExitBounds) return;
+    
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+    
+    const bounds = window.aiExitBounds;
+    if (x >= bounds.x && x <= bounds.x + bounds.width &&
+        y >= bounds.y && y <= bounds.y + bounds.height) {
+        e.preventDefault();
+        exitAIGame();
+    }
+});
+
 const nextCanvas = document.getElementById('nextCanvas');
 const nextCtx = nextCanvas.getContext('2d');
 // Disable image smoothing for crisp pixels (prevents lines in fullscreen)
@@ -12611,7 +12632,7 @@ function update(time = 0) {
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 3;
-        ctx.font = 'bold 48px Arial';
+        ctx.font = `bold ${Math.min(48, canvas.width * 0.18)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.strokeText('PAUSED', canvas.width / 2, canvas.height / 2);
