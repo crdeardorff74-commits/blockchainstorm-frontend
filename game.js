@@ -2423,10 +2423,10 @@ function showPurgeNotification(songName, duration) {
         document.head.appendChild(style);
     }
     
-    // Remove after animation and restore planet stats
+    // Remove after animation and restore planet stats (only if game still running)
     setTimeout(() => {
         if (notification.parentNode) notification.remove();
-        if (planetStats && planetStats.querySelector('#planetStatsContent')?.innerHTML) {
+        if (gameRunning && planetStats && planetStats.querySelector('#planetStatsContent')?.innerHTML) {
             planetStats.style.display = 'block';
         }
     }, 3000);
@@ -12032,6 +12032,9 @@ function showGameOverScreen() {
     console.log('showGameOverScreen called');
     console.log('gameOverDiv:', gameOverDiv);
     
+    // Hide planet stats when showing game over screen
+    StarfieldSystem.hidePlanetStats();
+    
     gameOverDiv.style.display = 'block';
     
     console.log('About to call startCreditsAnimation');
@@ -12707,18 +12710,6 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
-    // Request fullscreen on mobile if not already fullscreen
-    if (DeviceDetection.isMobile || DeviceDetection.isTablet) {
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(() => {});
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen();
-            }
-        }
-    }
-    
     // Save selected difficulty to localStorage for persistence
     localStorage.setItem('tantris_difficulty', mode);
     
@@ -14367,8 +14358,10 @@ if (startOverlay) {
         if (audioContext.state === 'suspended') {
             audioContext.resume();
         }
-        // Request full-screen mode if toggle is checked
-        if (introFullscreenCheckbox && introFullscreenCheckbox.checked) {
+        // Request full-screen mode if toggle is checked OR if on mobile/tablet
+        const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
+            DeviceDetection.isMobile || DeviceDetection.isTablet;
+        if (wantFullscreen) {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().catch(err => {
