@@ -182,18 +182,15 @@ const SwipeControls = {
         if (this.enabled) return;
         this.enabled = true;
         
-        const c = document.getElementById('gameCanvas');
-        if (!c) return;
-        
         this._onTouchStart = this.handleStart.bind(this);
         this._onTouchMove = this.handleMove.bind(this);
         this._onTouchEnd = this.handleEnd.bind(this);
         this._onTouchCancel = this.handleCancel.bind(this);
         
-        c.addEventListener('touchstart', this._onTouchStart, { passive: false });
-        c.addEventListener('touchmove', this._onTouchMove, { passive: false });
-        c.addEventListener('touchend', this._onTouchEnd, { passive: false });
-        c.addEventListener('touchcancel', this._onTouchCancel, { passive: false });
+        document.addEventListener('touchstart', this._onTouchStart, { passive: false });
+        document.addEventListener('touchmove', this._onTouchMove, { passive: false });
+        document.addEventListener('touchend', this._onTouchEnd, { passive: false });
+        document.addEventListener('touchcancel', this._onTouchCancel, { passive: false });
         
         console.log('👆 Swipe gesture controls enabled');
     },
@@ -202,13 +199,10 @@ const SwipeControls = {
         if (!this.enabled) return;
         this.enabled = false;
         
-        const c = document.getElementById('gameCanvas');
-        if (!c) return;
-        
-        c.removeEventListener('touchstart', this._onTouchStart);
-        c.removeEventListener('touchmove', this._onTouchMove);
-        c.removeEventListener('touchend', this._onTouchEnd);
-        c.removeEventListener('touchcancel', this._onTouchCancel);
+        document.removeEventListener('touchstart', this._onTouchStart);
+        document.removeEventListener('touchmove', this._onTouchMove);
+        document.removeEventListener('touchend', this._onTouchEnd);
+        document.removeEventListener('touchcancel', this._onTouchCancel);
         
         this.stopSoftDrop();
         console.log('👆 Swipe gesture controls disabled');
@@ -227,6 +221,11 @@ const SwipeControls = {
         if (typeof isPaused !== 'undefined' && isPaused) return;
         if (typeof gameRunning !== 'undefined' && !gameRunning) return;
         
+        // Ignore touches on interactive UI elements (buttons, sliders, inputs, selects, overlays)
+        const tag = e.target.tagName;
+        if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'LABEL' || tag === 'A') return;
+        if (e.target.closest('.settings-panel, .start-overlay, .name-entry-overlay, #gameOver, .leaderboard-overlay')) return;
+        
         e.preventDefault();
         const touch = e.touches[0];
         this.startX = touch.clientX;
@@ -241,6 +240,7 @@ const SwipeControls = {
         if (!this.tracking) return;
         if (typeof isPaused !== 'undefined' && isPaused) return;
         if (typeof currentPiece === 'undefined' || !currentPiece) return;
+        if (typeof hardDropping !== 'undefined' && hardDropping) return;
         
         e.preventDefault();
         const touch = e.touches[0];
@@ -288,10 +288,9 @@ const SwipeControls = {
         
         // Tap = rotate
         if (dist < this.tapThreshold && elapsed < this.tapTimeMax && this.movedColumns === 0) {
-            // Tap on left half = rotate CCW, right half = rotate CW
-            const canvasRect = document.getElementById('gameCanvas').getBoundingClientRect();
-            const tapX = touch.clientX - canvasRect.left;
-            if (tapX < canvasRect.width * 0.4) {
+            // Tap on left half of screen = rotate CCW, right half = rotate CW
+            const screenMidX = window.innerWidth / 2;
+            if (touch.clientX < screenMidX * 0.8) {
                 rotatePieceCounterClockwise();
             } else {
                 rotatePiece();
@@ -301,6 +300,7 @@ const SwipeControls = {
         
         // Fast downward swipe = hard drop
         if (dy > this.moveThreshold && this.movedColumns < 2) {
+            if (typeof hardDropping !== 'undefined' && hardDropping) return;
             const speed = (dy / elapsed) * 1000; // px/sec
             if (speed > this.hardDropSpeed) {
                 hardDrop();
