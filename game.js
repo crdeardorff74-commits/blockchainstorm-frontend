@@ -14368,11 +14368,7 @@ if (startOverlay) {
     
     // Start Game button handler
     function dismissIntroScreen() {
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Request full-screen mode if toggle is checked OR if on mobile/tablet
+        // Request full-screen mode FIRST (must be before audioContext.resume which can consume user gesture)
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {
@@ -14386,6 +14382,10 @@ if (startOverlay) {
             } else if (elem.msRequestFullscreen) { // IE11
                 elem.msRequestFullscreen();
             }
+        }
+        // Resume audio context (required by browsers)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
         }
         // Remove overlay
         startOverlay.style.display = 'none';
