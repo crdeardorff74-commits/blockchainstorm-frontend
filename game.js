@@ -12708,7 +12708,7 @@ function update(time = 0) {
 
 function startGame(mode) {
     // Request fullscreen on mobile if not already fullscreen
-    if (DeviceDetector.isMobile || DeviceDetector.isTablet) {
+    if (DeviceDetection.isMobile || DeviceDetection.isTablet) {
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
