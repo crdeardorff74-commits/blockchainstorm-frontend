@@ -14417,9 +14417,9 @@ if (startOverlay) {
         });
     }
 
-    // Add touchstart for iOS Safari for the start button
+    // Add touchend for mobile Safari/Android for the start button
     if (startGameBtn) {
-        startGameBtn.addEventListener('touchstart', (e) => {
+        startGameBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             e.stopPropagation();
             dismissIntroScreen();
