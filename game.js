@@ -14189,6 +14189,37 @@ if (startOverlay) {
     const introMusicSelect = document.getElementById('introMusicSelect');
     const introLoginBtn = document.getElementById('introLoginBtn');
     
+    // Show fullscreen hint for mobile users not in fullscreen/standalone mode
+    (function showFullscreenHint() {
+        const hint = document.getElementById('fullscreenHint');
+        if (!hint) return;
+        
+        const isStandalone = window.navigator.standalone || 
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches;
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        if (isStandalone || isFullscreen || !isTouch) return;
+        
+        const ua = navigator.userAgent;
+        const isIOS = /iphone|ipad|ipod/i.test(ua) || 
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 2);
+        const isAndroid = /android/i.test(ua);
+        
+        if (isIOS) {
+            hint.innerHTML = '📱 For fullscreen: tap <strong>Share</strong> ⬆️ then <strong>"Add to Home Screen"</strong>';
+            // Hide the useless fullscreen toggle on iOS
+            const fsToggle = document.getElementById('introFullscreenToggle');
+            if (fsToggle) fsToggle.style.display = 'none';
+        } else if (isAndroid) {
+            hint.innerHTML = '📱 For fullscreen: tap <strong>⋮ Menu</strong> then <strong>"Add to Home Screen"</strong>';
+        } else {
+            hint.innerHTML = '📱 Add to your Home Screen for a fullscreen experience!';
+        }
+        hint.style.display = 'block';
+    })();
+    
     // Sync intro music select with settings music select on load
     if (introMusicSelect && musicSelect) {
         // Sync initial value
