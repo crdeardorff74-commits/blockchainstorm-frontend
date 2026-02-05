@@ -13544,7 +13544,93 @@ if (rulesPanelViewSelect) {
     });
 }
 
+// ─── Share Popup Logic ───
+let sessionPlayAgainCount = 0;
+
+function getShareURL() {
+    return 'https://tantris.official-intelligence.art/';
+}
+
+function getShareText() {
+    return 'Check out TaNTЯiS - a wild twist on classic falling blocks with tsunamis, black holes, and cosmic disasters!';
+}
+
+function updateShareLinks() {
+    const url = encodeURIComponent(getShareURL());
+    const text = encodeURIComponent(getShareText());
+    
+    const twitter = document.getElementById('shareTwitter');
+    const facebook = document.getElementById('shareFacebook');
+    const reddit = document.getElementById('shareReddit');
+    const whatsapp = document.getElementById('shareWhatsApp');
+    const telegram = document.getElementById('shareTelegram');
+    
+    if (twitter) twitter.href = `https://x.com/intent/tweet?text=${text}&url=${url}`;
+    if (facebook) facebook.href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+    if (reddit) reddit.href = `https://www.reddit.com/submit?url=${url}&title=${text}`;
+    if (whatsapp) whatsapp.href = `https://wa.me/?text=${text}%20${url}`;
+    if (telegram) telegram.href = `https://t.me/share/url?url=${url}&text=${text}`;
+}
+
+function showSharePopup() {
+    if (localStorage.getItem('tantris_share_dismissed') === 'true') return false;
+    
+    const overlay = document.getElementById('shareOverlay');
+    if (!overlay) return false;
+    
+    updateShareLinks();
+    overlay.classList.add('active');
+    return true;
+}
+
+function hideSharePopup() {
+    const overlay = document.getElementById('shareOverlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+// Wire up share popup buttons
+document.addEventListener('DOMContentLoaded', () => {
+    const shareCloseBtn = document.getElementById('shareCloseBtn');
+    const shareDismissBtn = document.getElementById('shareDismissBtn');
+    const shareCopyLink = document.getElementById('shareCopyLink');
+    const shareOverlay = document.getElementById('shareOverlay');
+    
+    if (shareCloseBtn) shareCloseBtn.addEventListener('click', hideSharePopup);
+    
+    if (shareDismissBtn) {
+        shareDismissBtn.addEventListener('click', () => {
+            localStorage.setItem('tantris_share_dismissed', 'true');
+            hideSharePopup();
+        });
+    }
+    
+    if (shareCopyLink) {
+        shareCopyLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(getShareURL()).then(() => {
+                const span = shareCopyLink.querySelector('span');
+                if (span) {
+                    span.textContent = 'Copied!';
+                    setTimeout(() => { span.textContent = 'Copy Link'; }, 2000);
+                }
+            });
+        });
+    }
+    
+    // Close on overlay background click
+    if (shareOverlay) {
+        shareOverlay.addEventListener('click', (e) => {
+            if (e.target === shareOverlay) hideSharePopup();
+        });
+    }
+});
+
 playAgainBtn.addEventListener('click', () => {
+    sessionPlayAgainCount++;
+    if (sessionPlayAgainCount === 2) {
+        showSharePopup();
+    }
+    
     stopCreditsAnimation();
     stopLeaderboardCloseDetection();
     cancelAIAutoRestartTimer(); // Cancel AI auto-restart if pending
