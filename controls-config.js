@@ -27,17 +27,30 @@ const ControlsConfig = (() => {
         prevSong: [4]        // LB
     };
     
-    // Action display names
-    const ACTION_NAMES = {
-        moveLeft: 'Move Left',
-        moveRight: 'Move Right',
-        softDrop: 'Soft Drop',
-        hardDrop: 'Hard Drop',
-        rotateCW: 'Rotate CW',
-        rotateCCW: 'Rotate CCW',
-        nextSong: 'Next Song',
-        prevSong: 'Prev Song'
-    };
+    // Action display names (use I18n for localization)
+    function getActionName(action) {
+        const i18nKeys = {
+            moveLeft: 'controls.moveLeft',
+            moveRight: 'controls.moveRight',
+            softDrop: 'controls.softDrop',
+            hardDrop: 'controls.hardDrop',
+            rotateCW: 'controls.rotateCW',
+            rotateCCW: 'controls.rotateCCW',
+            nextSong: 'controls.nextSong',
+            prevSong: 'controls.prevSong'
+        };
+        if (typeof I18n !== 'undefined' && i18nKeys[action]) {
+            return I18n.t(i18nKeys[action]);
+        }
+        // Fallback
+        const fallback = {
+            moveLeft: 'Move Left', moveRight: 'Move Right',
+            softDrop: 'Soft Drop', hardDrop: 'Hard Drop',
+            rotateCW: 'Rotate CW', rotateCCW: 'Rotate CCW',
+            nextSong: 'Next Song', prevSong: 'Prev Song'
+        };
+        return fallback[action] || action;
+    }
     
     // Gamepad button names
     const GAMEPAD_BUTTON_NAMES = {
@@ -244,7 +257,7 @@ const ControlsConfig = (() => {
                 const buttonDisplay = buttons.map(b => formatGamepadButton(b)).join(', ');
                 html += `
                     <div class="control-binding-row">
-                        <span class="control-action-name">${ACTION_NAMES[action]}</span>
+                        <span class="control-action-name">${getActionName(action)}</span>
                         <button class="control-binding-btn" data-action="${action}" data-type="gamepad">
                             ${buttonDisplay || 'None'}
                         </button>
@@ -258,7 +271,7 @@ const ControlsConfig = (() => {
             html += `
                 <div class="controls-section" style="margin-top: 1.5vh;">
                     <div class="control-binding-row">
-                        <span class="control-action-name">Vibration</span>
+                        <span class="control-action-name">${typeof I18n !== 'undefined' ? I18n.t('controls.vibration') : 'Vibration'}</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="controlsVibrationToggle" ${vibrationEnabled ? 'checked' : ''}>
                             <span class="toggle-slider"></span>
@@ -268,14 +281,14 @@ const ControlsConfig = (() => {
             `;
         } else {
             // Build keyboard controls section
-            html += '<div class="controls-section"><div class="controls-section-title">⌨️ Keyboard</div>';
+            html += '<div class="controls-section"><div class="controls-section-title">' + (typeof I18n !== 'undefined' ? I18n.t('controls.keyboard') : '⌨️ Keyboard') + '</div>';
             
             for (const [action, keys] of Object.entries(keyboardBindings)) {
                 if (action === 'pause') continue; // Pause is not configurable
                 const keyDisplay = keys.map(k => formatKeyName(k)).join(', ');
                 html += `
                     <div class="control-binding-row">
-                        <span class="control-action-name">${ACTION_NAMES[action]}</span>
+                        <span class="control-action-name">${getActionName(action)}</span>
                         <button class="control-binding-btn" data-action="${action}" data-type="keyboard">
                             ${keyDisplay || 'None'}
                         </button>
@@ -287,7 +300,7 @@ const ControlsConfig = (() => {
         }
         
         // Reset button
-        html += '<button class="controls-reset-btn" id="controlsResetBtn">Reset to Defaults</button>';
+        html += '<button class="controls-reset-btn" id="controlsResetBtn">' + (typeof I18n !== 'undefined' ? I18n.t('controls.resetDefaults') : 'Reset to Defaults') + '</button>';
         
         container.innerHTML = html;
         

@@ -864,7 +864,8 @@ function promptForName(scoreData) {
                 const dataToSubmit = {
                     ...scoreData,
                     username: username,
-                    challengeNames: challengeNames // Include readable names for email
+                    challengeNames: challengeNames, // Include readable names for email
+                    language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
                 };
                 
                 try {
@@ -1138,7 +1139,8 @@ async function notifyGameCompletion(scoreData) {
             ...scoreData,
             username: localStorage.getItem('blockchainstorm_username') || 'Anonymous',
             challengeNames: challengeNames,
-            notifyOnly: true  // Flag to indicate this is just a notification, not a leaderboard entry
+            notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
+            language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
         };
         
         const controller = new AbortController();
@@ -1177,7 +1179,8 @@ async function submitAIScore(scoreData) {
     const dataToSubmit = {
         ...scoreData,
         username: '🤖 Claude',
-        skipNotification: scoreData.skipNotification || false // Pass through notification flag
+        skipNotification: scoreData.skipNotification || false, // Pass through notification flag
+        language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
         // mode is already set in scoreData ('ai' or 'ai-challenge')
     };
     

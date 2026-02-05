@@ -1467,6 +1467,8 @@ const StarfieldSystem = (function() {
                 planetStatsContent = document.getElementById('planetStatsContent');
             }
             
+            const _t = (key) => typeof I18n !== 'undefined' ? I18n.t(key) : key;
+            
             let html = '';
             
             if (planet.isSun) {
@@ -1475,11 +1477,11 @@ const StarfieldSystem = (function() {
                         ${planet.name}
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: max(1.35vh, 8px);">
-                        <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
-                        <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
-                        <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin}°C</div>
-                        <div><strong style="color: #aaa;">Type:</strong> G-type star</div>
-                        <div><strong style="color: #aaa;">Radius:</strong> 696,000 km</div>
+                        <div><strong style="color: #aaa;">${_t('planet.gravity')}</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> ${_t('planet.earth')}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.day')}</strong> ${planet.dayLength}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.temperature')}</strong> ${planet.tempMin}°C</div>
+                        <div><strong style="color: #aaa;">${_t('planet.type')}</strong> ${_t('planet.gTypeStar')}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.radius')}</strong> 696,000 km</div>
                     </div>
                     <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: max(1.2vh, 7px);">
                         ${planet.funFact}
@@ -1497,16 +1499,17 @@ const StarfieldSystem = (function() {
                     </div>
                 `;
             } else {
+                const tempDisplay = planet.tempMin === planet.tempMax ? planet.tempMin : planet.tempMin + ' ' + _t('planet.to') + ' ' + planet.tempMax;
                 html = `
                     <div style="font-weight: 600; font-size: max(1.75vh, 9px); margin-bottom: 0.7vh; color: ${planet.color};">
                         ${planet.name}
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35vh 1.1vw; line-height: 1.5; color: #ccc; font-size: max(1.35vh, 8px);">
-                        <div><strong style="color: #aaa;">Gravity:</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> Earth</div>
-                        <div><strong style="color: #aaa;">Day:</strong> ${planet.dayLength}</div>
-                        <div><strong style="color: #aaa;">Temperature:</strong> ${planet.tempMin === planet.tempMax ? planet.tempMin : planet.tempMin + ' to ' + planet.tempMax}°C</div>
-                        <div><strong style="color: #aaa;">Year:</strong> ${planet.yearLength}</div>
-                        <div><strong style="color: #aaa;">Moons:</strong> ${planet.moons}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.gravity')}</strong> <span style="color: #6eb5ff; font-weight: 600;">${planet.gravity}×</span> ${_t('planet.earth')}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.day')}</strong> ${planet.dayLength}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.temperature')}</strong> ${tempDisplay}°C</div>
+                        <div><strong style="color: #aaa;">${_t('planet.year')}</strong> ${planet.yearLength}</div>
+                        <div><strong style="color: #aaa;">${_t('planet.moons')}</strong> ${planet.moons}</div>
                     </div>
                     <div style="margin-top: 0.55vh; font-style: italic; color: #888; font-size: max(1.2vh, 7px);">
                         ${planet.funFact}

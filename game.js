@@ -1768,7 +1768,7 @@ canvasWrapper.appendChild(canvas);
 
 const aiModeMenuOverlay = document.createElement('div');
 aiModeMenuOverlay.id = 'aiModeMenuOverlay';
-aiModeMenuOverlay.textContent = '🤖 AI MODE';
+aiModeMenuOverlay.textContent = I18n.t('ai.modeOverlay');
 aiModeMenuOverlay.style.cssText = `
     position: absolute;
     top: 10px;
@@ -11774,19 +11774,19 @@ async function gameOver() {
     });
     touchRepeat.timers.clear();
     
-    finalScoreDisplay.textContent = `Final Score: ${formatAsBitcoin(score)}`;
+    finalScoreDisplay.textContent = I18n.t('gameOver.finalScore', { score: formatAsBitcoin(score) });
     
     // Display special event statistics
-    let statsHTML = `Lines: ${lines} | Level: ${level}<br>`;
+    let statsHTML = I18n.t('gameOver.lines', { lines: lines, level: level }) + '<br>';
     if (aiModeEnabled) {
-        statsHTML += '<br><span style="color: #00ffff;">🤖 AI MODE</span><br>';
+        statsHTML += `<br><span style="color: #00ffff;">${I18n.t('gameOver.aiMode')}</span><br>`;
     }
     if (strikeCount > 0 || tsunamiCount > 0 || volcanoCount > 0 || blackHoleCount > 0) {
         statsHTML += '<br>';
-        if (strikeCount > 0) statsHTML += `⚡ Strikes: ${strikeCount}<br>`;
-        if (tsunamiCount > 0) statsHTML += `🌊 Tsunamis: ${tsunamiCount}<br>`;
-        if (volcanoCount > 0) statsHTML += `🌋 Volcanoes: ${volcanoCount}<br>`;
-        if (blackHoleCount > 0) statsHTML += `🕳️ Black Holes: ${blackHoleCount}<br>`;
+        if (strikeCount > 0) statsHTML += I18n.t('gameOver.strikes', { count: strikeCount }) + '<br>';
+        if (tsunamiCount > 0) statsHTML += I18n.t('gameOver.tsunamis', { count: tsunamiCount }) + '<br>';
+        if (volcanoCount > 0) statsHTML += I18n.t('gameOver.volcanoes', { count: volcanoCount }) + '<br>';
+        if (blackHoleCount > 0) statsHTML += I18n.t('gameOver.blackHoles', { count: blackHoleCount }) + '<br>';
     }
     finalStatsDisplay.innerHTML = statsHTML;
     
@@ -12670,8 +12670,9 @@ function update(time = 0) {
         ctx.font = `bold ${Math.min(48, canvas.width * 0.18)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.strokeText('PAUSED', canvas.width / 2, canvas.height / 2);
-        ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+        const pausedText = typeof I18n !== 'undefined' ? I18n.t('misc.paused') : 'PAUSED';
+        ctx.strokeText(pausedText, canvas.width / 2, canvas.height / 2);
+        ctx.fillText(pausedText, canvas.width / 2, canvas.height / 2);
         ctx.restore();
     }
     
@@ -13552,7 +13553,7 @@ function getShareURL() {
 }
 
 function getShareText() {
-    return 'Check out TaNTЯiS - a wild twist on classic falling blocks with tsunamis, black holes, and cosmic disasters!';
+    return I18n.t('share.text');
 }
 
 function updateShareLinks() {
@@ -13610,8 +13611,8 @@ document.addEventListener('DOMContentLoaded', () => {
             navigator.clipboard.writeText(getShareURL()).then(() => {
                 const span = shareCopyLink.querySelector('span');
                 if (span) {
-                    span.textContent = 'Copied!';
-                    setTimeout(() => { span.textContent = 'Copy Link'; }, 2000);
+                    span.textContent = I18n.t('share.copied');
+                    setTimeout(() => { span.textContent = I18n.t('share.copyLink'); }, 2000);
                 }
             });
         });
@@ -14041,14 +14042,14 @@ const challengeDisplayNames = {
 // Function to update the button label based on current selection
 function updateChallengeButtonLabel() {
     if (challengeMode === 'normal' && activeChallenges.size === 0) {
-        challengeSelectBtn.textContent = 'Normal';
+        challengeSelectBtn.textContent = I18n.t('challenge.normal');
     } else if (challengeMode === 'combo' || activeChallenges.size > 1) {
         // Show count of challenges
         const names = Array.from(activeChallenges).map(c => challengeDisplayNames[c] || c);
         if (names.length <= 2) {
             challengeSelectBtn.textContent = names.join(' + ');
         } else {
-            challengeSelectBtn.textContent = `${names.length} Challenges`;
+            challengeSelectBtn.textContent = I18n.t('challenge.challenges', { count: names.length });
         }
     } else if (activeChallenges.size === 1) {
         const mode = Array.from(activeChallenges)[0];
@@ -14299,14 +14300,14 @@ if (startOverlay) {
         const isAndroid = /android/i.test(ua);
         
         if (isIOS) {
-            hint.innerHTML = '📱 For fullscreen: tap <strong>Share</strong> ⬆️ then <strong>"Add to Home Screen"</strong>';
+            hint.innerHTML = I18n.t('intro.fullscreenHint.ios');
             // Hide the useless fullscreen toggle on iOS
             const fsToggle = document.getElementById('introFullscreenToggle');
             if (fsToggle) fsToggle.style.display = 'none';
         } else if (isAndroid) {
-            hint.innerHTML = '📱 For fullscreen: tap <strong>⋮ Menu</strong> then <strong>"Add to Home Screen"</strong>';
+            hint.innerHTML = I18n.t('intro.fullscreenHint.android');
         } else {
-            hint.innerHTML = '📱 Add to your Home Screen for a fullscreen experience!';
+            hint.innerHTML = I18n.t('intro.fullscreenHint.generic');
         }
         hint.style.display = 'block';
     })();
@@ -14362,34 +14363,34 @@ if (startOverlay) {
         
         if (level === 'breeze') {
             // Breeze: No disasters at all
-            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!';
+            if (goalText) goalText.innerHTML = I18n.t('rules.goal');
             if (tsunamiSection) tsunamiSection.style.display = 'none';
             if (volcanoSection) volcanoSection.style.display = 'none';
             if (blackHoleSection) blackHoleSection.style.display = 'none';
             if (tsunamiScoring) tsunamiScoring.style.display = 'none';
             if (volcanoScoring) volcanoScoring.style.display = 'none';
             if (blackHoleScoring) blackHoleScoring.style.display = 'none';
-            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.';
+            if (speedBonusText) speedBonusText.innerHTML = I18n.t('rules.speedBonusSimple');
         } else if (level === 'tempest') {
             // Tempest: Tsunamis and Black Holes only
-            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart!';
+            if (goalText) goalText.innerHTML = I18n.t('rules.goal');
             if (tsunamiSection) tsunamiSection.style.display = 'block';
             if (volcanoSection) volcanoSection.style.display = 'none';
             if (blackHoleSection) blackHoleSection.style.display = 'block';
             if (tsunamiScoring) tsunamiScoring.style.display = 'block';
             if (volcanoScoring) volcanoScoring.style.display = 'none';
             if (blackHoleScoring) blackHoleScoring.style.display = 'block';
-            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score.';
+            if (speedBonusText) speedBonusText.innerHTML = I18n.t('rules.speedBonusSimple');
         } else {
             // Maelstrom: Everything
-            if (goalText) goalText.innerHTML = 'Stack colored blocks to form <i>blobs</i> (connected groups of a single color). Clear rows to break up blobs and score: the larger the blob, the more points you get for ripping it apart! But watch out for <i>tornadoes</i> and <i>earthquakes</i>!';
+            if (goalText) goalText.innerHTML = I18n.t('rules.goalMaelstrom');
             if (tsunamiSection) tsunamiSection.style.display = 'block';
             if (volcanoSection) volcanoSection.style.display = 'block';
             if (blackHoleSection) blackHoleSection.style.display = 'block';
             if (tsunamiScoring) tsunamiScoring.style.display = 'block';
             if (volcanoScoring) volcanoScoring.style.display = 'block';
             if (blackHoleScoring) blackHoleScoring.style.display = 'block';
-            if (speedBonusText) speedBonusText.innerHTML = '<strong>Speed Bonus:</strong> The faster you drop pieces, the larger the bonus applied to your score. But beware: faster drops also mean more frequent <i>tornadoes</i> and <i>earthquakes</i>!';
+            if (speedBonusText) speedBonusText.innerHTML = I18n.t('rules.speedBonus');
         }
     }
     
