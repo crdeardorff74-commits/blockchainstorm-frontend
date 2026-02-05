@@ -8493,7 +8493,7 @@ function drawCascadeBonus() {
 // Trigger cascade bonus display
 function showCascadeBonus(multiplier) {
     cascadeBonusDisplay = {
-        text: `Cascade Bonus x${multiplier}`,
+        text: I18n.t('misc.cascadeBonus', { multiplier: multiplier }),
         multiplier: multiplier,
         startTime: Date.now(),
         duration: 1500
