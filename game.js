@@ -6556,7 +6556,7 @@ function getChallengeModeMultiplier() {
         'comingsoon': 0.04,   // 4%
         'thinner': 0.04,      // 4%
         'mercurial': 0.04,    // 4%
-        'shadowless': 0.04,   // 4%
+        'shadowless': 0.02,   // 2%
         'thicker': 0.03,      // 3%
         'carrie': 0.03,       // 3%
         'nokings': 0.03,      // 3%
@@ -14036,6 +14036,7 @@ const challengeDisplayNames = {
     'yesand': 'Yes, And...',
     'mercurial': 'Mercurial',
     'sorandom': 'So Random',
+	'shadowless': 'Shadowless',
     'combo': 'Combo'
 };
 
