@@ -265,8 +265,9 @@ const Histogram = (() => {
         ctx.textBaseline = 'middle';
         const labelX = padding;
         const labelY = barY + barHeight / 2;
-        ctx.fillText('Speed Bonus', labelX, labelY);
-        const labelWidth = ctx.measureText('Speed Bonus').width + 8 * sf;
+        const speedBonusLabelText = typeof I18n !== 'undefined' ? I18n.t('misc.speedBonusLabel') : 'Speed Bonus';
+        ctx.fillText(speedBonusLabelText, labelX, labelY);
+        const labelWidth = ctx.measureText(speedBonusLabelText).width + 8 * sf;
         ctx.restore();
         
         // Bar dimensions
