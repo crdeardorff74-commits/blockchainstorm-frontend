@@ -29,7 +29,7 @@ const I18n = (() => {
     const translations = {
         en: {
             // Intro / Start Screen
-            'intro.dontPanic': "Don't Panic!",
+            'intro.dontPanic': "WARNING: These are not your parents' tetrominoes!  These go to 11...",
             'intro.skillLevel': 'Skill Level',
             'intro.music': 'Music',
             'intro.fullScreen': 'Full Screen',
@@ -273,7 +273,7 @@ const I18n = (() => {
             'planet.gTypeStar': 'G-type star',
         },
         es: {
-            'intro.dontPanic': '¡Que no cunda el pánico!',
+            'intro.dontPanic': 'ADVERTENCIA: ¡Estos no son los tetrominós de tus padres!  These go to 11...',
             'intro.skillLevel': 'Nivel',
             'intro.music': 'Música',
             'intro.fullScreen': 'Pantalla Completa',
@@ -461,7 +461,7 @@ const I18n = (() => {
             'misc.bugReportFail': '❌ Envío fallido',
         },
         fr: {
-            'intro.dontPanic': 'Pas de panique !',
+            'intro.dontPanic': 'ATTENTION : Ce ne sont pas les tétrominos de vos parents !  These go to 11...',
             'intro.skillLevel': 'Niveau',
             'intro.music': 'Musique',
             'intro.fullScreen': 'Plein Écran',
@@ -649,7 +649,7 @@ const I18n = (() => {
             'misc.bugReportFail': '❌ Échec de l\'envoi',
         },
         de: {
-            'intro.dontPanic': 'Keine Panik!',
+            'intro.dontPanic': 'WARNUNG: Das sind nicht die Tetrominos deiner Eltern!  These go to 11...',
             'intro.skillLevel': 'Schwierigkeit',
             'intro.music': 'Musik',
             'intro.fullScreen': 'Vollbild',
@@ -837,7 +837,7 @@ const I18n = (() => {
             'misc.bugReportFail': '❌ Senden fehlgeschlagen',
         },
         pt: {
-            'intro.dontPanic': 'Não Entre em Pânico!',
+            'intro.dontPanic': 'AVISO: Estes não são os tetrominós dos seus pais!  These go to 11...',
             'intro.skillLevel': 'Nível',
             'intro.music': 'Música',
             'intro.fullScreen': 'Tela Cheia',
@@ -917,7 +917,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ Relatório enviado!', 'misc.bugReportFail': '❌ Falha no envio',
         },
         ja: {
-            'intro.dontPanic': 'パニックするな！',
+            'intro.dontPanic': '警告：これは君の親のテトロミノではない！ These go to 11...',
             'intro.skillLevel': '難易度', 'intro.music': '音楽', 'intro.fullScreen': 'フルスクリーン', 'intro.startGame': '▶ ゲーム開始', 'intro.login': '🔑 ログイン',
             'intro.fullscreenHint.ios': '📱 フルスクリーン：<strong>共有</strong> ⬆️ → <strong>「ホーム画面に追加」</strong>',
             'intro.fullscreenHint.android': '📱 フルスクリーン：<strong>⋮ メニュー</strong> → <strong>「ホーム画面に追加」</strong>',
@@ -991,7 +991,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ レポート送信完了！', 'misc.bugReportFail': '❌ 送信失敗',
         },
         ko: {
-            'intro.dontPanic': '당황하지 마세요!', 'intro.skillLevel': '난이도', 'intro.music': '음악', 'intro.fullScreen': '전체 화면', 'intro.startGame': '▶ 게임 시작', 'intro.login': '🔑 로그인',
+            'intro.dontPanic': '경고: 이것은 부모님 시대의 테트로미노가 아닙니다!  These go to 11...', 'intro.skillLevel': '난이도', 'intro.music': '음악', 'intro.fullScreen': '전체 화면', 'intro.startGame': '▶ 게임 시작', 'intro.login': '🔑 로그인',
             'intro.fullscreenHint.ios': '📱 전체 화면: <strong>공유</strong> ⬆️ → <strong>"홈 화면에 추가"</strong>',
             'intro.fullscreenHint.android': '📱 전체 화면: <strong>⋮ 메뉴</strong> → <strong>"홈 화면에 추가"</strong>',
             'intro.fullscreenHint.generic': '📱 홈 화면에 추가하여 전체 화면으로 즐기세요!',
@@ -1054,7 +1054,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ 보고서 전송 완료!', 'misc.bugReportFail': '❌ 전송 실패',
         },
         zh: {
-            'intro.dontPanic': '不要慌！', 'intro.skillLevel': '难度', 'intro.music': '音乐', 'intro.fullScreen': '全屏', 'intro.startGame': '▶ 开始游戏', 'intro.login': '🔑 登录',
+            'intro.dontPanic': '警告：这些可不是你爸妈玩的俄罗斯方块！ These go to 11...', 'intro.skillLevel': '难度', 'intro.music': '音乐', 'intro.fullScreen': '全屏', 'intro.startGame': '▶ 开始游戏', 'intro.login': '🔑 登录',
             'intro.fullscreenHint.ios': '📱 全屏：点击<strong>分享</strong> ⬆️ 然后<strong>"添加到主屏幕"</strong>',
             'intro.fullscreenHint.android': '📱 全屏：点击<strong>⋮ 菜单</strong>然后<strong>"添加到主屏幕"</strong>',
             'intro.fullscreenHint.generic': '📱 添加到主屏幕以获得全屏体验！',
@@ -1117,7 +1117,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ 报告已提交！', 'misc.bugReportFail': '❌ 提交失败',
         },
         ru: {
-            'intro.dontPanic': 'Без паники!', 'intro.skillLevel': 'Уровень', 'intro.music': 'Музыка', 'intro.fullScreen': 'Полный Экран', 'intro.startGame': '▶ Начать', 'intro.login': '🔑 Войти',
+            'intro.dontPanic': 'ВНИМАНИЕ: Это не тетромино ваших родителей!  These go to 11...', 'intro.skillLevel': 'Уровень', 'intro.music': 'Музыка', 'intro.fullScreen': 'Полный Экран', 'intro.startGame': '▶ Начать', 'intro.login': '🔑 Войти',
             'intro.fullscreenHint.ios': '📱 Полный экран: нажмите <strong>Поделиться</strong> ⬆️ → <strong>«На экран Домой»</strong>',
             'intro.fullscreenHint.android': '📱 Полный экран: нажмите <strong>⋮ Меню</strong> → <strong>«Добавить на главный экран»</strong>',
             'intro.fullscreenHint.generic': '📱 Добавьте на главный экран для полноэкранного режима!',
@@ -1189,7 +1189,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ Отчёт отправлен!', 'misc.bugReportFail': '❌ Ошибка отправки',
         },
         it: {
-            'intro.dontPanic': 'Niente Panico!', 'intro.skillLevel': 'Livello', 'intro.music': 'Musica', 'intro.fullScreen': 'Schermo Intero', 'intro.startGame': '▶ Inizia', 'intro.login': '🔑 Accedi',
+            'intro.dontPanic': 'ATTENZIONE: Questi non sono i tetromini dei tuoi genitori!  These go to 11...', 'intro.skillLevel': 'Livello', 'intro.music': 'Musica', 'intro.fullScreen': 'Schermo Intero', 'intro.startGame': '▶ Inizia', 'intro.login': '🔑 Accedi',
             'intro.fullscreenHint.ios': '📱 Schermo intero: tocca <strong>Condividi</strong> ⬆️ poi <strong>"Aggiungi a Home"</strong>',
             'intro.fullscreenHint.android': '📱 Schermo intero: tocca <strong>⋮ Menu</strong> poi <strong>"Aggiungi a Home"</strong>',
             'intro.fullscreenHint.generic': '📱 Aggiungi alla Home per lo schermo intero!',
@@ -1241,7 +1241,7 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ Segnalazione inviata!', 'misc.bugReportFail': '❌ Invio fallito',
         },
         nl: {
-            'intro.dontPanic': 'Geen Paniek!', 'intro.skillLevel': 'Niveau', 'intro.music': 'Muziek', 'intro.fullScreen': 'Volledig Scherm', 'intro.startGame': '▶ Start Spel', 'intro.login': '🔑 Inloggen',
+            'intro.dontPanic': 'WAARSCHUWING: Dit zijn niet de tetromino\'s van je ouders!  These go to 11...', 'intro.skillLevel': 'Niveau', 'intro.music': 'Muziek', 'intro.fullScreen': 'Volledig Scherm', 'intro.startGame': '▶ Start Spel', 'intro.login': '🔑 Inloggen',
             'rules.howToPlay': '📖 Spelregels', 'rules.goalTitle': '🎮 Doel', 'rules.specialEventsTitle': '✨ Speciale Gebeurtenissen', 'rules.scoringTitle': '📊 Score',
             'mode.selectChallenge': 'Uitdaging(en) selecteren...', 'mode.chooseDifficulty': 'Kies je moeilijkheidsgraad...',
             'panel.score': 'Score', 'panel.lines': 'Rijen', 'panel.level': 'Level', 'panel.nextPieces': 'Volgende',
@@ -1254,7 +1254,7 @@ const I18n = (() => {
             'rotate.message': 'Draai je apparaat naar liggende modus',
         },
         pl: {
-            'intro.dontPanic': 'Bez Paniki!', 'intro.skillLevel': 'Poziom', 'intro.music': 'Muzyka', 'intro.fullScreen': 'Pełny Ekran', 'intro.startGame': '▶ Rozpocznij',
+            'intro.dontPanic': 'UWAGA: To nie są tetromina twoich rodziców!  These go to 11...', 'intro.skillLevel': 'Poziom', 'intro.music': 'Muzyka', 'intro.fullScreen': 'Pełny Ekran', 'intro.startGame': '▶ Rozpocznij',
             'rules.howToPlay': '📖 Jak Grać', 'rules.goalTitle': '🎮 Cel', 'rules.specialEventsTitle': '✨ Specjalne Zdarzenia', 'rules.scoringTitle': '📊 Punktacja',
             'mode.selectChallenge': 'Wybierz tryb(y) wyzwania...', 'mode.chooseDifficulty': 'Wybierz poziom trudności...',
             'panel.score': 'Wynik', 'panel.lines': 'Linie', 'panel.level': 'Poziom', 'panel.nextPieces': 'Następne',
@@ -1267,7 +1267,7 @@ const I18n = (() => {
             'rotate.message': 'Obróć urządzenie do trybu poziomego',
         },
         tr: {
-            'intro.dontPanic': 'Panik Yapma!', 'intro.skillLevel': 'Seviye', 'intro.music': 'Müzik', 'intro.fullScreen': 'Tam Ekran', 'intro.startGame': '▶ Oyuna Başla',
+            'intro.dontPanic': 'DİKKAT: Bunlar anne babanızın tetrominoları değil!  These go to 11...', 'intro.skillLevel': 'Seviye', 'intro.music': 'Müzik', 'intro.fullScreen': 'Tam Ekran', 'intro.startGame': '▶ Oyuna Başla',
             'rules.howToPlay': '📖 Nasıl Oynanır', 'rules.goalTitle': '🎮 Amaç', 'rules.specialEventsTitle': '✨ Özel Olaylar', 'rules.scoringTitle': '📊 Puanlama',
             'mode.selectChallenge': 'Meydan okuma modunu seç...', 'mode.chooseDifficulty': 'Zorluk seviyeni seç...',
             'panel.score': 'Puan', 'panel.lines': 'Satır', 'panel.level': 'Seviye', 'panel.nextPieces': 'Sonraki',
@@ -1280,7 +1280,7 @@ const I18n = (() => {
             'rotate.message': 'Cihazınızı yatay moda çevirin',
         },
         ar: {
-            'intro.dontPanic': 'لا تهلع!', 'intro.skillLevel': 'المستوى', 'intro.music': 'الموسيقى', 'intro.fullScreen': 'ملء الشاشة', 'intro.startGame': '▶ ابدأ اللعب',
+            'intro.dontPanic': 'تحذير: هذه ليست تتروميونات والديك!  These go to 11...', 'intro.skillLevel': 'المستوى', 'intro.music': 'الموسيقى', 'intro.fullScreen': 'ملء الشاشة', 'intro.startGame': '▶ ابدأ اللعب',
             'rules.howToPlay': '📖 كيف تلعب', 'rules.goalTitle': '🎮 الهدف', 'rules.specialEventsTitle': '✨ أحداث خاصة', 'rules.scoringTitle': '📊 النقاط',
             'mode.selectChallenge': 'اختر وضع التحدي...', 'mode.chooseDifficulty': 'اختر مستوى الصعوبة...',
             'panel.score': 'النقاط', 'panel.lines': 'الخطوط', 'panel.level': 'المستوى', 'panel.nextPieces': 'التالية',
@@ -1293,7 +1293,7 @@ const I18n = (() => {
             'rotate.message': 'أدر جهازك إلى الوضع الأفقي',
         },
         hi: {
-            'intro.dontPanic': 'घबराओ मत!', 'intro.skillLevel': 'स्तर', 'intro.music': 'संगीत', 'intro.fullScreen': 'पूर्ण स्क्रीन', 'intro.startGame': '▶ खेल शुरू',
+            'intro.dontPanic': 'चेतावनी: ये आपके माता-पिता के टेट्रोमिनो नहीं हैं!  These go to 11...', 'intro.skillLevel': 'स्तर', 'intro.music': 'संगीत', 'intro.fullScreen': 'पूर्ण स्क्रीन', 'intro.startGame': '▶ खेल शुरू',
             'rules.howToPlay': '📖 कैसे खेलें', 'rules.goalTitle': '🎮 लक्ष्य', 'rules.specialEventsTitle': '✨ विशेष कार्यक्रम', 'rules.scoringTitle': '📊 स्कोरिंग',
             'mode.selectChallenge': 'चुनौती मोड चुनें...', 'mode.chooseDifficulty': 'अपना कठिनाई स्तर चुनें...',
             'panel.score': 'अंक', 'panel.lines': 'पंक्तियाँ', 'panel.level': 'स्तर', 'panel.nextPieces': 'अगला',
