@@ -14298,11 +14298,13 @@ if (dontPanicText) {
 // Initialize start overlay
 if (startOverlay) {
     // Track page visit (delayed 1s to filter bots)
+    // Skip tracking if ?track=false is in the URL
+    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false';
     let _visitId = null;
     window._visitId = null;
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
-    const _visitTimer = setTimeout(async () => {
+    const _visitTimer = _trackingEnabled ? setTimeout(async () => {
         try {
             const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
                 method: 'POST',
@@ -14324,7 +14326,7 @@ if (startOverlay) {
         } catch (e) {
             // Non-critical, silently ignore
         }
-    }, 1000);
+    }, 1000) : null;
 
     // Get intro screen elements
     const startGameBtn = document.getElementById('startGameBtn');
@@ -14508,6 +14510,7 @@ if (startOverlay) {
     function dismissIntroScreen() {
         // Record play click (skip if under 1s — likely bot, visit wasn't recorded)
         const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
+        if (_trackingEnabled) {
         if (timeToPlay < 1) {
             clearTimeout(_visitTimer); // Cancel the pending visit record
         } else if (_visitId) {
@@ -14544,6 +14547,7 @@ if (startOverlay) {
                 } catch (e) {}
             })();
         }
+        } // end _trackingEnabled
         // Request full-screen mode FIRST (must be before audioContext.resume which can consume user gesture)
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
