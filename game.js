@@ -11645,6 +11645,14 @@ async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
+    
+    // Record that visitor finished a game (once per visit)
+    if (window._visitId && !window._visitFinishRecorded) {
+        window._visitFinishRecorded = true;
+        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/finished`, {
+            method: 'PATCH'
+        }).catch(() => {});
+    }
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
