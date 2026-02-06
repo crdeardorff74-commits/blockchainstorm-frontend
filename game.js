@@ -14314,48 +14314,44 @@ if (startOverlay) {
     window._visitId = null;
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
-    let _visitTimer = null;
     let _interactionDetected = false;
 
-    function _startVisitTimer() {
+    async function _recordVisit() {
         if (_interactionDetected || !_trackingEnabled) return;
         _interactionDetected = true;
         // Remove interaction listeners once triggered
         ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
-            document.removeEventListener(evt, _startVisitTimer)
+            document.removeEventListener(evt, _recordVisit)
         );
-        // Delay 1s after first interaction before recording
-        _visitTimer = setTimeout(async () => {
-            try {
-                const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        referrer: document.referrer || null,
-                        userAgent: navigator.userAgent || null,
-                        language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
-                        screenWidth: screen.width,
-                        screenHeight: screen.height,
-                        deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
-                        os: detectOS()
-                    })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    _visitId = data.visit_id;
-                    window._visitId = data.visit_id;
-                    _visitRecorded = true;
-                }
-            } catch (e) {
-                // Non-critical, silently ignore
+        try {
+            const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    referrer: document.referrer || null,
+                    userAgent: navigator.userAgent || null,
+                    language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
+                    screenWidth: screen.width,
+                    screenHeight: screen.height,
+                    deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                    os: detectOS()
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                _visitId = data.visit_id;
+                window._visitId = data.visit_id;
+                _visitRecorded = true;
             }
-        }, 1000);
+        } catch (e) {
+            // Non-critical, silently ignore
+        }
     }
 
     // Listen for any human interaction to start tracking
     if (_trackingEnabled) {
         ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
-            document.addEventListener(evt, _startVisitTimer, { once: false, passive: true })
+            document.addEventListener(evt, _recordVisit, { once: false, passive: true })
         );
     }
 
@@ -14539,48 +14535,55 @@ if (startOverlay) {
     
     // Start Game button handler
     function dismissIntroScreen() {
-        // Record play click (skip if under 1s — likely bot, visit wasn't recorded)
+        // Record play click
         const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
         if (_trackingEnabled) {
-        if (timeToPlay < 1) {
-            clearTimeout(_visitTimer); // Cancel the pending visit record
-        } else if (_visitId) {
-            fetch(`https://blockchainstorm.onrender.com/api/visit/${_visitId}/played`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timeToPlay })
-            }).catch(() => {}); // Non-critical
-        } else if (_visitRecorded === false) {
-            // Visit POST may still be in-flight; fire both together
-            (async () => {
-                try {
-                    clearTimeout(_visitTimer);
-                    const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            referrer: document.referrer || null,
-                            userAgent: navigator.userAgent || null,
-                            language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
-                            screenWidth: screen.width,
-                            screenHeight: screen.height,
-                            deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
-                            os: detectOS()
-                        })
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        window._visitId = data.visit_id;
-                        fetch(`https://blockchainstorm.onrender.com/api/visit/${data.visit_id}/played`, {
-                            method: 'PATCH',
+            if (_visitId) {
+                // Visit already recorded, just mark as played
+                fetch(`https://blockchainstorm.onrender.com/api/visit/${_visitId}/played`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timeToPlay })
+                }).catch(() => {});
+            } else if (!_visitRecorded) {
+                // Visit POST may still be in-flight or user clicked Play as first interaction
+                (async () => {
+                    try {
+                        // Ensure visit is recorded first
+                        if (!_interactionDetected) {
+                            _interactionDetected = true;
+                            ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
+                                document.removeEventListener(evt, _recordVisit)
+                            );
+                        }
+                        const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ timeToPlay })
-                        }).catch(() => {});
-                    }
-                } catch (e) {}
-            })();
+                            body: JSON.stringify({
+                                referrer: document.referrer || null,
+                                userAgent: navigator.userAgent || null,
+                                language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
+                                screenWidth: screen.width,
+                                screenHeight: screen.height,
+                                deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                                os: detectOS()
+                            })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            _visitId = data.visit_id;
+                            window._visitId = data.visit_id;
+                            _visitRecorded = true;
+                            fetch(`https://blockchainstorm.onrender.com/api/visit/${data.visit_id}/played`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ timeToPlay })
+                            }).catch(() => {});
+                        }
+                    } catch (e) {}
+                })();
+            }
         }
-        } // end _trackingEnabled
         // Request full-screen mode FIRST (must be before audioContext.resume which can consume user gesture)
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
