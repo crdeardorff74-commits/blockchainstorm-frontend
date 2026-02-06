@@ -14307,38 +14307,57 @@ if (dontPanicText) {
 
 // Initialize start overlay
 if (startOverlay) {
-    // Track page visit (delayed 1s to filter bots)
-    // Skip tracking if ?track=false is in the URL
-    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false';
+    // Track page visit — requires human interaction to filter bots
+    // Skip tracking if ?track=false is in the URL or navigator.webdriver is set (headless browsers)
+    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !navigator.webdriver;
     let _visitId = null;
     window._visitId = null;
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
-    const _visitTimer = _trackingEnabled ? setTimeout(async () => {
-        try {
-            const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    referrer: document.referrer || null,
-                    userAgent: navigator.userAgent || null,
-                    language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
-                    screenWidth: screen.width,
-                    screenHeight: screen.height,
-                    deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
-                    os: detectOS()
-                })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                _visitId = data.visit_id;
-                window._visitId = data.visit_id;
-                _visitRecorded = true;
+    let _visitTimer = null;
+    let _interactionDetected = false;
+
+    function _startVisitTimer() {
+        if (_interactionDetected || !_trackingEnabled) return;
+        _interactionDetected = true;
+        // Remove interaction listeners once triggered
+        ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
+            document.removeEventListener(evt, _startVisitTimer)
+        );
+        // Delay 1s after first interaction before recording
+        _visitTimer = setTimeout(async () => {
+            try {
+                const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        referrer: document.referrer || null,
+                        userAgent: navigator.userAgent || null,
+                        language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
+                        screenWidth: screen.width,
+                        screenHeight: screen.height,
+                        deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                        os: detectOS()
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    _visitId = data.visit_id;
+                    window._visitId = data.visit_id;
+                    _visitRecorded = true;
+                }
+            } catch (e) {
+                // Non-critical, silently ignore
             }
-        } catch (e) {
-            // Non-critical, silently ignore
-        }
-    }, 1000) : null;
+        }, 1000);
+    }
+
+    // Listen for any human interaction to start tracking
+    if (_trackingEnabled) {
+        ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
+            document.addEventListener(evt, _startVisitTimer, { once: false, passive: true })
+        );
+    }
 
     // Get intro screen elements
     const startGameBtn = document.getElementById('startGameBtn');
