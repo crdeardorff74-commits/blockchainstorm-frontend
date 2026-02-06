@@ -12711,6 +12711,13 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // Record that visitor actually started a game (once per visit)
+    if (window._visitId && !window._visitStartRecorded) {
+        window._visitStartRecorded = true;
+        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/started`, {
+            method: 'PATCH'
+        }).catch(() => {});
+    }
     // Request fullscreen on mobile if not already fullscreen (fallback if intro screen didn't trigger it)
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         const fsCheckbox = document.getElementById('introFullscreenCheckbox');
@@ -14278,6 +14285,7 @@ if (dontPanicText) {
 if (startOverlay) {
     // Track page visit (delayed 1s to filter bots)
     let _visitId = null;
+    window._visitId = null;
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
     const _visitTimer = setTimeout(async () => {
@@ -14296,6 +14304,7 @@ if (startOverlay) {
             if (res.ok) {
                 const data = await res.json();
                 _visitId = data.visit_id;
+                window._visitId = data.visit_id;
                 _visitRecorded = true;
             }
         } catch (e) {
@@ -14511,6 +14520,7 @@ if (startOverlay) {
                     });
                     if (res.ok) {
                         const data = await res.json();
+                        window._visitId = data.visit_id;
                         fetch(`https://blockchainstorm.onrender.com/api/visit/${data.visit_id}/played`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
