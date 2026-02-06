@@ -11863,7 +11863,7 @@ async function gameOver() {
             
             // Always download the recording for analysis
             if (tuningRecordingData) {
-                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+                const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/[/,: ]+/g, '-');
                 const filename = `tuning_${aiTuningDifficulty}_${aiTuningSkillLevel}_game_${aiTuningSetNumber}_${aiTuningGameInSet}_${score}_${timestamp}.json`;
                 const fullRecording = {
                     ...tuningRecordingData.gameData,
