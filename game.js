@@ -14261,6 +14261,12 @@ const startOverlay = document.getElementById('startOverlay');
 // Apply pulse animation only to "Don't Panic!"
 const dontPanicText = document.getElementById('dontPanicText');
 if (dontPanicText) {
+    // Switch from data-i18n (textContent) to data-i18n-html (innerHTML) for line break support
+    const i18nKey = dontPanicText.getAttribute('data-i18n');
+    if (i18nKey) {
+        dontPanicText.removeAttribute('data-i18n');
+        dontPanicText.setAttribute('data-i18n-html', i18nKey);
+    }
     dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
 
     // Center-click (mouse wheel button) or right-click on "Don't Panic!" to activate developer mode
