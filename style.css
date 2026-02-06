@@ -1321,6 +1321,7 @@
         
         .toggle-label-text {
             flex-grow: 1;
+            align-self: center;
         }
         .settings-option input[type="range"] {
             -webkit-appearance: none;
