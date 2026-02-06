@@ -865,7 +865,8 @@ function promptForName(scoreData) {
                     ...scoreData,
                     username: username,
                     challengeNames: challengeNames, // Include readable names for email
-                    language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
+                    language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
+                    deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
                 };
                 
                 try {
@@ -1140,7 +1141,8 @@ async function notifyGameCompletion(scoreData) {
             username: localStorage.getItem('blockchainstorm_username') || 'Anonymous',
             challengeNames: challengeNames,
             notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
-            language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
+            language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
+            deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
         };
         
         const controller = new AbortController();
@@ -1180,7 +1182,8 @@ async function submitAIScore(scoreData) {
         ...scoreData,
         username: '🤖 Claude',
         skipNotification: scoreData.skipNotification || false, // Pass through notification flag
-        language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en'
+        language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
+        deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
         // mode is already set in scoreData ('ai' or 'ai-challenge')
     };
     

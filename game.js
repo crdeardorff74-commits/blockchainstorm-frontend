@@ -155,6 +155,16 @@ const DeviceDetection = {
     }
 };
 
+function detectOS() {
+    const ua = navigator.userAgent;
+    if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 2)) return 'iOS';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/Win/i.test(ua)) return 'Windows';
+    if (/Mac/i.test(ua)) return 'macOS';
+    if (/Linux/i.test(ua)) return 'Linux';
+    return 'Other';
+}
+
 // Tablet Mode System
 // ============================================
 // SWIPE GESTURE CONTROLS
@@ -14314,7 +14324,9 @@ if (startOverlay) {
                     userAgent: navigator.userAgent || null,
                     language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
                     screenWidth: screen.width,
-                    screenHeight: screen.height
+                    screenHeight: screen.height,
+                    deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                    os: detectOS()
                 })
             });
             if (res.ok) {
@@ -14532,7 +14544,9 @@ if (startOverlay) {
                             userAgent: navigator.userAgent || null,
                             language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
                             screenWidth: screen.width,
-                            screenHeight: screen.height
+                            screenHeight: screen.height,
+                            deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                            os: detectOS()
                         })
                     });
                     if (res.ok) {
