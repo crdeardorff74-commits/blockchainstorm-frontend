@@ -1702,8 +1702,8 @@ const ctx = canvas.getContext('2d');
                     const visible = nameOverlay.style.display !== 'none' && 
                                     window.getComputedStyle(nameOverlay).display !== 'none';
                     if (visible) {
-                        // Exit fullscreen so Android keyboard can appear
-                        if (document.fullscreenElement || document.webkitFullscreenElement) {
+                        // Exit fullscreen so Android keyboard can appear (mobile only)
+                        if ((DeviceDetection.isMobile || DeviceDetection.isTablet) && (document.fullscreenElement || document.webkitFullscreenElement)) {
                             if (document.exitFullscreen) {
                                 document.exitFullscreen().catch(() => {});
                             } else if (document.webkitExitFullscreen) {
