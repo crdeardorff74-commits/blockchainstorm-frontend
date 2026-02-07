@@ -14315,7 +14315,6 @@ if (dontPanicText) {
 
 // Initialize start overlay
 if (startOverlay) {
-    console.log('🔍 startOverlay block: ENTER');
     // Track page visit — requires human interaction to filter bots
     // Skip tracking if ?track=false is in the URL or navigator.webdriver is set (headless browsers)
     const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !navigator.webdriver;
@@ -14324,9 +14323,8 @@ if (startOverlay) {
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
     let _interactionDetected = false;
-    console.log('🔍 startOverlay block: tracking vars OK');
 
-    async function _recordVisit() {
+    const _recordVisit = async function() {
         if (_interactionDetected || !_trackingEnabled) return;
         _interactionDetected = true;
         // Remove interaction listeners once triggered
@@ -14369,8 +14367,6 @@ if (startOverlay) {
     const startGameBtn = document.getElementById('startGameBtn');
     const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
     const introMusicSelect = document.getElementById('introMusicSelect');
-    const introLoginBtn = document.getElementById('introLoginBtn');
-    console.log('🔍 startOverlay block: intro elements OK, loginBtn=', introLoginBtn);
     
     // Show fullscreen hint for mobile users not in fullscreen/standalone mode
     (function showFullscreenHint() {
@@ -14402,7 +14398,6 @@ if (startOverlay) {
         }
         hint.style.display = 'block';
     })();
-    console.log('🔍 startOverlay block: showFullscreenHint OK');
     
     // Sync intro music select with settings music select on load
     if (introMusicSelect && musicSelect) {
@@ -14443,7 +14438,7 @@ if (startOverlay) {
     if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = skillLevel;
     
     // Function to update rules display based on skill level
-    function updateRulesForSkillLevel(level) {
+    const updateRulesForSkillLevel = function(level) {
         const goalText = document.getElementById('rulesGoalText');
         const tsunamiSection = document.getElementById('rulesTsunamiSection');
         const volcanoSection = document.getElementById('rulesVolcanoSection');
@@ -14487,7 +14482,7 @@ if (startOverlay) {
     }
     
     // Function to sync all skill level selectors and update game state
-    function setSkillLevel(level) {
+    const setSkillLevel = function(level) {
         skillLevel = level;
         window.skillLevel = level; // Expose globally for AI
         localStorage.setItem('skillLevel', level);
@@ -14523,19 +14518,20 @@ if (startOverlay) {
     updateSpecialEventsDisplay(skillLevel);
     
     // Check login status and show/hide login button
-    console.log('🔍 startOverlay block: about to use introLoginBtn, typeof=', typeof introLoginBtn);
-    function checkIntroLoginStatus() {
+    const checkIntroLoginStatus = function() {
         // Check if user is logged in via oi_token (from auth.js)
         const isLoggedIn = !!localStorage.getItem('oi_token');
-        if (introLoginBtn) {
-            introLoginBtn.classList.toggle('hidden', isLoggedIn);
+        const btn = document.getElementById('introLoginBtn');
+        if (btn) {
+            btn.classList.toggle('hidden', isLoggedIn);
         }
     }
     checkIntroLoginStatus();
     
     // Login button handler - use auth.js showLoginModal
-    if (introLoginBtn) {
-        introLoginBtn.addEventListener('click', (e) => {
+    const introLoginBtnEl = document.getElementById('introLoginBtn');
+    if (introLoginBtnEl) {
+        introLoginBtnEl.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof showLoginModal === 'function') {
                 showLoginModal();
@@ -14547,7 +14543,7 @@ if (startOverlay) {
     }
     
     // Start Game button handler
-    function dismissIntroScreen() {
+    const dismissIntroScreen = function() {
         // Record play click
         const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
         if (_trackingEnabled) {
@@ -14628,7 +14624,6 @@ if (startOverlay) {
         }
     }
     
-    console.log('🔍 startOverlay block: about to register click handlers, startGameBtn=', !!startGameBtn);
     if (startGameBtn) {
         startGameBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -14657,7 +14652,6 @@ if (startOverlay) {
             dismissIntroScreen();
         }, { passive: false });
     }
-    console.log('🔍 startOverlay block: ALL HANDLERS REGISTERED');
 }
 
 // Also allow keyboard to start the game (Enter or Space)
