@@ -26,8 +26,9 @@
             d.style.wordBreak = 'break-all';
             d.textContent = '[' + type.toUpperCase() + '] ' + msg;
             log.appendChild(d);
-            log.scrollTop = log.scrollHeight;
-            if (type === 'error') log.style.display = 'block';
+            var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+            if (atBottom) log.scrollTop = log.scrollHeight;
+            if (type === 'error' && log.style.display === 'none') log.style.display = 'block';
         }
         window.addEventListener('error', function(e) { append('error', e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno); });
         window.addEventListener('unhandledrejection', function(e) { append('error', 'Promise: ' + (e.reason && e.reason.message || e.reason)); });
@@ -41,7 +42,13 @@
                 }).join(' '));
             };
         });
-        document.addEventListener('DOMContentLoaded', function() { document.body.appendChild(log); document.body.appendChild(toggle); });
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(log); document.body.appendChild(toggle);
+            // Prevent touches on the log from triggering game event handlers
+            ['click','touchstart','touchmove','touchend','mousedown','mouseup'].forEach(function(evt) {
+                log.addEventListener(evt, function(e) { e.stopPropagation(); });
+            });
+        });
     })();
     </script>
 	
