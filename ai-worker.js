@@ -1,12 +1,12 @@
-// AI Worker v6.21.0 - Tuned from 2699-game analysis + black hole params
+// AI Worker v6.22.0 - Tuned from 3833-game analysis
 // Priorities: 1) Survival 2) No holes 3) Blob building (when safe) 4) Special events (when safe)
-console.log("🤖 AI Worker v6.21.0 loaded - Data-tuned parameters");
+console.log("🤖 AI Worker v6.22.0 loaded - Data-tuned parameters");
 
-const AI_VERSION = "6.21.0";
+const AI_VERSION = "6.22.0";
 
 // ==================== TUNABLE PARAMETERS ====================
 // All tunable parameters in one object for easy experimentation
-// v6.20.0 - Tuned from 2699 game analysis (top 20% of high-lookahead games)
+// v6.22.0 - Tuned from 3833 game analysis (drizzle+tempest tuning runs)
 const DEFAULT_CONFIG = {
     // Survival mode thresholds
     survivalEnterHeight: 11,
@@ -15,16 +15,16 @@ const DEFAULT_CONFIG = {
     survivalExitHoles: 6,
     
     // Phase thresholds
-    criticalHeight: 16,
+    criticalHeight: 15,
     criticalHoles: 12,
-    dangerHeight: 14,
+    dangerHeight: 12,
     dangerHoles: 7,
     cautionHeight: 12,
     cautionHoles: 6,
     
     // Lookahead
     lookaheadDepth: 6,
-    lookaheadDiscount: 0.8,
+    lookaheadDiscount: 0.9,
     
     // Blob building bonuses
     horizontalAdjacencyBonus: 16,
@@ -36,7 +36,7 @@ const DEFAULT_CONFIG = {
     // Tsunami bonuses by width
     tsunamiImminentBonus: 342,
     tsunamiImminentPerExtra: 175,
-    tsunamiAchievableBonus: 252,
+    tsunamiAchievableBonus: 190,
     tsunamiAchievablePerQueue: 52,
     tsunamiNearCompleteBonus: 135,
     tsunamiNearCompletePerExtra: 38,
@@ -46,7 +46,7 @@ const DEFAULT_CONFIG = {
     tsunamiWastePenaltyW7: 98,
     
     // Black hole bonuses
-    blackHoleNearCompleteBonus: 120,    // progress >= 0.8
+    blackHoleNearCompleteBonus: 185,    // progress >= 0.8
     blackHoleBuildingBonus: 60,         // progress >= 0.6
     blackHoleEarlyBonus: 30,            // progress >= 0.5
     blackHoleSizeMultiplier: 6,         // bonus per width + per height
@@ -56,10 +56,10 @@ const DEFAULT_CONFIG = {
     survivalClear4Bonus: 620,
     survivalClear3Bonus: 425,
     survivalClear2Bonus: 273,
-    survivalClear1Bonus: 168,
+    survivalClear1Bonus: 225,
     
     // Height penalties
-    survivalHeightMultiplier: 3.5,
+    survivalHeightMultiplier: 3.3,
     normalHeightMultiplier: 2.7,
     normalHeightThreshold: 9,
     
@@ -69,7 +69,7 @@ const DEFAULT_CONFIG = {
     holePenaltyHigh: 72,
     
     // Bumpiness
-    bumpinessPenalty: 3.3,
+    bumpinessPenalty: 2.8,
     
     // Stacking penalty
     stackingPenaltyPerExcess: 14,
@@ -86,7 +86,7 @@ const DEFAULT_CONFIG = {
     towerThresholdSevere: 9,
     towerThresholdBad: 6,
     towerThresholdModerate: 4,
-    towerPenaltySevere: 12,
+    towerPenaltySevere: 10,
     towerPenaltyBad: 8,
     towerPenaltyModerate: 4
 };

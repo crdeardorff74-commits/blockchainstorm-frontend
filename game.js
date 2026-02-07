@@ -1825,9 +1825,9 @@ let aiTuningSkillLevel = null; // Skill level to use for all tuning games
 let aiTuningGamesPlayed = 0; // Counter for games played in tuning session (total)
 let aiTuningPieceSequence = null; // Fixed piece sequence for fair comparison (captured from game 1 of each set)
 let aiTuningPieceIndex = 0; // Current index in the fixed piece sequence
-let aiTuningSetNumber = 1; // Current set number (resets pieces every 300 games)
-let aiTuningGameInSet = 0; // Game number within current set (1-300)
-const TUNING_GAMES_PER_SET = 300; // Number of games before resetting piece sequence
+let aiTuningSetNumber = 1; // Current set number (resets pieces every 30 games)
+let aiTuningGameInSet = 0; // Game number within current set (1-30)
+const TUNING_GAMES_PER_SET = 30; // Number of games before resetting piece sequence
 
 function getCreditsElements() {
     return {
