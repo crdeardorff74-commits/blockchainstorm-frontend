@@ -1010,6 +1010,12 @@ async function checkAuth() {
 
 // Submit score to backend
 async function submitScore(gameData) {
+    // Don't save 0 scores
+    if (gameData.score <= 0) {
+        console.log('Score is 0, not saving to leaderboard');
+        return false;
+    }
+    
     const scoreData = {
         game_name: 'blockchainstorm',
         difficulty: window.gameMode || 'downpour',
@@ -1177,6 +1183,12 @@ async function notifyGameCompletion(scoreData) {
 // Submit AI score automatically (no popup)
 async function submitAIScore(scoreData) {
     console.log('=== submitAIScore START ===');
+    
+    // Don't save 0 scores
+    if (scoreData.score <= 0) {
+        console.log('AI score is 0, not saving to leaderboard');
+        return false;
+    }
     
     const dataToSubmit = {
         ...scoreData,
