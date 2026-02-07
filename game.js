@@ -1632,7 +1632,7 @@ function initTouchControls() {
 try {
     TabletMode.init();
 } catch (e) {
-    console.error('TabletMode.init() error:', e);
+    console.error('TabletMode.init() error:', e instanceof Error ? e.message : e);
 }
 
 // Initialize starfield system
@@ -14315,6 +14315,7 @@ if (dontPanicText) {
 
 // Initialize start overlay
 if (startOverlay) {
+    console.log('🔍 startOverlay block: ENTER');
     // Track page visit — requires human interaction to filter bots
     // Skip tracking if ?track=false is in the URL or navigator.webdriver is set (headless browsers)
     const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !navigator.webdriver;
@@ -14323,6 +14324,7 @@ if (startOverlay) {
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
     let _interactionDetected = false;
+    console.log('🔍 startOverlay block: tracking vars OK');
 
     async function _recordVisit() {
         if (_interactionDetected || !_trackingEnabled) return;
@@ -14368,6 +14370,7 @@ if (startOverlay) {
     const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
     const introMusicSelect = document.getElementById('introMusicSelect');
     const introLoginBtn = document.getElementById('introLoginBtn');
+    console.log('🔍 startOverlay block: intro elements OK, loginBtn=', introLoginBtn);
     
     // Show fullscreen hint for mobile users not in fullscreen/standalone mode
     (function showFullscreenHint() {
@@ -14399,6 +14402,7 @@ if (startOverlay) {
         }
         hint.style.display = 'block';
     })();
+    console.log('🔍 startOverlay block: showFullscreenHint OK');
     
     // Sync intro music select with settings music select on load
     if (introMusicSelect && musicSelect) {
@@ -14519,6 +14523,7 @@ if (startOverlay) {
     updateSpecialEventsDisplay(skillLevel);
     
     // Check login status and show/hide login button
+    console.log('🔍 startOverlay block: about to use introLoginBtn, typeof=', typeof introLoginBtn);
     function checkIntroLoginStatus() {
         // Check if user is logged in via oi_token (from auth.js)
         const isLoggedIn = !!localStorage.getItem('oi_token');
@@ -14623,6 +14628,7 @@ if (startOverlay) {
         }
     }
     
+    console.log('🔍 startOverlay block: about to register click handlers, startGameBtn=', !!startGameBtn);
     if (startGameBtn) {
         startGameBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -14651,6 +14657,7 @@ if (startOverlay) {
             dismissIntroScreen();
         }, { passive: false });
     }
+    console.log('🔍 startOverlay block: ALL HANDLERS REGISTERED');
 }
 
 // Also allow keyboard to start the game (Enter or Space)
