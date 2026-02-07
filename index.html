@@ -4,6 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>TaNTЯiS</title>
+    <script>
+    // iOS-only on-screen error logger (remove after debugging)
+    (function() {
+        var ua = navigator.userAgent;
+        var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 2);
+        if (!isIOS) return;
+        var log = document.createElement('div');
+        log.id = 'iosDebugLog';
+        log.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:30vh;overflow-y:auto;background:rgba(0,0,0,0.9);color:#0f0;font:11px/1.4 monospace;padding:8px;z-index:99999;pointer-events:auto;display:none;';
+        var toggle = document.createElement('div');
+        toggle.textContent = '🐛';
+        toggle.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:100000;font-size:24px;cursor:pointer;opacity:0.6;';
+        toggle.onclick = function() { log.style.display = log.style.display === 'none' ? 'block' : 'none'; };
+        function append(type, msg) {
+            var colors = {error:'#f44',warn:'#fa0',log:'#0f0',info:'#0af'};
+            var d = document.createElement('div');
+            d.style.color = colors[type] || '#fff';
+            d.style.borderBottom = '1px solid #333';
+            d.style.padding = '2px 0';
+            d.style.wordBreak = 'break-all';
+            d.textContent = '[' + type.toUpperCase() + '] ' + msg;
+            log.appendChild(d);
+            log.scrollTop = log.scrollHeight;
+            if (type === 'error') log.style.display = 'block';
+        }
+        window.addEventListener('error', function(e) { append('error', e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno); });
+        window.addEventListener('unhandledrejection', function(e) { append('error', 'Promise: ' + (e.reason && e.reason.message || e.reason)); });
+        ['log','warn','error','info'].forEach(function(m) {
+            var orig = console[m];
+            console[m] = function() {
+                orig.apply(console, arguments);
+                append(m, Array.from(arguments).map(function(a) { return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' '));
+            };
+        });
+        document.addEventListener('DOMContentLoaded', function() { document.body.appendChild(log); document.body.appendChild(toggle); });
+    })();
+    </script>
 	
 	<meta name="description" content="Play TaNTЯiS, a revolutionary twist on classic Tetris. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
 	<meta name="keywords" content="Tetris, block puzzle game, falling blocks, free online game, browser game, puzzle game, AI game, space game">
