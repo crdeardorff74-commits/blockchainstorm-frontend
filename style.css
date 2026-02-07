@@ -69,7 +69,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 0.5vh 2vw 0.5vh 2vw;
+            padding: 0.5vh 0.5vw 0.5vh 0.5vw;
             position: relative;
             z-index: 1;
             height: 100vh;
@@ -81,7 +81,7 @@
             display: flex;
             justify-content: space-between;
             align-items: stretch;
-            gap: 2vw;
+            gap: 4vw;
             position: relative;
             z-index: 1;
             height: 96vh;
@@ -300,9 +300,9 @@
             border-radius: 0.8vh;
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: #e0e0e0;
-            width: 22vw;
+            width: 23vw;
             min-width: 220px;
-            max-width: 27vw;
+            max-width: 28vw;
             display: flex;
             flex-direction: column;
             height: auto;
@@ -426,9 +426,9 @@
             border-radius: 0.8vh;
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: #e0e0e0;
-            width: 22vw;
+            width: 23vw;
             min-width: 220px;
-            max-width: 27vw;
+            max-width: 28vw;
             height: auto;
             box-sizing: border-box;
             overflow: hidden;
@@ -2540,7 +2540,7 @@
             }
             .intro-toggle select {
                 font-size: max(1.6vh, 11px);
-                max-width: 30vw;
+                max-width: 28vw;
             }
             .start-game-btn {
                 margin-top: 2vh;
@@ -2836,7 +2836,7 @@
             .side-panel {
                 min-width: 130px;
                 width: 30vw;
-                max-width: 30vw;
+                max-width: 28vw;
             }
         }
         /* Portrait orientation overlay for mobile */

@@ -1943,10 +1943,10 @@ function updateCanvasSize() {
     
     // Also constrain by available width (viewport minus panels)
     // At narrow viewports, panels use flex:1 regardless of tablet mode
-    const estPanelPercent = isNarrow ? 0.20 : (TabletMode.enabled ? 0.33 : 0.22);
+    const estPanelPercent = isNarrow ? 0.20 : (TabletMode.enabled ? 0.33 : 0.23);
     const estPanelMinWidth = isNarrow ? 80 : (TabletMode.enabled ? 280 : 180);
     const estPanelWidth = Math.max(estPanelMinWidth, vw * estPanelPercent);
-    const gapSpace = isNarrow ? (vw * 0.012) : (vw * 0.02);
+    const gapSpace = isNarrow ? (vw * 0.012) : (vw * 0.08);
     // Perspective modes need extra margin on phones so panels don't overlap
     const perspectiveMargin = 0;
     const availableWidth = vw - (2 * estPanelWidth) - gapSpace - perspectiveMargin;
