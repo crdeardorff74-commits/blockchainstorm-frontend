@@ -1781,11 +1781,11 @@ aiModeMenuOverlay.id = 'aiModeMenuOverlay';
 aiModeMenuOverlay.textContent = I18n.t('ai.modeOverlay');
 aiModeMenuOverlay.style.cssText = `
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 1vh;
+    left: 1vw;
     color: rgba(0, 255, 255, 0.8);
     font-family: Arial, sans-serif;
-    font-size: 14px;
+    font-size: max(1.5vh, 10px);
     font-weight: bold;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
     pointer-events: none;
@@ -1937,7 +1937,7 @@ function updateCanvasSize() {
     const isNarrow = vw <= 1100;
     const isPerspective = canvas.classList.contains('longago-mode') || canvas.classList.contains('comingsoon-mode');
     const isPhone = isNarrow && vh <= 500;
-    const heightPercent = isNarrow ? 0.99 : 0.85;
+    const heightPercent = isNarrow ? 0.99 : 0.95;
     const targetHeight = vh * heightPercent;
     let blockFromHeight = Math.floor(targetHeight / ROWS);
     
