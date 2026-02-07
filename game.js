@@ -13602,6 +13602,16 @@ function updateShareLinks() {
     if (telegram) telegram.href = `https://t.me/share/url?url=${url}&text=${text}`;
 }
 
+function trackShareClick(platform) {
+    if (window._visitId) {
+        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/shared`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform: platform })
+        }).catch(() => {});
+    }
+}
+
 function showSharePopup() {
     if (localStorage.getItem('tantris_share_dismissed') === 'true') return false;
     
@@ -13637,6 +13647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shareCopyLink) {
         shareCopyLink.addEventListener('click', (e) => {
             e.preventDefault();
+            trackShareClick('copylink');
             navigator.clipboard.writeText(getShareURL()).then(() => {
                 const span = shareCopyLink.querySelector('span');
                 if (span) {
@@ -13646,6 +13657,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    
+    // Track social share clicks
+    const shareButtons = {
+        'shareTwitter': 'twitter',
+        'shareFacebook': 'facebook',
+        'shareReddit': 'reddit',
+        'shareWhatsApp': 'whatsapp',
+        'shareTelegram': 'telegram'
+    };
+    Object.entries(shareButtons).forEach(([id, platform]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => trackShareClick(platform));
+    });
     
     // Close on overlay background click
     if (shareOverlay) {
