@@ -36,14 +36,7 @@
             padding: 0;
         }
         .header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4vh 1vw 1vh 1vw;
-            position: relative;
-            z-index: 1;
-            height: 7vh;
-            box-sizing: border-box;
+            display: none;
         }
         .title {
             font-size: 3.5vh;
@@ -76,10 +69,10 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 0 2vw 1vh 2vw;
+            padding: 1vh 2vw 1vh 2vw;
             position: relative;
             z-index: 1;
-            height: calc(93vh - 7vh);
+            height: 100vh;
             box-sizing: border-box;
             width: 100%;
             overflow: visible; /* Allow next piece queue to extend beyond */
@@ -410,10 +403,6 @@
             box-shadow: none !important;
         }
         
-        body.minimalist-mode.game-running .header {
-            opacity: 0;
-            pointer-events: none;
-        }
         
         /* Global custom scrollbar styling */
         ::-webkit-scrollbar {
@@ -1949,8 +1938,23 @@
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
-        .compact-title {
-            display: none;
+        .well-title {
+            font-size: 3.5vh;
+            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            letter-spacing: 0.3vh;
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
+                    drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            animation: titlePulse 3s ease-in-out infinite;
+            text-align: center;
+            margin-bottom: 0.5vh;
         }
         .mode-button {
             width: 90%;
@@ -2462,15 +2466,8 @@
         
         /* Mid-size viewports - flexbox layout, canvas shrinks for panels */
         @media (max-width: 1100px) {
-            /* Hide header, reclaim vertical space */
-            .header {
-                display: none;
-            }
-            .compact-title {
-                display: block;
+            .well-title {
                 font-size: max(2.5vh, 14px);
-                text-align: center;
-                margin-bottom: 0.5vh;
                 letter-spacing: 0.2vh;
             }
             .content-area {
@@ -2566,7 +2563,7 @@
                 gap: 0;
                 margin-top: -2vh;
             }
-            .compact-title {
+            .well-title {
                 margin-bottom: 0.3vh;
             }
             .mode-menu-heading {
@@ -2593,11 +2590,7 @@
         
         /* Very small landscape (phone landscape) */
         @media (max-height: 500px) {
-            .header {
-                display: none;
-            }
-            .compact-title {
-                display: block;
+            .well-title {
                 font-size: max(2.5vh, 12px);
             }
             .content-area {
