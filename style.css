@@ -1953,7 +1953,7 @@
                     drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
             animation: titlePulse 3s ease-in-out infinite;
             text-align: center;
-            margin-bottom: 5vh;
+            margin-bottom: 10vh;
         }
         .mode-button {
             width: 90%;
