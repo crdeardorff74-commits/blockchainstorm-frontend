@@ -1136,6 +1136,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Send game completion notification (for non-high-score games)
 async function notifyGameCompletion(scoreData) {
+    // Don't notify for 0 scores
+    if (scoreData.score <= 0) {
+        console.log('Score is 0, skipping game completion notification');
+        return false;
+    }
+    
     try {
         // Add human-readable challenge names for the email
         const challengeNames = scoreData.challenges && scoreData.challenges.length > 0
