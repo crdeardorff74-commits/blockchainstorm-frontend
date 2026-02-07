@@ -1227,10 +1227,13 @@
             color: #fff;
             letter-spacing: 0.5px;
         }
+        .settings-popup button:not(.settings-close-btn) {
+            margin-top: 0;
+        }
         .settings-option {
             margin-bottom: 0.15vh;
             padding: 0.55vh 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
         .settings-option:last-child {
             border-bottom: none;
@@ -1311,7 +1314,8 @@
         }
         
         /* Label adjustment for toggle switches */
-        .settings-option label.toggle-label {
+        .settings-option label.toggle-label,
+        .settings-option div.toggle-label {
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1321,7 +1325,11 @@
         
         .toggle-label-text {
             flex-grow: 1;
-            align-self: center;
+            display: flex;
+            align-items: center;
+        }
+        .label-short {
+            display: none;
         }
         .settings-option input[type="range"] {
             -webkit-appearance: none;
@@ -1351,7 +1359,7 @@
         }
         .settings-close-btn {
             width: 100%;
-            margin-top: 0.6vh;
+            margin-top: 1.2vh;
             padding: 8px 16px;
             font-size: 14px;
             background: #3d7dd4;
@@ -1384,7 +1392,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 8px;
+            margin-top: 0;
         }
         .settings-option select:hover {
             border-color: rgba(255, 255, 255, 0.2);
@@ -1405,13 +1413,13 @@
             }
             .settings-option {
                 margin-bottom: 0;
-                padding: 0.35vh 0;
+                padding: 0.8vh 0;
             }
             .settings-desc {
                 display: none; /* Hide descriptions earlier */
             }
             .settings-divider {
-                margin: 5px 0;
+                margin: 2.5vh 0;
             }
             .settings-close-btn {
                 margin-top: 0.5vh;
@@ -1429,7 +1437,7 @@
             }
             .settings-option {
                 margin-bottom: 0;
-                padding: 0.25vh 0;
+                padding: 0.8vh 0;
             }
             .settings-close-btn {
                 padding: 5px 12px;
@@ -1440,7 +1448,7 @@
                 margin-bottom: 4px;
             }
             .settings-divider {
-                margin: 4px 0;
+                margin: 2.5vh 0;
             }
             .palette-dropdown-button {
                 padding: 5px 8px;
@@ -1458,7 +1466,7 @@
             }
             .settings-option {
                 margin-bottom: 0;
-                padding: 0.2vh 0;
+                padding: 0.8vh 0;
             }
             .settings-option label {
                 font-size: 11px;
@@ -1472,7 +1480,7 @@
                 transform: scale(0.85);
             }
             .settings-divider {
-                margin: 3px 0;
+                margin: 2.5vh 0;
             }
             .palette-dropdown-button {
                 padding: 4px 6px;
@@ -2372,7 +2380,6 @@
             gap: 8px;
             font-size: 13px;
             box-sizing: border-box;
-            min-height: 32px;
         }
         
         .palette-dropdown-button:hover {
@@ -2707,6 +2714,15 @@
             }
             .settings-title {
                 font-size: 14px;
+            }
+            .label-full {
+                display: none;
+            }
+            .label-short {
+                display: inline;
+            }
+            .settings-divider {
+                margin: 2.5vh 0;
             }
             /* Long Ago / Coming Soon adjustments for phones */
             canvas.longago-mode {
