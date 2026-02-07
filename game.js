@@ -12741,11 +12741,15 @@ function startGame(mode) {
         const fsCheckbox = document.getElementById('introFullscreenCheckbox');
         if (DeviceDetection.isMobile || DeviceDetection.isTablet || 
             (fsCheckbox && fsCheckbox.checked)) {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(() => {});
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen();
+            try {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(() => {});
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                }
+            } catch (e) {
+                // Silently handle fullscreen errors
             }
         }
     }
@@ -14276,6 +14280,10 @@ if (dontPanicText) {
     if (i18nKey) {
         dontPanicText.removeAttribute('data-i18n');
         dontPanicText.setAttribute('data-i18n-html', i18nKey);
+        // Re-apply translation as innerHTML now that we've switched
+        if (typeof I18n !== 'undefined') {
+            dontPanicText.innerHTML = I18n.t(i18nKey);
+        }
     }
     dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
 
@@ -14588,15 +14596,17 @@ if (startOverlay) {
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(err => {
-                    // Silently handle fullscreen errors (permissions, etc.)
-                });
-            } else if (elem.webkitRequestFullscreen) { // Safari
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { // IE11
-                elem.msRequestFullscreen();
+            try {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(() => {});
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+            } catch (e) {
+                // Silently handle fullscreen errors (permissions, unsupported, etc.)
             }
         }
         // Resume audio context (required by browsers)
