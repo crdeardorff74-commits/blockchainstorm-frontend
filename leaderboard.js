@@ -4,6 +4,9 @@
 // API Configuration
 const API_URL = 'https://blockchainstorm.onrender.com/api';
 
+// Minimum score to qualify for leaderboard (scores below this display as ₿0.0000)
+const MIN_LEADERBOARD_SCORE = 500;
+
 // State
 let currentLeaderboardMode = null;
 let currentLeaderboardGameMode = 'normal'; // Track if viewing normal or challenge leaderboard
@@ -446,9 +449,9 @@ function getChallengeDisplayName(challenge) {
 async function checkIfTopTen(difficulty, score, mode = 'normal', skillLevel = 'tempest') {
     console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode}) skill:${skillLevel}`);
     
-    // Don't allow 0 scores on the leaderboard
-    if (score <= 0) {
-        console.log('Score is 0 or negative, not eligible for leaderboard');
+    // Don't allow scores that display as ₿0.0000 on the leaderboard
+    if (score < MIN_LEADERBOARD_SCORE) {
+        console.log(`Score ${score} is below minimum ${MIN_LEADERBOARD_SCORE}, not eligible for leaderboard`);
         return false;
     }
     
@@ -843,9 +846,9 @@ function promptForName(scoreData) {
         if (keyboard) keyboard.style.display = 'none';
         console.log('Overlay hidden');
         
-        // Don't save 0 scores
-        if (scoreData.score <= 0) {
-            console.log('Score is 0, not saving to leaderboard');
+        // Don't save scores that display as ₿0.0000
+        if (scoreData.score < MIN_LEADERBOARD_SCORE) {
+            console.log(`Score ${scoreData.score} below minimum, not saving to leaderboard`);
             const gameOverDiv = document.getElementById('gameOver');
             if (gameOverDiv) {
                 gameOverDiv.style.display = 'block';
@@ -1036,9 +1039,9 @@ async function checkAuth() {
 
 // Submit score to backend
 async function submitScore(gameData) {
-    // Don't save 0 scores
-    if (gameData.score <= 0) {
-        console.log('Score is 0, not saving to leaderboard');
+    // Don't save scores that display as ₿0.0000
+    if (gameData.score < MIN_LEADERBOARD_SCORE) {
+        console.log(`Score ${gameData.score || 'unknown'} below minimum, not saving`);
         return false;
     }
     
@@ -1163,9 +1166,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Send game completion notification (for non-high-score games)
 async function notifyGameCompletion(scoreData) {
-    // Don't notify for 0 scores
-    if (scoreData.score <= 0) {
-        console.log('Score is 0, skipping game completion notification');
+    // Don't notify for scores that display as ₿0.0000
+    if (scoreData.score < MIN_LEADERBOARD_SCORE) {
+        console.log(`Score ${scoreData.score} below minimum, skipping notification`);
         return false;
     }
     
@@ -1217,9 +1220,9 @@ async function notifyGameCompletion(scoreData) {
 async function submitAIScore(scoreData) {
     console.log('=== submitAIScore START ===');
     
-    // Don't save 0 scores
-    if (scoreData.score <= 0) {
-        console.log('AI score is 0, not saving to leaderboard');
+    // Don't save scores that display as ₿0.0000
+    if (scoreData.score < MIN_LEADERBOARD_SCORE) {
+        console.log(`AI score ${scoreData.score} below minimum, not saving`);
         return false;
     }
     

@@ -329,7 +329,6 @@ const SwipeControls = {
         this.softDropInterval = setInterval(() => {
             if (typeof currentPiece !== 'undefined' && currentPiece && !collides(currentPiece, 0, 1)) {
                 currentPiece.y++;
-                if (typeof score !== 'undefined') score += 1;
                 if (typeof updateStats === 'function') updateStats();
             }
         }, 50);
@@ -924,7 +923,6 @@ const GamepadController = {
             if (downPressed) {
                 if (!collides(currentPiece, 0, 1)) {
                     currentPiece.y++;
-                    score += 1;
                     updateStats();
                     // Record soft drop for replay
                     if (window.GameRecorder && window.GameRecorder.isActive()) {
@@ -1597,7 +1595,6 @@ function initTouchControls() {
     addRepeatingTouch(touchDown, () => {
         if (currentPiece && !collides(currentPiece, 0, 1)) {
             currentPiece.y++;
-            score += 1;
             updateStats();
         }
     });
