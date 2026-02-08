@@ -2066,11 +2066,6 @@ function updateCanvasSize() {
         }
     }
     
-    // Update vine overlays if in stranger mode
-    if (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.isStrangerMode && StarfieldSystem.isStrangerMode()) {
-        StarfieldSystem.updateVineOverlayPosition(canvas);
-    }
-}
 
 window.addEventListener('resize', updateCanvasSize);
 window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
@@ -7004,7 +6999,6 @@ function switchSoRandomMode() {
     // First, remove all CSS-based challenge effects
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     // Reset canvas size in case we're coming from Thicker mode
@@ -7025,9 +7019,7 @@ function switchSoRandomMode() {
     if (newMode === 'stranger') {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
-        StarfieldSystem.createVineOverlay(canvas);
     } else {
-        StarfieldSystem.removeVineOverlay();
     }
     if (newMode === 'thinner') {
         canvas.classList.add('thinner-mode');
@@ -14184,7 +14176,6 @@ function applyChallengeMode(mode) {
     // Remove all challenge effects first
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
     bouncingPieces = [];
@@ -14207,7 +14198,6 @@ function applyChallengeMode(mode) {
     if (mode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
-        StarfieldSystem.createVineOverlay(canvas);
         console.log('🙃 STRANGER MODE: Upside-down activated!');
     }
     
@@ -14920,7 +14910,6 @@ window.startGameReplay = function(recording) {
     // portion directly rather than calling applyChallengeMode which would reset state
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     bouncingPieces = [];
     if (phantomFadeInterval) {
@@ -14935,7 +14924,6 @@ window.startGameReplay = function(recording) {
     if (challengeMode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
-        StarfieldSystem.createVineOverlay(canvas);
     }
     if (challengeMode === 'phantom' || activeChallenges.has('phantom')) {
         phantomOpacity = 0;
@@ -15801,7 +15789,6 @@ function stopReplay() {
     activeChallenges = new Set(replaySavedActiveChallenges);
     document.documentElement.classList.remove('stranger-mode');
     StarfieldSystem.setStrangerMode(false);
-    StarfieldSystem.removeVineOverlay();
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     bouncingPieces = [];
     if (phantomFadeInterval) {
