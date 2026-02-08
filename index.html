@@ -1167,5 +1167,13 @@
 	})();
 	</script>
 
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('📦 PWA: Service worker registered'))
+        .catch(err => console.log('PWA: SW registration failed:', err));
+}
+</script>
+
 </body>
 </html>
