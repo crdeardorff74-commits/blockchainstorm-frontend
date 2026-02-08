@@ -76,6 +76,20 @@
             "purpose": "maskable"
         }
     ],
-    "screenshots": [],
+    "screenshots": [
+        {
+            "src": "icons/screenshot-wide.png",
+            "sizes": "1280x800",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "TaNTЯiS gameplay - Long Ago challenge mode"
+        },
+        {
+            "src": "icons/screenshot-mobile.png",
+            "sizes": "540x960",
+            "type": "image/png",
+            "label": "TaNTЯiS gameplay - Tsunami event"
+        }
+    ],
     "prefer_related_applications": false
 }
