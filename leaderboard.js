@@ -166,6 +166,8 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     const viewSelect = document.getElementById('rulesPanelViewSelect');
     if (viewSelect) {
         viewSelect.value = 'leaderboard-' + mode;
+        // Keep localStorage in sync so toggleUIElements reads the correct mode
+        localStorage.setItem('rulesPanelView', 'leaderboard-' + mode);
     }
     
     // Get or create leaderboard content div inside rules-panel

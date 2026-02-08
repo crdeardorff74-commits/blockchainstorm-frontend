@@ -12875,21 +12875,20 @@ function startGame(mode) {
     currentPiece = null;
     nextPieceQueue = [];
     
-    // CRITICAL: Reset challenge modes to prevent carryover
-    console.log('🎮 Starting new game - Before reset:');
-    console.log('  challengeMode:', challengeMode);
-    console.log('  activeChallenges:', Array.from(activeChallenges));
-    
-    // Challenge mode is already set by the combo modal via applyChallengeMode
-    // The challengeMode and activeChallenges are already correct
-    const selectedChallenge = challengeMode;
-    console.log('  Selected challenge:', selectedChallenge);
-    
-    // Only clear activeChallenges if NOT in combo mode
-    // In combo mode, the challenges were already set by the combo modal
-    if (selectedChallenge !== 'combo') {
-        activeChallenges.clear();
+    // CRITICAL: Re-derive challenge state from checkbox UI to prevent stale carryover
+    activeChallenges.clear();
+    document.querySelectorAll('.combo-checkbox-option input[type="checkbox"]:checked').forEach(cb => {
+        activeChallenges.add(cb.value);
+    });
+    if (activeChallenges.size === 0) {
+        challengeMode = 'normal';
+    } else if (activeChallenges.size === 1) {
+        challengeMode = Array.from(activeChallenges)[0];
+    } else {
+        challengeMode = 'combo';
     }
+    console.log('🎮 Challenge state from checkboxes:', challengeMode, Array.from(activeChallenges));
+    applyChallengeMode(challengeMode);
     
     // CRITICAL: Clear any keyboard state from previous game
     console.log('⌨️  Clearing keyboard state');
@@ -13496,11 +13495,20 @@ function updateSelectedMode() {
         }
     });
     
-    // Update leaderboard to match selected mode if visible
+    // Update leaderboard to match selected difficulty if visible
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
         const selectedMode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
-        window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
+        // Read the leaderboard mode from the dropdown (source of truth) rather than challengeMode
+        const viewSelect = document.getElementById('rulesPanelViewSelect');
+        let lbMode = 'normal';
+        if (viewSelect) {
+            const view = viewSelect.value;
+            if (view === 'leaderboard-challenge') lbMode = 'challenge';
+            else if (view === 'leaderboard-ai') lbMode = 'ai';
+            else if (view === 'leaderboard-ai-challenge') lbMode = 'ai-challenge';
+        }
+        window.leaderboard.displayLeaderboard(selectedMode, null, lbMode, skillLevel);
     }
 }
 
