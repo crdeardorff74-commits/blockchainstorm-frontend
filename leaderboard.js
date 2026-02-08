@@ -278,7 +278,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         // Build replay cell
         const replayCell = entry.recording_id 
             ? `<td class="replay-col"><span class="replay-btn" data-recording-id="${entry.recording_id}" title="Watch replay">▶️</span></td>`
-            : '<td class="replay-col"></td>';
+            : '<td class="replay-col"><span class="replay-btn no-recording" title="No recording available">▶️</span></td>';
         
         // All rows can show tooltip (for speed bonus), add data attributes
         const rowClasses = [rowClass, 'has-tooltip', hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
@@ -314,9 +314,35 @@ function attachReplayButtonListeners() {
             const recordingId = btn.getAttribute('data-recording-id');
             if (recordingId) {
                 await startReplay(recordingId);
+            } else if (btn.classList.contains('no-recording')) {
+                showNoRecordingPopup();
             }
         });
     });
+}
+
+function showNoRecordingPopup() {
+    let popup = document.getElementById('noRecordingPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'noRecordingPopup';
+        popup.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95); color: #aaa; padding: 24px 32px;
+            border-radius: 8px; font-size: 16px; z-index: 100001;
+            border: 2px solid #555; box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+            text-align: center; max-width: 90vw;
+        `;
+        popup.innerHTML = `
+            <div style="margin-bottom: 16px;">This game was played before recording/playback became available.</div>
+            <button onclick="this.parentElement.style.display='none'" style="
+                background: #333; color: #aaa; border: 1px solid #555;
+                padding: 8px 24px; border-radius: 4px; cursor: pointer; font-size: 14px;
+            ">OK</button>
+        `;
+        document.body.appendChild(popup);
+    }
+    popup.style.display = 'block';
 }
 
 // Fetch recording and start replay
@@ -1104,8 +1130,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('mousemove', (e) => {
         const row = e.target.closest('tr.has-tooltip');
+        const isOverReplayBtn = e.target.closest('.replay-btn');
         
-        if (row) {
+        if (row && !isOverReplayBtn) {
             if (row !== currentRow) {
                 currentRow = row;
                 const challengeData = row.getAttribute('data-challenges');

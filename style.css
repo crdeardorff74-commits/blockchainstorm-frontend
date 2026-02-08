@@ -2223,6 +2223,17 @@
             transform: scale(1.2);
         }
         
+        .replay-btn.no-recording {
+            opacity: 0.2;
+            filter: grayscale(1);
+            cursor: pointer;
+        }
+        
+        .replay-btn.no-recording:hover {
+            opacity: 0.35;
+            transform: scale(1.1);
+        }
+        
         .challenge-count {
             display: inline-block;
             background: rgba(110, 181, 255, 0.2);
