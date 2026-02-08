@@ -1954,6 +1954,11 @@ function updateCanvasSize() {
     
     BLOCK_SIZE = Math.max(10, Math.min(blockFromHeight, blockFromWidth));
     
+    // Desktop: make the well 3% smaller for better panel balance
+    if (!isNarrow) {
+        BLOCK_SIZE = Math.floor(BLOCK_SIZE * 0.97);
+    }
+    
     // Update main canvas
     canvas.width = COLS * BLOCK_SIZE;
     canvas.height = ROWS * BLOCK_SIZE;
