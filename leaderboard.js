@@ -597,12 +597,12 @@ function promptForName(scoreData) {
             left: 0;
             width: 100%;
             background: #222;
-            padding: 3px;
+            padding: 2px;
             box-sizing: border-box;
             z-index: 1000000;
             display: flex;
             flex-direction: column;
-            gap: 1px;
+            gap: 0px;
             border-top: 2px solid #FFD700;
         `;
         
@@ -629,7 +629,7 @@ function promptForName(scoreData) {
                 shiftKey.textContent = '⇧';
                 shiftKey.style.cssText = `
                     min-width: 40px;
-                    height: 32px;
+                    height: 26px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
@@ -664,7 +664,7 @@ function promptForName(scoreData) {
                 }
                 key.style.cssText = `
                     min-width: 24px;
-                    height: 32px;
+                    height: 26px;
                     font-size: 14px;
                     font-weight: bold;
                     border: none;
@@ -697,7 +697,7 @@ function promptForName(scoreData) {
                 enterKey.textContent = '↵';
                 enterKey.style.cssText = `
                     min-width: 40px;
-                    height: 32px;
+                    height: 26px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
@@ -728,7 +728,7 @@ function promptForName(scoreData) {
                 spaceBar.textContent = '␣';
                 spaceBar.style.cssText = `
                     min-width: 50px;
-                    height: 32px;
+                    height: 26px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
@@ -761,7 +761,7 @@ function promptForName(scoreData) {
                 backspace.textContent = '⌫';
                 backspace.style.cssText = `
                     min-width: 50px;
-                    height: 32px;
+                    height: 26px;
                     font-size: 16px;
                     border: none;
                     border-radius: 4px;
