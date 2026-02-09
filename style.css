@@ -16,6 +16,7 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
+            height: 100dvh;
             background: #000;
             font-family: Arial, sans-serif;
             overflow: hidden;
@@ -27,6 +28,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             min-height: 100%;
             z-index: 0;
             display: block;
@@ -73,6 +75,7 @@
             position: relative;
             z-index: 1;
             height: 100vh;
+            height: 100dvh;
             box-sizing: border-box;
             width: 100%;
             overflow: visible; /* Allow next piece queue to extend beyond */
@@ -2482,6 +2485,7 @@
             }
             .content-area {
                 height: 100vh;
+                height: 100dvh;
                 padding: 0;
                 flex: 1;
             }
@@ -2491,7 +2495,9 @@
                 align-items: stretch;
                 gap: 0.3vw;
                 max-height: 100vh;
+                max-height: 100dvh;
                 height: 100vh;
+                height: 100dvh;
                 padding: 0 0.3vw;
             }
             .rules-panel, .side-panel {
@@ -2500,6 +2506,7 @@
                 min-width: 0;
                 max-width: none;
                 height: 100vh;
+                height: 100dvh;
                 flex-shrink: 1;
                 flex-grow: 1;
                 border-radius: 0;
@@ -2524,11 +2531,13 @@
                 flex-shrink: 0;
                 flex-grow: 0;
                 height: 100vh;
+                height: 100dvh;
                 border-radius: 0;
                 padding: 0;
             }
             canvas {
                 max-height: 100vh;
+                max-height: 100dvh;
                 border-width: 0.2vh;
             }
             .start-message {
@@ -2606,11 +2615,14 @@
             }
             .content-area {
                 height: 100vh;
+                height: 100dvh;
                 padding: 0;
             }
             .game-container {
                 max-height: 100vh;
+                max-height: 100dvh;
                 height: 100vh;
+                height: 100dvh;
                 gap: 0.3vw;
                 justify-content: stretch;
                 align-items: stretch;
@@ -2618,14 +2630,17 @@
             }
             .main-area {
                 height: 100vh;
+                height: 100dvh;
                 flex-shrink: 0;
                 border-radius: 0;
             }
             canvas {
                 max-height: 100vh;
+                max-height: 100dvh;
             }
             .side-panel, .rules-panel {
                 height: 100vh;
+                height: 100dvh;
                 min-width: 0;
                 max-width: none;
                 flex: 1 1 0;
@@ -2826,7 +2841,7 @@
             body:has(canvas.comingsoon-mode) .rules-panel {
                 z-index: 20;
                 position: relative;
-                background: linear-gradient(180deg, rgba(26, 26, 46, 0.74) 0%, rgba(22, 33, 62, 0.74) 100%) !important;
+                background: linear-gradient(180deg, rgba(26, 26, 46, 1) 0%, rgba(22, 33, 62, 1) 100%) !important;
                 flex: 1.35 1 0 !important;
                 font-size: 0.92em !important;
                 padding: 0.8vh 0.8vw !important;
@@ -2858,6 +2873,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
             z-index: 99999;
             justify-content: center;
