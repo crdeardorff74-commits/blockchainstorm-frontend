@@ -865,6 +865,61 @@
             font-style: italic;
         }
         
+        .soundtrack-section {
+            margin: 50px auto;
+            padding: 30px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .soundtrack-heading {
+            font-size: 15px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 12px;
+        }
+        
+        .soundtrack-title {
+            font-size: 20px;
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .soundtrack-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            align-items: center;
+        }
+        
+        .soundtrack-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #ccc;
+            font-size: 14px;
+            padding: 8px 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.25s ease;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .soundtrack-link:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+        
+        .soundtrack-link svg {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        
         .credits-spacer {
             height: 24vh;
         }
