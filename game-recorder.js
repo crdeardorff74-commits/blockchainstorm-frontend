@@ -413,6 +413,44 @@ const GameRecorder = (() => {
     }
     
     /**
+     * Compact recording data by stripping null/empty fields to reduce payload size
+     */
+    function compactRecording(data) {
+        if (!data || !data.pieceData) return data;
+        
+        const compact = { ...data };
+        compact.pieceData = data.pieceData.map(piece => {
+            const p = { type: piece.type, color: piece.color, spawnTime: piece.spawnTime };
+            // Only include non-empty arrays
+            if (piece.boardSnapshot && piece.boardSnapshot.length > 0) p.boardSnapshot = piece.boardSnapshot;
+            if (piece.inputs && piece.inputs.length > 0) p.inputs = piece.inputs;
+            if (piece.randomEvents && piece.randomEvents.length > 0) p.randomEvents = piece.randomEvents;
+            if (piece.events && piece.events.length > 0) p.events = piece.events;
+            // Only include non-null objects
+            if (piece.placement) p.placement = piece.placement;
+            if (piece.aiShadow) p.aiShadow = piece.aiShadow;
+            if (piece.aiDecision) p.aiDecision = piece.aiDecision;
+            return p;
+        });
+        return compact;
+    }
+    
+    /**
+     * Gzip compress a string using CompressionStream API
+     * Returns a Blob, or null if compression is unavailable
+     */
+    async function gzipCompress(jsonString) {
+        if (typeof CompressionStream === 'undefined') return null;
+        try {
+            const stream = new Blob([jsonString]).stream().pipeThrough(new CompressionStream('gzip'));
+            return await new Response(stream).blob();
+        } catch (e) {
+            console.warn('📹 Gzip compression failed, falling back to uncompressed:', e);
+            return null;
+        }
+    }
+    
+    /**
      * Submit recording to server
      */
     async function submitRecording(recordingData, gameData = {}) {
@@ -423,6 +461,9 @@ const GameRecorder = (() => {
         }
         
         try {
+            // Compact the recording to strip empty/null fields
+            const compactData = compactRecording(recordingData);
+            
             const payload = {
                 // From gameData
                 username: gameData.username || 'anonymous',
@@ -448,21 +489,42 @@ const GameRecorder = (() => {
                 volcanoes: gameData.volcanoes || recordingData.finalStats?.volcanoes || 0,
                 
                 // The actual recording data - server expects 'recording' key
-                recording: recordingData
+                recording: compactData
             };
             
+            const jsonString = JSON.stringify(payload);
+            const originalSize = jsonString.length;
             console.log('📹 Submitting recording to server...');
-            console.log('📹 Payload size:', JSON.stringify(payload).length, 'bytes');
             console.log('📹 Recording has', recordingData.pieceData?.length || 0, 'pieces');
             
-            const response = await fetch(`${API_URL}/recording`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify(payload)
-            });
+            // Try gzip compression
+            const compressed = await gzipCompress(jsonString);
+            
+            let response;
+            if (compressed && compressed.size < originalSize * 0.9) {
+                // Compressed is meaningfully smaller - send gzipped
+                console.log(`📹 Payload: ${(originalSize / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB gzipped (${(compressed.size / originalSize * 100).toFixed(0)}%)`);
+                response = await fetch(`${API_URL}/recording`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Encoding': 'gzip'
+                    },
+                    credentials: 'include',
+                    body: compressed
+                });
+            } else {
+                // Compression unavailable or not worth it - send raw
+                console.log(`📹 Payload size: ${(originalSize / 1024).toFixed(0)}KB (uncompressed)`);
+                response = await fetch(`${API_URL}/recording`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: jsonString
+                });
+            }
             
             if (response.ok) {
                 const result = await response.json();
