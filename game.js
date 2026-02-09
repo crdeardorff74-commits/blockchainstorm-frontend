@@ -14791,8 +14791,13 @@ window.startGameReplay = function(recording) {
     // Store replay data
     replayData = recording;
     
-    // Set up piece-indexed replay data
-    replayPieceData = recData.pieceData || [];
+    // Set up piece-indexed replay data (normalize for compacted recordings that strip empty arrays)
+    replayPieceData = (recData.pieceData || []).map(p => ({
+        ...p,
+        inputs: p.inputs || [],
+        randomEvents: p.randomEvents || [],
+        events: p.events || []
+    }));
     replayPieceIndex = 0;
     replayInputIndex = 0;
     replayRandomEventIndex = 0;
