@@ -897,7 +897,8 @@ function promptForName(scoreData) {
                     username: username,
                     challengeNames: challengeNames, // Include readable names for email
                     language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
-                    deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
+                    deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
+                    os: typeof detectOS === 'function' ? detectOS() : 'unknown'
                 };
                 
                 try {
@@ -1186,7 +1187,8 @@ async function notifyGameCompletion(scoreData) {
             challengeNames: challengeNames,
             notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
             language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
-            deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
+            deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
+            os: typeof detectOS === 'function' ? detectOS() : 'unknown'
         };
         
         const controller = new AbortController();
@@ -1233,7 +1235,8 @@ async function submitAIScore(scoreData) {
         username: '🤖 Claude',
         skipNotification: scoreData.skipNotification || false, // Pass through notification flag
         language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
-        deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown'
+        deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
+        os: typeof detectOS === 'function' ? detectOS() : 'unknown'
         // mode is already set in scoreData ('ai' or 'ai-challenge')
     };
     
