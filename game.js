@@ -261,14 +261,13 @@ const SwipeControls = {
         const colWidth = typeof BLOCK_SIZE !== 'undefined' ? BLOCK_SIZE : 30;
         if (Math.abs(dx) >= colWidth) {
             const columns = Math.floor(Math.abs(dx) / colWidth);
-            const swap = this.getSwapDir();
-            const dir = (dx > 0 ? 1 : -1) * swap;
+            const rawDir = dx > 0 ? 1 : -1;  // Don't pre-swap - movePiece handles it
             
             for (let i = 0; i < columns; i++) {
-                if (!collides(currentPiece, dir, 0)) {
-                    currentPiece.x += dir;
+                const prevX = currentPiece.x;
+                movePiece(rawDir);
+                if (currentPiece.x !== prevX) {
                     this.movedColumns++;
-                    playSoundEffect('move', soundToggle);
                 }
             }
             this.lastMoveX = touch.clientX;
@@ -330,6 +329,14 @@ const SwipeControls = {
             if (typeof currentPiece !== 'undefined' && currentPiece && !collides(currentPiece, 0, 1)) {
                 currentPiece.y++;
                 if (typeof updateStats === 'function') updateStats();
+                // Record soft drop for replay
+                if (window.GameRecorder && window.GameRecorder.isActive()) {
+                    window.GameRecorder.recordInput('softDrop', {
+                        x: currentPiece.x,
+                        y: currentPiece.y,
+                        rotation: currentPiece.rotationIndex || 0
+                    });
+                }
             }
         }, 50);
     },
