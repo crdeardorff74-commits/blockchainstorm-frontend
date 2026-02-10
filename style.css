@@ -765,6 +765,45 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         
+        .gameover-share-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 16px;
+            margin-bottom: 6px;
+        }
+        
+        .gameover-share-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        
+        .gameover-share-icon:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+        
+        .gameover-share-icon svg {
+            width: 16px;
+            height: 16px;
+            fill: rgba(255, 255, 255, 0.5);
+            transition: fill 0.2s ease;
+        }
+        
+        .gameover-share-icon:hover svg {
+            fill: rgba(255, 255, 255, 0.85);
+        }
+        
         /* End Credits Overlay */
         .credits-overlay {
             position: fixed;

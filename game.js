@@ -12053,6 +12053,7 @@ function showGameOverScreen() {
     StarfieldSystem.hidePlanetStats();
     
     gameOverDiv.style.display = 'block';
+    updateShareLinks();
     
     console.log('About to call startCreditsAnimation');
     startCreditsAnimation();
@@ -13607,6 +13608,19 @@ function updateShareLinks() {
     if (reddit) reddit.href = `https://www.reddit.com/submit?url=${url}&title=${text}`;
     if (whatsapp) whatsapp.href = `https://wa.me/?text=${text}%20${url}`;
     if (telegram) telegram.href = `https://t.me/share/url?url=${url}&text=${text}`;
+    
+    // Game-over share icons (same URLs)
+    const goTwitter = document.getElementById('goShareTwitter');
+    const goFacebook = document.getElementById('goShareFacebook');
+    const goReddit = document.getElementById('goShareReddit');
+    const goWhatsApp = document.getElementById('goShareWhatsApp');
+    const goTelegram = document.getElementById('goShareTelegram');
+    
+    if (goTwitter) goTwitter.href = `https://x.com/intent/tweet?text=${text}&url=${url}`;
+    if (goFacebook) goFacebook.href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+    if (goReddit) goReddit.href = `https://www.reddit.com/submit?url=${url}&title=${text}`;
+    if (goWhatsApp) goWhatsApp.href = `https://wa.me/?text=${text}%20${url}`;
+    if (goTelegram) goTelegram.href = `https://t.me/share/url?url=${url}&text=${text}`;
 }
 
 function trackShareClick(platform) {
@@ -13677,6 +13691,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById(id);
         if (btn) btn.addEventListener('click', () => trackShareClick(platform));
     });
+    
+    // Game-over share icon tracking + copy link
+    const goShareButtons = {
+        'goShareTwitter': 'twitter',
+        'goShareFacebook': 'facebook',
+        'goShareReddit': 'reddit',
+        'goShareWhatsApp': 'whatsapp',
+        'goShareTelegram': 'telegram'
+    };
+    Object.entries(goShareButtons).forEach(([id, platform]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => trackShareClick(platform));
+    });
+    
+    const goShareCopyLink = document.getElementById('goShareCopyLink');
+    if (goShareCopyLink) {
+        goShareCopyLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            trackShareClick('copylink');
+            navigator.clipboard.writeText(getShareURL()).then(() => {
+                const svg = goShareCopyLink.querySelector('svg');
+                if (svg) {
+                    const origFill = svg.style.fill;
+                    svg.style.fill = '#4CAF50';
+                    setTimeout(() => { svg.style.fill = origFill; }, 1500);
+                }
+            });
+        });
+    }
     
     // Close on overlay background click
     if (shareOverlay) {
