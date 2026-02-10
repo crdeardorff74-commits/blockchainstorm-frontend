@@ -1574,35 +1574,25 @@ function initTouchControls() {
     
     // Movement buttons with repeat
     addRepeatingTouch(touchLeft, () => {
-        // Check if controls should be swapped (Stranger XOR Dyslexic)
-        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
-        const shouldSwap = strangerActive !== dyslexicActive;
-        const dir = shouldSwap ? 1 : -1;
-        
-        if (currentPiece && !collides(currentPiece, dir, 0)) {
-            currentPiece.x += dir;
-            playSoundEffect('move', soundToggle);
-        }
+        movePiece(-1);
     });
     
     addRepeatingTouch(touchRight, () => {
-        // Check if controls should be swapped (Stranger XOR Dyslexic)
-        const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
-        const dyslexicActive = challengeMode === 'dyslexic' || activeChallenges.has('dyslexic');
-        const shouldSwap = strangerActive !== dyslexicActive;
-        const dir = shouldSwap ? -1 : 1;
-        
-        if (currentPiece && !collides(currentPiece, dir, 0)) {
-            currentPiece.x += dir;
-            playSoundEffect('move', soundToggle);
-        }
+        movePiece(1);
     });
     
     addRepeatingTouch(touchDown, () => {
         if (currentPiece && !collides(currentPiece, 0, 1)) {
             currentPiece.y++;
             updateStats();
+            // Record soft drop for replay
+            if (window.GameRecorder && window.GameRecorder.isActive()) {
+                window.GameRecorder.recordInput('softDrop', {
+                    x: currentPiece.x,
+                    y: currentPiece.y,
+                    rotation: currentPiece.rotationIndex || 0
+                });
+            }
         }
     });
     
@@ -11323,9 +11313,11 @@ function dropPiece() {
                 thinkTime: pieceSpawnTime ? Date.now() - pieceSpawnTime : 0
             };
             
-            // Get AI shadow evaluation (what AI would have done)
+            // Record placement synchronously (before piece index advances)
+            GameRecorder.recordMove(currentPiece, board, moveData, null);
+            
+            // Get AI shadow evaluation asynchronously (add to correct piece by captured index)
             if (typeof AIPlayer !== 'undefined' && AIPlayer.shadowEvaluate) {
-                // Capture current state for async callback
                 const pieceSnapshot = {
                     x: currentPiece.x,
                     y: currentPiece.y,
@@ -11335,18 +11327,13 @@ function dropPiece() {
                     shape: currentPiece.shape
                 };
                 const boardSnapshot = board.map(row => row ? [...row] : null);
+                const capturedPieceIndex = GameRecorder.getCurrentPieceIndex();
                 
                 AIPlayer.shadowEvaluate(boardSnapshot, pieceSnapshot, nextPieceQueue, COLS, ROWS)
                     .then(aiShadow => {
-                        GameRecorder.recordMove(pieceSnapshot, boardSnapshot, moveData, aiShadow);
+                        GameRecorder.addAIShadow(capturedPieceIndex, pieceSnapshot, aiShadow);
                     })
-                    .catch(() => {
-                        // If shadow eval fails, record without it
-                        GameRecorder.recordMove(pieceSnapshot, boardSnapshot, moveData, null);
-                    });
-            } else {
-                // No AI available, record without shadow
-                GameRecorder.recordMove(currentPiece, board, moveData, null);
+                    .catch(() => {});
             }
         }
         

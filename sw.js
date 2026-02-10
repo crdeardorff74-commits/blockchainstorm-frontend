@@ -1,5 +1,5 @@
 // TaNTЯiS Service Worker
-const CACHE_NAME = 'tantris-v1';
+const CACHE_NAME = 'tantris-v2';
 
 // Core files to cache for offline play
 const CORE_ASSETS = [
