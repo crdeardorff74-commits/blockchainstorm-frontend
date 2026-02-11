@@ -247,8 +247,22 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         let events = [];
         if (entry.strikes > 0) events.push(`⚡${entry.strikes}`);
         if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
-        if (entry.volcanoes > 0) events.push(`🌋${entry.volcanoes}`);
-        if (entry.blackholes > 0) events.push(`🕳️${entry.blackholes}`);
+        if (entry.volcanoes > 0) {
+            const superV = entry.superVolcanoes || 0;
+            if (superV > 0) {
+                events.push(`<span class="super-event-glow" title="Supervolcano x2 (${superV})">🌋${entry.volcanoes}</span>`);
+            } else {
+                events.push(`🌋${entry.volcanoes}`);
+            }
+        }
+        if (entry.blackholes > 0) {
+            const superBH = entry.supermassiveBlackHoles || 0;
+            if (superBH > 0) {
+                events.push(`<span class="super-event-glow" title="Supermassive Black Hole x2 (${superBH})">🕳️${entry.blackholes}</span>`);
+            } else {
+                events.push(`🕳️${entry.blackholes}`);
+            }
+        }
         
         // Format events in 2 rows: first 2 on line 1, rest on line 2
         let eventsHtml = '';
@@ -873,6 +887,8 @@ function promptForName(scoreData) {
                 tsunamis: scoreData.tsunamis || 0,
                 volcanoes: scoreData.volcanoes || 0,
                 blackholes: scoreData.blackholes || 0,
+                supermassiveBlackHoles: scoreData.supermassiveBlackHoles || 0,
+                superVolcanoes: scoreData.superVolcanoes || 0,
                 challenges: scoreData.challenges || [],
                 speedBonus: scoreData.speedBonus || 1.0,
                 played_at: new Date().toISOString()
@@ -1059,6 +1075,8 @@ async function submitScore(gameData) {
         tsunamis: gameData.tsunamis || 0,
         volcanoes: gameData.volcanoes || 0,
         blackholes: gameData.blackholes || 0,
+        supermassive_blackholes: gameData.supermassiveBlackHoles || 0,
+        super_volcanoes: gameData.superVolcanoes || 0,
         duration_seconds: Math.floor(gameData.duration || 0)
     };
     

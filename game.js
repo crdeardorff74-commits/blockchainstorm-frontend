@@ -3536,6 +3536,14 @@ function updateVolcanoAnimation() {
             const lavaSize = volcanoLavaBlob.positions.length;
             let lavaPoints = lavaSize * lavaSize * lavaSize * 500;
             
+            // Apply SUPERVOLCANO bonus (x2) if tsunami was also detected
+            if (volcanoIsSuper) {
+                lavaPoints *= 2;
+                showSuperEventBonus('superVolcano');
+                console.log(`🌋🌊 SUPERVOLCANO x2! Points doubled!`);
+                volcanoIsSuper = false; // Reset flag after use
+            }
+            
             // Apply CASCADE BONUS if this volcano was triggered by gravity from another special event
             let cascadeMultiplier = 1;
             if (cascadeLevel > 0) {
@@ -6611,6 +6619,9 @@ let cascadeLevel = 0; // 0 = initial clear (1x), 1 = first cascade (2x), 2 = sec
 let cascadeBonusDisplay = null; // { text, startTime, duration }
 let blackHoleCount = 0;
 let volcanoCount = 0;
+let supermassiveBlackHoleCount = 0;
+let superVolcanoCount = 0;
+let volcanoIsSuper = false; // Flag for delayed volcano scoring (x2 when tsunami also detected)
 
 // Challenge modes
 let challengeMode = 'normal'; // 'normal', 'stranger', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'combo'
@@ -8508,6 +8519,24 @@ function showCascadeBonus(multiplier) {
     }
 }
 
+// Trigger super event bonus display (Supermassive Black Hole or Supervolcano)
+function showSuperEventBonus(type) {
+    const text = type === 'supermassiveBlackHole' 
+        ? I18n.t('misc.supermassiveBlackHole')
+        : I18n.t('misc.superVolcano');
+    cascadeBonusDisplay = {
+        text: text,
+        multiplier: 2,
+        startTime: Date.now(),
+        duration: 2000
+    };
+    console.log(`🔥 ${text}!`);
+    
+    // Play two LineClear sounds for the x2
+    playSoundEffect('line', soundToggle);
+    setTimeout(() => playSoundEffect('line', soundToggle), 200);
+}
+
 
 function collides(piece, offsetX = 0, offsetY = 0) {
     if (!piece || !piece.shape) return true;
@@ -9548,6 +9577,7 @@ function updateLineAnimations() {
 function checkForSpecialFormations() {
     // Check for special formations immediately after piece placement
     // Priority: Volcano > Black Hole > Tsunami
+    // BUT: tsunami is always checked alongside volcano/black hole for super variants
     
     const allBlobs = getAllBlobs();
     let foundVolcano = false;
@@ -9579,10 +9609,9 @@ function checkForSpecialFormations() {
         }
     }
     
-    // Check for Tsunamis (blobs spanning full width)
-    // Skip if a tsunami is already animating to prevent duplicate counting
-    // Only in Tempest and Maelstrom skill levels
-    if (!foundVolcano && !foundBlackHole && !tsunamiAnimating && skillLevel !== 'breeze') {
+    // ALWAYS check for Tsunamis when a volcano or black hole is found (for super variants)
+    // Also check standalone tsunamis when no volcano/black hole found
+    if (!tsunamiAnimating && skillLevel !== 'breeze') {
         allBlobs.forEach(blob => {
             const minX = Math.min(...blob.positions.map(p => p[0]));
             const maxX = Math.max(...blob.positions.map(p => p[0]));
@@ -9594,11 +9623,22 @@ function checkForSpecialFormations() {
         });
     }
     
+    // Determine super variants (simultaneous tsunami + volcano/black hole)
+    const isSuperVolcano = foundVolcano && foundTsunami;
+    const isSupermassiveBlackHole = foundBlackHole && foundTsunami;
+    
     // If we found special formations, trigger them immediately
-    // Priority: Volcano > Black Hole > Tsunami
+    // Priority: Volcano > Black Hole > Tsunami (but tsunami detected for super checks above)
     if (foundVolcano) {
         // Trigger volcano animation for the first one
         const v = volcanoData[0];
+        
+        // Set super flag for delayed volcano scoring
+        volcanoIsSuper = isSuperVolcano;
+        if (isSuperVolcano) {
+            superVolcanoCount++;
+            console.log('🌋🌊 SUPERVOLCANO! Tsunami also detected - points will be doubled!');
+        }
         
         // Start the volcano warming phase
         // (Column clearing will happen when warming transitions to eruption)
@@ -9607,16 +9647,17 @@ function checkForSpecialFormations() {
         
         // Record event for AI analysis
         if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
-            AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn });
+            AIPlayer.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, isSuper: isSuperVolcano });
         }
         // Record detailed volcano data for replay (both AI and human games)
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
-            GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length });
+            GameRecorder.recordEvent('volcano', { count: volcanoCount, column: v.eruptionColumn, blobSize: v.lavaBlob.positions.length, isSuper: isSuperVolcano });
             GameRecorder.recordVolcanoEruption(v.eruptionColumn, v.edgeType);
         }
         
         // NOTE: Score and histogram update delayed until eruption phase starts
         // This gives visual feedback (lava shooting out) before score jumps
+        // Super volcano x2 bonus message will also be shown at eruption time
         
     } else if (foundBlackHole) {
             // Trigger black hole animation for the first one
@@ -9624,13 +9665,18 @@ function checkForSpecialFormations() {
             triggerBlackHole(bh.innerBlob, bh.outerBlob);
             blackHoleCount++;
             
+            if (isSupermassiveBlackHole) {
+                supermassiveBlackHoleCount++;
+                console.log('🕳️🌊 SUPERMASSIVE BLACK HOLE! Tsunami also detected - points doubled!');
+            }
+            
             // Record event for AI analysis
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
-                AIPlayer.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
+                AIPlayer.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length, isSupermassive: isSupermassiveBlackHole });
             }
             // Record detailed black hole data for replay (both AI and human games)
             if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
-                GameRecorder.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length });
+                GameRecorder.recordEvent('blackHole', { count: blackHoleCount, innerSize: bh.innerBlob.positions.length, outerSize: bh.outerBlob.positions.length, isSupermassive: isSupermassiveBlackHole });
             }
             
             // Score calculation - BLACK HOLE SCORING:
@@ -9642,6 +9688,13 @@ function checkForSpecialFormations() {
             const innerPoints = innerSize * innerSize * innerSize * 800;
             const outerPoints = outerSize * outerSize * outerSize * 800;
             let blackHolePoints = innerPoints + outerPoints;
+            
+            // Apply SUPERMASSIVE bonus (x2) if tsunami was also detected
+            if (isSupermassiveBlackHole) {
+                blackHolePoints *= 2;
+                showSuperEventBonus('supermassiveBlackHole');
+                console.log(`🕳️🌊 SUPERMASSIVE BLACK HOLE x2! Points doubled!`);
+            }
             
             // Apply CASCADE BONUS if this black hole was triggered by gravity from another special event
             let cascadeMultiplier = 1;
@@ -9663,6 +9716,7 @@ function checkForSpecialFormations() {
             updateStats();
             
         } else if (foundTsunami) {
+            // Standalone tsunami (no volcano or black hole simultaneously)
             // Trigger tsunami animation for the first one
             const blob = tsunamiBlobs[0];
             
@@ -11681,6 +11735,8 @@ async function gameOver() {
             tsunamis: tsunamiCount,
             blackholes: blackHoleCount,
             volcanoes: volcanoCount,
+            supermassiveBlackHoles: supermassiveBlackHoleCount,
+            superVolcanoes: superVolcanoCount,
             board: board,
             endCause: 'game_over'
         };
@@ -11725,6 +11781,8 @@ async function gameOver() {
                         tsunamis: tsunamiCount,
                         blackholes: blackHoleCount,
                         volcanoes: volcanoCount,
+                        supermassiveBlackHoles: supermassiveBlackHoleCount,
+                        superVolcanoes: superVolcanoCount,
                         durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
                         endCause: 'game_over',
                         tuningConfig: aiTuningMode ? aiTuningConfig : undefined,
@@ -11758,6 +11816,8 @@ async function gameOver() {
                         tsunamis: tsunamiCount,
                         blackholes: blackHoleCount,
                         volcanoes: volcanoCount,
+                        supermassiveBlackHoles: supermassiveBlackHoleCount,
+                        superVolcanoes: superVolcanoCount,
                         durationSeconds: Math.floor((recording.finalStats?.duration || 0) / 1000),
                         endCause: 'game_over',
                         debugLog: logQueue.join('\n')
@@ -11789,8 +11849,16 @@ async function gameOver() {
         statsHTML += '<br>';
         if (strikeCount > 0) statsHTML += I18n.t('gameOver.strikes', { count: strikeCount }) + '<br>';
         if (tsunamiCount > 0) statsHTML += I18n.t('gameOver.tsunamis', { count: tsunamiCount }) + '<br>';
-        if (volcanoCount > 0) statsHTML += I18n.t('gameOver.volcanoes', { count: volcanoCount }) + '<br>';
-        if (blackHoleCount > 0) statsHTML += I18n.t('gameOver.blackHoles', { count: blackHoleCount }) + '<br>';
+        if (volcanoCount > 0) {
+            statsHTML += I18n.t('gameOver.volcanoes', { count: volcanoCount });
+            if (superVolcanoCount > 0) statsHTML += ` (${superVolcanoCount} 🌋🌊)`;
+            statsHTML += '<br>';
+        }
+        if (blackHoleCount > 0) {
+            statsHTML += I18n.t('gameOver.blackHoles', { count: blackHoleCount });
+            if (supermassiveBlackHoleCount > 0) statsHTML += ` (${supermassiveBlackHoleCount} 🕳️🌊)`;
+            statsHTML += '<br>';
+        }
     }
     finalStatsDisplay.innerHTML = statsHTML;
     
@@ -11828,6 +11896,8 @@ async function gameOver() {
         tsunamis: tsunamiCount,
         blackholes: blackHoleCount,
         volcanoes: volcanoCount || 0,
+        supermassiveBlackHoles: supermassiveBlackHoleCount,
+        superVolcanoes: superVolcanoCount,
         duration: Math.floor((Date.now() - gameStartTime) / 1000),
         challengeType: isChallenge ? challengeMode : null, // Track main challenge mode
         challenges: challengesList, // Track all active challenges
@@ -12959,6 +13029,9 @@ function startGame(mode) {
     cascadeBonusDisplay = null;
     gameStartTime = Date.now(); // Track game duration
     volcanoCount = 0;
+    supermassiveBlackHoleCount = 0;
+    superVolcanoCount = 0;
+    volcanoIsSuper = false;
     currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey
     StarfieldSystem.reset(); // Reset all starfield state (planets, asteroids, journey)
     lineAnimations = [];
@@ -15022,6 +15095,9 @@ window.startGameReplay = function(recording) {
     tsunamiCount = 0;
     blackHoleCount = 0;
     volcanoCount = 0;
+    supermassiveBlackHoleCount = 0;
+    superVolcanoCount = 0;
+    volcanoIsSuper = false;
     dropCounter = 0;
     dropInterval = 1000;
     gameOverPending = false;
@@ -15844,6 +15920,9 @@ function stopReplay() {
     tsunamiCount = 0;
     blackHoleCount = 0;
     volcanoCount = 0;
+    supermassiveBlackHoleCount = 0;
+    superVolcanoCount = 0;
+    volcanoIsSuper = false;
     
     // Restore challenge mode to what it was before replay and apply visual effects
     challengeMode = replaySavedChallengeMode;

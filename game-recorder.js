@@ -397,6 +397,8 @@ const GameRecorder = (() => {
             tsunamis: finalStats?.tsunamis || 0,
             blackHoles: finalStats?.blackHoles || 0,
             volcanoes: finalStats?.volcanoes || 0,
+            supermassiveBlackHoles: finalStats?.supermassiveBlackHoles || 0,
+            superVolcanoes: finalStats?.superVolcanoes || 0,
             duration: Date.now() - recording.startTime,
             piecesPlaced: recording.pieceData.length,
             humanVsAI
@@ -446,6 +448,8 @@ const GameRecorder = (() => {
                 tsunamis: gameData.tsunamis || recordingData.finalStats?.tsunamis || 0,
                 blackholes: gameData.blackholes || recordingData.finalStats?.blackHoles || 0,
                 volcanoes: gameData.volcanoes || recordingData.finalStats?.volcanoes || 0,
+                supermassive_blackholes: gameData.supermassiveBlackHoles || recordingData.finalStats?.supermassiveBlackHoles || 0,
+                super_volcanoes: gameData.superVolcanoes || recordingData.finalStats?.superVolcanoes || 0,
                 
                 // The actual recording data - server expects 'recording' key
                 recording: recordingData
