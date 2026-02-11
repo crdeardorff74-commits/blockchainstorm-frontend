@@ -12717,8 +12717,10 @@ function update(time = 0) {
 
 function startGame(mode) {
     // Record that visitor actually started a game (once per visit)
-    if (window._visitId && !window._visitStartRecorded) {
-        window._visitStartRecorded = true;
+    if (window._visitId) {
+        if (!window._visitStartRecorded) {
+            window._visitStartRecorded = true;
+        }
         fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/started`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
