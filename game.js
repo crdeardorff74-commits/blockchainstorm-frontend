@@ -12720,7 +12720,14 @@ function startGame(mode) {
     if (window._visitId && !window._visitStartRecorded) {
         window._visitStartRecorded = true;
         fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/started`, {
-            method: 'PATCH'
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                difficulty: typeof difficulty !== 'undefined' ? difficulty : null,
+                skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
+                mode: aiModeEnabled ? 'ai' : (challengeMode ? 'challenge' : 'normal'),
+                challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : []
+            })
         }).catch(() => {});
     }
     // Request fullscreen on mobile if not already fullscreen (fallback if intro screen didn't trigger it)
