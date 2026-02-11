@@ -10364,8 +10364,8 @@ function updateFallingBlocks() {
     
     // Scale gravity and terminal velocity by the fixed gravity multiplier
     // BUT enforce a minimum gravity floor so animations don't take forever
-    const minGravity = 0.8; // Minimum gravity to keep animations reasonable
-    const minMaxVelocity = 8.0; // Minimum max velocity
+    const minGravity = 1.2; // Minimum gravity to keep animations reasonable
+    const minMaxVelocity = 12.0; // Minimum max velocity
     const gravity = Math.max(baseGravity * gravityMultiplier, minGravity);
     const maxVelocity = Math.max(baseMaxVelocity * gravityMultiplier, minMaxVelocity);
     
