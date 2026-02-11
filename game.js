@@ -12725,9 +12725,9 @@ function startGame(mode) {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                difficulty: typeof difficulty !== 'undefined' ? difficulty : null,
+                difficulty: typeof gameMode !== 'undefined' ? gameMode : null,
                 skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
-                mode: aiModeEnabled ? 'ai' : (challengeMode ? 'challenge' : 'normal'),
+                mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
                 challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : []
             })
         }).catch(() => {});
