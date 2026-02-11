@@ -216,7 +216,6 @@ const gameplaySongs = [
     { id: 'hold_it_in', name: 'Hold It In', file: MUSIC_BASE_URL + 'Hold.It.In.mp3' },
     { id: 'hold_it', name: 'Hold It', file: MUSIC_BASE_URL + 'Hold.It.mp3' },
     { id: 'hold_off_for_me', name: 'Hold Off for Me', file: MUSIC_BASE_URL + 'Hold.Off.for.Me.mp3' },
-    { id: 'holdin_back', name: "Holdin' Back", file: MUSIC_BASE_URL + 'Holdin.Back.mp3' },
     // J
     { id: 'joyful_odie', name: 'Joyful Odie', file: MUSIC_BASE_URL + 'Joyful.Odie.mp3' },
     { id: 'just_a_game', name: 'Just a Game', file: MUSIC_BASE_URL + 'Just.a.Game.mp3' },
