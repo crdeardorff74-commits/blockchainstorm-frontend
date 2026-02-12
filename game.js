@@ -12129,6 +12129,83 @@ function showGameOverScreen() {
 // AI Auto-restart functionality
 const AI_DIFFICULTY_OPTIONS = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
 const AI_SKILL_OPTIONS = ['breeze', 'tempest', 'maelstrom'];
+const AI_CHALLENGE_OPTIONS = [
+    'stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner', 'thicker',
+    'carrie', 'nokings', 'longago', 'comingsoon', 'nervous', 'sixseven',
+    'gremlins', 'lattice', 'yesand', 'mercurial', 'shadowless'
+];
+// Mutually exclusive pairs - only one from each pair can be active
+const AI_CHALLENGE_MUTEX = [
+    ['thinner', 'thicker'],
+    ['longago', 'comingsoon']
+];
+
+function randomizeChallengesForAI() {
+    // 50% chance of no challenge at all
+    if (Math.random() < 0.5) {
+        return new Set();
+    }
+    
+    // Pick a random number of challenges (1 to 4, weighted toward fewer)
+    const weights = [0.45, 0.30, 0.15, 0.10]; // 1, 2, 3, 4
+    const roll = Math.random();
+    let cumulative = 0;
+    let count = 1;
+    for (let i = 0; i < weights.length; i++) {
+        cumulative += weights[i];
+        if (roll < cumulative) {
+            count = i + 1;
+            break;
+        }
+    }
+    
+    // Shuffle available challenges and pick, respecting mutex pairs
+    const shuffled = [...AI_CHALLENGE_OPTIONS].sort(() => Math.random() - 0.5);
+    const selected = new Set();
+    
+    for (const challenge of shuffled) {
+        if (selected.size >= count) break;
+        
+        // Check mutex conflicts
+        let conflict = false;
+        for (const [a, b] of AI_CHALLENGE_MUTEX) {
+            if ((challenge === a && selected.has(b)) || (challenge === b && selected.has(a))) {
+                conflict = true;
+                break;
+            }
+        }
+        if (!conflict) {
+            selected.add(challenge);
+        }
+    }
+    
+    return selected;
+}
+
+function applyRandomChallengesToUI(challenges) {
+    // Uncheck all combo checkboxes first
+    document.querySelectorAll('.combo-checkbox-option input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    
+    // Check the selected ones
+    challenges.forEach(ch => {
+        const checkbox = document.querySelector(`.combo-checkbox-option input[value="${ch}"]`);
+        if (checkbox) checkbox.checked = true;
+    });
+    
+    // Update challengeMode and activeChallenges globals
+    activeChallenges.clear();
+    challenges.forEach(ch => activeChallenges.add(ch));
+    
+    if (activeChallenges.size === 0) {
+        challengeMode = 'normal';
+    } else if (activeChallenges.size === 1) {
+        challengeMode = Array.from(activeChallenges)[0];
+    } else {
+        challengeMode = 'combo';
+    }
+}
 
 function startAIAutoRestartTimer() {
     // Clear any existing timer
@@ -12142,11 +12219,13 @@ function startAIAutoRestartTimer() {
             return;
         }
         
-        // Randomly select difficulty and skill level
+        // Randomly select difficulty, skill level, and challenge modes
         const randomDifficulty = AI_DIFFICULTY_OPTIONS[Math.floor(Math.random() * AI_DIFFICULTY_OPTIONS.length)];
         const randomSkill = AI_SKILL_OPTIONS[Math.floor(Math.random() * AI_SKILL_OPTIONS.length)];
+        const randomChallenges = randomizeChallengesForAI();
         
-        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
+        const challengeStr = randomChallenges.size > 0 ? Array.from(randomChallenges).join('+') : 'normal';
+        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill} / ${challengeStr}`);
         
         // Set the skill level globally (both local var and window for AI player)
         skillLevel = randomSkill;
@@ -12162,6 +12241,9 @@ function startAIAutoRestartTimer() {
         
         // Update special events display for new skill level
         updateSpecialEventsDisplay(randomSkill);
+        
+        // Apply random challenge modes to UI and globals
+        applyRandomChallengesToUI(randomChallenges);
         
         // Hide game over screen and leaderboard
         gameOverDiv.style.display = 'none';
