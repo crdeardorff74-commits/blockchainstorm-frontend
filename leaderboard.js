@@ -611,12 +611,12 @@ function promptForName(scoreData) {
             left: 0;
             width: 100%;
             background: #222;
-            padding: 2px;
+            padding: 2px 2px 6px 2px;
             box-sizing: border-box;
             z-index: 1000000;
             display: flex;
             flex-direction: column;
-            gap: 0px;
+            gap: 2px;
             border-top: 2px solid #FFD700;
         `;
         
@@ -635,16 +635,16 @@ function promptForName(scoreData) {
         
         rows.forEach((row, rowIndex) => {
             const rowDiv = document.createElement('div');
-            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:2px;';
+            rowDiv.style.cssText = 'display:flex;justify-content:center;gap:3px;';
             
             // Add SHIFT key before Z row
             if (rowIndex === 3) {
                 const shiftKey = document.createElement('button');
                 shiftKey.textContent = '⇧';
                 shiftKey.style.cssText = `
-                    min-width: 40px;
-                    height: 26px;
-                    font-size: 16px;
+                    min-width: 44px;
+                    height: 38px;
+                    font-size: 18px;
                     border: none;
                     border-radius: 4px;
                     background: #555;
@@ -653,6 +653,11 @@ function promptForName(scoreData) {
                     margin-right: 4px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    line-height: 1;
                 `;
                 const toggleShift = (e) => {
                     e.preventDefault();
@@ -677,9 +682,9 @@ function promptForName(scoreData) {
                     letterKeys.push(key);
                 }
                 key.style.cssText = `
-                    min-width: 24px;
-                    height: 26px;
-                    font-size: 14px;
+                    min-width: 28px;
+                    height: 38px;
+                    font-size: 16px;
                     font-weight: bold;
                     border: none;
                     border-radius: 4px;
@@ -687,9 +692,14 @@ function promptForName(scoreData) {
                     color: white;
                     cursor: pointer;
                     flex: 1;
-                    max-width: 32px;
+                    max-width: 42px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    line-height: 1;
                 `;
                 const addChar = (e) => {
                     e.preventDefault();
@@ -710,9 +720,9 @@ function promptForName(scoreData) {
                 const enterKey = document.createElement('button');
                 enterKey.textContent = '↵';
                 enterKey.style.cssText = `
-                    min-width: 40px;
-                    height: 26px;
-                    font-size: 16px;
+                    min-width: 44px;
+                    height: 38px;
+                    font-size: 18px;
                     border: none;
                     border-radius: 4px;
                     background: #4CAF50;
@@ -721,6 +731,11 @@ function promptForName(scoreData) {
                     margin-left: 4px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    line-height: 1;
                 `;
                 let enterHandled = false;
                 const handleEnter = (e) => {
@@ -741,9 +756,9 @@ function promptForName(scoreData) {
                 const spaceBar = document.createElement('button');
                 spaceBar.textContent = '␣';
                 spaceBar.style.cssText = `
-                    min-width: 50px;
-                    height: 26px;
-                    font-size: 16px;
+                    min-width: 54px;
+                    height: 38px;
+                    font-size: 18px;
                     border: none;
                     border-radius: 4px;
                     background: #444;
@@ -752,6 +767,11 @@ function promptForName(scoreData) {
                     margin-left: 4px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    line-height: 1;
                 `;
                 spaceBar.addEventListener('touchend', (e) => {
                     e.preventDefault();
@@ -774,9 +794,9 @@ function promptForName(scoreData) {
                 const backspace = document.createElement('button');
                 backspace.textContent = '⌫';
                 backspace.style.cssText = `
-                    min-width: 50px;
-                    height: 26px;
-                    font-size: 16px;
+                    min-width: 54px;
+                    height: 38px;
+                    font-size: 18px;
                     border: none;
                     border-radius: 4px;
                     background: #666;
@@ -785,6 +805,11 @@ function promptForName(scoreData) {
                     margin-left: 4px;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: rgba(255,215,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    line-height: 1;
                 `;
                 backspace.addEventListener('touchend', (e) => {
                     e.preventDefault();

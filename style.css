@@ -2478,7 +2478,7 @@
         @media (max-height: 500px) and (pointer: coarse) {
             .name-entry-overlay {
                 align-items: flex-start !important;
-                padding-top: 1vh !important;
+                padding-top: 5vh !important;
             }
             .name-entry-popup {
                 padding: 1.5vh 3vw;
@@ -2498,13 +2498,20 @@
                 font-size: max(2.2vh, 14px);
             }
             .name-entry-input {
-                padding: 1vh;
-                font-size: max(2vh, 14px);
+                padding: 1.5vh 1vh;
+                font-size: max(2.5vh, 16px);
                 margin-bottom: 1vh;
+                text-align: center;
+                display: block;
             }
             .name-entry-button {
-                padding: 1vh;
-                font-size: max(2vh, 14px);
+                padding: 1.8vh 1vh;
+                font-size: max(2.8vh, 16px);
+                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                -webkit-appearance: none;
             }
         }
         
