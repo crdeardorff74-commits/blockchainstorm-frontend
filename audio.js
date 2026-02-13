@@ -19,6 +19,42 @@
     _dbg('audioContext created, state=' + audioContext.state);
     audioContext.addEventListener('statechange', () => _dbg('audioContext statechange → ' + audioContext.state));
 
+    // Guard: block music playback until user has interacted.
+    // iPad Safari auto-fires change events that call startMusic before any tap.
+    let userHasInteracted = false;
+    function markUserInteraction() {
+        if (!userHasInteracted) {
+            userHasInteracted = true;
+            _dbg('userHasInteracted = true');
+        }
+    }
+    // Listen for first interaction
+    ['touchend', 'click', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, markUserInteraction, { once: false, capture: true });
+    });
+
+    // Cache of blob URLs for fetched audio files.
+    // iPad Safari can't follow GitHub's 302 redirects inside new Audio(url).
+    // fetch() handles redirects transparently, so we fetch → blob → blobURL.
+    const blobUrlCache = {};
+
+    async function fetchAudioBlobUrl(url) {
+        if (blobUrlCache[url]) return blobUrlCache[url];
+        _dbg('fetchAudioBlobUrl: fetching ' + url.substring(url.lastIndexOf('/') + 1));
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrlCache[url] = blobUrl;
+            _dbg('fetchAudioBlobUrl: OK, blobUrl created');
+            return blobUrl;
+        } catch (e) {
+            _dbg('fetchAudioBlobUrl: FAILED - ' + e.message);
+            return url; // Fallback to original URL
+        }
+    }
+
 // Music system state
 let musicPlaying = false;
 let musicInterval = null;
@@ -518,7 +554,7 @@ function skipToNextSong() {
         const song = allSongs.find(s => s.id === nextSongId);
         
         if (!audio && song) {
-            audio = new Audio(song.file);
+            audio = new Audio();
             audio.volume = musicMuted ? 0 : musicVolume;
             audio.addEventListener('ended', onSongEnded);
             gameplayMusicElements[nextSongId] = audio;
@@ -528,9 +564,11 @@ function skipToNextSong() {
             musicPlaying = true;
             currentPlayingTrack = nextSongId;
             audio.loop = false;
-            if (audio.src !== song.file) audio.src = song.file;
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log('Music autoplay prevented:', e));
+            fetchAudioBlobUrl(song.file).then(blobUrl => {
+                audio.src = blobUrl;
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log('Music autoplay prevented:', e));
+            });
             console.log('🎵 Returned forward to:', song.name);
             notifySongChange();
             return true;
@@ -585,7 +623,7 @@ function skipToPreviousSong() {
     const song = allSongs.find(s => s.id === prevSongId);
     
     if (!audio && song) {
-        audio = new Audio(song.file);
+        audio = new Audio();
         audio.volume = musicMuted ? 0 : musicVolume;
         audio.addEventListener('ended', onSongEnded);
         gameplayMusicElements[prevSongId] = audio;
@@ -595,9 +633,11 @@ function skipToPreviousSong() {
         musicPlaying = true;
         currentPlayingTrack = prevSongId;
         audio.loop = false;
-        if (audio.src !== song.file) audio.src = song.file;
-        audio.currentTime = 0;
-        audio.play().catch(e => console.log('Music autoplay prevented:', e));
+        fetchAudioBlobUrl(song.file).then(blobUrl => {
+            audio.src = blobUrl;
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log('Music autoplay prevented:', e));
+        });
         console.log('🎵 Skipped back to:', song.name);
         notifySongChange();
     }
@@ -1291,8 +1331,9 @@ let currentMusicSelectElement = null;
 
 // Main music controller - now uses MP3 tracks based on dropdown selection
 function startMusic(gameMode, musicSelect) {
-    _dbg('startMusic called, musicPlaying=' + musicPlaying);
+    _dbg('startMusic called, musicPlaying=' + musicPlaying + ', interacted=' + userHasInteracted);
     if (musicPlaying) { _dbg('startMusic: already playing, returning'); return; }
+    if (!userHasInteracted) { _dbg('startMusic: no user interaction yet, blocking'); return; }
     
     // Set flag immediately to prevent race conditions with double-calls
     musicPlaying = true;
@@ -1351,7 +1392,7 @@ function startMusic(gameMode, musicSelect) {
     let audio = gameplayMusicElements[trackId];
     let isNewElement = false;
     if (!audio && song) {
-        audio = new Audio(song.file);
+        audio = new Audio();
         audio.volume = musicMuted ? 0 : musicVolume;
         isNewElement = true;
     }
@@ -1375,20 +1416,6 @@ function startMusic(gameMode, musicSelect) {
             audio.addEventListener('ended', onSongEnded);
         }
         
-        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state + ', new=' + isNewElement);
-        
-        // For existing cached elements, refresh src to handle GitHub redirects
-        if (!isNewElement) {
-            audio.src = song.file;
-        }
-        audio.currentTime = 0;
-        const p = audio.play();
-        if (p && p.then) {
-            p.then(() => _dbg('startMusic: play() OK')).catch(e => {
-                _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-            });
-        }
-        
         // Store reference for control functions
         if (!gameplayMusicElements[trackId]) {
             gameplayMusicElements[trackId] = audio;
@@ -1396,6 +1423,23 @@ function startMusic(gameMode, musicSelect) {
         
         // Notify listeners of song change
         notifySongChange();
+        
+        // Fetch blob URL then play (handles GitHub 302 redirects)
+        _dbg('startMusic: fetching blob for ' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state);
+        fetchAudioBlobUrl(song.file).then(blobUrl => {
+            if (currentPlayingTrack !== trackId) {
+                _dbg('startMusic: track changed during fetch, aborting');
+                return;
+            }
+            audio.src = blobUrl;
+            audio.currentTime = 0;
+            const p = audio.play();
+            if (p && p.then) {
+                p.then(() => _dbg('startMusic: play() OK')).catch(e => {
+                    _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+                });
+            }
+        });
     } else {
         // Failed to find audio/song, reset flag
         musicPlaying = false;
@@ -2155,32 +2199,44 @@ function startMenuMusic(musicToggleOrSelect) {
     }
     
     if (song) {
-        _dbg('startMenuMusic: creating FRESH Audio(' + song.file.substring(song.file.lastIndexOf('/') + 1) + ')');
-        menuMusicElement = new Audio(song.file);
-        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-        menuMusicElement.loop = !hasPlayedGame;
-        menuMusicElement.addEventListener('ended', onMenuMusicEnded);
+        _dbg('startMenuMusic: fetching blob for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
         
-        // Debug listeners
-        if (!menuMusicElement._dbgAttached) {
+        // Stop and discard any existing menu music element
+        if (menuMusicElement) {
+            menuMusicElement.pause();
+            menuMusicElement.removeAttribute('src');
+            menuMusicElement = null;
+        }
+        
+        // Fetch via blob to bypass iPad Safari's inability to follow 302 redirects
+        fetchAudioBlobUrl(song.file).then(blobUrl => {
+            // Check we're still supposed to play
+            if (!menuMusicPlaying) {
+                _dbg('startMenuMusic: stopped during fetch, aborting');
+                return;
+            }
+            
+            menuMusicElement = new Audio(blobUrl);
+            menuMusicElement.volume = musicMuted ? 0 : musicVolume;
+            menuMusicElement.loop = !hasPlayedGame;
+            menuMusicElement.addEventListener('ended', onMenuMusicEnded);
+            
+            // Debug listeners
             menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
             menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
             menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
-            menuMusicElement.addEventListener('stalled', () => _dbg('menuMusic EVENT: stalled'));
             menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
-            menuMusicElement.addEventListener('loadstart', () => _dbg('menuMusic EVENT: loadstart'));
-            menuMusicElement._dbgAttached = true;
-        }
-        
-        _dbg('startMenuMusic: calling play() immediately');
-        const playPromise = menuMusicElement.play();
-        if (playPromise && playPromise.then) {
-            playPromise.then(() => {
-                _dbg('startMenuMusic: play() RESOLVED OK, readyState=' + menuMusicElement.readyState);
-            }).catch(e => {
-                _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-            });
-        }
+            
+            _dbg('startMenuMusic: playing from blobUrl');
+            const playPromise = menuMusicElement.play();
+            if (playPromise && playPromise.then) {
+                playPromise.then(() => {
+                    _dbg('startMenuMusic: play() RESOLVED OK');
+                }).catch(e => {
+                    _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+                });
+            }
+        });
     } else {
         _dbg('startMenuMusic: no song found for trackId=' + trackId);
     }
@@ -2979,6 +3035,8 @@ function getEffectiveSfxVolume(effectId) {
         clearAllPurgedSongs,
         // Debug logger (temporary)
         _dbg,
-        _getDbgLog
+        _getDbgLog,
+        // User interaction gate
+        markUserInteraction
     };
 })(); // End IIFE

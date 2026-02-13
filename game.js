@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -227,7 +227,7 @@ function copyLogsToClipboard() {
 }
 
 // Submit bug report to server
-async function submitBugReport(debugLog, bugDescription) {
+async function submitBugReport(debugLog, bugDescription, silent = false) {
     try {
         const token = localStorage.getItem('oi_token');
         const headers = { 'Content-Type': 'application/json' };
@@ -255,14 +255,12 @@ async function submitBugReport(debugLog, bugDescription) {
             body: JSON.stringify(payload)
         });
         
-        if (response.ok) {
-            showBugReportConfirmation(true);
-        } else {
-            showBugReportConfirmation(false);
+        if (!silent) {
+            showBugReportConfirmation(response.ok);
         }
     } catch (e) {
         console.error('Bug report submission failed:', e);
-        showBugReportConfirmation(false);
+        if (!silent) showBugReportConfirmation(false);
     }
 }
 
@@ -11051,9 +11049,10 @@ function startGame(mode) {
     
     // Auto-submit audio debug log as bug report (temporary - iPad music diagnosis)
     setTimeout(() => {
-        const audioLog = _getAudioDbgLog();
+        const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const audioLog = _isIPad ? _getAudioDbgLog() : null;
         if (audioLog) {
-            submitBugReport(audioLog, '[AUTO] iPad audio debug log - game started');
+            submitBugReport(audioLog, '[AUTO] iPad audio debug log - game started', true);
         }
     }, 3000);
     
@@ -12378,19 +12377,20 @@ if (startOverlay) {
         introMusicSelect.addEventListener('change', () => {
             musicSelect.value = introMusicSelect.value;
             _audioDbg('introMusicSelect change: value=' + introMusicSelect.value);
+            markUserInteraction();
+            
+            // Resume audio context if needed (for SFX)
+            if (audioContext.state === 'suspended') {
+                _audioDbg('introMusicSelect: resuming audioContext');
+                audioContext.resume();
+            }
             
             // Stop any currently playing music
             stopMusic();
             
-            // Play preview FIRST (must be before audioContext.resume on Safari)
+            // Play preview of selected song
             if (introMusicSelect.value !== 'none') {
                 startMusic(null, introMusicSelect);
-            }
-            
-            // Resume audio context after play (for SFX)
-            if (audioContext.state === 'suspended') {
-                _audioDbg('introMusicSelect: resuming audioContext');
-                audioContext.resume();
             }
         });
         
@@ -12570,21 +12570,25 @@ if (startOverlay) {
                 })();
             }
         }
-        // MUSIC PLAY FIRST — Safari allows one restricted API per gesture.
-        // audio.play() must happen before audioContext.resume() or requestFullscreen
-        // consume the user-activation token.
-        stopMusic();
-        _audioDbg('dismissIntro: musicSelect.value=' + musicSelect.value);
-        if (musicSelect.value !== 'none') {
-            _audioDbg('dismissIntro: calling startMenuMusic() FIRST (before resume/fullscreen)');
-            startMenuMusic(musicSelect);
-        }
-        // Resume audioContext for SFX oscillators
+        // Mark that user has interacted (gates audio system)
+        markUserInteraction();
+        
+        // Resume audioContext first — since music now plays asynchronously via fetch→blob,
+        // we don't need to race against the user-activation token.
+        // The page's "activated" state persists for all future media playback.
         _audioDbg('dismissIntro: audioContext.state=' + audioContext.state);
         if (audioContext.state === 'suspended') {
             _audioDbg('dismissIntro: calling audioContext.resume()');
             audioContext.resume().then(() => _audioDbg('dismissIntro: resume() resolved, state=' + audioContext.state))
                 .catch(e => _audioDbg('dismissIntro: resume() FAILED: ' + e.message));
+        }
+        
+        // Start menu music (fetches MP3 as blob, then plays)
+        stopMusic();
+        _audioDbg('dismissIntro: musicSelect.value=' + musicSelect.value);
+        if (musicSelect.value !== 'none') {
+            _audioDbg('dismissIntro: calling startMenuMusic()');
+            startMenuMusic(musicSelect);
         }
         // FULLSCREEN LAST
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
@@ -12613,9 +12617,10 @@ if (startOverlay) {
         
         // Auto-submit audio debug log after intro dismiss (temporary - iPad diagnosis)
         setTimeout(() => {
-            const audioLog = _getAudioDbgLog();
+            const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const audioLog = _isIPad ? _getAudioDbgLog() : null;
             if (audioLog) {
-                submitBugReport(audioLog, '[AUTO] iPad audio debug log - intro dismissed');
+                submitBugReport(audioLog, '[AUTO] iPad audio debug log - intro dismissed', true);
             }
         }, 3000);
     }
