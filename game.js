@@ -11047,14 +11047,6 @@ function startGame(mode) {
     
     startMusic(gameMode, musicSelect);
     
-    // Auto-submit audio debug log as bug report (temporary - iPad music diagnosis)
-    setTimeout(() => {
-        const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const audioLog = _isIPad ? _getAudioDbgLog() : null;
-        if (audioLog) {
-            submitBugReport(audioLog, '[AUTO] iPad audio debug log - game started', true);
-        }
-    }, 3000);
     
     // Update song display after a short delay (to let audio load)
     setTimeout(() => {
@@ -12619,14 +12611,6 @@ if (startOverlay) {
             window._dismissingIntro = false;
         }, 400);
         
-        // Auto-submit audio debug log after intro dismiss (temporary - iPad diagnosis)
-        setTimeout(() => {
-            const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const audioLog = _isIPad ? _getAudioDbgLog() : null;
-            if (audioLog) {
-                submitBugReport(audioLog, '[AUTO] iPad audio debug log - intro dismissed', true);
-            }
-        }, 3000);
     }
     
     if (startGameBtn) {

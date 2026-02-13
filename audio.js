@@ -35,9 +35,9 @@
 
     // iPad detection - iPad Safari can't follow GitHub's 302 redirect chain
     // in Audio elements (error code 4) or fetch (CORS). Route through proxy.
-    const _isIPadAudio = navigator.userAgent.includes('iPad') || 
+    const _isIOSAudio = navigator.userAgent.includes('iPad') || navigator.userAgent.includes('iPhone') || 
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (_isIPadAudio) _dbg('iPad detected — using music proxy');
+    if (_isIOSAudio) _dbg('iOS detected — using music proxy');
 
 // Music system state
 let musicPlaying = false;
@@ -64,7 +64,7 @@ let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
 // iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
 const GITHUB_MUSIC_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
 const PROXY_MUSIC_URL = 'https://blockchainstorm.onrender.com/api/music/Music/';
-const MUSIC_BASE_URL = _isIPadAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
+const MUSIC_BASE_URL = _isIOSAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
 
 // MP3 sound effects (hosted on GitHub Releases)
 const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
@@ -369,7 +369,7 @@ const menuOnlySongs = [
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
 const GITHUB_FWORD_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
 const PROXY_FWORD_URL = 'https://blockchainstorm.onrender.com/api/music/Music-F-Word/';
-const F_WORD_BASE_URL = _isIPadAudio ? PROXY_FWORD_URL : GITHUB_FWORD_URL;
+const F_WORD_BASE_URL = _isIOSAudio ? PROXY_FWORD_URL : GITHUB_FWORD_URL;
 const fWordSongs = [];
 for (let i = 1; i <= 20; i++) {
     fWordSongs.push({
