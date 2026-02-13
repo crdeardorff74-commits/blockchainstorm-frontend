@@ -225,7 +225,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                     <th class="events-col">Events</th>
                     <th class="score">Score</th>
                     <th>Lines</th>
-                    ${mode === 'challenge' ? '<th class="challenges-col">🎯</th>' : ''}
+                    ${(mode === 'challenge' || mode === 'ai-challenge') ? '<th class="challenges-col">🎯</th>' : ''}
                     <th class="replay-col" title="Watch Replay">▶</th>
                 </tr>
             </thead>
@@ -280,7 +280,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         let challengesCell = '';
         let hasChallenge = false;
         let challengeNames = '';
-        if (mode === 'challenge') {
+        if (mode === 'challenge' || mode === 'ai-challenge') {
             const challenges = entry.challenges || [];
             if (challenges.length > 0) {
                 challengeNames = challenges.map(c => getChallengeDisplayName(c)).join(', ');
