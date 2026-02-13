@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -11049,6 +11049,14 @@ function startGame(mode) {
     
     startMusic(gameMode, musicSelect);
     
+    // Auto-submit audio debug log as bug report (temporary - iPad music diagnosis)
+    setTimeout(() => {
+        const audioLog = _getAudioDbgLog();
+        if (audioLog) {
+            submitBugReport(audioLog, '[AUTO] iPad audio debug log - game started');
+        }
+    }, 3000);
+    
     // Update song display after a short delay (to let audio load)
     setTimeout(() => {
         const songInfo = getCurrentSongInfo();
@@ -12602,6 +12610,14 @@ if (startOverlay) {
         setTimeout(() => {
             startOverlay.style.display = 'none';
         }, 400);
+        
+        // Auto-submit audio debug log after intro dismiss (temporary - iPad diagnosis)
+        setTimeout(() => {
+            const audioLog = _getAudioDbgLog();
+            if (audioLog) {
+                submitBugReport(audioLog, '[AUTO] iPad audio debug log - intro dismissed');
+            }
+        }, 3000);
     }
     
     if (startGameBtn) {

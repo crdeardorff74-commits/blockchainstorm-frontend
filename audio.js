@@ -3,28 +3,15 @@
 
 (function() {
 
-    // === ON-SCREEN DEBUG LOGGER (for iPad/mobile diagnosis only) ===
-    const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    let _dbgEl = null;
+    // === AUDIO DEBUG LOGGER (collects in memory, no on-screen display) ===
     const _dbgLines = [];
     function _dbg(msg) {
         console.log('🔊DBG: ' + msg);
-        if (!_isIPad) return; // Only show on-screen log on iPad
         _dbgLines.push(new Date().toLocaleTimeString() + ' ' + msg);
-        if (_dbgLines.length > 30) _dbgLines.shift();
-        if (!_dbgEl) {
-            _dbgEl = document.getElementById('audioDebugLog');
-        }
-        if (!_dbgEl) {
-            _dbgEl = document.createElement('div');
-            _dbgEl.id = 'audioDebugLog';
-            _dbgEl.style.cssText = 'position:fixed;bottom:0;left:0;width:100%;max-height:35vh;overflow-y:auto;' +
-                'background:rgba(0,0,0,0.9);color:#0f0;font:11px/1.4 monospace;padding:6px;z-index:9999999;' +
-                'pointer-events:auto;-webkit-overflow-scrolling:touch;';
-            document.body.appendChild(_dbgEl);
-        }
-        _dbgEl.innerHTML = _dbgLines.map(l => l).join('<br>');
-        _dbgEl.scrollTop = _dbgEl.scrollHeight;
+        if (_dbgLines.length > 100) _dbgLines.shift();
+    }
+    function _getDbgLog() {
+        return _dbgLines.join('\n');
     }
 
     // Initialize Web Audio API
@@ -2991,6 +2978,7 @@ function getEffectiveSfxVolume(effectId) {
         getPurgedSongs,
         clearAllPurgedSongs,
         // Debug logger (temporary)
-        _dbg
+        _dbg,
+        _getDbgLog
     };
 })(); // End IIFE
