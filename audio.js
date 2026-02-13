@@ -500,8 +500,15 @@ function skipToNextSong() {
     // Check if we have songs in forward history (user went back, now going forward)
     if (forwardHistory.length > 0) {
         const nextSongId = forwardHistory.pop();
-        const audio = gameplayMusicElements[nextSongId];
+        let audio = gameplayMusicElements[nextSongId];
         const song = allSongs.find(s => s.id === nextSongId);
+        
+        if (!audio && song) {
+            audio = new Audio(song.file);
+            audio.volume = musicMuted ? 0 : musicVolume;
+            audio.addEventListener('ended', onSongEnded);
+            gameplayMusicElements[nextSongId] = audio;
+        }
         
         if (audio && song) {
             musicPlaying = true;
@@ -560,8 +567,15 @@ function skipToPreviousSong() {
     currentPlayingTrack = null;
     
     // Play the previous song directly
-    const audio = gameplayMusicElements[prevSongId];
+    let audio = gameplayMusicElements[prevSongId];
     const song = allSongs.find(s => s.id === prevSongId);
+    
+    if (!audio && song) {
+        audio = new Audio(song.file);
+        audio.volume = musicMuted ? 0 : musicVolume;
+        audio.addEventListener('ended', onSongEnded);
+        gameplayMusicElements[prevSongId] = audio;
+    }
     
     if (audio && song) {
         musicPlaying = true;
@@ -1409,16 +1423,13 @@ function onSongEnded(event) {
 }
 
 // Initialize all gameplay music audio elements
+// NOTE: We do NOT pre-create Audio elements here. Safari/iOS limits simultaneous
+// HTMLAudioElement instances and silently breaks them when too many are created.
+// Instead, Audio elements are created on-demand in startMusic() when a track is
+// actually needed. The gameplayMusicElements dict caches them after first use.
 function initGameplayMusic() {
-    allSongs.forEach(song => {
-        const audio = new Audio(song.file);
-        audio.loop = true;
-        audio.volume = musicMuted ? 0 : musicVolume;
-        audio.preload = 'auto';
-        // Add ended event listener for shuffle mode
-        audio.addEventListener('ended', onSongEnded);
-        gameplayMusicElements[song.id] = audio;
-    });
+    // Audio elements will be lazily created in startMusic() on first play
+    console.log('🎵 Gameplay music initialized (lazy-load mode, ' + allSongs.length + ' tracks available)');
 }
 
 // DRIZZLE MODE - Slowest, chill 80s synth with light bass (100 BPM)
@@ -2859,6 +2870,30 @@ function getEffectiveSfxVolume(effectId) {
     return (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
 }
 
+// Unlock HTMLAudioElement playback on Safari/iOS.
+// Safari requires the first .play() on an Audio element to originate from a user gesture.
+// Call this from a click/touchend handler to "warm up" audio playback for the session.
+let audioUnlocked = false;
+function unlockAudioPlayback() {
+    if (audioUnlocked) return;
+    try {
+        // Create a silent audio element and play+pause it to unlock HTMLAudioElement
+        const silent = new Audio();
+        silent.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+        silent.volume = 0;
+        const p = silent.play();
+        if (p && p.then) {
+            p.then(() => {
+                silent.pause();
+                audioUnlocked = true;
+                console.log('🔊 HTMLAudioElement playback unlocked (Safari)');
+            }).catch(() => {});
+        }
+    } catch (e) {
+        // Silently ignore - not critical
+    }
+}
+
     // Export all public functions for use in main game
     window.AudioSystem = {
         audioContext,
@@ -2914,6 +2949,8 @@ function getEffectiveSfxVolume(effectId) {
         skipToNextSongWithPurge,
         isSongPurged,
         getPurgedSongs,
-        clearAllPurgedSongs
+        clearAllPurgedSongs,
+        // Safari audio unlock
+        unlockAudioPlayback
     };
 })(); // End IIFE

@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, unlockAudioPlayback } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -12367,6 +12367,9 @@ if (startOverlay) {
         introMusicSelect.addEventListener('change', () => {
             musicSelect.value = introMusicSelect.value;
             
+            // Unlock HTMLAudioElement on Safari (must be in user gesture handler)
+            unlockAudioPlayback();
+            
             // Resume audio context if needed (required by browsers)
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
@@ -12552,6 +12555,8 @@ if (startOverlay) {
                 })();
             }
         }
+        // Unlock HTMLAudioElement playback on Safari/iOS (must be in user gesture handler)
+        unlockAudioPlayback();
         // Request full-screen mode FIRST (must be before audioContext.resume which can consume user gesture)
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
