@@ -12371,18 +12371,18 @@ if (startOverlay) {
             musicSelect.value = introMusicSelect.value;
             _audioDbg('introMusicSelect change: value=' + introMusicSelect.value);
             
-            // Resume audio context if needed (required by browsers)
-            if (audioContext.state === 'suspended') {
-                _audioDbg('introMusicSelect: resuming audioContext');
-                audioContext.resume();
-            }
-            
             // Stop any currently playing music
             stopMusic();
             
-            // Play preview of selected song (if not 'none')
+            // Play preview FIRST (must be before audioContext.resume on Safari)
             if (introMusicSelect.value !== 'none') {
                 startMusic(null, introMusicSelect);
+            }
+            
+            // Resume audio context after play (for SFX)
+            if (audioContext.state === 'suspended') {
+                _audioDbg('introMusicSelect: resuming audioContext');
+                audioContext.resume();
             }
         });
         
@@ -12562,27 +12562,23 @@ if (startOverlay) {
                 })();
             }
         }
-        // AUDIO FIRST — resume AudioContext before anything else.
-        // Music Audio elements route through AudioContext via createMediaElementSource,
-        // so once AudioContext is running, music can play without per-element activation.
+        // MUSIC PLAY FIRST — Safari allows one restricted API per gesture.
+        // audio.play() must happen before audioContext.resume() or requestFullscreen
+        // consume the user-activation token.
+        stopMusic();
+        _audioDbg('dismissIntro: musicSelect.value=' + musicSelect.value);
+        if (musicSelect.value !== 'none') {
+            _audioDbg('dismissIntro: calling startMenuMusic() FIRST (before resume/fullscreen)');
+            startMenuMusic(musicSelect);
+        }
+        // Resume audioContext for SFX oscillators
         _audioDbg('dismissIntro: audioContext.state=' + audioContext.state);
         if (audioContext.state === 'suspended') {
             _audioDbg('dismissIntro: calling audioContext.resume()');
             audioContext.resume().then(() => _audioDbg('dismissIntro: resume() resolved, state=' + audioContext.state))
                 .catch(e => _audioDbg('dismissIntro: resume() FAILED: ' + e.message));
         }
-        // Stop any preview music that was playing from intro screen
-        stopMusic();
-        // Start menu music (only if music is enabled)
-        _audioDbg('dismissIntro: musicSelect.value=' + musicSelect.value);
-        if (musicSelect.value !== 'none') {
-            _audioDbg('dismissIntro: calling startMenuMusic()');
-            startMenuMusic(musicSelect);
-        } else {
-            _audioDbg('dismissIntro: music set to none, skipping');
-        }
-        // FULLSCREEN LAST — on Safari this consumes the user-activation token,
-        // but music no longer needs it (routed through AudioContext).
+        // FULLSCREEN LAST
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {

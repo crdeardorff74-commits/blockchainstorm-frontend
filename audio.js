@@ -32,35 +32,6 @@
     _dbg('audioContext created, state=' + audioContext.state);
     audioContext.addEventListener('statechange', () => _dbg('audioContext statechange → ' + audioContext.state));
 
-    // Music gain node - all music Audio elements route through this via createMediaElementSource.
-    // This lets music play once AudioContext is unlocked, bypassing Safari's per-element
-    // user-activation requirement for HTMLAudioElement.play().
-    const musicGainNode = audioContext.createGain();
-    musicGainNode.connect(audioContext.destination);
-
-    // Connect an Audio element to the AudioContext music output.
-    // Once connected, audio.volume is ignored; use musicGainNode for volume.
-    function connectToMusicGain(audio) {
-        if (audio._musicSource) { _dbg('connectToMusicGain: already connected'); return; }
-        try {
-            const source = audioContext.createMediaElementSource(audio);
-            source.connect(musicGainNode);
-            audio._musicSource = source;
-            _dbg('connectToMusicGain: SUCCESS');
-        } catch(e) {
-            _dbg('connectToMusicGain: FAILED - ' + e.message);
-            console.warn('🎵 Could not connect audio to AudioContext:', e.message);
-        }
-    }
-    
-    // Create a music Audio element pre-configured for AudioContext routing
-    function createMusicAudio() {
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous'; // Required for createMediaElementSource with GitHub CDN redirects
-        connectToMusicGain(audio);
-        return audio;
-    }
-
 // Music system state
 let musicPlaying = false;
 let musicInterval = null;
@@ -81,9 +52,6 @@ let musicVolume = parseFloat(localStorage.getItem('blockchainstorm_musicVolume')
 let musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
 let sfxVolume = parseFloat(localStorage.getItem('blockchainstorm_sfxVolume')) || 0.7;
 let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
-
-// Initialize music gain from saved settings
-musicGainNode.gain.value = musicMuted ? 0 : musicVolume;
 
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
@@ -563,7 +531,8 @@ function skipToNextSong() {
         const song = allSongs.find(s => s.id === nextSongId);
         
         if (!audio && song) {
-            audio = createMusicAudio();
+            audio = new Audio();
+            audio.volume = musicMuted ? 0 : musicVolume;
             audio.addEventListener('ended', onSongEnded);
             gameplayMusicElements[nextSongId] = audio;
         }
@@ -629,7 +598,8 @@ function skipToPreviousSong() {
     const song = allSongs.find(s => s.id === prevSongId);
     
     if (!audio && song) {
-        audio = createMusicAudio();
+        audio = new Audio();
+        audio.volume = musicMuted ? 0 : musicVolume;
         audio.addEventListener('ended', onSongEnded);
         gameplayMusicElements[prevSongId] = audio;
     }
@@ -1392,8 +1362,8 @@ function startMusic(gameMode, musicSelect) {
     // For UFO songs, we need to create the audio element on-the-fly
     let audio = gameplayMusicElements[trackId];
     if (!audio && song) {
-        audio = createMusicAudio();
-        // Volume is controlled by musicGainNode, no need to set audio.volume
+        audio = new Audio();
+        audio.volume = musicMuted ? 0 : musicVolume;
     }
     
     if (audio && song) {
@@ -1418,7 +1388,7 @@ function startMusic(gameMode, musicSelect) {
         // Always refresh the source before playing
         // This ensures GitHub redirect URLs work properly
         // (Pre-loaded Audio elements sometimes fail with redirecting URLs)
-        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state + ', _musicSource=' + !!audio._musicSource);
+        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state);
         audio.src = song.file;
         audio.currentTime = 0;
         const p = audio.play();
@@ -2182,9 +2152,9 @@ function startMenuMusic(musicToggleOrSelect) {
     
     // Create audio element if needed (routed through AudioContext for Safari compatibility)
     if (!menuMusicElement) {
-        _dbg('startMenuMusic: creating menuMusicElement via createMusicAudio()');
-        menuMusicElement = createMusicAudio();
-        // Volume is controlled by musicGainNode
+        _dbg('startMenuMusic: creating menuMusicElement via new Audio()');
+        menuMusicElement = new Audio();
+        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
         // Add debug event listeners
         menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
@@ -2202,8 +2172,8 @@ function startMenuMusic(musicToggleOrSelect) {
     // Set the source based on track selection
     if (song) {
         _dbg('startMenuMusic: setting src=' + song.file.substring(song.file.lastIndexOf('/') + 1));
-        _dbg('startMenuMusic: audioContext.state=' + audioContext.state + ', gainNode.gain=' + musicGainNode.gain.value);
-        _dbg('startMenuMusic: _musicSource=' + !!menuMusicElement._musicSource);
+        _dbg('startMenuMusic: audioContext.state=' + audioContext.state + ', volume=' + musicVolume + ', muted=' + musicMuted);
+
         menuMusicElement.src = song.file;
         const playPromise = menuMusicElement.play();
         if (playPromise && playPromise.then) {
@@ -2903,9 +2873,17 @@ function toggleMusicMute() {
 function applyMusicVolume() {
     const effectiveVolume = musicMuted ? 0 : musicVolume;
     
-    // All music routes through musicGainNode via createMediaElementSource,
-    // so a single gain change controls all music elements.
-    musicGainNode.gain.setValueAtTime(effectiveVolume, audioContext.currentTime);
+    // Apply to menu music
+    if (menuMusicElement) {
+        menuMusicElement.volume = effectiveVolume;
+    }
+    
+    // Apply to all gameplay music elements
+    Object.values(gameplayMusicElements).forEach(audio => {
+        if (audio) {
+            audio.volume = effectiveVolume;
+        }
+    });
 }
 
 function setSfxVolume(volume) {
