@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -12369,9 +12369,11 @@ if (startOverlay) {
         // When intro select changes, sync to settings and play preview
         introMusicSelect.addEventListener('change', () => {
             musicSelect.value = introMusicSelect.value;
+            _audioDbg('introMusicSelect change: value=' + introMusicSelect.value);
             
             // Resume audio context if needed (required by browsers)
             if (audioContext.state === 'suspended') {
+                _audioDbg('introMusicSelect: resuming audioContext');
                 audioContext.resume();
             }
             
@@ -12560,18 +12562,27 @@ if (startOverlay) {
                 })();
             }
         }
-        // AUDIO FIRST — Safari's user-activation token is consumed by requestFullscreen(),
-        // so we must resume audioContext and start music BEFORE requesting fullscreen.
+        // AUDIO FIRST — resume AudioContext before anything else.
+        // Music Audio elements route through AudioContext via createMediaElementSource,
+        // so once AudioContext is running, music can play without per-element activation.
+        _audioDbg('dismissIntro: audioContext.state=' + audioContext.state);
         if (audioContext.state === 'suspended') {
-            audioContext.resume();
+            _audioDbg('dismissIntro: calling audioContext.resume()');
+            audioContext.resume().then(() => _audioDbg('dismissIntro: resume() resolved, state=' + audioContext.state))
+                .catch(e => _audioDbg('dismissIntro: resume() FAILED: ' + e.message));
         }
         // Stop any preview music that was playing from intro screen
         stopMusic();
-        // Start menu music (only if music is enabled) — must happen in user gesture
+        // Start menu music (only if music is enabled)
+        _audioDbg('dismissIntro: musicSelect.value=' + musicSelect.value);
         if (musicSelect.value !== 'none') {
+            _audioDbg('dismissIntro: calling startMenuMusic()');
             startMenuMusic(musicSelect);
+        } else {
+            _audioDbg('dismissIntro: music set to none, skipping');
         }
-        // FULLSCREEN LAST — consumes user-activation token on Safari
+        // FULLSCREEN LAST — on Safari this consumes the user-activation token,
+        // but music no longer needs it (routed through AudioContext).
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {
@@ -12588,8 +12599,8 @@ if (startOverlay) {
                 // Silently handle fullscreen errors (permissions, unsupported, etc.)
             }
         }
-        // Delay overlay removal to absorb ghost taps on iOS (300ms tap delay).
-        // Overlay stays pointer-event-active but invisible during the delay.
+        // Fade overlay out visually but keep it in the DOM for 400ms to absorb
+        // ghost taps that iOS generates after touchend (~300ms delay).
         startOverlay.style.opacity = '0';
         startOverlay.style.transition = 'opacity 0.15s';
         setTimeout(() => {
@@ -12599,6 +12610,7 @@ if (startOverlay) {
     
     if (startGameBtn) {
         startGameBtn.addEventListener('click', (e) => {
+            _audioDbg('startGameBtn CLICK fired');
             e.stopPropagation();
             dismissIntroScreen();
         });
@@ -12620,6 +12632,7 @@ if (startOverlay) {
     // Add touchend for mobile Safari/Android for the start button
     if (startGameBtn) {
         startGameBtn.addEventListener('touchend', (e) => {
+            _audioDbg('startGameBtn TOUCHEND fired');
             e.preventDefault();
             e.stopPropagation();
             dismissIntroScreen();

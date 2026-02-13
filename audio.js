@@ -2,8 +2,64 @@
 // Handles all sound effects, music, and audio context management
 
 (function() {
+
+    // === ON-SCREEN DEBUG LOGGER (for iPad/mobile diagnosis only) ===
+    const _isIPad = navigator.userAgent.includes('iPad') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    let _dbgEl = null;
+    const _dbgLines = [];
+    function _dbg(msg) {
+        console.log('🔊DBG: ' + msg);
+        if (!_isIPad) return; // Only show on-screen log on iPad
+        _dbgLines.push(new Date().toLocaleTimeString() + ' ' + msg);
+        if (_dbgLines.length > 30) _dbgLines.shift();
+        if (!_dbgEl) {
+            _dbgEl = document.getElementById('audioDebugLog');
+        }
+        if (!_dbgEl) {
+            _dbgEl = document.createElement('div');
+            _dbgEl.id = 'audioDebugLog';
+            _dbgEl.style.cssText = 'position:fixed;bottom:0;left:0;width:100%;max-height:35vh;overflow-y:auto;' +
+                'background:rgba(0,0,0,0.9);color:#0f0;font:11px/1.4 monospace;padding:6px;z-index:9999999;' +
+                'pointer-events:auto;-webkit-overflow-scrolling:touch;';
+            document.body.appendChild(_dbgEl);
+        }
+        _dbgEl.innerHTML = _dbgLines.map(l => l).join('<br>');
+        _dbgEl.scrollTop = _dbgEl.scrollHeight;
+    }
+
     // Initialize Web Audio API
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    _dbg('audioContext created, state=' + audioContext.state);
+    audioContext.addEventListener('statechange', () => _dbg('audioContext statechange → ' + audioContext.state));
+
+    // Music gain node - all music Audio elements route through this via createMediaElementSource.
+    // This lets music play once AudioContext is unlocked, bypassing Safari's per-element
+    // user-activation requirement for HTMLAudioElement.play().
+    const musicGainNode = audioContext.createGain();
+    musicGainNode.connect(audioContext.destination);
+
+    // Connect an Audio element to the AudioContext music output.
+    // Once connected, audio.volume is ignored; use musicGainNode for volume.
+    function connectToMusicGain(audio) {
+        if (audio._musicSource) { _dbg('connectToMusicGain: already connected'); return; }
+        try {
+            const source = audioContext.createMediaElementSource(audio);
+            source.connect(musicGainNode);
+            audio._musicSource = source;
+            _dbg('connectToMusicGain: SUCCESS');
+        } catch(e) {
+            _dbg('connectToMusicGain: FAILED - ' + e.message);
+            console.warn('🎵 Could not connect audio to AudioContext:', e.message);
+        }
+    }
+    
+    // Create a music Audio element pre-configured for AudioContext routing
+    function createMusicAudio() {
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous'; // Required for createMediaElementSource with GitHub CDN redirects
+        connectToMusicGain(audio);
+        return audio;
+    }
 
 // Music system state
 let musicPlaying = false;
@@ -25,6 +81,9 @@ let musicVolume = parseFloat(localStorage.getItem('blockchainstorm_musicVolume')
 let musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
 let sfxVolume = parseFloat(localStorage.getItem('blockchainstorm_sfxVolume')) || 0.7;
 let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
+
+// Initialize music gain from saved settings
+musicGainNode.gain.value = musicMuted ? 0 : musicVolume;
 
 // MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
 const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
@@ -504,8 +563,7 @@ function skipToNextSong() {
         const song = allSongs.find(s => s.id === nextSongId);
         
         if (!audio && song) {
-            audio = new Audio(song.file);
-            audio.volume = musicMuted ? 0 : musicVolume;
+            audio = createMusicAudio();
             audio.addEventListener('ended', onSongEnded);
             gameplayMusicElements[nextSongId] = audio;
         }
@@ -571,8 +629,7 @@ function skipToPreviousSong() {
     const song = allSongs.find(s => s.id === prevSongId);
     
     if (!audio && song) {
-        audio = new Audio(song.file);
-        audio.volume = musicMuted ? 0 : musicVolume;
+        audio = createMusicAudio();
         audio.addEventListener('ended', onSongEnded);
         gameplayMusicElements[prevSongId] = audio;
     }
@@ -1277,7 +1334,8 @@ let currentMusicSelectElement = null;
 
 // Main music controller - now uses MP3 tracks based on dropdown selection
 function startMusic(gameMode, musicSelect) {
-    if (musicPlaying) return;
+    _dbg('startMusic called, musicPlaying=' + musicPlaying);
+    if (musicPlaying) { _dbg('startMusic: already playing, returning'); return; }
     
     // Set flag immediately to prevent race conditions with double-calls
     musicPlaying = true;
@@ -1334,8 +1392,8 @@ function startMusic(gameMode, musicSelect) {
     // For UFO songs, we need to create the audio element on-the-fly
     let audio = gameplayMusicElements[trackId];
     if (!audio && song) {
-        audio = new Audio(song.file);
-        audio.volume = musicMuted ? 0 : musicVolume;
+        audio = createMusicAudio();
+        // Volume is controlled by musicGainNode, no need to set audio.volume
     }
     
     if (audio && song) {
@@ -1360,9 +1418,13 @@ function startMusic(gameMode, musicSelect) {
         // Always refresh the source before playing
         // This ensures GitHub redirect URLs work properly
         // (Pre-loaded Audio elements sometimes fail with redirecting URLs)
+        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state + ', _musicSource=' + !!audio._musicSource);
         audio.src = song.file;
         audio.currentTime = 0;
-        audio.play().catch(e => console.log('Music autoplay prevented:', e));
+        const p = audio.play();
+        if (p && p.then) {
+            p.then(() => _dbg('startMusic: play() OK')).catch(e => _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message));
+        }
         
         // Store reference for control functions
         if (!gameplayMusicElements[trackId]) {
@@ -1422,10 +1484,9 @@ function onSongEnded(event) {
     }
 }
 
-// Initialize all gameplay music audio elements
-// NOTE: We do NOT pre-create Audio elements here. Safari/iOS silently breaks
-// HTMLAudioElement when too many are created at once. Elements are created
-// on-demand in startMusic() when a track is actually needed.
+// Initialize gameplay music - lazy mode.
+// Audio elements are created on-demand in startMusic() when a track plays.
+// Pre-creating 138 Audio elements overwhelms iPad Safari.
 function initGameplayMusic() {
     console.log('🎵 Gameplay music initialized (lazy-load, ' + allSongs.length + ' tracks available)');
 }
@@ -2043,6 +2104,7 @@ function startHurricaneMusic() {
 }
 
 function stopMusic() {
+    _dbg('stopMusic called, musicPlaying=' + musicPlaying);
     if (!musicPlaying) return;
     musicPlaying = false;
     
@@ -2082,7 +2144,8 @@ function stopMusic() {
 let currentMenuMusicSelect = null; // Store reference for credits song-end handling
 
 function startMenuMusic(musicToggleOrSelect) {
-    if (menuMusicPlaying) return;
+    _dbg('startMenuMusic called, menuMusicPlaying=' + menuMusicPlaying);
+    if (menuMusicPlaying) { _dbg('startMenuMusic: already playing, returning'); return; }
     
     // Store reference for song-end handling
     currentMenuMusicSelect = musicToggleOrSelect;
@@ -2094,9 +2157,10 @@ function startMenuMusic(musicToggleOrSelect) {
             musicEnabled = musicToggleOrSelect.checked;
         } else if (musicToggleOrSelect.tagName === 'SELECT') {
             musicEnabled = musicToggleOrSelect.value !== 'none';
+            _dbg('startMenuMusic: select value=' + musicToggleOrSelect.value);
         }
     }
-    if (!musicEnabled) return;
+    if (!musicEnabled) { _dbg('startMenuMusic: music disabled, returning'); return; }
     
     menuMusicPlaying = true;
     
@@ -2114,13 +2178,22 @@ function startMenuMusic(musicToggleOrSelect) {
         trackId = 'cascade_void_intro';
         song = menuOnlySongs.find(s => s.id === trackId);
     }
+    _dbg('startMenuMusic: trackId=' + trackId + ', song found=' + !!song);
     
-    // Create audio element if needed
+    // Create audio element if needed (routed through AudioContext for Safari compatibility)
     if (!menuMusicElement) {
-        menuMusicElement = new Audio();
-        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-        // Add ended event listener for credits shuffle
+        _dbg('startMenuMusic: creating menuMusicElement via createMusicAudio()');
+        menuMusicElement = createMusicAudio();
+        // Volume is controlled by musicGainNode
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
+        // Add debug event listeners
+        menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
+        menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
+        menuMusicElement.addEventListener('error', (e) => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
+        menuMusicElement.addEventListener('stalled', () => _dbg('menuMusic EVENT: stalled'));
+        menuMusicElement.addEventListener('waiting', () => _dbg('menuMusic EVENT: waiting'));
+        menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
+        menuMusicElement.addEventListener('loadstart', () => _dbg('menuMusic EVENT: loadstart'));
     }
     
     // Loop intro music, but not credits (credits will shuffle to next song)
@@ -2128,8 +2201,23 @@ function startMenuMusic(musicToggleOrSelect) {
     
     // Set the source based on track selection
     if (song) {
+        _dbg('startMenuMusic: setting src=' + song.file.substring(song.file.lastIndexOf('/') + 1));
+        _dbg('startMenuMusic: audioContext.state=' + audioContext.state + ', gainNode.gain=' + musicGainNode.gain.value);
+        _dbg('startMenuMusic: _musicSource=' + !!menuMusicElement._musicSource);
         menuMusicElement.src = song.file;
-        menuMusicElement.play().catch(e => console.log('Menu music autoplay prevented:', e));
+        const playPromise = menuMusicElement.play();
+        if (playPromise && playPromise.then) {
+            playPromise.then(() => {
+                _dbg('startMenuMusic: play() RESOLVED OK');
+                _dbg('  paused=' + menuMusicElement.paused + ' duration=' + menuMusicElement.duration + ' readyState=' + menuMusicElement.readyState);
+            }).catch(e => {
+                _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+            });
+        } else {
+            _dbg('startMenuMusic: play() returned non-promise');
+        }
+    } else {
+        _dbg('startMenuMusic: no song found for trackId=' + trackId);
     }
 }
 
@@ -2815,17 +2903,9 @@ function toggleMusicMute() {
 function applyMusicVolume() {
     const effectiveVolume = musicMuted ? 0 : musicVolume;
     
-    // Apply to menu music
-    if (menuMusicElement) {
-        menuMusicElement.volume = effectiveVolume;
-    }
-    
-    // Apply to all gameplay music elements
-    Object.values(gameplayMusicElements).forEach(audio => {
-        if (audio) {
-            audio.volume = effectiveVolume;
-        }
-    });
+    // All music routes through musicGainNode via createMediaElementSource,
+    // so a single gain change controls all music elements.
+    musicGainNode.gain.setValueAtTime(effectiveVolume, audioContext.currentTime);
 }
 
 function setSfxVolume(volume) {
@@ -2923,6 +3003,8 @@ function getEffectiveSfxVolume(effectId) {
         skipToNextSongWithPurge,
         isSongPurged,
         getPurgedSongs,
-        clearAllPurgedSongs
+        clearAllPurgedSongs,
+        // Debug logger (temporary)
+        _dbg
     };
 })(); // End IIFE
