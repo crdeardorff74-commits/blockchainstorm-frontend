@@ -533,7 +533,6 @@ function skipToNextSong() {
         if (!audio && song) {
             audio = new Audio(song.file);
             audio.volume = musicMuted ? 0 : musicVolume;
-            audio.preload = 'auto';
             audio.addEventListener('ended', onSongEnded);
             gameplayMusicElements[nextSongId] = audio;
         }
@@ -542,8 +541,7 @@ function skipToNextSong() {
             musicPlaying = true;
             currentPlayingTrack = nextSongId;
             audio.loop = false;
-            audio.src = song.file;
-            audio.load();
+            if (audio.src !== song.file) audio.src = song.file;
             audio.currentTime = 0;
             audio.play().catch(e => console.log('Music autoplay prevented:', e));
             console.log('🎵 Returned forward to:', song.name);
@@ -602,7 +600,6 @@ function skipToPreviousSong() {
     if (!audio && song) {
         audio = new Audio(song.file);
         audio.volume = musicMuted ? 0 : musicVolume;
-        audio.preload = 'auto';
         audio.addEventListener('ended', onSongEnded);
         gameplayMusicElements[prevSongId] = audio;
     }
@@ -611,8 +608,7 @@ function skipToPreviousSong() {
         musicPlaying = true;
         currentPlayingTrack = prevSongId;
         audio.loop = false;
-        audio.src = song.file;
-        audio.load();
+        if (audio.src !== song.file) audio.src = song.file;
         audio.currentTime = 0;
         audio.play().catch(e => console.log('Music autoplay prevented:', e));
         console.log('🎵 Skipped back to:', song.name);
@@ -1166,18 +1162,6 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
 initGameplayMusic();
 initShuffleQueues();
 
-// Pre-create menu music element with intro song so it's loaded by user's first tap.
-// iPad Safari fails if we create Audio() empty then set src and play immediately
-// because it hasn't followed GitHub's 302 redirect yet.
-const _introSong = menuOnlySongs.find(s => s.id === 'cascade_void_intro');
-if (_introSong) {
-    menuMusicElement = new Audio(_introSong.file);
-    menuMusicElement.preload = 'auto';
-    menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-    menuMusicElement.addEventListener('ended', onMenuMusicEnded);
-    _dbg('Pre-created menuMusicElement with intro song, preload=auto');
-}
-
 // Get list of songs for UI (gameplay songs only, not credits variations)
 function getSongList() {
     return gameplaySongs.map(s => ({ id: s.id, name: s.name }));
@@ -1375,12 +1359,14 @@ function startMusic(gameMode, musicSelect) {
         song = allSongs.find(s => s.id === trackId);
     }
     
-    // Create audio element on-demand if not cached
+    // Create audio element on-demand — iPad Safari requires elements created within
+    // user gesture handlers. Pass URL to constructor and play immediately.
     let audio = gameplayMusicElements[trackId];
+    let isNewElement = false;
     if (!audio && song) {
-        audio = new Audio(song.file); // Pass URL to constructor so Safari starts loading
+        audio = new Audio(song.file);
         audio.volume = musicMuted ? 0 : musicVolume;
-        audio.preload = 'auto';
+        isNewElement = true;
     }
     
     if (audio && song) {
@@ -1397,30 +1383,22 @@ function startMusic(gameMode, musicSelect) {
         // In shuffle mode, don't loop - play next song when this one ends
         audio.loop = (selection !== 'shuffle');
         
-        // Set up ended listener for UFO songs (not in gameplayMusicElements)
+        // Set up ended listener for new elements
         if (!gameplayMusicElements[trackId]) {
             audio.addEventListener('ended', onSongEnded);
         }
         
-        // Refresh source and play
-        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state + ', readyState=' + audio.readyState);
-        audio.src = song.file;
-        audio.load(); // Force Safari to start loading
+        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state + ', new=' + isNewElement);
+        
+        // For existing cached elements, refresh src to handle GitHub redirects
+        if (!isNewElement) {
+            audio.src = song.file;
+        }
         audio.currentTime = 0;
         const p = audio.play();
         if (p && p.then) {
             p.then(() => _dbg('startMusic: play() OK')).catch(e => {
                 _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-                // Retry after canplay if it was a loading issue
-                if (e.name === 'NotSupportedError' || e.name === 'AbortError') {
-                    _dbg('startMusic: scheduling retry on canplay');
-                    audio.addEventListener('canplay', function retryPlay() {
-                        audio.removeEventListener('canplay', retryPlay);
-                        _dbg('startMusic: retrying play() after canplay');
-                        audio.play().then(() => _dbg('startMusic: retry play() OK'))
-                            .catch(e2 => _dbg('startMusic: retry play() FAILED: ' + e2.message));
-                    });
-                }
             });
         }
         
@@ -2178,62 +2156,42 @@ function startMenuMusic(musicToggleOrSelect) {
     }
     _dbg('startMenuMusic: trackId=' + trackId + ', song found=' + !!song);
     
-    // Create audio element if needed (pre-created at init, this is a fallback)
-    if (!menuMusicElement) {
-        _dbg('startMenuMusic: creating new menuMusicElement (fallback)');
-        menuMusicElement = song ? new Audio(song.file) : new Audio();
-        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-        menuMusicElement.preload = 'auto';
-        menuMusicElement.addEventListener('ended', onMenuMusicEnded);
+    // iPad Safari requires Audio elements to be created within user gesture handlers.
+    // Pre-created elements are marked "tainted" and can never play.
+    // So we always create fresh, passing URL to constructor, and play immediately.
+    
+    // Stop and discard any existing menu music element
+    if (menuMusicElement) {
+        menuMusicElement.pause();
+        menuMusicElement.removeAttribute('src');
+        menuMusicElement = null;
     }
     
-    // Attach debug listeners once
-    if (!menuMusicElement._dbgAttached) {
-        menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
-        menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
-        menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
-        menuMusicElement.addEventListener('stalled', () => _dbg('menuMusic EVENT: stalled'));
-        menuMusicElement.addEventListener('waiting', () => _dbg('menuMusic EVENT: waiting'));
-        menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
-        menuMusicElement.addEventListener('loadstart', () => _dbg('menuMusic EVENT: loadstart'));
-        menuMusicElement._dbgAttached = true;
-    }
-    
-    // Loop intro music, but not credits (credits will shuffle to next song)
-    menuMusicElement.loop = !hasPlayedGame;
-    
-    // Set the source and play
     if (song) {
-        const currentSrc = menuMusicElement.src || '';
-        const songUrl = song.file;
-        const needsNewSrc = !currentSrc.includes(songUrl.substring(songUrl.lastIndexOf('/') + 1));
+        _dbg('startMenuMusic: creating FRESH Audio(' + song.file.substring(song.file.lastIndexOf('/') + 1) + ')');
+        menuMusicElement = new Audio(song.file);
+        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
+        menuMusicElement.loop = !hasPlayedGame;
+        menuMusicElement.addEventListener('ended', onMenuMusicEnded);
         
-        _dbg('startMenuMusic: song=' + song.file.substring(song.file.lastIndexOf('/') + 1));
-        _dbg('startMenuMusic: needsNewSrc=' + needsNewSrc + ', readyState=' + menuMusicElement.readyState + ', audioCtx=' + audioContext.state);
-        
-        if (needsNewSrc) {
-            menuMusicElement.src = song.file;
-            menuMusicElement.load(); // Force Safari to start loading the new source
-            _dbg('startMenuMusic: set new src + load()');
+        // Debug listeners
+        if (!menuMusicElement._dbgAttached) {
+            menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
+            menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
+            menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
+            menuMusicElement.addEventListener('stalled', () => _dbg('menuMusic EVENT: stalled'));
+            menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
+            menuMusicElement.addEventListener('loadstart', () => _dbg('menuMusic EVENT: loadstart'));
+            menuMusicElement._dbgAttached = true;
         }
         
-        menuMusicElement.currentTime = 0;
+        _dbg('startMenuMusic: calling play() immediately');
         const playPromise = menuMusicElement.play();
         if (playPromise && playPromise.then) {
             playPromise.then(() => {
                 _dbg('startMenuMusic: play() RESOLVED OK, readyState=' + menuMusicElement.readyState);
             }).catch(e => {
                 _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-                // If play failed due to not loaded yet, retry after canplay
-                if (e.name === 'NotSupportedError' || e.name === 'AbortError') {
-                    _dbg('startMenuMusic: scheduling retry on canplay');
-                    menuMusicElement.addEventListener('canplay', function retryPlay() {
-                        menuMusicElement.removeEventListener('canplay', retryPlay);
-                        _dbg('startMenuMusic: retrying play() after canplay, readyState=' + menuMusicElement.readyState);
-                        menuMusicElement.play().then(() => _dbg('startMenuMusic: retry play() OK'))
-                            .catch(e2 => _dbg('startMenuMusic: retry play() FAILED: ' + e2.name + ': ' + e2.message));
-                    });
-                }
             });
         }
     } else {
