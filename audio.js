@@ -1423,13 +1423,11 @@ function onSongEnded(event) {
 }
 
 // Initialize all gameplay music audio elements
-// NOTE: We do NOT pre-create Audio elements here. Safari/iOS limits simultaneous
-// HTMLAudioElement instances and silently breaks them when too many are created.
-// Instead, Audio elements are created on-demand in startMusic() when a track is
-// actually needed. The gameplayMusicElements dict caches them after first use.
+// NOTE: We do NOT pre-create Audio elements here. Safari/iOS silently breaks
+// HTMLAudioElement when too many are created at once. Elements are created
+// on-demand in startMusic() when a track is actually needed.
 function initGameplayMusic() {
-    // Audio elements will be lazily created in startMusic() on first play
-    console.log('🎵 Gameplay music initialized (lazy-load mode, ' + allSongs.length + ' tracks available)');
+    console.log('🎵 Gameplay music initialized (lazy-load, ' + allSongs.length + ' tracks available)');
 }
 
 // DRIZZLE MODE - Slowest, chill 80s synth with light bass (100 BPM)
@@ -2870,30 +2868,6 @@ function getEffectiveSfxVolume(effectId) {
     return (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
 }
 
-// Unlock HTMLAudioElement playback on Safari/iOS.
-// Safari requires the first .play() on an Audio element to originate from a user gesture.
-// Call this from a click/touchend handler to "warm up" audio playback for the session.
-let audioUnlocked = false;
-function unlockAudioPlayback() {
-    if (audioUnlocked) return;
-    try {
-        // Create a silent audio element and play+pause it to unlock HTMLAudioElement
-        const silent = new Audio();
-        silent.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-        silent.volume = 0;
-        const p = silent.play();
-        if (p && p.then) {
-            p.then(() => {
-                silent.pause();
-                audioUnlocked = true;
-                console.log('🔊 HTMLAudioElement playback unlocked (Safari)');
-            }).catch(() => {});
-        }
-    } catch (e) {
-        // Silently ignore - not critical
-    }
-}
-
     // Export all public functions for use in main game
     window.AudioSystem = {
         audioContext,
@@ -2949,8 +2923,6 @@ function unlockAudioPlayback() {
         skipToNextSongWithPurge,
         isSongPurged,
         getPurgedSongs,
-        clearAllPurgedSongs,
-        // Safari audio unlock
-        unlockAudioPlayback
+        clearAllPurgedSongs
     };
 })(); // End IIFE

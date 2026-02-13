@@ -1114,17 +1114,6 @@
         </div>
     </div>
 	
-<script>
-	// Force service worker update on deploy
-	if ('serviceWorker' in navigator) {
-		navigator.serviceWorker.getRegistrations().then(registrations => {
-			registrations.forEach(reg => {
-				reg.update().catch(() => {});
-			});
-		});
-	}
-	</script>
-
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>
 	<script src="leaderboard.js"></script>
@@ -1151,19 +1140,6 @@
 	<script src="touch-controls.js"></script>
 	<script src="gamepad.js"></script>
 	<script src="game.js"></script>
-	<script>
-	// Verify game.js loaded correctly - if not, provide fallback UI
-	if (typeof startGame === 'undefined') {
-		console.error('❌ game.js failed to initialize');
-		const btn = document.getElementById('startGameBtn');
-		if (btn) {
-			btn.textContent = '⚠️ Loading error - tap to reload';
-			btn.style.background = '#c0392b';
-			btn.addEventListener('click', () => location.reload(true));
-			btn.addEventListener('touchend', (e) => { e.preventDefault(); location.reload(true); });
-		}
-	}
-	</script>
 	<script src="settings-sync.js"></script>
 	
 	<script>

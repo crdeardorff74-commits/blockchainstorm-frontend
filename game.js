@@ -3,7 +3,7 @@
 console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, unlockAudioPlayback } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs } = window.AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -12237,12 +12237,15 @@ const startOverlay = document.getElementById('startOverlay');
 // Apply pulse animation only to "Don't Panic!"
 const dontPanicText = document.getElementById('dontPanicText');
 if (dontPanicText) {
-    // Legacy fallback: if old cached HTML still has data-i18n, switch to data-i18n-html
-    const legacyKey = dontPanicText.getAttribute('data-i18n');
-    if (legacyKey) {
+    // Switch from data-i18n (textContent) to data-i18n-html (innerHTML) for line break support
+    const i18nKey = dontPanicText.getAttribute('data-i18n');
+    if (i18nKey) {
         dontPanicText.removeAttribute('data-i18n');
-        dontPanicText.setAttribute('data-i18n-html', legacyKey);
-        if (typeof I18n !== 'undefined') dontPanicText.innerHTML = I18n.t(legacyKey);
+        dontPanicText.setAttribute('data-i18n-html', i18nKey);
+        // Re-apply translation as innerHTML now that we've switched
+        if (typeof I18n !== 'undefined') {
+            dontPanicText.innerHTML = I18n.t(i18nKey);
+        }
     }
     dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
 
@@ -12366,9 +12369,6 @@ if (startOverlay) {
         // When intro select changes, sync to settings and play preview
         introMusicSelect.addEventListener('change', () => {
             musicSelect.value = introMusicSelect.value;
-            
-            // Unlock HTMLAudioElement on Safari (must be in user gesture handler)
-            unlockAudioPlayback();
             
             // Resume audio context if needed (required by browsers)
             if (audioContext.state === 'suspended') {
@@ -12505,7 +12505,12 @@ if (startOverlay) {
     }
     
     // Start Game button handler
+    let introScreenDismissed = false;
     const dismissIntroScreen = function() {
+        // Guard against double-fire (touchend + synthetic click on iOS)
+        if (introScreenDismissed) return;
+        introScreenDismissed = true;
+        
         // Record play click
         const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
         if (_trackingEnabled) {
@@ -12555,9 +12560,18 @@ if (startOverlay) {
                 })();
             }
         }
-        // Unlock HTMLAudioElement playback on Safari/iOS (must be in user gesture handler)
-        unlockAudioPlayback();
-        // Request full-screen mode FIRST (must be before audioContext.resume which can consume user gesture)
+        // AUDIO FIRST — Safari's user-activation token is consumed by requestFullscreen(),
+        // so we must resume audioContext and start music BEFORE requesting fullscreen.
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Stop any preview music that was playing from intro screen
+        stopMusic();
+        // Start menu music (only if music is enabled) — must happen in user gesture
+        if (musicSelect.value !== 'none') {
+            startMenuMusic(musicSelect);
+        }
+        // FULLSCREEN LAST — consumes user-activation token on Safari
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {
@@ -12574,18 +12588,13 @@ if (startOverlay) {
                 // Silently handle fullscreen errors (permissions, unsupported, etc.)
             }
         }
-        // Resume audio context (required by browsers)
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Remove overlay
-        startOverlay.style.display = 'none';
-        // Stop any preview music that was playing from intro screen
-        stopMusic();
-        // Start menu music (only if music is enabled)
-        if (musicSelect.value !== 'none') {
-            startMenuMusic(musicSelect);
-        }
+        // Delay overlay removal to absorb ghost taps on iOS (300ms tap delay).
+        // Overlay stays pointer-event-active but invisible during the delay.
+        startOverlay.style.opacity = '0';
+        startOverlay.style.transition = 'opacity 0.15s';
+        setTimeout(() => {
+            startOverlay.style.display = 'none';
+        }, 400);
     }
     
     if (startGameBtn) {
