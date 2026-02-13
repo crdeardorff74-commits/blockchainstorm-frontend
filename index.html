@@ -216,7 +216,9 @@
         </div>
         
         <div class="main-area">
+            <div id="vertigoWrapper">
             <canvas id="gameCanvas" width="350" height="700"></canvas>
+            </div>
             <div class="mode-menu" id="modeMenu">
                 <div class="well-title" id="title-blockchainstorm">
                     ₿L<span style="position: relative; display: inline-block;">
@@ -1005,6 +1007,28 @@
                 </label>
                 <div class="challenge-description" data-i18n="challenge.shadowless.desc">Hides the shadow showing where pieces will land</div>
             </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboAmnesia" value="amnesia">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span data-i18n="challenge.amnesia">Amnesia (Fading Colors) +6%</span>
+                </label>
+                <div class="challenge-description" data-i18n="challenge.amnesia.desc">Block colors slowly fade to white after placement, hiding their true color</div>
+            </div>
+            
+            <div class="combo-checkbox-option">
+                <label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="comboVertigo" value="vertigo">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span data-i18n="challenge.vertigo">Vertigo (Rocking Sway) +2%</span>
+                </label>
+                <div class="challenge-description" data-i18n="challenge.vertigo.desc">The game well slowly rocks, tilts, and sways like playing on a ship deck</div>
+            </div>
 			
             </div> <!-- End of combo-checkboxes-grid -->
             
@@ -1099,9 +1123,22 @@
 	<script src="starfield.js"></script>
 	<script src="controls-config.js"></script>
 	<script src="game-recorder.js"></script>
+	<script src="challenge_amnesia.js"></script>
+	<script src="challenge_gremlins.js"></script>
+	<script src="challenge_lattice.js"></script>
+	<script src="challenge_mercurial.js"></script>
+	<script src="challenge_oz.js"></script>
+	<script src="challenge_rubber.js"></script>
+	<script src="challenge_phantom.js"></script>
+	<script src="challenge_sixseven.js"></script>
+	<script src="challenge_vertigo.js"></script>
+	<script src="challenge_yesand.js"></script>
 	<script src="histogram.js"></script>
 	<script src="color-palettes.js"></script>
 	<script src="ai-player.js"></script>
+	<script src="replay.js"></script>
+	<script src="touch-controls.js"></script>
+	<script src="gamepad.js"></script>
 	<script src="game.js"></script>
 	<script src="settings-sync.js"></script>
 	

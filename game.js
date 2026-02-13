@@ -104,357 +104,7 @@ let gameOverPending = false; // True when waiting for game over timeout
 let cameraReversed = false;
 
 // ============================================
-// DEVICE DETECTION & TABLET MODE SYSTEM
-// ============================================
-
-const DeviceDetection = {
-    isMobile: false,
-    isTablet: false,
-    isTouch: false,
-    
-    detect() {
-        const ua = navigator.userAgent.toLowerCase();
-        this.isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        const width = window.innerWidth;
-        
-        // Tablet detection (iPad, Android tablets, etc.)
-        if (/(ipad|tablet|playbook|silk)|(android(?!.*mobile))/i.test(ua)) {
-            this.isTablet = true;
-            this.isMobile = false;
-            return 'tablet';
-        }
-        
-        // Phone detection
-        if (/android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
-            this.isTablet = false;
-            this.isMobile = true;
-            return 'phone';
-        }
-        
-        // iPad with iPadOS 13+ (reports as desktop)
-        if (navigator.userAgent.match(/Mac/) && navigator.maxTouchPoints && navigator.maxTouchPoints > 2) {
-            this.isTablet = true;
-            this.isMobile = false;
-            return 'tablet';
-        }
-        
-        // Fallback: Small touch screen = phone, larger = tablet
-        if (this.isTouch) {
-            if (width <= 768) {
-                this.isMobile = true;
-                this.isTablet = false;
-                return 'phone';
-            } else if (width <= 1024) {
-                this.isTablet = true;
-                this.isMobile = false;
-                return 'tablet';
-            }
-        }
-        
-        return 'desktop';
-    }
-};
-
-function detectOS() {
-    const ua = navigator.userAgent;
-    if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 2)) return 'iOS';
-    if (/Android/i.test(ua)) return 'Android';
-    if (/Win/i.test(ua)) return 'Windows';
-    if (/Mac/i.test(ua)) return 'macOS';
-    if (/Linux/i.test(ua)) return 'Linux';
-    return 'Other';
-}
-
-// Tablet Mode System
-// ============================================
-// SWIPE GESTURE CONTROLS
-// ============================================
-const SwipeControls = {
-    enabled: false,
-    startX: 0,
-    startY: 0,
-    startTime: 0,
-    tracking: false,
-    moveThreshold: 20,      // Min px to register a swipe
-    tapThreshold: 12,        // Max px movement for a tap
-    tapTimeMax: 250,         // Max ms for a tap
-    hardDropSpeed: 800,      // Min px/sec for hard drop
-    softDropInterval: null,
-    lastMoveX: 0,            // Track cumulative horizontal movement
-    movedColumns: 0,         // How many columns we've moved this gesture
-    
-    _onTouchStart: null,
-    _onTouchMove: null,
-    _onTouchEnd: null,
-    _onTouchCancel: null,
-    
-    enable() {
-        if (this.enabled) return;
-        this.enabled = true;
-        
-        this._onTouchStart = this.handleStart.bind(this);
-        this._onTouchMove = this.handleMove.bind(this);
-        this._onTouchEnd = this.handleEnd.bind(this);
-        this._onTouchCancel = this.handleCancel.bind(this);
-        
-        document.addEventListener('touchstart', this._onTouchStart, { passive: false });
-        document.addEventListener('touchmove', this._onTouchMove, { passive: false });
-        document.addEventListener('touchend', this._onTouchEnd, { passive: false });
-        document.addEventListener('touchcancel', this._onTouchCancel, { passive: false });
-        
-        console.log('👆 Swipe gesture controls enabled');
-    },
-    
-    disable() {
-        if (!this.enabled) return;
-        this.enabled = false;
-        
-        document.removeEventListener('touchstart', this._onTouchStart);
-        document.removeEventListener('touchmove', this._onTouchMove);
-        document.removeEventListener('touchend', this._onTouchEnd);
-        document.removeEventListener('touchcancel', this._onTouchCancel);
-        
-        this.stopSoftDrop();
-        console.log('👆 Swipe gesture controls disabled');
-    },
-    
-    getSwapDir() {
-        // Check if controls should be swapped (Stranger XOR Dyslexic)
-        const strangerActive = typeof challengeMode !== 'undefined' && 
-            (challengeMode === 'stranger' || (typeof activeChallenges !== 'undefined' && activeChallenges.has('stranger')));
-        const dyslexicActive = typeof challengeMode !== 'undefined' && 
-            (challengeMode === 'dyslexic' || (typeof activeChallenges !== 'undefined' && activeChallenges.has('dyslexic')));
-        return strangerActive !== dyslexicActive ? -1 : 1;
-    },
-    
-    handleStart(e) {
-        if (typeof isPaused !== 'undefined' && isPaused) return;
-        if (typeof gameRunning !== 'undefined' && !gameRunning) return;
-        
-        // Ignore touches on interactive UI elements (buttons, sliders, inputs, selects, overlays)
-        const tag = e.target.tagName;
-        if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'LABEL' || tag === 'A') return;
-        if (e.target.closest('.settings-panel, .start-overlay, .name-entry-overlay, #gameOver, .leaderboard-overlay')) return;
-        
-        e.preventDefault();
-        const touch = e.touches[0];
-        this.startX = touch.clientX;
-        this.startY = touch.clientY;
-        this.startTime = Date.now();
-        this.tracking = true;
-        this.lastMoveX = touch.clientX;
-        this.movedColumns = 0;
-    },
-    
-    handleMove(e) {
-        if (!this.tracking) return;
-        if (typeof isPaused !== 'undefined' && isPaused) return;
-        if (typeof currentPiece === 'undefined' || !currentPiece) return;
-        if (typeof hardDropping !== 'undefined' && hardDropping) return;
-        
-        e.preventDefault();
-        const touch = e.touches[0];
-        const dx = touch.clientX - this.lastMoveX;
-        const dy = touch.clientY - this.startY;
-        
-        // Horizontal movement: move piece per column-width of movement
-        const colWidth = typeof BLOCK_SIZE !== 'undefined' ? BLOCK_SIZE : 30;
-        if (Math.abs(dx) >= colWidth) {
-            const columns = Math.floor(Math.abs(dx) / colWidth);
-            const rawDir = dx > 0 ? 1 : -1;  // Don't pre-swap - movePiece handles it
-            
-            for (let i = 0; i < columns; i++) {
-                const prevX = currentPiece.x;
-                movePiece(rawDir);
-                if (currentPiece.x !== prevX) {
-                    this.movedColumns++;
-                }
-            }
-            this.lastMoveX = touch.clientX;
-        }
-        
-        // Vertical: if swiping down significantly, start soft drop
-        if (dy > this.moveThreshold * 2 && !this.softDropInterval) {
-            this.startSoftDrop();
-        }
-    },
-    
-    handleEnd(e) {
-        if (!this.tracking) return;
-        this.tracking = false;
-        
-        if (typeof isPaused !== 'undefined' && isPaused) return;
-        if (typeof currentPiece === 'undefined' || !currentPiece) return;
-        
-        e.preventDefault();
-        const touch = e.changedTouches[0];
-        const dx = touch.clientX - this.startX;
-        const dy = touch.clientY - this.startY;
-        const elapsed = Date.now() - this.startTime;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        this.stopSoftDrop();
-        
-        // Tap = rotate
-        if (dist < this.tapThreshold && elapsed < this.tapTimeMax && this.movedColumns === 0) {
-            // Tap on left half of screen = rotate CCW, right half = rotate CW
-            const screenMidX = window.innerWidth / 2;
-            if (touch.clientX < screenMidX * 0.8) {
-                rotatePieceCounterClockwise();
-            } else {
-                rotatePiece();
-            }
-            return;
-        }
-        
-        // Fast downward swipe = hard drop
-        if (dy > this.moveThreshold && this.movedColumns < 2) {
-            if (typeof hardDropping !== 'undefined' && hardDropping) return;
-            const speed = (dy / elapsed) * 1000; // px/sec
-            if (speed > this.hardDropSpeed) {
-                hardDrop();
-                return;
-            }
-        }
-    },
-    
-    handleCancel(e) {
-        this.tracking = false;
-        this.stopSoftDrop();
-    },
-    
-    startSoftDrop() {
-        if (this.softDropInterval) return;
-        this.softDropInterval = setInterval(() => {
-            if (typeof currentPiece !== 'undefined' && currentPiece && !collides(currentPiece, 0, 1)) {
-                currentPiece.y++;
-                if (typeof updateStats === 'function') updateStats();
-                // Record soft drop for replay
-                if (window.GameRecorder && window.GameRecorder.isActive()) {
-                    window.GameRecorder.recordInput('softDrop', {
-                        x: currentPiece.x,
-                        y: currentPiece.y,
-                        rotation: currentPiece.rotationIndex || 0
-                    });
-                }
-            }
-        }, 50);
-    },
-    
-    stopSoftDrop() {
-        if (this.softDropInterval) {
-            clearInterval(this.softDropInterval);
-            this.softDropInterval = null;
-        }
-    }
-};
-
-const TabletMode = {
-    enabled: false,
-    manualOverride: false, // For CTRL+T testing
-    
-    init() {
-        const deviceType = DeviceDetection.detect();
-        console.log('📱 Device detected:', deviceType);
-        console.log('   Touch:', DeviceDetection.isTouch);
-        console.log('   Mobile:', DeviceDetection.isMobile);
-        console.log('   Tablet:', DeviceDetection.isTablet);
-        
-        // Enable tablet mode if mobile/tablet AND no controller
-        this.updateMode();
-    },
-    
-    updateMode() {
-        // Enable if: (mobile OR tablet) AND no controller connected
-        // OR manual override is active (for testing)
-        const shouldEnable = this.manualOverride || 
-                           ((DeviceDetection.isMobile || DeviceDetection.isTablet) && 
-                            !GamepadController.connected);
-        
-        if (shouldEnable !== this.enabled) {
-            this.enabled = shouldEnable;
-            this.applyMode();
-            console.log('📱 Tablet mode:', this.enabled ? 'ENABLED' : 'DISABLED');
-        }
-    },
-    
-    applyMode() {
-        const touchControls = document.getElementById('touchControls');
-        const planetStats = document.getElementById('planetStats');
-        const planetStatsLeft = document.getElementById('planetStatsLeft');
-        const controls = document.querySelector('.controls');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const gestureGuide = document.getElementById('gestureGuide');
-        
-        // Sync with StarfieldSystem
-        if (typeof StarfieldSystem !== 'undefined') {
-            StarfieldSystem.setTabletModeEnabled(this.enabled);
-        }
-        
-        // Phones use swipe gestures, tablets use button controls
-        const useGestures = this.enabled && (DeviceDetection.isMobile || DeviceDetection.isTablet);
-        
-        if (this.enabled) {
-            // Add tablet-mode class to body for CSS styling
-            document.body.classList.add('tablet-mode');
-            // Hide keyboard controls
-            if (controls) controls.style.display = 'none';
-            
-            if (useGestures) {
-                // Phone/tablet: hide button controls, show gesture guide, enable swipe
-                if (touchControls) touchControls.style.display = 'none';
-                if (gestureGuide) gestureGuide.style.display = 'block';
-                SwipeControls.enable();
-            } else {
-                // Manual override (desktop testing): show button controls
-                if (touchControls) touchControls.style.display = 'grid';
-                if (gestureGuide) gestureGuide.style.display = 'none';
-            }
-            
-            // Hide planet stats from right panel
-            if (planetStats) planetStats.style.display = 'none';
-            // Hide planet stats from left panel on menu
-            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-            // Hide pause button on menu
-            if (pauseBtn) pauseBtn.style.display = 'none';
-            // Show settings button
-            if (settingsBtn) settingsBtn.style.display = 'block';
-        } else {
-            // Remove tablet-mode class from body
-            document.body.classList.remove('tablet-mode');
-            // Hide touch controls
-            if (touchControls) touchControls.style.display = 'none';
-            if (gestureGuide) gestureGuide.style.display = 'none';
-            // Show keyboard controls
-            if (controls) controls.style.display = 'block';
-            // Hide planet stats from left panel
-            if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-            // Hide pause button
-            if (pauseBtn) pauseBtn.style.display = 'none';
-            // Show settings button
-            if (settingsBtn) settingsBtn.style.display = 'block';
-            SwipeControls.disable();
-        }
-        
-        // Recalculate panel positions for new width
-        if (typeof updateCanvasSize === 'function') {
-            updateCanvasSize();
-        }
-    },
-    
-    toggle() {
-        // Toggle manual override for testing
-        this.manualOverride = !this.manualOverride;
-        this.updateMode();
-    }
-};
-
-// Initialize device detection
-DeviceDetection.detect();
-
-// ============================================
-// END DEVICE DETECTION & TABLET MODE
+// DEVICE DETECTION & TABLET MODE SYSTEM - imported from touch-controls.js
 // ============================================
 
 // Log capture system - FIFO queue for copying console logs
@@ -679,798 +329,8 @@ function captureCanvasSnapshot() {
 }
 
 // ============================================
-// GAMEPAD CONTROLLER SYSTEM
+// GAMEPAD CONTROLLER SYSTEM - imported from gamepad.js
 // ============================================
-
-const GamepadController = {
-    enabled: false,
-    connected: false,
-    deadzone: 0.25,
-    repeatDelay: 120, // ms between repeated directional inputs
-    lastMoveTime: 0,
-    buttonStates: {},
-    menuStickWasUp: false,
-    menuStickWasDown: false,
-    // Right stick state tracking for rotation
-    rightStickWasLeft: false,
-    rightStickWasRight: false,
-    rightStickWasUp: false,
-    rightStickWasDown: false,
-    // Haptic feedback state
-    vibrationSupported: false,
-    vibrationEnabled: true, // Can be toggled by user
-    activeVibration: null,  // Track ongoing vibration effect
-    
-    // Button mappings (Standard Gamepad layout)
-    buttons: {
-        A: 0,           // A (Xbox) / Cross (PS) - Hard drop
-        B: 1,           // B (Xbox) / Circle (PS) - Rotate clockwise
-        X: 2,           // X (Xbox) / Square (PS) - Rotate counter-clockwise
-        Y: 3,           // Y (Xbox) / Triangle (PS) - Rotate clockwise
-        LB: 4,          // Left Bumper - Rotate counter-clockwise
-        RB: 5,          // Right Bumper - Rotate clockwise
-        LT: 6,          // Left Trigger - Hard drop
-        RT: 7,          // Right Trigger - Hard drop
-        BACK: 8,        // Back/Select - (unused)
-        START: 9,       // Start/Options - Pause
-        L_STICK: 10,    // Left Stick Click
-        R_STICK: 11,    // Right Stick Click - Hard drop
-        D_UP: 12,       // D-Pad Up - Hard drop
-        D_DOWN: 13,     // D-Pad Down - Soft drop
-        D_LEFT: 14,     // D-Pad Left - Move left
-        D_RIGHT: 15     // D-Pad Right - Move right
-    },
-    
-    init() {
-        try {
-            // Listen for controller connection
-            window.addEventListener("gamepadconnected", (e) => {
-                this.onConnect(e.gamepad);
-            });
-            
-            // Listen for controller disconnection
-            window.addEventListener("gamepaddisconnected", (e) => {
-                this.onDisconnect(e.gamepad);
-            });
-            
-            // Some browsers need polling to detect controllers
-            this.startPolling();
-        } catch (error) {
-            // Silently fail if gamepad API not available or blocked by permissions
-            console.log('Gamepad API not available');
-            this.enabled = false;
-        }
-    },
-    
-    onConnect(gamepad) {
-        console.log('🎮 Controller connected:', gamepad.id);
-        console.log('   Buttons:', gamepad.buttons.length);
-        console.log('   Axes:', gamepad.axes.length);
-        
-        this.connected = true;
-        this.enabled = true;
-        
-        // Check for vibration support
-        this.vibrationSupported = !!(gamepad.vibrationActuator || gamepad.hapticActuators);
-        console.log('   Vibration:', this.vibrationSupported ? 'Supported' : 'Not supported');
-        
-        // Update controls display to show controller buttons
-        this.updateControlsDisplay();
-        
-        // Show notification to player
-        this.showNotification('🎮 Controller Connected!', gamepad.id);
-    },
-    
-    onDisconnect(gamepad) {
-        console.log('🎮 Controller disconnected:', gamepad.id);
-        
-        // Check if any controllers still connected
-        const gamepads = navigator.getGamepads();
-        this.connected = gamepads && Array.from(gamepads).some(gp => gp !== null);
-        
-        if (!this.connected) {
-            this.enabled = false;
-            this.vibrationSupported = false;
-            this.showNotification('🎮 Controller Disconnected', '');
-            
-            // Stop any ongoing vibration
-            this.stopVibration();
-        }
-        
-        // Update controls display to show keyboard controls
-        this.updateControlsDisplay();
-    },
-    
-    startPolling() {
-        // Check for controllers periodically (some browsers don't fire events)
-        setInterval(() => {
-            if (!this.connected) {
-                try {
-                    const gamepads = navigator.getGamepads();
-                    if (gamepads) {
-                        for (let i = 0; i < gamepads.length; i++) {
-                            if (gamepads[i] && !this.connected) {
-                                this.onConnect(gamepads[i]);
-                                break;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    // Silently fail if permissions error
-                }
-            }
-        }, 1000); // Check every second
-    },
-    
-    update() {
-        if (!this.enabled || !this.connected) return;
-        
-        try {
-            const gamepads = navigator.getGamepads();
-            if (!gamepads) return;
-            
-            // Use first connected controller
-            const gp = gamepads[0];
-            if (!gp) return;
-            
-            // Handle intro screen - any button to start
-            const startOverlayElement = document.getElementById('startOverlay');
-            const startGameButton = document.getElementById('startGameBtn');
-            // Check if intro is visible using computed style (handles both CSS and inline styles)
-            const introVisible = startOverlayElement && 
-                window.getComputedStyle(startOverlayElement).display !== 'none' &&
-                window.getComputedStyle(startOverlayElement).visibility !== 'hidden';
-            if (introVisible) {
-                if (this.anyButtonJustPressed() && startGameButton) {
-                    startGameButton.click();
-                }
-                return; // Don't process other inputs during intro
-            }
-            
-            // Handle game over state - any button to play again
-            const gameOverElement = document.getElementById('gameOver');
-            const playAgainButton = document.getElementById('playAgainBtn');
-            if (gameOverElement && gameOverElement.style.display === 'block') {
-                if (this.anyButtonJustPressed() && playAgainButton) {
-                    playAgainButton.click();
-                }
-                return; // Don't process other inputs during game over
-            }
-            
-            // Handle high score name entry - any button to submit
-            const nameEntryOverlay = document.getElementById('nameEntryOverlay');
-            const nameEntrySubmit = document.getElementById('nameEntrySubmit');
-            if (nameEntryOverlay && nameEntryOverlay.style.display !== 'none' && 
-                window.getComputedStyle(nameEntryOverlay).display !== 'none') {
-                if (this.anyButtonJustPressed() && nameEntrySubmit && !nameEntrySubmit.disabled) {
-                    nameEntrySubmit.click();
-                }
-                return; // Don't process other inputs during name entry
-            }
-            
-            // Handle mode menu navigation
-            const modeMenuElement = document.getElementById('modeMenu');
-            if (modeMenuElement && !modeMenuElement.classList.contains('hidden')) {
-                const now = Date.now();
-                // D-pad or stick up/down to navigate modes (with repeat delay)
-                const stickUp = gp.axes[1] < -0.5;
-                const stickDown = gp.axes[1] > 0.5;
-                
-                if (now - this.lastMoveTime >= this.repeatDelay) {
-                    if (this.wasButtonJustPressed(gp, this.buttons.D_UP) || (stickUp && !this.menuStickWasUp)) {
-                        this.navigateMenu(-1);
-                        this.lastMoveTime = now;
-                    } else if (this.wasButtonJustPressed(gp, this.buttons.D_DOWN) || (stickDown && !this.menuStickWasDown)) {
-                        this.navigateMenu(1);
-                        this.lastMoveTime = now;
-                    }
-                }
-                this.menuStickWasUp = stickUp;
-                this.menuStickWasDown = stickDown;
-                
-                // A button to select mode
-                if (this.wasButtonJustPressed(gp, this.buttons.A)) {
-                    this.selectCurrentMode();
-                }
-                return; // Don't process gameplay inputs in menu
-            }
-            
-            // Handle pause toggle even when paused
-            if (this.wasButtonJustPressed(gp, this.buttons.START)) {
-                togglePause();
-                return;
-            }
-            
-            if (!gameRunning || paused || replayActive) return;
-            if (!currentPiece) return;
-            
-            const now = Date.now();
-            
-            // === MOVEMENT (D-Pad or Left Stick) ===
-            // Movement also checks configured buttons + analog stick
-            const leftPressed = this.isActionPressed(gp, 'moveLeft') || 
-                               gp.axes[0] < -this.deadzone;
-            const rightPressed = this.isActionPressed(gp, 'moveRight') || 
-                                gp.axes[0] > this.deadzone;
-            const downPressed = this.isActionPressed(gp, 'softDrop') || 
-                               gp.axes[1] > this.deadzone;
-        
-        // Apply movement with repeat delay
-        if (now - this.lastMoveTime >= this.repeatDelay) {
-            if (leftPressed) {
-                if (!collides(currentPiece, -1, 0)) {
-                    currentPiece.x--;
-                    playSoundEffect('move', soundToggle);
-                    // Record input for replay
-                    if (window.GameRecorder && window.GameRecorder.isActive()) {
-                        window.GameRecorder.recordInput('left', {
-                            x: currentPiece.x,
-                            y: currentPiece.y,
-                            rotation: currentPiece.rotationIndex || 0
-                        });
-                    }
-                }
-                this.lastMoveTime = now;
-            } else if (rightPressed) {
-                if (!collides(currentPiece, 1, 0)) {
-                    currentPiece.x++;
-                    playSoundEffect('move', soundToggle);
-                    // Record input for replay
-                    if (window.GameRecorder && window.GameRecorder.isActive()) {
-                        window.GameRecorder.recordInput('right', {
-                            x: currentPiece.x,
-                            y: currentPiece.y,
-                            rotation: currentPiece.rotationIndex || 0
-                        });
-                    }
-                }
-                this.lastMoveTime = now;
-            }
-            
-            if (downPressed) {
-                if (!collides(currentPiece, 0, 1)) {
-                    currentPiece.y++;
-                    updateStats();
-                    // Record soft drop for replay
-                    if (window.GameRecorder && window.GameRecorder.isActive()) {
-                        window.GameRecorder.recordInput('softDrop', {
-                            x: currentPiece.x,
-                            y: currentPiece.y,
-                            rotation: currentPiece.rotationIndex || 0
-                        });
-                    }
-                }
-                this.lastMoveTime = now;
-            }
-        }
-        
-        // === ROTATION ===
-        // Rotate clockwise (uses configured buttons)
-        if (this.wasActionJustPressed(gp, 'rotateCW')) {
-            rotatePiece();
-        }
-        
-        // Rotate counter-clockwise (uses configured buttons)
-        if (this.wasActionJustPressed(gp, 'rotateCCW')) {
-            rotatePieceCounterClockwise();
-        }
-        
-        // === MUSIC CONTROLS ===
-        // Next song (uses configured buttons) - not during replay
-        if (this.wasActionJustPressed(gp, 'nextSong') && !replayActive) {
-            skipToNextSong();
-        }
-        // Previous song (uses configured buttons) - not during replay
-        if (this.wasActionJustPressed(gp, 'prevSong') && !replayActive) {
-            skipToPreviousSong();
-        }
-        
-        // === RIGHT STICK ROTATION (always available) ===
-        // Right stick axes are typically axes[2] (X) and axes[3] (Y)
-        const rightStickLeft = gp.axes[2] < -0.5;
-        const rightStickRight = gp.axes[2] > 0.5;
-        const rightStickUp = gp.axes[3] < -0.5;
-        const rightStickDown = gp.axes[3] > 0.5;
-        
-        // Right stick left or up - Rotate counter-clockwise (on rising edge)
-        if ((rightStickLeft && !this.rightStickWasLeft) || 
-            (rightStickUp && !this.rightStickWasUp)) {
-            rotatePieceCounterClockwise();
-        }
-        
-        // Right stick right or down - Rotate clockwise (on rising edge)
-        if ((rightStickRight && !this.rightStickWasRight) || 
-            (rightStickDown && !this.rightStickWasDown)) {
-            rotatePiece();
-        }
-        
-        // Update right stick state
-        this.rightStickWasLeft = rightStickLeft;
-        this.rightStickWasRight = rightStickRight;
-        this.rightStickWasUp = rightStickUp;
-        this.rightStickWasDown = rightStickDown;
-        
-        // === HARD DROP ===
-        // Uses configured buttons
-        if (this.wasActionJustPressed(gp, 'hardDrop')) {
-            hardDrop();
-        }
-        } catch (error) {
-            // Silently fail if permissions error or gamepad API blocked
-        }
-    },
-    
-    isButtonPressed(gamepad, buttonIndex) {
-        return gamepad.buttons[buttonIndex] && gamepad.buttons[buttonIndex].pressed;
-    },
-    
-    wasButtonJustPressed(gamepad, buttonIndex) {
-        const pressed = this.isButtonPressed(gamepad, buttonIndex);
-        const key = `btn_${buttonIndex}`;
-        const wasPressed = this.buttonStates[key] || false;
-        
-        this.buttonStates[key] = pressed;
-        
-        // Return true only on the rising edge (button just pressed)
-        return pressed && !wasPressed;
-    },
-    
-    // Check if any button for an action was just pressed (uses ControlsConfig)
-    wasActionJustPressed(gamepad, action) {
-        let buttons;
-        
-        // Try to get buttons from ControlsConfig
-        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.gamepad && ControlsConfig.gamepad[action]) {
-            buttons = ControlsConfig.gamepad[action];
-        } else {
-            // Fallback to hardcoded defaults
-            const defaults = {
-                moveLeft: [14],
-                moveRight: [15],
-                softDrop: [13],
-                hardDrop: [6, 7, 12, 11],
-                rotateCW: [1, 3],
-                rotateCCW: [0, 2],
-                pause: [9],
-                nextSong: [5],
-                prevSong: [4]
-            };
-            buttons = defaults[action] || [];
-        }
-        
-        return buttons.some(btn => this.wasButtonJustPressed(gamepad, btn));
-    },
-    
-    // Check if any button for an action is currently pressed (uses ControlsConfig)
-    isActionPressed(gamepad, action) {
-        let buttons;
-        
-        // Try to get buttons from ControlsConfig
-        if (typeof ControlsConfig !== 'undefined' && ControlsConfig.gamepad && ControlsConfig.gamepad[action]) {
-            buttons = ControlsConfig.gamepad[action];
-        } else {
-            // Fallback to hardcoded defaults
-            const defaults = {
-                moveLeft: [14],
-                moveRight: [15],
-                softDrop: [13],
-                hardDrop: [6, 7, 12, 11],
-                rotateCW: [1, 3],
-                rotateCCW: [0, 2],
-                pause: [9],
-                nextSong: [5],
-                prevSong: [4]
-            };
-            buttons = defaults[action] || [];
-        }
-        
-        return buttons.some(btn => this.isButtonPressed(gamepad, btn));
-    },
-    
-    showNotification(title, subtitle) {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.95);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            z-index: 10000;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            max-width: 300px;
-        `;
-        
-        notification.innerHTML = `
-            <div style="margin-bottom: 5px;">${title}</div>
-            ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${subtitle}</div>` : ''}
-            <div style="font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: normal;">
-                Configure controls in ⚙️ Settings
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // Fade in
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(50px)';
-        notification.style.transition = 'all 0.3s ease-out';
-        
-        setTimeout(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateX(0)';
-        }, 10);
-        
-        // Fade out and remove
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(50px)';
-            setTimeout(() => notification.remove(), 300);
-        }, 4000);
-    },
-    
-    getControllerType(gamepad) {
-        const id = gamepad.id.toLowerCase();
-        
-        if (id.includes('xbox')) return 'Xbox';
-        if (id.includes('playstation') || id.includes('dualshock') || id.includes('dualsense')) return 'PlayStation';
-        if (id.includes('switch')) return 'Nintendo Switch';
-        if (id.includes('stadia')) return 'Stadia';
-        
-        return 'Generic';
-    },
-    
-    // Check if any button was just pressed (for menu/game over navigation)
-    anyButtonJustPressed() {
-        if (!this.enabled || !this.connected) return false;
-        
-        try {
-            const gamepads = navigator.getGamepads();
-            if (!gamepads) return false;
-            
-            const gp = gamepads[0];
-            if (!gp) return false;
-            
-            // Check face buttons (A, B, X, Y) and Start
-            const buttonsToCheck = [
-                this.buttons.A, this.buttons.B, this.buttons.X, this.buttons.Y, this.buttons.START
-            ];
-            
-            for (const btn of buttonsToCheck) {
-                if (this.wasButtonJustPressed(gp, btn)) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (error) {
-            return false;
-        }
-    },
-    
-    // === HAPTIC FEEDBACK METHODS ===
-    
-    // Trigger a single vibration pulse
-    vibrate(duration = 200, weakMagnitude = 0.5, strongMagnitude = 1.0) {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        try {
-            const gamepads = navigator.getGamepads();
-            if (!gamepads) return;
-            
-            const gp = gamepads[0];
-            if (!gp) return;
-            
-            if (gp.vibrationActuator) {
-                gp.vibrationActuator.playEffect('dual-rumble', {
-                    startDelay: 0,
-                    duration: duration,
-                    weakMagnitude: weakMagnitude,
-                    strongMagnitude: strongMagnitude
-                });
-            } else if (gp.hapticActuators && gp.hapticActuators[0]) {
-                // Fallback for older API
-                gp.hapticActuators[0].pulse(strongMagnitude, duration);
-            }
-        } catch (error) {
-            // Silently fail - vibration is non-critical
-        }
-    },
-    
-    // Start continuous rumble effect (for ongoing events like earthquakes)
-    startContinuousRumble(weakMagnitude = 0.3, strongMagnitude = 0.6) {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        // Clear any existing rumble
-        this.stopVibration();
-        
-        // Pulse every 100ms to create continuous effect
-        this.activeVibration = setInterval(() => {
-            this.vibrate(120, weakMagnitude, strongMagnitude);
-        }, 100);
-    },
-    
-    // Earthquake rumble - strong, irregular vibration
-    startEarthquakeRumble() {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        this.stopVibration();
-        
-        // Irregular rumble pattern for earthquake feel
-        this.activeVibration = setInterval(() => {
-            const intensity = 0.5 + Math.random() * 0.5; // 0.5 to 1.0
-            const weak = 0.3 + Math.random() * 0.4;
-            this.vibrate(150, weak, intensity);
-        }, 120);
-    },
-    
-    // Black hole rumble - pulsing, building intensity
-    startBlackHoleRumble(progress = 0) {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        // Single pulse based on current progress (0-1)
-        // Intensity builds as black hole progresses
-        const baseIntensity = 0.2 + (progress * 0.6);
-        const strongMag = Math.min(1.0, baseIntensity + Math.sin(Date.now() / 200) * 0.2);
-        const weakMag = strongMag * 0.5;
-        
-        this.vibrate(100, weakMag, strongMag);
-    },
-    
-    // Tsunami rumble - wave-like pattern that builds, crashes, then recedes
-    startTsunamiRumble() {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        this.stopVibration();
-        
-        const tsunamiDuration = 2083; // Match game's tsunami duration
-        const startTime = Date.now();
-        
-        // Wave pattern: build up (0-40%), crash/peak (40-60%), recede (60-100%)
-        this.activeVibration = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const progress = elapsed / tsunamiDuration;
-            
-            if (progress >= 1) {
-                this.stopVibration();
-                return;
-            }
-            
-            let intensity, weakMag;
-            
-            if (progress < 0.4) {
-                // Building wave - intensity rises
-                intensity = 0.2 + (progress / 0.4) * 0.6; // 0.2 → 0.8
-                weakMag = intensity * 0.4;
-            } else if (progress < 0.6) {
-                // Crash/peak - maximum intensity with variation
-                intensity = 0.8 + Math.sin((progress - 0.4) * Math.PI * 10) * 0.2; // 0.6-1.0 oscillating
-                weakMag = 0.5 + Math.random() * 0.3;
-            } else {
-                // Receding - intensity falls
-                const recedeProgress = (progress - 0.6) / 0.4; // 0 → 1
-                intensity = 0.8 - recedeProgress * 0.7; // 0.8 → 0.1
-                weakMag = intensity * 0.3;
-            }
-            
-            this.vibrate(120, weakMag, intensity);
-        }, 100);
-    },
-    
-    // Alternative: Rolling waves pattern (multiple hits)
-    startRollingWavesRumble() {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        this.stopVibration();
-        
-        // Three waves of decreasing intensity
-        const waves = [
-            { delay: 0, intensity: 1.0, duration: 400 },
-            { delay: 600, intensity: 0.7, duration: 350 },
-            { delay: 1100, intensity: 0.5, duration: 300 },
-            { delay: 1500, intensity: 0.3, duration: 250 }
-        ];
-        
-        waves.forEach(wave => {
-            setTimeout(() => {
-                if (this.vibrationEnabled && this.connected) {
-                    this.vibrate(wave.duration, wave.intensity * 0.4, wave.intensity);
-                }
-            }, wave.delay);
-        });
-        
-        // Clear active vibration marker after all waves complete
-        this.activeVibration = setTimeout(() => {
-            this.activeVibration = null;
-        }, 1800);
-    },
-    
-    // Line clear vibration - intensity scales with blob score value
-    vibrateLineClear(scoreValue = 0) {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        // Scale intensity logarithmically based on score
-        // 1,000 points = light buzz, 100,000+ = strong thump
-        const logScore = Math.log10(Math.max(scoreValue, 1000)); // 3 to ~6+
-        const normalizedScore = (logScore - 3) / 3; // 0 to 1 (capped at ~1M points)
-        
-        const duration = 60 + Math.min(normalizedScore * 120, 140); // 60ms to 200ms
-        const intensity = 0.3 + Math.min(normalizedScore * 0.7, 0.7); // 0.3 to 1.0
-        const weakMag = intensity * 0.4;
-        
-        this.vibrate(duration, weakMag, Math.min(1.0, intensity));
-    },
-    
-    // Volcano rumble - builds during warming, peaks at eruption
-    startVolcanoRumble() {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        this.stopVibration();
-        
-        const warmingDuration = 3000; // Match game's volcano warming
-        const startTime = Date.now();
-        
-        // Builds from gentle rumble to intense shake
-        this.activeVibration = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / warmingDuration, 1);
-            
-            // Intensity builds over time
-            const intensity = 0.2 + progress * 0.6; // 0.2 → 0.8
-            const weakMag = intensity * 0.4;
-            
-            // Add some variation like magma bubbling
-            const variation = Math.sin(elapsed / 100) * 0.15;
-            
-            this.vibrate(100, weakMag, Math.min(1.0, intensity + variation));
-        }, 80);
-    },
-    
-    // Volcano eruption burst - strong burst when eruption starts
-    vibrateVolcanoEruption() {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        this.stopVibration();
-        
-        // Strong initial burst
-        this.vibrate(300, 0.6, 1.0);
-    },
-    
-    // Tornado touchdown/destruction - sharp impact
-    vibrateTornadoImpact(isDestruction = false) {
-        if (!this.vibrationEnabled || !this.vibrationSupported || !this.connected) return;
-        
-        if (isDestruction) {
-            // Blob destroyed - sharp crack
-            this.vibrate(100, 0.5, 0.9);
-        } else {
-            // Touchdown bonus - celebratory double pulse
-            this.vibrate(80, 0.4, 0.8);
-            setTimeout(() => {
-                if (this.vibrationEnabled && this.connected) {
-                    this.vibrate(120, 0.5, 1.0);
-                }
-            }, 120);
-        }
-    },
-    
-    // Stop any ongoing vibration
-    stopVibration() {
-        if (this.activeVibration) {
-            clearInterval(this.activeVibration);
-            this.activeVibration = null;
-        }
-        
-        // Send a zero-intensity pulse to stop hardware vibration
-        try {
-            const gamepads = navigator.getGamepads();
-            if (gamepads && gamepads[0] && gamepads[0].vibrationActuator) {
-                gamepads[0].vibrationActuator.playEffect('dual-rumble', {
-                    startDelay: 0,
-                    duration: 1,
-                    weakMagnitude: 0,
-                    strongMagnitude: 0
-                });
-            }
-        } catch (error) {
-            // Ignore
-        }
-    },
-    
-    // Update the controls display based on controller connection
-    updateControlsDisplay() {
-        const keyboardControls = document.querySelector('.controls:not(#controllerControls)');
-        let controllerControls = document.getElementById('controllerControls');
-        
-        if (!keyboardControls) return;
-        
-        // Create controller controls if they don't exist
-        if (!controllerControls) {
-            controllerControls = this.createControllerControls();
-            if (keyboardControls.parentNode) {
-                keyboardControls.parentNode.insertBefore(controllerControls, keyboardControls.nextSibling);
-            }
-        }
-        
-        // Toggle which controls are shown (but don't override hidden-during-play)
-        if (this.connected && controllerControls) {
-            keyboardControls.style.display = 'none';
-            controllerControls.style.display = '';  // Let CSS handle it
-        } else if (keyboardControls) {
-            keyboardControls.style.display = '';  // Let CSS handle it
-            if (controllerControls) controllerControls.style.display = 'none';
-        }
-    },
-    
-    // Create the controller controls display element
-    createControllerControls() {
-        const div = document.createElement('div');
-        div.id = 'controllerControls';
-        div.className = 'controls';
-        div.style.display = 'none';
-        div.innerHTML = `
-            <strong>🎮 Controller</strong>
-            <div class="control-row"><span class="control-key">D-Pad / L-Stick</span> : <span class="control-label">Move</span></div>
-            <div class="control-row"><span class="control-key">LT / RT / Up / RSB</span> : <span class="control-label">Hard Drop</span></div>
-            <div class="control-row"><span class="control-key">B / Y / RS→↓</span> : <span class="control-label">Rotate CW</span></div>
-            <div class="control-row"><span class="control-key">A / X / RS←↑</span> : <span class="control-label">Rotate CCW</span></div>
-            <div class="control-row"><span class="control-key">RB / LB</span> : <span class="control-label">Next / Prev Song</span></div>
-            <div class="control-row"><span class="control-key">Start</span> : <span class="control-label">Pause</span></div>
-        `;
-        return div;
-    },
-    
-    // Navigate mode menu
-    navigateMenu(direction) {
-        const modeButtonsNodeList = document.querySelectorAll('.mode-button');
-        if (!modeButtonsNodeList || modeButtonsNodeList.length === 0) return;
-        
-        const buttons = Array.from(modeButtonsNodeList);
-        let currentIndex = buttons.findIndex(btn => btn.classList.contains('selected'));
-        if (currentIndex === -1) currentIndex = 0;
-        
-        let newIndex = currentIndex + direction;
-        if (newIndex < 0) newIndex = buttons.length - 1;
-        if (newIndex >= buttons.length) newIndex = 0;
-        
-        // Update the global selectedModeIndex
-        if (typeof selectedModeIndex !== 'undefined') {
-            selectedModeIndex = newIndex;
-        }
-        
-        // Use updateSelectedMode to update visuals AND leaderboard
-        if (typeof updateSelectedMode === 'function') {
-            updateSelectedMode();
-        } else {
-            // Fallback: Update selection visually if updateSelectedMode not available yet
-            buttons.forEach((btn, i) => {
-                if (i === newIndex) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
-            });
-        }
-        
-        // Play move sound
-        if (typeof playSoundEffect === 'function') {
-            playSoundEffect('move', true);
-        }
-    },
-    
-    // Select current mode from menu
-    selectCurrentMode() {
-        const selectedButton = document.querySelector('.mode-button.selected');
-        if (selectedButton) {
-            selectedButton.click();
-        }
-    }
-};
 
 // Initialize gamepad support
 GamepadController.init();
@@ -1488,139 +348,7 @@ GamepadController.init();
 // TOUCH CONTROLS EVENT HANDLERS
 // ============================================
 
-// Touch repeat settings (same as keyboard) - global for clearing on game start
-const touchRepeat = {
-    initialDelay: 200,  // 200ms before repeat starts
-    repeatRate: 40,     // 40ms between repeats
-    timers: new Map()   // Track active repeat timers
-};
-
-function initTouchControls() {
-    const touchLeft = document.getElementById('touchLeft');
-    const touchRight = document.getElementById('touchRight');
-    const touchDown = document.getElementById('touchDown');
-    const touchRotate = document.getElementById('touchRotate');
-    const touchRotateCCW = document.getElementById('touchRotateCCW');
-    const touchDrop = document.getElementById('touchDrop');
-    const pauseBtn = document.getElementById('pauseBtn');
-    
-    if (!touchLeft) return; // Controls not in DOM yet
-    
-    // Helper to add repeating touch behavior (for directional buttons)
-    const addRepeatingTouch = (element, action) => {
-        if (!element) return;
-        
-        const startRepeat = (e) => {
-            e.preventDefault();
-            
-            // Execute action immediately
-            action();
-            
-            // Clear any existing timers for this element
-            if (touchRepeat.timers.has(element)) {
-                clearTimeout(touchRepeat.timers.get(element).initial);
-                clearInterval(touchRepeat.timers.get(element).repeat);
-            }
-            
-            // Start initial delay timer
-            const initialTimer = setTimeout(() => {
-                // Start repeat interval
-                const repeatTimer = setInterval(() => {
-                    if (!paused && currentPiece) {
-                        action();
-                    }
-                }, touchRepeat.repeatRate);
-                
-                touchRepeat.timers.set(element, { 
-                    initial: null, 
-                    repeat: repeatTimer 
-                });
-            }, touchRepeat.initialDelay);
-            
-            touchRepeat.timers.set(element, { 
-                initial: initialTimer, 
-                repeat: null 
-            });
-        };
-        
-        const stopRepeat = (e) => {
-            e.preventDefault();
-            
-            // Clear timers
-            if (touchRepeat.timers.has(element)) {
-                const timers = touchRepeat.timers.get(element);
-                if (timers.initial) clearTimeout(timers.initial);
-                if (timers.repeat) clearInterval(timers.repeat);
-                touchRepeat.timers.delete(element);
-            }
-        };
-        
-        element.addEventListener('touchstart', startRepeat, { passive: false });
-        element.addEventListener('touchend', stopRepeat, { passive: false });
-        element.addEventListener('touchcancel', stopRepeat, { passive: false });
-        
-        // Also handle mouse for testing on desktop
-        element.addEventListener('mousedown', startRepeat);
-        element.addEventListener('mouseup', stopRepeat);
-        element.addEventListener('mouseleave', stopRepeat);
-    };
-    
-    // Helper for non-repeating buttons (rotation, hard drop, pause)
-    const addTouchAndClick = (element, handler) => {
-        if (!element) return;
-        element.addEventListener('touchstart', handler, { passive: false });
-        element.addEventListener('click', handler);
-    };
-    
-    // Movement buttons with repeat
-    addRepeatingTouch(touchLeft, () => {
-        movePiece(-1);
-    });
-    
-    addRepeatingTouch(touchRight, () => {
-        movePiece(1);
-    });
-    
-    addRepeatingTouch(touchDown, () => {
-        if (currentPiece && !collides(currentPiece, 0, 1)) {
-            currentPiece.y++;
-            updateStats();
-            // Record soft drop for replay
-            if (window.GameRecorder && window.GameRecorder.isActive()) {
-                window.GameRecorder.recordInput('softDrop', {
-                    x: currentPiece.x,
-                    y: currentPiece.y,
-                    rotation: currentPiece.rotationIndex || 0
-                });
-            }
-        }
-    });
-    
-    // Rotation buttons (no repeat - one press = one rotation)
-    addTouchAndClick(touchRotateCCW, (e) => {
-        e.preventDefault();
-        rotatePieceCounterClockwise();
-    });
-    
-    addTouchAndClick(touchRotate, (e) => {
-        e.preventDefault();
-        rotatePiece();
-    });
-    
-    // Hard drop (no repeat)
-    addTouchAndClick(touchDrop, (e) => {
-        e.preventDefault();
-        hardDrop();
-    });
-    
-    // Pause button (no repeat)
-    addTouchAndClick(pauseBtn, (e) => {
-        e.preventDefault();
-        togglePause();
-    });
-    
-    console.log('📱 Touch controls initialized with key repeat');
-}
+// Touch repeat settings + initTouchControls - imported from touch-controls.js
 
 // Initialize tablet mode
 try {
@@ -2219,7 +947,7 @@ function createSongInfoElement() {
     
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
-            if (replayActive) return; // Don't allow during replay
+            if (GameReplay.isActive()) return; // Don't allow during replay
             if (typeof skipToPreviousSong === 'function') {
                 skipToPreviousSong();
             }
@@ -2258,7 +986,7 @@ function createSongInfoElement() {
         const HOLD_DURATION = 800; // ms to trigger hold
         
         const startHold = (e) => {
-            if (replayActive) return;
+            if (GameReplay.isActive()) return;
             holdTriggered = false;
             holdTimeout = setTimeout(() => {
                 holdTriggered = true;
@@ -2282,7 +1010,7 @@ function createSongInfoElement() {
         };
         
         const handleClick = (e) => {
-            if (replayActive) return;
+            if (GameReplay.isActive()) return;
             if (holdTriggered) {
                 // Already handled by hold
                 holdTriggered = false;
@@ -2733,9 +1461,9 @@ StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
 // Set up UFO swoop callback for 42 lines easter egg
 StarfieldSystem.setUFOSwoopCallback(() => {
     // During replay, use the recorded F Word song; otherwise pick random and record it
-    if (replayActive && replayFWordSongId) {
-        insertFWordSongById(replayFWordSongId);
-        console.log('🛸 UFO delivered recorded song:', replayFWordSongId);
+    if (GameReplay.isActive() && GameReplay.getFWordSongId()) {
+        insertFWordSongById(GameReplay.getFWordSongId());
+        console.log('🛸 UFO delivered recorded song:', GameReplay.getFWordSongId());
     } else {
         // Queue a random F Word song and record which one was selected
         const selectedSong = insertFWordSong();
@@ -3147,8 +1875,7 @@ let blackHoleShakeIntensity = 0;
 let blackHoleInnerBlob = null;
 let blackHoleOuterBlob = null;
 
-// Replay System State
-let replayActive = false;
+// Replay System State - managed by replay.js (window.GameReplay)
 
 // Falling Blocks Animation System
 let fallingBlocks = []; // Blocks that are animating falling: {x, y, targetY, color, progress, isRandom}
@@ -3404,8 +2131,8 @@ function updateBlackHoleAnimation() {
         GamepadController.stopVibration();
         
         // During replay, skip the next board sync
-        if (replayActive) {
-            replaySkipNextSync = true;
+        if (GameReplay.isActive()) {
+            GameReplay.setSkipNextSync(true);
             console.log('🎬 Will skip next board sync (black hole just finished)');
         }
         
@@ -3785,8 +2512,8 @@ function updateVolcanoAnimation() {
             volcanoActive = false;
             volcanoPhase = 'warming'; // Reset for next volcano
             // During replay, skip the next board sync
-            if (replayActive) {
-                replaySkipNextSync = true;
+            if (GameReplay.isActive()) {
+                GameReplay.setSkipNextSync(true);
                 console.log('🎬 Will skip next board sync (volcano just finished)');
             }
             applyGravity();
@@ -3828,12 +2555,10 @@ function spawnLavaProjectile() {
     let direction, vx, vy;
     
     // During replay, use recorded projectile values
-    if (replayActive && replayLavaProjectileIndex < replayLavaProjectiles.length) {
-        const projData = replayLavaProjectiles[replayLavaProjectileIndex];
-        vx = projData.vx;
-        vy = projData.vy;
-        replayLavaProjectileIndex++;
-        console.log('🌋 Replay: Using recorded projectile', replayLavaProjectileIndex, 'vx:', vx.toFixed(2), 'vy:', vy.toFixed(2));
+    const _replayProj = GameReplay.isActive() ? GameReplay.consumeLavaProjectile() : null;
+    if (_replayProj) {
+        vx = _replayProj.vx;
+        vy = _replayProj.vy;
     } else {
         // Normal gameplay: generate random values
         // Determine horizontal direction based on which edge the volcano is against
@@ -4573,8 +3298,8 @@ function updateTsunamiAnimation() {
         GamepadController.stopVibration();
         
         // During replay, skip the next board sync
-        if (replayActive) {
-            replaySkipNextSync = true;
+        if (GameReplay.isActive()) {
+            GameReplay.setSkipNextSync(true);
             console.log('🎬 Will skip next board sync (tsunami just finished)');
         }
         
@@ -4753,7 +3478,7 @@ function spawnTornado() {
     if (tornadoActive || !gameRunning || paused) return;
     
     // During normal play (not replay), also check for earthquake and grace period
-    if (!replayActive) {
+    if (!GameReplay.isActive()) {
         if (earthquakeActive) {
             console.log('🌪️ Tornado blocked - earthquake in progress');
             return;
@@ -4787,12 +3512,12 @@ function spawnTornado() {
     tornadoFadeProgress = 0;
     
     // During replay (v2.0), use recorded values
-    if (replayActive && replayTornadoSpawnData) {
-        tornadoX = replayTornadoSpawnData.x;
-        tornadoSnakeDirection = replayTornadoSpawnData.snakeDirection;
-        tornadoSnakeChangeCounter = replayTornadoSpawnData.snakeChangeCounter;
-        replayTornadoSpawnData = null; // Clear after use
-    } else if (!replayActive) {
+    const _replayTornadoSpawn = GameReplay.isActive() ? GameReplay.consumeTornadoSpawnData() : null;
+    if (_replayTornadoSpawn) {
+        tornadoX = _replayTornadoSpawn.x;
+        tornadoSnakeDirection = _replayTornadoSpawn.snakeDirection;
+        tornadoSnakeChangeCounter = _replayTornadoSpawn.snakeChangeCounter;
+    } else if (!GameReplay.isActive()) {
         // Not replaying - generate random values and record
         tornadoX = (Math.random() * (COLS - 2) + 1) * BLOCK_SIZE + BLOCK_SIZE / 2;
         tornadoSnakeDirection = Math.random() < 0.5 ? 1 : -1;
@@ -4907,7 +3632,7 @@ function spawnEarthquake() {
     if (earthquakeActive || !gameRunning || paused) return;
     
     // During normal play (not replay), also check for tornado and grace period
-    if (!replayActive) {
+    if (!GameReplay.isActive()) {
         if (tornadoActive) {
             console.log('🌍 Earthquake blocked - tornado in progress');
             return;
@@ -4952,12 +3677,12 @@ function spawnEarthquake() {
     // generateEarthquakeCrack() handles replay by using recorded data if available
     generateEarthquakeCrack();
     
-    if (replayActive) {
+    if (GameReplay.isActive()) {
         // During replay, use recorded shift type
-        if (replayEarthquakeShiftType) {
-            earthquakeShiftType = replayEarthquakeShiftType;
+        const _replayShift = GameReplay.consumeEarthquakeShiftType();
+        if (_replayShift) {
+            earthquakeShiftType = _replayShift;
             console.log('🌍 Earthquake shift type from recording:', earthquakeShiftType);
-            replayEarthquakeShiftType = null; // Clear after use
         }
     } else {
         // Not replaying - generate random shift type
@@ -5002,10 +3727,10 @@ function updateTornado() {
         
         if (tornadoSnakeChangeCounter <= 0) {
             // During replay, use recorded values; otherwise generate random
-            if (replayActive && replayTornadoDirIndex < replayTornadoDirChanges.length) {
-                const recorded = replayTornadoDirChanges[replayTornadoDirIndex++];
-                tornadoSnakeDirection = recorded.newDirection;
-                tornadoSnakeChangeCounter = recorded.newCounter;
+            const _replayDir = GameReplay.isActive() ? GameReplay.consumeTornadoDirChange() : null;
+            if (_replayDir) {
+                tornadoSnakeDirection = _replayDir.newDirection;
+                tornadoSnakeChangeCounter = _replayDir.newCounter;
             } else {
                 // Randomly change direction
                 if (Math.random() < 0.3) {
@@ -5057,8 +3782,8 @@ function updateTornado() {
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             // During replay, skip the next board sync
-            if (replayActive) {
-                replaySkipNextSync = true;
+            if (GameReplay.isActive()) {
+                GameReplay.setSkipNextSync(true);
                 console.log('🎬 Will skip next board sync (tornado touchdown just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
@@ -5153,8 +3878,9 @@ function updateTornado() {
             tornadoState = 'carrying';
             
             // During replay, use recorded drop target; otherwise generate random
-            if (replayActive && replayTornadoDropIndex < replayTornadoDrops.length) {
-                tornadoDropTargetX = replayTornadoDrops[replayTornadoDropIndex++].targetX;
+            const _replayDrop = GameReplay.isActive() ? GameReplay.consumeTornadoDrop() : null;
+            if (_replayDrop) {
+                tornadoDropTargetX = _replayDrop.targetX;
             } else {
                 // Pick random drop column INSIDE the well
                 const blobWidth = Math.max(...tornadoPickedBlob.positions.map(p => p[0])) - 
@@ -5386,8 +4112,8 @@ function updateTornado() {
             tornadoActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             // During replay, skip the next board sync
-            if (replayActive) {
-                replaySkipNextSync = true;
+            if (GameReplay.isActive()) {
+                GameReplay.setSkipNextSync(true);
                 console.log('🎬 Will skip next board sync (tornado just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
@@ -5793,8 +4519,8 @@ function updateEarthquake() {
             
             // During replay, skip the next board sync since the snapshot was captured
             // before the earthquake completed in the original game
-            if (replayActive) {
-                replaySkipNextSync = true;
+            if (GameReplay.isActive()) {
+                GameReplay.setSkipNextSync(true);
                 console.log('🎬 Will skip next board sync (earthquake just finished)');
             }
             
@@ -5806,14 +4532,14 @@ function updateEarthquake() {
 
 function generateEarthquakeCrack() {
     // During replay (v2.0), use recorded crack from piece data
-    if (replayActive && replayEarthquakeCrack) {
-        earthquakeCrack = replayEarthquakeCrack;
+    const _replayCrack = GameReplay.isActive() ? GameReplay.consumeEarthquakeCrack() : null;
+    if (_replayCrack) {
+        earthquakeCrack = _replayCrack;
         earthquakeCrackMap.clear();
         earthquakeCrack.forEach(pt => {
             earthquakeCrackMap.set(pt.y, pt.x);
         });
         console.log('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
-        replayEarthquakeCrack = null; // Clear after use
         return;
     }
     
@@ -6489,7 +5215,8 @@ function mergeInterlockedBlobs(blobs) {
 
 let board = [];
 let isRandomBlock = []; // Track blocks placed by Gremlins challenge (rendered with silver edges)
-let isLatticeBlock = []; // Track which blocks are pre-filled lattice blocks (immune to gravity until absorbed)
+// Lattice mode: grid managed by challenge_lattice.js (ChallengeEffects.Lattice)
+let isLatticeBlock = []; // Alias to ChallengeEffects.Lattice.grid — reassigned on init
 let fadingBlocks = []; // Track blocks that are fading in with their opacity and scale
 let currentPiece = null;
 let nextPieceQueue = []; // Queue of next 4 pieces
@@ -6549,6 +5276,8 @@ function getChallengeModeMultiplier() {
         'comingsoon',  // 3D perspective tilt - visual only
         'nervous',     // Screen vibration - visual only
         'shadowless',  // Hides landing shadow - AI calculates positions
+        'amnesia',     // Color memory fade - AI has full board state
+        'vertigo',     // Screen sway - visual only, AI has direct board access
         'carrie',      // Blood rain - visual distraction only
         'nokings'      // Poo rain - visual distraction only
     ]);
@@ -6569,11 +5298,12 @@ function getChallengeModeMultiplier() {
         'thinner': 0.04,      // 4%
         'mercurial': 0.04,    // 4%
         'shadowless': 0.02,   // 2%
+        'amnesia': 0.06,      // 6% - can't see colors for blob building
+        'vertigo': 0.02,      // 2% - disorienting sway
         'thicker': 0.03,      // 3%
         'carrie': 0.03,       // 3%
         'nokings': 0.03,      // 3%
-        'nervous': 0.02,      // 2%
-        'sorandom': 0.00      // 0% in AI mode (mostly visual challenges)
+        'nervous': 0.02       // 2%
     };
     
     if (challengeMode === 'combo') {
@@ -6588,8 +5318,8 @@ function getChallengeModeMultiplier() {
         return 1.0 + totalBonus;
     } else {
         // Single challenge mode
-        // In AI mode, visual-only challenges and sorandom get 0% bonus
-        if (aiModeEnabled && (visualOnlyChallenges.has(challengeMode) || challengeMode === 'sorandom')) {
+        // In AI mode, visual-only challenges get 0% bonus
+        if (aiModeEnabled && visualOnlyChallenges.has(challengeMode)) {
             return 1.0;
         }
         return 1.0 + (challengeBonuses[challengeMode] || 0.05);
@@ -6624,32 +5354,19 @@ let superVolcanoCount = 0;
 let volcanoIsSuper = false; // Flag for delayed volcano scoring (x2 when tsunami also detected)
 
 // Challenge modes
-let challengeMode = 'normal'; // 'normal', 'stranger', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'combo'
+let challengeMode = 'normal'; // 'normal', 'stranger', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'amnesia', 'vertigo', 'combo'
 let activeChallenges = new Set(); // For combo mode
-let phantomTimeout = null; // Timer for phantom fade
-let phantomOpacity = 1.0; // Current opacity of the stack in phantom mode
-let phantomFadeInterval = null; // Interval for smooth fading
-let bouncingPieces = []; // Track pieces currently bouncing
+// Phantom mode: state managed by challenge_phantom.js (ChallengeEffects.Phantom)
+// Rubber & Glue mode: state managed by challenge_rubber.js (ChallengeEffects.Rubber)
 let nervousVibrateOffset = 0; // Current Y offset for nervous mode vibration
 
 // Six Seven mode variables
-let sixSevenCounter = 0; // Tracks lines cleared in Six Seven mode
-let sixSevenNextTarget = 0; // When to spawn next giant piece (6 or 7)
-let sixSevenNextSize = 0; // Size of next giant piece (6 or 7)
+// Six Seven mode: state managed by challenge_sixseven.js (ChallengeEffects.SixSeven)
 
-// Gremlins mode variables
-let gremlinsCounter = 0; // Tracks lines cleared for gremlin spawning
-let gremlinsNextTarget = 0; // When to trigger next gremlin event
-let gremlinFadingBlocks = []; // Track blocks being removed by gremlins: [{x, y, opacity, delay}]
-let gremlinsPendingRemoval = false; // Flag to prevent removal right after line clear
+// Gremlins mode: state managed by challenge_gremlins.js (ChallengeEffects.Gremlins)
 
-// So Random mode variables
-let soRandomCurrentMode = 'normal'; // Current active challenge in So Random mode
-let soRandomAvailableModes = ['stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner', 'thicker', 'nervous', 'carrie', 'nokings', 'longago', 'comingsoon', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial']; // Modes that can be randomly chosen
 
-// Mercurial mode variables
-let mercurialTimer = 0; // Time since last color change
-let mercurialInterval = 0; // Current interval before next change (2-4 seconds)
+// Mercurial mode: state managed by challenge_mercurial.js (ChallengeEffects.Mercurial)
 
 // gameRunning is declared in starfield section
 let paused = false; StarfieldSystem.setPaused(false);
@@ -6714,7 +5431,6 @@ const MAX_LOCK_DELAY_RESETS = 15; // Maximum resets before piece must lock
 const LOCK_DELAY_DECAY = 0.85; // Each reset reduces remaining grace period to 85%
 let animatingLines = false;
 let pendingLineCheck = false; // Flag to trigger another clearLines check after current animation
-let yesAndSpawnedLimb = false; // Flag to track if Yes, And... mode spawned a limb (for delayed line check)
 let lineAnimations = [];
 let lightningEffects = [];
 let triggeredTsunamis = new Set(); // Track tsunamis that have already triggered
@@ -6722,19 +5438,39 @@ let triggeredTsunamis = new Set(); // Track tsunamis that have already triggered
 function initBoard() {
     board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
     isRandomBlock = Array(ROWS).fill().map(() => Array(COLS).fill(false));
-    isLatticeBlock = Array(ROWS).fill().map(() => Array(COLS).fill(false));
+    if (window.ChallengeEffects && ChallengeEffects.Lattice) {
+        ChallengeEffects.Lattice.init(ROWS, COLS);
+        isLatticeBlock = ChallengeEffects.Lattice.grid;
+    } else {
+        isLatticeBlock = Array(ROWS).fill().map(() => Array(COLS).fill(false));
+    }
     fadingBlocks = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+    if (window.ChallengeEffects && ChallengeEffects.Amnesia) ChallengeEffects.Amnesia.init(ROWS, COLS);
 }
 
 function getFaceOpacity() {
     return faceOpacity;
 }
 
+/**
+ * Get the display color for a blob, applying amnesia fade if active.
+ * Handles lava color conversion and amnesia white-blend in one place.
+ */
+function getDisplayColorForBlob(blob) {
+    let color = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+    const isAmnesiaActive = challengeMode === 'amnesia' || activeChallenges.has('amnesia');
+    if (isAmnesiaActive && window.ChallengeEffects) {
+        color = ChallengeEffects.Amnesia.getBlobDisplayColor(color, blob.positions);
+    }
+    return color;
+}
+
 function randomColor() {
     return currentColorSet[Math.floor(Math.random() * currentColorSet.length)];
 }
 
-// Note: replayPieceIndex is declared in replay state section near line 14215
+
+// v2.0: During replay, pieces come from GameReplay.spawnPiece() not createPiece()
 
 function createPiece() {
     // v2.0: During replay, pieces come from spawnReplayPiece() not createPiece()
@@ -6817,250 +5553,6 @@ function getShapeSetForType(type) {
     return SHAPES; // fallback
 }
 
-// Hexomino shapes (6 blocks) - verified block counts
-const HEXOMINO_SHAPES = [
-    { name: 'I6', shape: [[1,1,1,1,1,1]] },                           // 6 in a row
-    { name: 'Rect', shape: [[1,1,1],[1,1,1]] },                       // 2x3 rectangle
-    { name: 'L6', shape: [[1,0,0],[1,0,0],[1,0,0],[1,1,1]] },         // L shape (4 tall)
-    { name: 'J6', shape: [[0,0,1],[0,0,1],[0,0,1],[1,1,1]] },         // J shape (mirror L)
-    { name: 'T6', shape: [[1,1,1,1],[0,1,0,0],[0,1,0,0]] },           // T with wide top
-    { name: 'Plus6', shape: [[0,1,0],[1,1,1],[0,1,0],[0,1,0]] },      // Plus with stem
-    { name: 'Y6', shape: [[0,1],[1,1],[0,1],[0,1],[0,1]] },           // Y shape
-    { name: 'P6', shape: [[1,1],[1,1],[1,0],[1,0]] },                 // P shape tall
-    { name: 'S6', shape: [[0,1,1],[0,1,0],[0,1,0],[1,1,0]] },         // S extended
-    { name: 'C6', shape: [[1,1],[1,0],[1,0],[1,1]] },                 // C/U open shape
-    { name: 'Z6', shape: [[1,1,0,0],[0,1,0,0],[0,1,1,1]] },           // Z extended
-    { name: 'W6', shape: [[1,0,0],[1,1,0],[0,1,1],[0,0,1]] }          // W/stairs shape
-];
-
-// Heptomino shapes (7 blocks) - verified block counts
-const HEPTOMINO_SHAPES = [
-    { name: 'I7', shape: [[1,1,1,1,1,1,1]] },                         // 7 in a row
-    { name: 'L7', shape: [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]] }, // L shape (5 tall)
-    { name: 'J7', shape: [[0,0,1],[0,0,1],[0,0,1],[0,0,1],[1,1,1]] }, // J shape (mirror L)
-    { name: 'T7', shape: [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0]] },     // T with wide top
-    { name: 'Plus7', shape: [[0,1,0],[0,1,0],[1,1,1],[0,1,0],[0,1,0]] }, // Plus symmetric
-    { name: 'Y7', shape: [[0,1],[0,1],[1,1],[0,1],[0,1],[0,1]] },     // Y shape tall
-    { name: 'U7', shape: [[1,0,1],[1,0,1],[1,1,1]] },                 // U shape
-    { name: 'P7', shape: [[1,1],[1,1],[1,0],[1,0],[1,0]] },           // P shape tall
-    { name: 'S7', shape: [[0,0,1,1],[0,0,1,0],[0,1,1,0],[1,1,0,0]] }, // S extended
-    { name: 'W7', shape: [[1,0,0],[1,1,0],[0,1,0],[0,1,1],[0,0,1]] }, // W/stairs
-    { name: 'F7', shape: [[0,1,1],[0,1,0],[1,1,0],[0,1,0],[0,1,0]] }, // F shape
-    { name: 'H7', shape: [[1,0,1],[1,1,1],[1,0,1]] }          // H shape (3 tall)
-];
-
-function createGiantPiece(segmentCount) {
-    // Create various configurations of 6-7 segment pieces
-    // These will be larger and need to fit centered in the Next Piece window
-    const color = randomColor();
-    let shapeData;
-    
-    if (segmentCount === 6) {
-        shapeData = HEXOMINO_SHAPES[Math.floor(Math.random() * HEXOMINO_SHAPES.length)];
-    } else {
-        shapeData = HEPTOMINO_SHAPES[Math.floor(Math.random() * HEPTOMINO_SHAPES.length)];
-    }
-    
-    const pieceHeight = shapeData.shape.length;
-    
-    const piece = {
-        shape: shapeData.shape,
-        type: 'giant' + segmentCount,
-        color: color,
-        x: Math.floor(COLS / 2) - Math.floor(shapeData.shape[0].length / 2),
-        y: -pieceHeight  // Spawn completely above the well
-    };
-    
-    return piece;
-}
-
-/**
- * Create a random block for Gremlins challenge mode
- * Places a block up to 4 rows above the highest player block
- */
-function createGremlinBlock() {
-    // Find the topmost player-placed block (not random/gremlin blocks)
-    let topFilledRow = ROWS - 1;
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x] && !isRandomBlock[y][x]) {
-                topFilledRow = y;
-                break;
-            }
-        }
-        if (topFilledRow < ROWS - 1) break;
-    }
-    
-    // Calculate the range: up to 4 rows above the highest player block
-    const minY = Math.max(0, topFilledRow - 4);
-    const maxY = topFilledRow;
-    
-    if (minY >= ROWS || maxY < 0) return; // Invalid range
-    
-    // Randomly choose a row within the valid range
-    const y = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
-    
-    // Randomly choose a column
-    const x = Math.floor(Math.random() * COLS);
-    const color = randomColor();
-    
-    // Place it directly on the board if the space is empty
-    if (board[y] && !board[y][x]) {
-        board[y][x] = color;
-        isRandomBlock[y][x] = true; // Mark as gremlin-placed block
-        fadingBlocks[y][x] = { opacity: 0.01, scale: 0.15 }; // Start small and nearly invisible
-        
-        // Record gremlin block for replay
-        if (window.GameRecorder && window.GameRecorder.isActive()) {
-            window.GameRecorder.recordGremlinBlock(x, y, color);
-        }
-    }
-}
-
-function removeRandomBlocks() {
-    // Gremlins mode: Schedule a gremlin attack after a delay
-    // The block will be selected AFTER the delay (when it actually starts fading)
-    
-    // Random delay between 1-2 seconds (60-120 frames at 60fps)
-    const delayFrames = Math.floor(60 + Math.random() * 60);
-    
-    // Add a pending gremlin attack (no x/y yet - will be picked after delay)
-    gremlinFadingBlocks.push({
-        x: -1,  // Placeholder - will be selected after delay
-        y: -1,  // Placeholder - will be selected after delay
-        opacity: 1.0,
-        delay: delayFrames,
-        color: null,  // Will be set when block is selected
-        pending: true  // Flag to indicate this needs block selection
-    });
-}
-
-function updateGremlinFadingBlocks() {
-    // Update all gremlin fading blocks
-    for (let i = gremlinFadingBlocks.length - 1; i >= 0; i--) {
-        const gremlin = gremlinFadingBlocks[i];
-        
-        // Handle delay countdown
-        if (gremlin.delay > 0) {
-            gremlin.delay--;
-            // When delay reaches 0 and this is a pending gremlin, pick a block NOW
-            if (gremlin.delay === 0 && gremlin.pending) {
-                // Find all filled positions NOW (after the delay)
-                const filledPositions = [];
-                for (let y = 0; y < ROWS; y++) {
-                    for (let x = 0; x < COLS; x++) {
-                        if (board[y][x]) {
-                            filledPositions.push([x, y]);
-                        }
-                    }
-                }
-                
-                // If no blocks exist, abort silently (no sound)
-                if (filledPositions.length === 0) {
-                    gremlinFadingBlocks.splice(i, 1);
-                    continue;
-                }
-                
-                // Pick ONE random block from existing stack
-                const index = Math.floor(Math.random() * filledPositions.length);
-                const [x, y] = filledPositions[index];
-                
-                // Update gremlin with actual position and color
-                gremlin.x = x;
-                gremlin.y = y;
-                gremlin.color = board[y][x];
-                gremlin.pending = false;
-                
-                // Record gremlin attack for playback
-                if (window.GameRecorder && window.GameRecorder.isActive()) {
-                    window.GameRecorder.recordChallengeEvent('gremlin', { x: x, y: y, color: gremlin.color });
-                }
-                
-                // Play sound now that we have a real target
-                playGremlinGiggle();
-            }
-            continue;
-        }
-        
-        // Skip if still pending (shouldn't happen, but safety check)
-        if (gremlin.pending) {
-            gremlinFadingBlocks.splice(i, 1);
-            continue;
-        }
-        
-        // At this point, delay is 0 and we have a real block - fade it
-        // Fade out slowly (over ~60 frames / 1 second)
-        gremlin.opacity -= 0.017; // ~60 frames to fade completely
-        
-        // When fully faded, remove from board and list
-        if (gremlin.opacity <= 0) {
-            board[gremlin.y][gremlin.x] = null;
-            isRandomBlock[gremlin.y][gremlin.x] = false;
-            fadingBlocks[gremlin.y][gremlin.x] = null;
-            gremlinFadingBlocks.splice(i, 1);
-            
-            // Apply gravity after block is removed
-            applyGravity();
-        }
-    }
-}
-
-function switchSoRandomMode() {
-    // So Random mode: Switch to a different random challenge
-    // First, remove all CSS-based challenge effects
-    document.documentElement.classList.remove('stranger-mode');
-    StarfieldSystem.setStrangerMode(false);
-    canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
-    
-    // Reset canvas size in case we're coming from Thicker mode
-    updateCanvasSize();
-    
-    // Pick a random mode from available modes
-    const newMode = soRandomAvailableModes[Math.floor(Math.random() * soRandomAvailableModes.length)];
-    soRandomCurrentMode = newMode;
-    
-    console.log(`🎲 So Random switched to: ${newMode}`);
-    
-    // Record challenge mode switch for playback
-    if (window.GameRecorder && window.GameRecorder.isActive()) {
-        window.GameRecorder.recordChallengeEvent('sorandom_switch', { newMode: newMode });
-    }
-    
-    // Apply visual effects for CSS-based modes
-    if (newMode === 'stranger') {
-        document.documentElement.classList.add('stranger-mode');
-        StarfieldSystem.setStrangerMode(true);
-    }
-    if (newMode === 'thinner') {
-        canvas.classList.add('thinner-mode');
-    }
-    if (newMode === 'thicker') {
-        canvas.classList.add('thicker-mode');
-        updateCanvasSize(); // Resize canvas for Thicker mode
-    }
-    if (newMode === 'longago') {
-        canvas.classList.add('longago-mode');
-        // Need to update after transform is applied
-        setTimeout(() => updateCanvasSize(), 0);
-    }
-    if (newMode === 'comingsoon') {
-        canvas.classList.add('comingsoon-mode');
-        // Need to update after transform is applied
-        setTimeout(() => updateCanvasSize(), 0);
-    }
-    
-    // Reset mode-specific counters
-    if (newMode === 'sixseven') {
-        sixSevenCounter = 0;
-        sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
-        sixSevenNextSize = sixSevenNextTarget;
-    }
-    if (newMode === 'gremlins') {
-        gremlinsCounter = 0;
-        gremlinsNextTarget = 1 + Math.random() * 2;
-    }
-}
-
 function playBloopSound() {
     if (!soundToggle.checked) return;
     
@@ -7083,67 +5575,6 @@ function playBloopSound() {
     
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.15);
-}
-
-function playGremlinGiggle() {
-    if (!soundToggle.checked) return;
-    
-    // Create a mischievous gremlin giggle sound
-    // High-pitched, warbling, playful evil laugh
-    
-    // First giggle note - ascending pitch
-    setTimeout(() => {
-        const osc1 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioContext.destination);
-        
-        osc1.frequency.setValueAtTime(800, audioContext.currentTime);
-        osc1.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.08);
-        osc1.type = 'square';
-        
-        gain1.gain.setValueAtTime(0.15, audioContext.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
-        
-        osc1.start(audioContext.currentTime);
-        osc1.stop(audioContext.currentTime + 0.08);
-    }, 0);
-    
-    // Second giggle note - higher
-    setTimeout(() => {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        
-        osc2.frequency.setValueAtTime(1000, audioContext.currentTime);
-        osc2.frequency.exponentialRampToValueAtTime(1400, audioContext.currentTime + 0.08);
-        osc2.type = 'square';
-        
-        gain2.gain.setValueAtTime(0.18, audioContext.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
-        
-        osc2.start(audioContext.currentTime);
-        osc2.stop(audioContext.currentTime + 0.08);
-    }, 90);
-    
-    // Third giggle note - descending
-    setTimeout(() => {
-        const osc3 = audioContext.createOscillator();
-        const gain3 = audioContext.createGain();
-        osc3.connect(gain3);
-        gain3.connect(audioContext.destination);
-        
-        osc3.frequency.setValueAtTime(1300, audioContext.currentTime);
-        osc3.frequency.exponentialRampToValueAtTime(900, audioContext.currentTime + 0.10);
-        osc3.type = 'square';
-        
-        gain3.gain.setValueAtTime(0.16, audioContext.currentTime);
-        gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.10);
-        
-        osc3.start(audioContext.currentTime);
-        osc3.stop(audioContext.currentTime + 0.10);
-    }, 180);
 }
 
 function updateFadingBlocks() {
@@ -7745,10 +6176,10 @@ function drawBoard() {
     const blobs = getAllBlobs();
     
     // Apply phantom mode opacity to the stack (not the current piece)
-    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom') || soRandomCurrentMode === 'phantom';
-    if (isPhantomMode) {
+    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom');
+    if (isPhantomMode && window.ChallengeEffects && ChallengeEffects.Phantom) {
         ctx.save();
-        ctx.globalAlpha = phantomOpacity;
+        ctx.globalAlpha = ChallengeEffects.Phantom.getOpacity();
     }
     
     blobs.forEach(blob => {
@@ -7820,14 +6251,14 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingNormalPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedBlocks = [];
                 const normalGremlinBlocks = [];
                 
                 nonFadingNormalPositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -7856,14 +6287,14 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingRandomPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedRandomBlocks = [];
                 const normalRandomBlocks = [];
                 
                 nonFadingRandomPositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedRandomBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -7892,14 +6323,14 @@ function drawBoard() {
                 return !fade || fade.opacity >= 1;
             });
             if (nonFadingLatticePositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any of these blocks are being removed by gremlins
                 const gremlinAffectedLatticeBlocks = [];
                 const normalLatticeBlocks = [];
                 
                 nonFadingLatticePositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedLatticeBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -7971,7 +6402,7 @@ function drawBoard() {
                 });
                 
                 // Draw as merged shapes to avoid overlap artifacts
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 if (normalPositions.length > 0) {
                     drawSolidShape(ctx, normalPositions, displayColor, BLOCK_SIZE, false, getFaceOpacity(), false);
                 }
@@ -7988,14 +6419,14 @@ function drawBoard() {
             // No fading blocks
             // Draw normal blocks
             if (normalBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedBlocks = [];
                 const normalGremlinBlocks = [];
                 
                 normalBlockPositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -8018,14 +6449,14 @@ function drawBoard() {
             }
             // Draw gremlin-placed blocks with silver
             if (randomBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedRandomBlocks = [];
                 const normalRandomBlocks = [];
                 
                 randomBlockPositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedRandomBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -8048,14 +6479,14 @@ function drawBoard() {
             }
             // Draw lattice blocks with silver
             if (latticeBlockPositions.length > 0) {
-                const displayColor = blob.color === volcanoLavaColor ? getLavaColor() : blob.color;
+                const displayColor = getDisplayColorForBlob(blob);
                 
                 // Check if any blocks are being removed by gremlins
                 const gremlinAffectedLatticeBlocks = [];
                 const normalLatticeBlocks = [];
                 
                 latticeBlockPositions.forEach(([x, y]) => {
-                    const gremlin = gremlinFadingBlocks.find(g => g.x === x && g.y === y);
+                    const gremlin = window.ChallengeEffects && ChallengeEffects.Gremlins ? ChallengeEffects.Gremlins.getFadingAt(x, y) : null;
                     if (gremlin && gremlin.delay === 0) {
                         gremlinAffectedLatticeBlocks.push({ pos: [x, y], opacity: gremlin.opacity });
                     } else {
@@ -8326,27 +6757,13 @@ function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0, pixelOffsetY 
     });
     
     // Check if Oz mode is active (grayscale until landing)
-    const isOzMode = challengeMode === 'oz' || activeChallenges.has('oz') || soRandomCurrentMode === 'oz';
-    const displayColor = isOzMode ? colorToGrayscale(piece.color) : piece.color;
+    const isOzMode = challengeMode === 'oz' || activeChallenges.has('oz');
+    const displayColor = (isOzMode && window.ChallengeEffects && ChallengeEffects.Oz) ? ChallengeEffects.Oz.toGrayscale(piece.color) : piece.color;
     
     drawSolidShape(context, positions, displayColor, BLOCK_SIZE, false, getFaceOpacity());
 }
 
-// Helper function to convert color to grayscale
-function colorToGrayscale(color) {
-    // Parse hex color
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    // Calculate luminance (weighted grayscale)
-    const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-    
-    // Return as hex
-    const grayHex = gray.toString(16).padStart(2, '0');
-    return `#${grayHex}${grayHex}${grayHex}`;
-}
+// Oz mode: grayscale conversion managed by challenge_oz.js (ChallengeEffects.Oz)
 
 function drawNextPiece() {
     // Save and restore image smoothing state
@@ -8650,7 +7067,7 @@ function mergePiece() {
     recordPieceSpeedBonus(pieceBonus);
     
     // Check for Rubber & Glue mode (either standalone or in combo)
-    const isRubberMode = challengeMode === 'rubber' || activeChallenges.has('rubber') || soRandomCurrentMode === 'rubber';
+    const isRubberMode = challengeMode === 'rubber' || activeChallenges.has('rubber');
     
     if (isRubberMode) {
         // First check if this placement would trigger special events
@@ -8688,7 +7105,10 @@ function mergePiece() {
             
             // If doesn't touch same color and won't trigger events, BOUNCE! ("rubber")
             if (!touchesSameColor) {
-                triggerBouncePiece();
+                if (window.ChallengeEffects && ChallengeEffects.Rubber) {
+                    ChallengeEffects.Rubber.triggerBounce(currentPiece);
+                }
+                currentPiece = null;
                 return; // Don't merge the piece
             }
         }
@@ -8709,18 +7129,34 @@ function mergePiece() {
         });
     });
     
+    // Amnesia mode: stamp placement times for newly placed blocks
+    const isAmnesiaMode = challengeMode === 'amnesia' || activeChallenges.has('amnesia');
+    if (isAmnesiaMode && window.ChallengeEffects) {
+        currentPiece.shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value) {
+                    const boardY = currentPiece.y + y;
+                    const boardX = currentPiece.x + x;
+                    if (boardY >= 0) {
+                        ChallengeEffects.Amnesia.stampCell(boardX, boardY);
+                    }
+                }
+            });
+        });
+    }
+    
     // Yes, And... mode: Spawn random limbs after piece lands
-    const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand') || soRandomCurrentMode === 'yesand';
-    if (isYesAndMode) {
-        yesAndSpawnedLimb = spawnYesAndLimbs(currentPiece);
-    } else {
-        yesAndSpawnedLimb = false;
+    const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand');
+    if (isYesAndMode && window.ChallengeEffects && ChallengeEffects.YesAnd) {
+        ChallengeEffects.YesAnd.spawnLimbs(currentPiece);
+    } else if (window.ChallengeEffects && ChallengeEffects.YesAnd) {
+        ChallengeEffects.YesAnd.clearSpawnFlag();
     }
     
     // Trigger Phantom mode fade (either standalone or in combo)
-    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom') || soRandomCurrentMode === 'phantom';
-    if (isPhantomMode) {
-        triggerPhantomFade();
+    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom');
+    if (isPhantomMode && window.ChallengeEffects && ChallengeEffects.Phantom) {
+        ChallengeEffects.Phantom.triggerFade();
     }
 }
 
@@ -8728,95 +7164,7 @@ function mergePiece() {
 // CHALLENGE MODE FUNCTIONS
 // ============================================
 
-function spawnYesAndLimbs(piece) {
-    // Yes, And... mode: Spawn random limb(s) adjacent to the piece or its blob
-    // Returns true if a limb was spawned, false otherwise
-    
-    // First, find the blob that this piece is now part of
-    const blobs = getAllBlobs();
-    let targetBlob = null;
-    
-    // Find which blob contains any of the piece's blocks
-    for (const blob of blobs) {
-        const containsPieceBlock = blob.positions.some(([bx, by]) => {
-            return piece.shape.some((row, y) => {
-                return row.some((value, x) => {
-                    if (!value) return false;
-                    const boardY = piece.y + y;
-                    const boardX = piece.x + x;
-                    return boardX === bx && boardY === by;
-                });
-            });
-        });
-        
-        if (containsPieceBlock) {
-            targetBlob = blob;
-            break;
-        }
-    }
-    
-    if (!targetBlob || targetBlob.positions.length === 0) return false;
-    
-    // Find all available spaces adjacent to the blob
-    const adjacentSpaces = [];
-    const checkedSpaces = new Set();
-    
-    for (const [bx, by] of targetBlob.positions) {
-        // Check all 4 directions (up, down, left, right)
-        const directions = [
-            [0, -1],  // up
-            [0, 1],   // down
-            [-1, 0],  // left
-            [1, 0]    // right
-        ];
-        
-        for (const [dx, dy] of directions) {
-            const adjX = bx + dx;
-            const adjY = by + dy;
-            const key = `${adjX},${adjY}`;
-            
-            // Check if space is valid, empty, and not already checked
-            if (adjX >= 0 && adjX < COLS && 
-                adjY >= 0 && adjY < ROWS && 
-                board[adjY][adjX] === null &&
-                !checkedSpaces.has(key)) {
-                
-                adjacentSpaces.push([adjX, adjY]);
-                checkedSpaces.add(key);
-            }
-        }
-    }
-    
-    // If no adjacent spaces available, do nothing
-    if (adjacentSpaces.length === 0) {
-        console.log('🎭 Yes, And... found no available spaces for limbs');
-        return false;
-    }
-    
-    // Spawn 1 random limb with fade-in animation
-    const numLimbs = 1;
-    const spawnedLimbs = [];
-    
-    for (let i = 0; i < numLimbs && adjacentSpaces.length > 0; i++) {
-        // Pick a random available space
-        const randomIndex = Math.floor(Math.random() * adjacentSpaces.length);
-        const [limbX, limbY] = adjacentSpaces.splice(randomIndex, 1)[0];
-        
-        // Place the limb on the board with fade-in animation
-        board[limbY][limbX] = targetBlob.color;
-        isRandomBlock[limbY][limbX] = false;
-        fadingBlocks[limbY][limbX] = { opacity: 0.01, scale: 0.15 }; // Start small and nearly invisible
-        spawnedLimbs.push([limbX, limbY]);
-    }
-    
-    // Play a "pop" sound for the spawning limb
-    if (spawnedLimbs.length > 0) {
-        playSoundEffect('yesand', soundToggle);
-    }
-    
-    console.log(`🎭 Yes, And... spawned ${spawnedLimbs.length} limb(s) at:`, spawnedLimbs);
-    return spawnedLimbs.length > 0;
-}
+// Yes, And... mode: state managed by challenge_yesand.js (ChallengeEffects.YesAnd)
 
 function wouldTriggerSpecialEvent(piece) {
     // Temporarily place the piece on a copy of the board to check for events
@@ -8864,490 +7212,7 @@ function wouldTriggerSpecialEvent(piece) {
     return false; // No special events would trigger
 }
 
-function triggerBouncePiece() {
-    console.log('🏀 BOUNCE! Piece doesn\'t touch same color');
-    
-    // Analyze what the piece is landing on
-    const landingAnalysis = analyzeLandingSurface(currentPiece);
-    console.log('📊 Landing analysis:', landingAnalysis);
-    
-    // Calculate bounce parameters based on landing surface
-    const blobSize = landingAnalysis.totalSupportBlocks;
-    const overhangLeft = landingAnalysis.overhangLeft;
-    const overhangRight = landingAnalysis.overhangRight;
-    
-    // Bounce height proportional to blob size (more support = higher bounce)
-    // REDUCED BY HALF for more reasonable bouncing
-    const baseVelocity = -0.4;  // Halved from -0.8
-    const sizeMultiplier = Math.sqrt(blobSize) * 0.15; // Halved from 0.3
-    const bounceVy = baseVelocity - sizeMultiplier;
-    
-    // Horizontal velocity based on overhang
-    // More overhang = more horizontal movement
-    let bounceVx = 0;
-    if (overhangLeft > 0 && overhangRight === 0) {
-        // Piece overhangs on left, bounce left
-        bounceVx = -0.1 * overhangLeft;  // Halved from -0.2
-    } else if (overhangRight > 0 && overhangLeft === 0) {
-        // Piece overhangs on right, bounce right  
-        bounceVx = 0.1 * overhangRight;  // Halved from 0.2
-    } else if (overhangLeft > 0 && overhangRight > 0) {
-        // Overhangs both sides, bounce based on which is larger
-        const netOverhang = overhangRight - overhangLeft;
-        bounceVx = 0.075 * netOverhang;  // Halved from 0.15
-    }
-    // No overhang = straight up
-    
-    console.log(`🎯 Bounce physics: height=${(-bounceVy).toFixed(2)} (from ${blobSize} blocks), horizontal=${bounceVx.toFixed(2)}`);
-    
-    // Store current piece data with calculated physics
-    const bouncePiece = {
-        shape: currentPiece.shape,
-        color: currentPiece.color,
-        x: currentPiece.x,
-        y: currentPiece.y,
-        vy: bounceVy,
-        vx: bounceVx,
-        rotation: 0,
-        rotationSpeed: (Math.random() - 0.5) * 4, // Slower spin
-        gravity: 0.08, // Lower gravity for gentler bounce
-        bounceCount: 0,
-        maxBounces: blobSize > 10 ? 2 : 1 // More bounces for bigger blobs
-    };
-    
-    bouncingPieces.push(bouncePiece);
-    playSoundEffect('drop', soundToggle); // Play bounce sound
-    
-    // Current piece will be removed, spawn a new one
-    currentPiece = null;
-}
-
-function analyzeLandingSurface(piece) {
-    // Analyze what blocks are directly under the piece
-    const analysis = {
-        totalSupportBlocks: 0,
-        overhangLeft: 0,
-        overhangRight: 0,
-        supportingColors: new Set()
-    };
-    
-    // Find all piece positions
-    const piecePositions = [];
-    let minX = Infinity, maxX = -Infinity;
-    
-    piece.shape.forEach((row, y) => {
-        row.forEach((value, x) => {
-            if (value) {
-                const boardX = piece.x + x;
-                const boardY = piece.y + y;
-                piecePositions.push({x: boardX, y: boardY});
-                minX = Math.min(minX, boardX);
-                maxX = Math.max(maxX, boardX);
-            }
-        });
-    });
-    
-    // Check what's supporting each block
-    const supportMap = new Map(); // x position -> has support
-    
-    for (let x = minX; x <= maxX; x++) {
-        supportMap.set(x, false);
-    }
-    
-    piecePositions.forEach(pos => {
-        // Check what's directly below this block
-        const below = pos.y + 1;
-        
-        if (below >= ROWS) {
-            // At bottom of well
-            supportMap.set(pos.x, true);
-            analysis.totalSupportBlocks++;
-        } else if (below >= 0 && pos.x >= 0 && pos.x < COLS && board[below][pos.x]) {
-            // Supported by a block
-            supportMap.set(pos.x, true);
-            analysis.totalSupportBlocks++;
-            analysis.supportingColors.add(board[below][pos.x]);
-            
-            // Count all connected blocks of the supporting blob
-            const supportBlob = getConnectedBlob(pos.x, below, board[below][pos.x]);
-            analysis.totalSupportBlocks += Math.floor(supportBlob.size / 2); // Partial credit for blob size
-        }
-    });
-    
-    // Calculate overhangs
-    for (let x = minX; x <= maxX; x++) {
-        const hasBlock = piecePositions.some(p => p.x === x);
-        const hasSupport = supportMap.get(x);
-        
-        if (hasBlock && !hasSupport) {
-            if (x < (minX + maxX) / 2) {
-                analysis.overhangLeft++;
-            } else {
-                analysis.overhangRight++;
-            }
-        }
-    }
-    
-    // Minimum 1 support block to avoid divide by zero
-    analysis.totalSupportBlocks = Math.max(1, analysis.totalSupportBlocks);
-    
-    return analysis;
-}
-
-function getConnectedBlob(startX, startY, color) {
-    // Quick flood fill to find connected blob size
-    const visited = new Set();
-    const stack = [[startX, startY]];
-    
-    while (stack.length > 0) {
-        const [x, y] = stack.pop();
-        const key = `${x},${y}`;
-        
-        if (visited.has(key)) continue;
-        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) continue;
-        if (board[y][x] !== color) continue;
-        
-        visited.add(key);
-        
-        // Add adjacent cells
-        stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    }
-    
-    return visited;
-}
-
-function updateBouncingPieces() {
-    bouncingPieces = bouncingPieces.filter(piece => {
-        // Store old position for rollback if needed
-        const oldX = piece.x;
-        const oldY = piece.y;
-        
-        // Apply gravity
-        piece.vy += piece.gravity;
-        piece.y += piece.vy;
-        piece.x += piece.vx;
-        piece.rotation += piece.rotationSpeed;
-        
-        // Check horizontal bounds and prevent wall clipping
-        let minX = Infinity, maxX = -Infinity;
-        piece.shape.forEach((row, y) => {
-            row.forEach((value, x) => {
-                if (value) {
-                    const boardX = piece.x + x;
-                    minX = Math.min(minX, boardX);
-                    maxX = Math.max(maxX, boardX);
-                }
-            });
-        });
-        
-        // Keep piece within bounds
-        if (minX < 0) {
-            piece.x -= minX; // Shift right
-            piece.vx = Math.abs(piece.vx) * 0.5; // Bounce off left wall
-        } else if (maxX >= COLS) {
-            piece.x -= (maxX - COLS + 1); // Shift left
-            piece.vx = -Math.abs(piece.vx) * 0.5; // Bounce off right wall
-        }
-        
-        // Check if landed
-        if (piece.vy > 0) { // Moving down
-            const landed = checkBounceCollision(piece);
-            if (landed) {
-                // Snap to grid position for clean landing
-                piece.y = Math.floor(piece.y);
-                piece.x = Math.round(piece.x);
-                
-                piece.bounceCount++;
-                
-                if (piece.bounceCount >= piece.maxBounces) {
-                    // Final landing - validate position before merging
-                    if (isValidBouncePosition(piece)) {
-                        mergeBouncingPiece(piece);
-                    } else {
-                        // Try to find a nearby valid position
-                        if (!findValidLandingPosition(piece)) {
-                            console.log('⚠️ Bounce piece could not find valid landing - removing');
-                        }
-                    }
-                    return false; // Remove from bouncing array
-                } else {
-                    // Bounce again (smaller bounce)
-                    piece.vy = -0.8; // Much smaller second bounce
-                    piece.vx = (Math.random() - 0.5) * 0.1;
-                    piece.rotationSpeed = (Math.random() - 0.5) * 3;
-                    playSoundEffect('drop', soundToggle);
-                }
-            }
-        }
-        
-        // Remove if off screen
-        if (piece.y > ROWS + 5) return false;
-        
-        return true; // Keep bouncing
-    });
-}
-
-function checkBounceCollision(piece) {
-    // Check if any block of the piece would collide with the board or bottom
-    for (let y = 0; y < piece.shape.length; y++) {
-        for (let x = 0; x < piece.shape[y].length; x++) {
-            if (piece.shape[y][x]) {
-                const boardY = Math.floor(piece.y + y);
-                const boardX = Math.floor(piece.x + x);
-                
-                // Check if hit bottom of well
-                if (boardY >= ROWS - 1) {
-                    return true;
-                }
-                
-                // Check if there's a block directly below this position
-                if (boardY >= -1 && boardY < ROWS - 1 && boardX >= 0 && boardX < COLS) {
-                    // Only check below if we're in a valid row
-                    if (boardY + 1 >= 0 && boardY + 1 < ROWS) {
-                        if (board[boardY + 1][boardX]) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-function isValidBouncePosition(piece) {
-    // Check if the piece can actually be placed at its current position
-    for (let y = 0; y < piece.shape.length; y++) {
-        for (let x = 0; x < piece.shape[y].length; x++) {
-            if (piece.shape[y][x]) {
-                const boardY = Math.floor(piece.y + y);
-                const boardX = Math.floor(piece.x + x);
-                
-                // Check bounds
-                if (boardX < 0 || boardX >= COLS || boardY >= ROWS) {
-                    return false;
-                }
-                
-                // Check for overlap with existing pieces (allow negative Y for pieces at top)
-                if (boardY >= 0 && board[boardY][boardX]) {
-                    return false;
-                }
-            }
-        }
-    }
-    return true;
-}
-
-function findValidLandingPosition(piece) {
-    // Try to find a nearby valid position by moving the piece slightly
-    const originalX = piece.x;
-    const originalY = piece.y;
-    
-    // First, try to move piece down to rest on something
-    while (piece.y < ROWS && !checkBounceCollision(piece)) {
-        piece.y += 0.5;
-    }
-    
-    // Back up one step if we went through something
-    if (piece.y > originalY) {
-        piece.y = Math.floor(piece.y);
-    }
-    
-    // Try small horizontal adjustments if needed
-    for (let xOffset = 0; xOffset <= 2; xOffset++) {
-        for (let xDir of [1, -1]) {
-            if (xOffset === 0 && xDir === -1) continue; // Skip duplicate center check
-            
-            piece.x = originalX + (xOffset * xDir);
-            
-            // Make sure piece is within bounds
-            let minX = Infinity, maxX = -Infinity;
-            piece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value) {
-                        const boardX = piece.x + x;
-                        minX = Math.min(minX, boardX);
-                        maxX = Math.max(maxX, boardX);
-                    }
-                });
-            });
-            
-            if (minX >= 0 && maxX < COLS && isValidBouncePosition(piece)) {
-                mergeBouncingPiece(piece);
-                return true;
-            }
-        }
-    }
-    
-    // Couldn't find valid position
-    piece.x = originalX;
-    piece.y = originalY;
-    return false;
-}
-
-function mergeBouncingPiece(piece) {
-    console.log('🎯 Merging bouncing piece with shape:', piece.shape);
-    
-    // Store original shape and position
-    const originalShape = piece.shape;
-    const originalBlockCount = originalShape.flat().filter(v => v).length;
-    
-    let shape = originalShape;
-    let finalX = Math.round(piece.x);
-    let finalY = Math.round(piece.y);
-    
-    console.log(`Initial landing position: x=${finalX}, y=${finalY}`);
-    
-    // First, ensure piece is within horizontal bounds
-    let pieceWidth = shape[0].length;
-    let pieceHeight = shape.length;
-    
-    // Check left bound
-    if (finalX < 0) {
-        finalX = 0;
-        console.log(`Adjusted X from left wall collision to ${finalX}`);
-    }
-    
-    // Check right bound
-    if (finalX + pieceWidth > COLS) {
-        finalX = COLS - pieceWidth;
-        console.log(`Adjusted X from right wall collision to ${finalX}`);
-    }
-    
-    // Find a valid landing position where no blocks overlap
-    let validY = finalY;
-    let searchUp = true;
-    let searchDistance = 0;
-    const maxSearchDistance = 10;  // Increased from 5
-    let foundValidPosition = false;
-    
-    while (searchDistance < maxSearchDistance) {
-        let canPlace = true;
-        
-        // Check if all blocks can be placed at this position
-        for (let y = 0; y < shape.length; y++) {
-            for (let x = 0; x < shape[y].length; x++) {
-                if (shape[y][x]) {
-                    const boardX = finalX + x;
-                    const boardY = validY + y;
-                    
-                    // Check bounds
-                    if (boardX < 0 || boardX >= COLS || boardY < 0 || boardY >= ROWS) {
-                        canPlace = false;
-                        break;
-                    }
-                    
-                    // Check for overlap
-                    if (board[boardY][boardX]) {
-                        canPlace = false;
-                        break;
-                    }
-                }
-            }
-            if (!canPlace) break;
-        }
-        
-        if (canPlace) {
-            finalY = validY;
-            foundValidPosition = true;
-            console.log(`Found valid position at y=${finalY}`);
-            break;
-        }
-        
-        // Alternate searching up and down
-        searchDistance++;
-        if (searchUp) {
-            validY = finalY - searchDistance;
-        } else {
-            validY = finalY + searchDistance;
-        }
-        searchUp = !searchUp;
-    }
-    
-    // If we couldn't find a valid position, force place at top of screen
-    if (!foundValidPosition) {
-        console.log('⚠️ No valid position found, placing at top of well');
-        finalY = 0;
-        
-        // Clear any overlapping blocks to ensure piece can be placed
-        for (let y = 0; y < shape.length; y++) {
-            for (let x = 0; x < shape[y].length; x++) {
-                if (shape[y][x]) {
-                    const boardX = finalX + x;
-                    const boardY = finalY + y;
-                    if (boardX >= 0 && boardX < COLS && boardY >= 0 && boardY < ROWS) {
-                        if (board[boardY][boardX]) {
-                            console.log(`Clearing overlap at (${boardX}, ${boardY})`);
-                            board[boardY][boardX] = null;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Place the piece at the valid position
-    console.log(`Final placement position: x=${finalX}, y=${finalY}`);
-    
-    let placedBlocks = 0;
-    let totalBlocksInShape = 0;
-    
-    // Count total blocks in shape
-    for (let y = 0; y < shape.length; y++) {
-        for (let x = 0; x < shape[y].length; x++) {
-            if (shape[y][x]) {
-                totalBlocksInShape++;
-            }
-        }
-    }
-    
-    // Place all blocks
-    for (let y = 0; y < shape.length; y++) {
-        for (let x = 0; x < shape[y].length; x++) {
-            if (shape[y][x]) {
-                const boardX = finalX + x;
-                const boardY = finalY + y;
-                
-                if (boardX >= 0 && boardX < COLS && boardY >= 0 && boardY < ROWS) {
-                    board[boardY][boardX] = piece.color;  // Always place, even if something is there
-                    isRandomBlock[boardY][boardX] = false;
-                    placedBlocks++;
-                } else {
-                    console.log(`⚠️ Block at (${boardX}, ${boardY}) is out of bounds`);
-                }
-            }
-        }
-    }
-    
-    console.log(`📦 Placed ${placedBlocks}/${totalBlocksInShape} blocks`);
-    
-    if (placedBlocks !== totalBlocksInShape) {
-        console.error(`⚠️ WARNING: Could not place all blocks! Only ${placedBlocks} of ${totalBlocksInShape}`);
-    }
-    
-    console.log('🎯 Bouncing piece landed and merged');
-    
-    // Yes, And... mode: Spawn random limbs after bounced piece lands
-    const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand') || soRandomCurrentMode === 'yesand';
-    if (isYesAndMode) {
-        // Create a temporary piece object for spawnYesAndLimbs
-        const landedPiece = {
-            shape: shape,
-            x: finalX,
-            y: finalY,
-            color: piece.color
-        };
-        spawnYesAndLimbs(landedPiece);
-    }
-    
-    // CRITICAL: Apply gravity to ensure no floating pieces
-    // Use the full gravity system instead of just local gravity
-    console.log('🌍 Applying gravity after bounce landing...');
-    applyGravity();
-    
-    // Check for special formations after gravity settles
-    // These will be checked after gravity animation completes
-}
+// Rubber bounce functions moved to challenge_rubber.js (ChallengeEffects.Rubber)
 
 function rotateShape(shape) {
     const rows = shape.length;
@@ -9361,142 +7226,6 @@ function rotateShape(shape) {
     return rotated;
 }
 
-
-function applyLocalGravityToBounced(pieceColor) {
-    console.log('🌍 Applying gravity check to bounced piece blocks...');
-    
-    // Find all blocks of the piece color that might be floating
-    let blocksToCheck = [];
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x] === pieceColor) {
-                blocksToCheck.push({x, y, color: pieceColor});
-            }
-        }
-    }
-    
-    // Keep dropping blocks until they all rest on something
-    let changesMade = true;
-    let passes = 0;
-    
-    while (changesMade && passes < 20) { // Safety limit
-        changesMade = false;
-        passes++;
-        
-        // Check each block from bottom to top
-        blocksToCheck.sort((a, b) => b.y - a.y);
-        
-        for (let block of blocksToCheck) {
-            // Skip if this block no longer exists at this position
-            if (board[block.y][block.x] !== block.color) continue;
-            
-            // Check if this block can fall
-            let canFall = true;
-            
-            // Can't fall if at bottom
-            if (block.y >= ROWS - 1) {
-                canFall = false;
-            } 
-            // Can't fall if there's something directly below
-            else if (board[block.y + 1][block.x] !== null) {
-                canFall = false;
-            }
-            
-            if (canFall) {
-                // Move block down
-                board[block.y + 1][block.x] = block.color;
-                board[block.y][block.x] = null;
-                
-                // Update isRandomBlock array too
-                isRandomBlock[block.y + 1][block.x] = isRandomBlock[block.y][block.x];
-                isRandomBlock[block.y][block.x] = false;
-                
-                // Update block position for next pass
-                block.y++;
-                changesMade = true;
-                
-                console.log(`  ⬇️ Dropped ${block.color} block from row ${block.y - 1} to ${block.y}`);
-            }
-        }
-    }
-    
-    if (passes > 1) {
-        console.log(`  ✅ Gravity applied in ${passes} passes`);
-    }
-}
-
-function drawBouncingPieces() {
-    bouncingPieces.forEach(piece => {
-        ctx.save();
-        
-        // Use rounded positions for consistent block rendering
-        const renderX = Math.round(piece.x);
-        const renderY = Math.round(piece.y);
-        
-        // Calculate center of the piece shape
-        const shapeWidth = piece.shape[0].length;
-        const shapeHeight = piece.shape.length;
-        const centerX = renderX + shapeWidth / 2;
-        const centerY = renderY + shapeHeight / 2;
-        
-        // Translate to center for rotation
-        ctx.translate(centerX * BLOCK_SIZE, centerY * BLOCK_SIZE);
-        
-        // Apply rotation
-        ctx.rotate(piece.rotation * Math.PI / 180);
-        
-        // Translate back
-        ctx.translate(-centerX * BLOCK_SIZE, -centerY * BLOCK_SIZE);
-        
-        // Convert piece shape to positions array for drawSolidShape
-        const positions = [];
-        piece.shape.forEach((row, y) => {
-            row.forEach((value, x) => {
-                if (value) {
-                    positions.push([renderX + x, renderY + y]);
-                }
-            });
-        });
-        
-        // Draw the piece with proper 3D beveling
-        ctx.globalAlpha = 0.95;
-        drawSolidShape(ctx, positions, piece.color, BLOCK_SIZE, false, getFaceOpacity());
-        
-        ctx.restore();
-    });
-}
-
-function triggerPhantomFade() {
-    // Clear any existing fade
-    if (phantomFadeInterval) {
-        clearInterval(phantomFadeInterval);
-        phantomFadeInterval = null;
-    }
-    
-    // Make stack fully visible instantly
-    phantomOpacity = 1.0;
-    
-    // Start fading after a brief delay
-    setTimeout(() => {
-        // Fade from 1.0 to 0.0 over 0.5 seconds (500ms)
-        const fadeStartTime = Date.now();
-        const fadeDuration = 500; // Changed from 3000ms to 500ms
-        
-        phantomFadeInterval = setInterval(() => {
-            const elapsed = Date.now() - fadeStartTime;
-            const progress = Math.min(elapsed / fadeDuration, 1);
-            
-            // Ease out: starts fast, slows down
-            phantomOpacity = 1.0 - progress;
-            
-            if (progress >= 1) {
-                clearInterval(phantomFadeInterval);
-                phantomFadeInterval = null;
-                phantomOpacity = 0;
-            }
-        }, 16); // ~60fps
-    }, 10);
-}
 
 // ============================================
 // END CHALLENGE MODE FUNCTIONS
@@ -9530,25 +7259,7 @@ function animateClearLines(completedRows) {
  * Animate line clear during replay using recorded cell data
  * @param {Array} cells - Array of {x, y, c (color)}
  */
-function animateReplayClearLines(cells) {
-    const animation = { cells: [], startTime: Date.now(), duration: 500 };
-    const centerX = COLS / 2;
-
-    cells.forEach(cell => {
-        animation.cells.push({
-            x: cell.x,
-            y: cell.y,
-            color: cell.c,
-            distance: Math.abs(cell.x - centerX),
-            removed: false,
-            alpha: 1
-        });
-    });
-
-    animation.cells.sort((a, b) => a.distance - b.distance);
-    lineAnimations.push(animation);
-    return animation;
-}
+// animateReplayClearLines moved to replay.js (GameReplay.animateClearLines)
 
 function updateLineAnimations() {
     const now = Date.now();
@@ -9569,7 +7280,7 @@ function updateLineAnimations() {
     });
     
     // During replay, reset animatingLines when all animations complete
-    if (replayActive && lineAnimations.length === 0) {
+    if (GameReplay.isActive() && lineAnimations.length === 0) {
         animatingLines = false;
     }
 }
@@ -10260,6 +7971,20 @@ function createAnimations(blobs) {
 function startGravityAnimation(animations) {
     console.log('🎬 Starting gravity animation...');
     
+    // Save amnesia timestamps before clearing source positions
+    // (stored temporarily on animation objects, transferred to fallingBlocks below)
+    const amnesiaStamps = new Map();
+    if (window.ChallengeEffects && ChallengeEffects.Amnesia) {
+        const grid = ChallengeEffects.Amnesia.getStampGrid();
+        animations.forEach(anim => {
+            anim.startPositions.forEach(pos => {
+                if (grid[pos.y] && grid[pos.y][pos.x] !== null) {
+                    amnesiaStamps.set(`${pos.x},${pos.y}`, grid[pos.y][pos.x]);
+                }
+            });
+        });
+    }
+    
     // Clear blocks from their original positions on the real board
     animations.forEach(anim => {
         anim.startPositions.forEach(pos => {
@@ -10291,6 +8016,15 @@ function startGravityAnimation(animations) {
     });
     
     gravityAnimating = true;
+    
+    // Transfer saved amnesia timestamps to falling blocks
+    if (amnesiaStamps.size > 0) {
+        fallingBlocks.forEach(block => {
+            const stamp = amnesiaStamps.get(`${block.x},${block.startY}`);
+            if (stamp !== undefined) block._amnesiaStamp = stamp;
+        });
+    }
+    
     console.log(`  ✓ Animation started with ${fallingBlocks.length} falling blocks`);
 }
 
@@ -10455,6 +8189,14 @@ function updateFallingBlocks() {
             isRandomBlock[block.targetY][block.x] = block.isRandom;
         });
         
+        if (window.ChallengeEffects && ChallengeEffects.Amnesia) {
+            fallingBlocks.forEach(block => {
+                if (block._amnesiaStamp !== undefined) {
+                    ChallengeEffects.Amnesia.restoreCell(block.x, block.targetY, block._amnesiaStamp);
+                }
+            });
+        }
+        
         gravityAnimating = false;
         fallingBlocks = [];
         
@@ -10577,9 +8319,9 @@ function drawFallingBlocks() {
     ctx.save();
     
     // Apply phantom mode opacity to falling blocks too
-    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom') || soRandomCurrentMode === 'phantom';
-    if (isPhantomMode) {
-        ctx.globalAlpha = phantomOpacity;
+    const isPhantomMode = challengeMode === 'phantom' || activeChallenges.has('phantom');
+    if (isPhantomMode && window.ChallengeEffects && ChallengeEffects.Phantom) {
+        ctx.globalAlpha = ChallengeEffects.Phantom.getOpacity();
     }
     
     // Group blocks by blobId and color to draw them as connected shapes
@@ -10619,7 +8361,24 @@ function drawFallingBlocks() {
         const hasRandomBlocks = group.blocks.some(b => b.isRandom);
         
         // Use pulsing color for lava blocks
-        const displayColor = group.color === volcanoLavaColor ? getLavaColor() : group.color;
+        let displayColor = group.color === volcanoLavaColor ? getLavaColor() : group.color;
+        
+        // Apply amnesia fade to falling blocks based on their saved timestamps
+        const isAmnesiaFalling = challengeMode === 'amnesia' || activeChallenges.has('amnesia');
+        if (isAmnesiaFalling && window.ChallengeEffects) {
+            let oldestStamp = Date.now();
+            group.blocks.forEach(b => {
+                if (b._amnesiaStamp !== undefined && b._amnesiaStamp < oldestStamp) {
+                    oldestStamp = b._amnesiaStamp;
+                }
+            });
+            const age = Date.now() - oldestStamp;
+            if (age > 0) {
+                const progress = Math.min(age / ChallengeEffects.Amnesia.FADE_DURATION_MS, 1.0);
+                const blend = progress * progress * ChallengeEffects.Amnesia.MAX_BLEND;
+                displayColor = ChallengeEffects.Amnesia.blendToWhite(displayColor, blend);
+            }
+        }
         
         // Draw main blob
         // In phantom mode, parent context already has opacity set
@@ -10955,26 +8714,21 @@ function clearLines() {
         }
         
         // Update Six Seven counter
-        const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven') || soRandomCurrentMode === 'sixseven';
-        if (isSixSevenMode) {
-            sixSevenCounter += completedRows.length;
+        const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
+        if (isSixSevenMode && window.ChallengeEffects && ChallengeEffects.SixSeven) {
+            ChallengeEffects.SixSeven.addLines(completedRows.length);
         }
         
         // Update Gremlins counter
-        const isGremlinsMode = challengeMode === 'gremlins' || activeChallenges.has('gremlins') || soRandomCurrentMode === 'gremlins';
-        if (isGremlinsMode) {
-            gremlinsCounter += completedRows.length;
+        const isGremlinsMode = challengeMode === 'gremlins' || activeChallenges.has('gremlins');
+        if (isGremlinsMode && window.ChallengeEffects && ChallengeEffects.Gremlins) {
+            ChallengeEffects.Gremlins.addLines(completedRows.length);
         }
         
         const oldLevel = level;
         level = Math.min(11, Math.floor(lines / 11) + 1); // Spinal Tap tribute - this one goes to 11!
         currentGameLevel = level; StarfieldSystem.setCurrentGameLevel(level); // Update starfield journey
         dropInterval = calculateDropInterval(lines);
-        
-        // So Random mode: Switch challenge at each level
-        if (challengeMode === 'sorandom' && oldLevel !== level) {
-            switchSoRandomMode();
-        }
         
         // Spinal Tap tribute - this one goes to 11!
         if (oldLevel < 11 && level >= 11) {
@@ -11081,6 +8835,7 @@ function clearLines() {
                     isLatticeBlock[row][x] = false;
                     fadingBlocks[row][x] = null;
                 }
+                if (window.ChallengeEffects && ChallengeEffects.Amnesia) ChallengeEffects.Amnesia.onRowCleared(row);
             });
             
             // SECOND: Adjust liquidPools for cleared rows (handled by StormEffects module)
@@ -11105,7 +8860,7 @@ function clearLines() {
             // Wait 1 second after lines clear, then check probability
             // Skip during replay - random events are replayed from recording
             setTimeout(() => {
-                if (!gameRunning || paused || replayActive) return;
+                if (!gameRunning || paused || GameReplay.isActive()) return;
                 
                 // Tornadoes and earthquakes only occur in Maelstrom mode
                 if (skillLevel !== 'maelstrom') return;
@@ -11141,7 +8896,7 @@ function rotatePiece() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
-    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
+    if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -11195,7 +8950,7 @@ function rotatePieceCounterClockwise() {
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
-    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
+    if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
     
     // Additional validation: check if all rows exist and have content
     if (!currentPiece.shape.every(row => row && Array.isArray(row) && row.length > 0)) return;
@@ -11252,7 +9007,7 @@ function rotatePieceCounterClockwise() {
 function movePiece(dir) {
     if (!currentPiece) return;
     // Prevent movement during earthquake shift phase (but allow during replay - board syncs at next piece)
-    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
+    if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
     
     // Check if controls should be swapped (Stranger XOR Dyslexic)
     const strangerActive = challengeMode === 'stranger' || activeChallenges.has('stranger');
@@ -11285,14 +9040,14 @@ function movePiece(dir) {
 function dropPiece() {
     // During replay, allow drop even if animations are in progress
     // The board will sync at the next piece anyway
-    if (!replayActive) {
+    if (!GameReplay.isActive()) {
         if (animatingLines || gravityAnimating || !currentPiece || !currentPiece.shape || gameOverPending) return;
     } else {
         // During replay, only block if no piece
         if (!currentPiece || !currentPiece.shape || gameOverPending) return;
     }
     // Prevent dropping during earthquake shift phase (but allow during replay - board syncs at next piece)
-    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
+    if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
     
     // Check if piece is already resting (would collide if moved down)
     const wasAlreadyResting = collides(currentPiece, 0, 1);
@@ -11308,16 +9063,13 @@ function dropPiece() {
         }
         
         // During replay, don't lock if there are still inputs pending for this piece
-        if (replayActive && replayPieceIndex < replayPieceData.length) {
-            const pieceEntry = replayPieceData[replayPieceIndex];
-            if (pieceEntry && replayInputIndex < pieceEntry.inputs.length) {
+        if (GameReplay.hasPendingInputs()) {
                 // Still have inputs to process - activate lock delay to wait
                 if (!lockDelayActive) {
                     lockDelayActive = true;
                     lockDelayCounter = 0;
                 }
                 return; // Don't lock yet
-            }
         }
         
         // Check if any block of the piece extends beyond the top of the well
@@ -11333,7 +9085,7 @@ function dropPiece() {
         
         if (extendsAboveTop) {
             // During replay, check if we should resync instead of ending
-            if (tryReplayResyncOnGameOver()) {
+            if (GameReplay.tryResyncOnGameOver()) {
                 return; // Resync successful, continue replay
             }
             // Merge visible parts of the piece to the board so they remain visible
@@ -11347,7 +9099,7 @@ function dropPiece() {
         // This triggers game over if the piece couldn't escape the spawn collision
         if (collides(currentPiece)) {
             // During replay, check if we should resync instead of ending
-            if (tryReplayResyncOnGameOver()) {
+            if (GameReplay.tryResyncOnGameOver()) {
                 return; // Resync successful, continue replay
             }
             // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
@@ -11411,12 +9163,13 @@ function dropPiece() {
         mergePiece();
         
         // If Yes, And... mode spawned a limb, delay the line check so player can see the limb appear
-        if (yesAndSpawnedLimb) {
+        const yesAndLimb = window.ChallengeEffects && ChallengeEffects.YesAnd && ChallengeEffects.YesAnd.didSpawnLimb();
+        if (yesAndLimb) {
             setTimeout(() => {
                 // Check for Tsunamis and Black Holes AFTER limb is visible
                 checkForSpecialFormations();
                 clearLines();
-                yesAndSpawnedLimb = false;
+                ChallengeEffects.YesAnd.clearSpawnFlag();
             }, 400); // 400ms delay to let the limb fade in
         } else {
             // Check for Tsunamis and Black Holes IMMEDIATELY after piece placement
@@ -11424,9 +9177,9 @@ function dropPiece() {
             clearLines();
         }
         
-        if (replayActive) {
+        if (GameReplay.isActive()) {
             // During replay, advance to next piece from replay data
-            advanceReplayPiece();
+            GameReplay.advancePiece();
         } else if (nextPieceQueue.length > 0 && nextPieceQueue[0] && nextPieceQueue[0].shape) {
             // Normal play: Spawn the next piece from queue
             currentPiece = nextPieceQueue.shift();
@@ -11444,18 +9197,16 @@ function dropPiece() {
             }
             
             // Mercurial mode: Reset timer for new piece
-            mercurialTimer = 0;
-            mercurialInterval = 2000 + Math.random() * 2000; // New random interval 2-4 seconds
+            if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset();
             
             // Check if Six Seven mode should spawn a giant piece
-            const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven') || soRandomCurrentMode === 'sixseven';
-            if (isSixSevenMode && sixSevenCounter >= sixSevenNextTarget && sixSevenNextSize > 0) {
-                // Create giant piece and add to end of queue
-                nextPieceQueue.push(createGiantPiece(sixSevenNextSize));
-                // Reset counter and set next target (random 6 or 7 lines)
-                sixSevenCounter = 0;
-                sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
-                sixSevenNextSize = sixSevenNextTarget;
+            const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
+            let sixSevenPiece = null;
+            if (isSixSevenMode && window.ChallengeEffects && ChallengeEffects.SixSeven) {
+                sixSevenPiece = ChallengeEffects.SixSeven.trySpawn();
+            }
+            if (sixSevenPiece) {
+                nextPieceQueue.push(sixSevenPiece);
             } else {
                 // Create normal piece and add to end of queue
                 nextPieceQueue.push(createPiece());
@@ -11464,22 +9215,13 @@ function dropPiece() {
             drawNextPiece();
             
             // Gremlins mode: Add or remove random blocks (50/50 chance)
-            // Gremlins mode: Add or remove random blocks (50/50 chance)
-            const isGremlinsMode = challengeMode === 'gremlins' || activeChallenges.has('gremlins') || soRandomCurrentMode === 'gremlins';
-            if (isGremlinsMode && gremlinsCounter >= gremlinsNextTarget) {
-                // 50% chance to add, 50% chance to remove
-                if (Math.random() < 0.5) {
-                    createGremlinBlock(); // Add a block
-                } else {
-                    removeRandomBlocks(); // Remove a block
-                }
-                gremlinsCounter = 0;
-                // Set next target (average once every 4 lines, randomized)
-                gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
+            const isGremlinsMode = challengeMode === 'gremlins' || activeChallenges.has('gremlins');
+            if (isGremlinsMode && window.ChallengeEffects && ChallengeEffects.Gremlins) {
+                ChallengeEffects.Gremlins.trigger();  // checks counter internally, fires if ready
             }
         } else {
             // During replay, check if we should resync instead of ending
-            if (tryReplayResyncOnGameOver()) {
+            if (GameReplay.tryResyncOnGameOver()) {
                 return; // Resync successful, continue replay
             }
             currentPiece = null; // Clear piece before game over
@@ -11497,14 +9239,14 @@ let hardDropStartY = 0; // Grid Y position when hard drop started
 function hardDrop() {
     // During replay, allow hardDrop even if animations are in progress
     // The board will sync at the next piece anyway
-    if (!replayActive) {
+    if (!GameReplay.isActive()) {
         if (animatingLines || gravityAnimating || !currentPiece || hardDropping) return;
     } else {
         // During replay, only block if no piece or already dropping
         if (!currentPiece || hardDropping) return;
     }
     // Prevent hard drop during earthquake shift phase (but allow during replay - board syncs at next piece)
-    if (earthquakeActive && earthquakePhase === 'shift' && !replayActive) return;
+    if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
     
     // Record input for replay BEFORE starting drop
     if (window.GameRecorder && window.GameRecorder.isActive()) {
@@ -11530,7 +9272,7 @@ function updateHardDrop() {
     // SAFETY: Stop hard drop if gravity animation started (but not during replay)
     // This prevents race conditions at high speeds in normal gameplay
     // During replay, let the hard drop continue - board will sync at next piece
-    if (!replayActive && (gravityAnimating || animatingLines)) {
+    if (!GameReplay.isActive() && (gravityAnimating || animatingLines)) {
         console.log('⚠️ Hard drop interrupted - gravity/line animation in progress');
         hardDropping = false;
         hardDropVelocity = 0;
@@ -11685,10 +9427,10 @@ function toggleUIElements(show) {
 
 async function gameOver() {
     // During replay, just show completion - don't submit scores or record
-    if (replayActive) {
+    if (GameReplay.isActive()) {
         console.log('🎬 Game over during replay - showing completion');
         gameRunning = false;
-        showReplayComplete();
+        GameReplay.showComplete();
         return;
     }
     
@@ -11873,9 +9615,6 @@ async function gameOver() {
         if (challengeMode === 'combo') {
             // Combo mode - list all active challenges
             challengesList = Array.from(activeChallenges);
-        } else if (challengeMode === 'sorandom') {
-            // So Random mode - just mark as "sorandom"
-            challengesList = ['sorandom'];
         } else {
             // Single challenge mode
             challengesList = [challengeMode];
@@ -12129,82 +9868,64 @@ function showGameOverScreen() {
 // AI Auto-restart functionality
 const AI_DIFFICULTY_OPTIONS = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
 const AI_SKILL_OPTIONS = ['breeze', 'tempest', 'maelstrom'];
-const AI_CHALLENGE_OPTIONS = [
-    'stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner', 'thicker',
-    'carrie', 'nokings', 'longago', 'comingsoon', 'nervous', 'sixseven',
-    'gremlins', 'lattice', 'yesand', 'mercurial', 'shadowless'
-];
-// Mutually exclusive pairs - only one from each pair can be active
-const AI_CHALLENGE_MUTEX = [
-    ['thinner', 'thicker'],
-    ['longago', 'comingsoon']
-];
 
-function randomizeChallengesForAI() {
-    // 50% chance of no challenge at all
-    if (Math.random() < 0.5) {
-        return new Set();
-    }
-    
-    // Pick a random number of challenges (1 to 4, weighted toward fewer)
-    const weights = [0.45, 0.30, 0.15, 0.10]; // 1, 2, 3, 4
-    const roll = Math.random();
-    let cumulative = 0;
-    let count = 1;
-    for (let i = 0; i < weights.length; i++) {
-        cumulative += weights[i];
-        if (roll < cumulative) {
-            count = i + 1;
-            break;
-        }
-    }
-    
-    // Shuffle available challenges and pick, respecting mutex pairs
-    const shuffled = [...AI_CHALLENGE_OPTIONS].sort(() => Math.random() - 0.5);
-    const selected = new Set();
-    
-    for (const challenge of shuffled) {
-        if (selected.size >= count) break;
-        
-        // Check mutex conflicts
-        let conflict = false;
-        for (const [a, b] of AI_CHALLENGE_MUTEX) {
-            if ((challenge === a && selected.has(b)) || (challenge === b && selected.has(a))) {
-                conflict = true;
-                break;
-            }
-        }
-        if (!conflict) {
-            selected.add(challenge);
-        }
-    }
-    
-    return selected;
-}
+// All challenge types for AI random selection
+const AI_CHALLENGE_POOL = [
+    'stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner',
+    'nervous', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial',
+    'shadowless', 'amnesia', 'vertigo', 'carrie', 'nokings',
+    'longago', 'comingsoon'
+];
+// thicker excluded: wider board changes game mode category
 
-function applyRandomChallengesToUI(challenges) {
-    // Uncheck all combo checkboxes first
+function randomizeAIChallenges() {
+    // Uncheck all combo checkboxes
     document.querySelectorAll('.combo-checkbox-option input[type="checkbox"]').forEach(cb => {
         cb.checked = false;
     });
     
-    // Check the selected ones
-    challenges.forEach(ch => {
-        const checkbox = document.querySelector(`.combo-checkbox-option input[value="${ch}"]`);
-        if (checkbox) checkbox.checked = true;
+    // 30% normal, 40% single challenge, 30% combo (2-4 challenges)
+    const roll = Math.random();
+    if (roll < 0.30) {
+        console.log('🤖 AI Challenge: Normal (no challenges)');
+        return;
+    }
+    
+    // Shuffle pool
+    const pool = [...AI_CHALLENGE_POOL];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    
+    const count = roll < 0.70 ? 1 : Math.floor(Math.random() * 3) + 2; // 1 or 2-4
+    const selected = [];
+    
+    for (const challenge of pool) {
+        if (selected.length >= count) break;
+        // Enforce mutual exclusivity: longago and comingsoon
+        if (challenge === 'comingsoon' && selected.includes('longago')) continue;
+        if (challenge === 'longago' && selected.includes('comingsoon')) continue;
+        selected.push(challenge);
+    }
+    
+    // Check the corresponding combo checkboxes
+    const idMap = {
+        'stranger': 'comboStranger', 'dyslexic': 'comboDyslexic', 'phantom': 'comboPhantom',
+        'rubber': 'comboRubber', 'oz': 'comboOz', 'thinner': 'comboThinner',
+        'thicker': 'comboThicker', 'nervous': 'comboNervous', 'carrie': 'comboCarrie',
+        'nokings': 'comboNokings', 'longago': 'comboLongAgo', 'comingsoon': 'comboComingSoon',
+        'sixseven': 'comboSixSeven', 'gremlins': 'comboGremlins', 'lattice': 'comboLattice',
+        'yesand': 'comboYesAnd', 'mercurial': 'comboMercurial', 'shadowless': 'comboShadowless',
+        'amnesia': 'comboAmnesia', 'vertigo': 'comboVertigo'
+    };
+    
+    selected.forEach(ch => {
+        const el = document.getElementById(idMap[ch]);
+        if (el) el.checked = true;
     });
     
-    // Update challengeMode and activeChallenges globals
-    activeChallenges.clear();
-    challenges.forEach(ch => activeChallenges.add(ch));
-    
-    if (activeChallenges.size === 0) {
-        challengeMode = 'normal';
-    } else if (activeChallenges.size === 1) {
-        challengeMode = Array.from(activeChallenges)[0];
-    } else {
-        challengeMode = 'combo';
-    }
+    console.log(`🤖 AI Challenge: ${selected.length > 1 ? 'Combo' : 'Single'} - ${selected.join(', ')}`);
 }
 
 function startAIAutoRestartTimer() {
@@ -12219,13 +9940,14 @@ function startAIAutoRestartTimer() {
             return;
         }
         
-        // Randomly select difficulty, skill level, and challenge modes
+        // Randomly select difficulty and skill level
         const randomDifficulty = AI_DIFFICULTY_OPTIONS[Math.floor(Math.random() * AI_DIFFICULTY_OPTIONS.length)];
         const randomSkill = AI_SKILL_OPTIONS[Math.floor(Math.random() * AI_SKILL_OPTIONS.length)];
-        const randomChallenges = randomizeChallengesForAI();
         
-        const challengeStr = randomChallenges.size > 0 ? Array.from(randomChallenges).join('+') : 'normal';
-        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill} / ${challengeStr}`);
+        // Randomly select challenges
+        randomizeAIChallenges();
+        
+        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
         
         // Set the skill level globally (both local var and window for AI player)
         skillLevel = randomSkill;
@@ -12241,9 +9963,6 @@ function startAIAutoRestartTimer() {
         
         // Update special events display for new skill level
         updateSpecialEventsDisplay(randomSkill);
-        
-        // Apply random challenge modes to UI and globals
-        applyRandomChallengesToUI(randomChallenges);
         
         // Hide game over screen and leaderboard
         gameOverDiv.style.display = 'none';
@@ -12546,12 +10265,12 @@ function update(time = 0) {
     update.lastTime = time;
     
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
-    if (replayActive) {
-        processReplayInputs();
+    if (GameReplay.isActive()) {
+        GameReplay.processInputs();
     }
     
     // AI Mode: Let AI control the game (but not during replay)
-    if (!replayActive && aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
+    if (!GameReplay.isActive() && aiModeEnabled && !paused && currentPiece && !hardDropping && !animatingLines && !gravityAnimating && !tsunamiAnimating && typeof AIPlayer !== 'undefined') {
         AIPlayer.setSkillLevel(skillLevel);
         // Pass the full queue so AI can plan ahead based on upcoming colors
         // Also pass earthquake state so AI can hold off during earthquakes
@@ -12573,7 +10292,7 @@ function update(time = 0) {
     
     // Update AI mode indicator (developer mode only) - update every frame
     // Don't show during replay
-    if (!replayActive && aiModeEnabled && typeof AIPlayer !== 'undefined') {
+    if (!GameReplay.isActive() && aiModeEnabled && typeof AIPlayer !== 'undefined') {
         updateAIModeIndicator();
     }
     
@@ -12584,8 +10303,8 @@ function update(time = 0) {
     
     // Don't drop pieces during black hole or tsunami animation or hard drop or earthquake shift or gravity
     // During replay, bypass most animation checks since board syncs at piece boundaries
-    const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift' && !replayActive;
-    const blockDropForAnimations = !replayActive && (animatingLines || gravityAnimating || blackHoleAnimating || tsunamiAnimating);
+    const earthquakeShiftActive = earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive();
+    const blockDropForAnimations = !GameReplay.isActive() && (animatingLines || gravityAnimating || blackHoleAnimating || tsunamiAnimating);
     if (!paused && !blockDropForAnimations && !hardDropping && !earthquakeShiftActive && currentPiece) {
         // Check if piece is resting on the stack (would collide if moved down)
         const isResting = collides(currentPiece, 0, 1);
@@ -12605,21 +10324,18 @@ function update(time = 0) {
             // Only lock after lock delay time has elapsed
             if (lockDelayCounter >= effectiveLockDelay) {
                 // During replay, don't lock if there are still inputs pending for this piece
-                if (replayActive && replayPieceIndex < replayPieceData.length) {
-                    const pieceEntry = replayPieceData[replayPieceIndex];
-                    if (pieceEntry && replayInputIndex < pieceEntry.inputs.length) {
+                if (GameReplay.hasPendingInputs()) {
                         // Still have inputs to process - don't lock yet
                         // Cap lock delay counter to prevent runaway values
                         lockDelayCounter = effectiveLockDelay;
                         // Don't return here! Just skip the lock, let animations continue
-                    } else {
+                } else if (GameReplay.isActive()) {
                         // All inputs processed - reset lock delay and lock the piece
                         lockDelayActive = false;
                         lockDelayCounter = 0;
                         lockDelayResets = 0;
                         dropPiece();
                         dropCounter = 0;
-                    }
                 } else {
                     // Not in replay, or no piece data - normal lock
                     lockDelayActive = false;
@@ -12644,7 +10360,7 @@ function update(time = 0) {
     }
     
     // If current piece is null (bounced away), spawn new piece
-    if (!paused && !currentPiece && nextPieceQueue.length > 0 && bouncingPieces.length > 0) {
+    if (!paused && !currentPiece && nextPieceQueue.length > 0 && window.ChallengeEffects && ChallengeEffects.Rubber && ChallengeEffects.Rubber.count() > 0) {
         currentPiece = nextPieceQueue.shift();
         
         // Note: We don't check for collision at spawn anymore.
@@ -12660,16 +10376,16 @@ function update(time = 0) {
         }
         
         // Mercurial mode: Reset timer for new piece
-        mercurialTimer = 0;
-        mercurialInterval = 2000 + Math.random() * 2000; // New random interval 2-4 seconds
+        if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset();
         
         // Check if Six Seven mode should spawn a giant piece
-        const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven') || soRandomCurrentMode === 'sixseven';
-        if (isSixSevenMode && sixSevenCounter >= sixSevenNextTarget && sixSevenNextSize > 0) {
-            nextPieceQueue.push(createGiantPiece(sixSevenNextSize));
-            sixSevenCounter = 0;
-            sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
-            sixSevenNextSize = sixSevenNextTarget;
+        const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
+        let sixSevenPiece = null;
+        if (isSixSevenMode && window.ChallengeEffects && ChallengeEffects.SixSeven) {
+            sixSevenPiece = ChallengeEffects.SixSeven.trySpawn();
+        }
+        if (sixSevenPiece) {
+            nextPieceQueue.push(sixSevenPiece);
         } else {
             nextPieceQueue.push(createPiece());
         }
@@ -12680,22 +10396,14 @@ function update(time = 0) {
     updateLineAnimations();
     if (!paused) {
         // Mercurial mode: Change piece color every 2-4 seconds
-        const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial') || soRandomCurrentMode === 'mercurial';
-        if (isMercurialMode && currentPiece && !hardDropping) {
-            mercurialTimer += deltaTime;
-            if (mercurialTimer >= mercurialInterval) {
-                // Change the current piece's color to a random new color
-                currentPiece.color = randomColor();
-                // Set next interval (2-4 seconds in milliseconds)
-                mercurialInterval = 2000 + Math.random() * 2000;
-                mercurialTimer = 0;
-                // Optional: play a subtle sound effect
-                playSoundEffect('rotate', soundToggle);
-            }
+        const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial');
+        if (isMercurialMode && currentPiece && !hardDropping && window.ChallengeEffects && ChallengeEffects.Mercurial) {
+            const newColor = ChallengeEffects.Mercurial.update(deltaTime);
+            if (newColor) currentPiece.color = newColor;
         }
         
         updateFadingBlocks();
-        updateGremlinFadingBlocks(); // Update gremlin fading blocks
+        if (window.ChallengeEffects && ChallengeEffects.Gremlins) ChallengeEffects.Gremlins.update();
         StormEffects.updateGameState({ gameRunning, paused, board }); // Pass current state
         StormEffects.update(); // Update storm particles (includes dripping liquids)
         updateTornado(); // Update tornado
@@ -12706,8 +10414,8 @@ function update(time = 0) {
         updateTsunamiAnimation(); // Update tsunami animation
         updateVolcanoAnimation(); // Update volcano animation
         updateFallingBlocks(); // Update falling blocks from gravity
-        updateBouncingPieces(); // Update bouncing pieces (Rubber & Glue mode)
-        if (!replayActive) {
+        if (window.ChallengeEffects && ChallengeEffects.Rubber) ChallengeEffects.Rubber.update(); // Update bouncing pieces (Rubber & Glue mode)
+        if (!GameReplay.isActive()) {
             GamepadController.update(); // Update gamepad controller input (skip during replay)
         }
     }
@@ -12739,7 +10447,7 @@ function update(time = 0) {
     }
     
     // Apply nervous mode vibration (constant random vertical shake)
-    const isNervousMode = challengeMode === 'nervous' || activeChallenges.has('nervous') || soRandomCurrentMode === 'nervous';
+    const isNervousMode = challengeMode === 'nervous' || activeChallenges.has('nervous');
     
     // Apply or remove nervous shake CSS class to canvas
     if (isNervousMode && !paused) {
@@ -12768,7 +10476,7 @@ function update(time = 0) {
     drawTornado(); // Draw tornado on top of board
     drawDisintegrationParticles(); // Draw explosion particles on top
     drawCascadeBonus(); // Draw cascade bonus notification
-    drawBouncingPieces(); // Draw bouncing pieces (Rubber & Glue mode)
+    if (window.ChallengeEffects && ChallengeEffects.Rubber) ChallengeEffects.Rubber.draw(); // Draw bouncing pieces (Rubber & Glue mode)
     if (currentPiece && currentPiece.shape) {
         drawShadowPiece(currentPiece);
         // During hard drop, use smooth pixel-based rendering
@@ -12911,7 +10619,7 @@ function startGame(mode) {
     }
     
     // Reset replay state in case we're starting after a replay
-    replayActive = false;
+    if (GameReplay.isActive()) GameReplay.stop();
     
     // Stop any running credits animation
     stopCreditsAnimation();
@@ -12989,6 +10697,7 @@ function startGame(mode) {
     
     // Clean up any active canvas classes
     canvas.classList.remove('nervous-active', 'tsunami-active', 'blackhole-active', 'touchdown-active');
+    if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.stop();
     
     // Configure game based on mode
     switch(mode) {
@@ -13119,7 +10828,7 @@ function startGame(mode) {
     lineAnimations = [];
     animatingLines = false;
     pendingLineCheck = false;
-    yesAndSpawnedLimb = false;
+    if (window.ChallengeEffects && ChallengeEffects.YesAnd) ChallengeEffects.YesAnd.reset();
     paused = false; StarfieldSystem.setPaused(false);
     triggeredTsunamis.clear();
     
@@ -13212,7 +10921,6 @@ function startGame(mode) {
         gameMode: gameMode,
         challengeMode: challengeMode,
         activeChallenges: activeChallenges,
-        soRandomCurrentMode: soRandomCurrentMode,
         gameRunning: true,
         paused: false,
         BLOCK_SIZE: BLOCK_SIZE,
@@ -13235,55 +10943,73 @@ function startGame(mode) {
     updateStats();
     
     // Initialize new Challenge mode variables
-    sixSevenCounter = 0;
-    sixSevenNextTarget = Math.random() < 0.5 ? 6 : 7;
-    sixSevenNextSize = sixSevenNextTarget;
+    if (window.ChallengeEffects && ChallengeEffects.SixSeven) {
+        ChallengeEffects.SixSeven.init({ get COLS() { return COLS; }, randomColor });
+    }
     
-    gremlinsCounter = 0;
-    gremlinsNextTarget = 1 + Math.random() * 2; // Between 1 and 3 lines (twice as frequent)
-    gremlinFadingBlocks = []; // Clear any fading gremlin blocks
+    // Initialize Gremlins module with game state interface
+    if (window.ChallengeEffects && ChallengeEffects.Gremlins) {
+        ChallengeEffects.Gremlins.init({
+            get board() { return board; },
+            get isRandomBlock() { return isRandomBlock; },
+            get fadingBlocks() { return fadingBlocks; },
+            get ROWS() { return ROWS; },
+            get COLS() { return COLS; },
+            get skillLevel() { return skillLevel; },
+            randomColor,
+            applyGravity,
+            get audioContext() { return audioContext; },
+            soundEnabled: () => soundToggle.checked,
+            recorder: {
+                isActive: () => window.GameRecorder && window.GameRecorder.isActive(),
+                recordGremlinBlock: (x, y, c) => window.GameRecorder && window.GameRecorder.recordGremlinBlock(x, y, c),
+                recordChallengeEvent: (t, d) => window.GameRecorder && window.GameRecorder.recordChallengeEvent(t, d)
+            }
+        });
+    }
     
-    soRandomCurrentMode = 'normal';
+    // Initialize Mercurial module
+    if (window.ChallengeEffects && ChallengeEffects.Mercurial) {
+        ChallengeEffects.Mercurial.init({
+            randomColor,
+            playRotateSound: () => playSoundEffect('rotate', soundToggle)
+        });
+    }
     
-    // Mercurial mode: Initialize color change timer
-    mercurialTimer = 0;
-    mercurialInterval = 2000 + Math.random() * 2000; // Start with 2-4 seconds
+    // Initialize Yes, And... module
+    if (window.ChallengeEffects && ChallengeEffects.YesAnd) {
+        ChallengeEffects.YesAnd.init({
+            get ROWS() { return ROWS; }, get COLS() { return COLS; },
+            get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
+            get fadingBlocks() { return fadingBlocks; },
+            getAllBlobs,
+            playSoundEffect: (name) => playSoundEffect(name, soundToggle)
+        });
+    }
+    
+    // Initialize Rubber & Glue module
+    if (window.ChallengeEffects && ChallengeEffects.Rubber) {
+        ChallengeEffects.Rubber.init({
+            get ROWS() { return ROWS; }, get COLS() { return COLS; },
+            get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
+            getCtx: () => ctx,
+            getBlockSize: () => BLOCK_SIZE,
+            getFaceOpacity,
+            drawSolidShape,
+            playSoundEffect: (name) => playSoundEffect(name, soundToggle),
+            applyGravity,
+            isYesAndActive: () => {
+                const ym = challengeMode === 'yesand' || activeChallenges.has('yesand');
+                return ym && window.ChallengeEffects && !!ChallengeEffects.YesAnd;
+            },
+            spawnYesAndLimbs: (piece) => ChallengeEffects.YesAnd && ChallengeEffects.YesAnd.spawnLimbs(piece)
+        });
+    }
     
     // Lattice mode: Pre-fill bottom half with random blocks
     const isLatticeMode = challengeMode === 'lattice' || activeChallenges.has('lattice');
-    console.log('🧱 Lattice check:');
-    console.log('  isLatticeMode:', isLatticeMode);
-    console.log('  challengeMode === "lattice":', challengeMode === 'lattice');
-    console.log('  activeChallenges.has("lattice"):', activeChallenges.has('lattice'));
-    
-    if (isLatticeMode) {
-        console.log('⚠️ LATTICE MODE ACTIVE - Filling bottom half with blocks!');
-        const halfRows = Math.floor(ROWS / 2);
-        // Average 4 blocks per line
-        for (let y = halfRows; y < ROWS; y++) {
-            const blocksThisLine = Math.floor(Math.random() * 3) + 3; // 3-5 blocks per line
-            const positions = [];
-            
-            // Generate random positions for this line
-            while (positions.length < blocksThisLine) {
-                const x = Math.floor(Math.random() * COLS);
-                if (!positions.includes(x)) {
-                    positions.push(x);
-                }
-            }
-            
-            // Place blocks and mark them as lattice blocks
-            positions.forEach(x => {
-                board[y][x] = randomColor();
-                isRandomBlock[y][x] = false; // Not marked as gremlin-placed blocks
-                isLatticeBlock[y][x] = true; // Mark as lattice block (immune to gravity)
-            });
-        }
-    }
-    
-    // So Random mode: Start with a random challenge
-    if (challengeMode === 'sorandom') {
-        switchSoRandomMode();
+    if (isLatticeMode && window.ChallengeEffects && ChallengeEffects.Lattice) {
+        ChallengeEffects.Lattice.fillBoard(board, isRandomBlock, randomColor);
     }
     
     currentPiece = createPiece();
@@ -13364,7 +11090,7 @@ document.addEventListener('keydown', e => {
     if (gameRunning) {
         // If paused, any key (except F11/PageUp/PageDown) unpauses
         // But NOT during replay - use replay controls instead
-        if (paused && !replayActive) {
+        if (paused && !GameReplay.isActive()) {
             e.preventDefault();
             paused = false; StarfieldSystem.setPaused(false);
             settingsBtn.classList.add('hidden-during-play');
@@ -13385,10 +11111,10 @@ document.addEventListener('keydown', e => {
         }
         
         // During replay pause, only allow spacebar to toggle pause
-        if (replayActive && replayPaused) {
+        if (GameReplay.isActive() && GameReplay.isPaused()) {
             if (e.key === ' ' || e.key === 'Spacebar') {
                 e.preventDefault();
-                toggleReplayPause();
+                GameReplay.togglePause();
             }
             return;
         }
@@ -13464,7 +11190,7 @@ document.addEventListener('keydown', e => {
         if ((e.shiftKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
             e.preventDefault();
             // Don't allow manual skips during replay
-            if (replayActive) return;
+            if (GameReplay.isActive()) return;
             
             if (e.key === 'ArrowRight') {
                 skipToNextSong();
@@ -13475,7 +11201,7 @@ document.addEventListener('keydown', e => {
         }
         
         // During replay, ignore player input (inputs come from recording)
-        if (paused || !currentPiece || replayActive) return;
+        if (paused || !currentPiece || GameReplay.isActive()) return;
 
         // Custom key repeat system - ignore browser's repeat events entirely
         if (e.repeat) {
@@ -14149,6 +11875,8 @@ const comboLattice = document.getElementById('comboLattice');
 const comboYesAnd = document.getElementById('comboYesAnd');
 const comboMercurial = document.getElementById('comboMercurial');
 const comboShadowless = document.getElementById('comboShadowless');
+const comboAmnesia = document.getElementById('comboAmnesia');
+const comboVertigo = document.getElementById('comboVertigo');
 const comboBonusPercent = document.getElementById('comboBonusPercent');
 
 // Function to update combo bonus display
@@ -14172,7 +11900,9 @@ function updateComboBonusDisplay() {
         'thicker': 3,      // Wider well (easier)
         'carrie': 3,       // Visual distraction
         'nokings': 3,      // Visual distraction
-        'nervous': 2       // Minor vibration - lowest difficulty
+        'nervous': 2,      // Minor vibration - lowest difficulty
+        'amnesia': 6,      // Color memory fade
+        'vertigo': 2       // Disorienting sway
     };
     
     // Map checkboxes to their challenge types
@@ -14194,7 +11924,9 @@ function updateComboBonusDisplay() {
         { checkbox: comboLattice, type: 'lattice' },
         { checkbox: comboYesAnd, type: 'yesand' },
         { checkbox: comboMercurial, type: 'mercurial' },
-        { checkbox: comboShadowless, type: 'shadowless' }
+        { checkbox: comboShadowless, type: 'shadowless' },
+        { checkbox: comboAmnesia, type: 'amnesia' },
+        { checkbox: comboVertigo, type: 'vertigo' }
     ].filter(item => item.checkbox); // Filter out null checkboxes
     
     // Calculate total bonus
@@ -14212,7 +11944,7 @@ function updateComboBonusDisplay() {
 [comboStranger, comboDyslexic, comboPhantom, comboRubber, comboOz,
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
- comboLattice, comboYesAnd, comboMercurial, comboShadowless].filter(cb => cb).forEach(checkbox => {
+ comboLattice, comboYesAnd, comboMercurial, comboShadowless, comboAmnesia, comboVertigo].filter(cb => cb).forEach(checkbox => {
     checkbox.addEventListener('change', updateComboBonusDisplay);
 });
 
@@ -14266,6 +11998,8 @@ function populateComboModal() {
     comboYesAnd.checked = activeChallenges.has('yesand');
     if (comboMercurial) comboMercurial.checked = activeChallenges.has('mercurial');
     if (comboShadowless) comboShadowless.checked = activeChallenges.has('shadowless');
+    if (comboAmnesia) comboAmnesia.checked = activeChallenges.has('amnesia');
+    if (comboVertigo) comboVertigo.checked = activeChallenges.has('vertigo');
     updateComboBonusDisplay();
 }
 
@@ -14289,8 +12023,9 @@ const challengeDisplayNames = {
     'lattice': 'Lattice',
     'yesand': 'Yes, And...',
     'mercurial': 'Mercurial',
-    'sorandom': 'So Random',
 	'shadowless': 'Shadowless',
+	'amnesia': 'Amnesia',
+	'vertigo': 'Vertigo',
     'combo': 'Combo'
 };
 
@@ -14341,6 +12076,8 @@ comboApplyBtn.addEventListener('click', () => {
     if (comboYesAnd.checked) activeChallenges.add('yesand');
     if (comboMercurial && comboMercurial.checked) activeChallenges.add('mercurial');
     if (comboShadowless && comboShadowless.checked) activeChallenges.add('shadowless');
+    if (comboAmnesia && comboAmnesia.checked) activeChallenges.add('amnesia');
+    if (comboVertigo && comboVertigo.checked) activeChallenges.add('vertigo');
     
     // Determine challenge mode based on selection count
     if (activeChallenges.size === 0) {
@@ -14389,14 +12126,11 @@ function applyChallengeMode(mode) {
     StarfieldSystem.setStrangerMode(false);
     canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
     
-    bouncingPieces = [];
-    if (phantomFadeInterval) {
-        clearInterval(phantomFadeInterval);
-        phantomFadeInterval = null;
-    }
-    phantomOpacity = 1.0; // Reset to visible
+    if (window.ChallengeEffects && ChallengeEffects.Rubber) ChallengeEffects.Rubber.reset();
+    if (window.ChallengeEffects && ChallengeEffects.Phantom) ChallengeEffects.Phantom.reset();
     nervousVibrateOffset = 0; // Reset vibration
     StormEffects.reset(); // Clear blood/poo rain effects
+    if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.stop();
     
     // Clear activeChallenges if not in combo mode
     if (mode !== 'combo') {
@@ -14413,7 +12147,7 @@ function applyChallengeMode(mode) {
     }
     
     if (mode === 'phantom' || activeChallenges.has('phantom')) {
-        phantomOpacity = 0; // Start invisible
+        if (window.ChallengeEffects && ChallengeEffects.Phantom) ChallengeEffects.Phantom.triggerFade();
         console.log('👻 PHANTOM MODE: Invisible stack activated!');
     }
     
@@ -14466,8 +12200,14 @@ function applyChallengeMode(mode) {
         setTimeout(() => updateCanvasSize(), 0);
     }
     
-    if (mode === 'sorandom') {
-        console.log('🎲 SO RANDOM MODE: Random challenge switching activated!');
+    if (mode === 'amnesia' || activeChallenges.has('amnesia')) {
+        if (window.ChallengeEffects && ChallengeEffects.Amnesia) ChallengeEffects.Amnesia.init(ROWS, COLS);        console.log('🧠 AMNESIA MODE: Color memory fade activated!');
+    }
+    
+    if (mode === 'vertigo' || activeChallenges.has('vertigo')) {
+        if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.start();
+    } else {
+        if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.stop();
     }
     
     if (mode === 'normal') {
@@ -14916,7 +12656,7 @@ const handleUnpauseTap = (e) => {
     if (replayStopBtn && replayStopBtn.contains(e.target)) return;
     
     // During replay, don't allow tap-to-unpause (use replay controls instead)
-    if (replayActive) return;
+    if (GameReplay.isActive()) return;
     
     // Prevent double-firing from both touchend and click
     unpauseHandled = true;
@@ -14928,1206 +12668,4 @@ const handleUnpauseTap = (e) => {
 
 document.addEventListener('click', handleUnpauseTap);
 document.addEventListener('touchend', handleUnpauseTap);
-// ==================== DETERMINISTIC REPLAY SYSTEM ====================
-// Replay runs an actual game with recorded pieces and inputs injected at timestamps
-
-// Core replay state
-let replayPaused = false;
-let replayData = null;
-let replaySavedAIMode = false; // Store AI mode state to restore after replay
-let replaySavedChallengeMode = 'normal'; // Store challenge mode state to restore after replay
-let replaySavedActiveChallenges = new Set(); // Store active challenges to restore after replay
-// Visual settings saved state for replay
-let replaySavedVisualSettings = {
-    faceOpacity: 0.42,
-    stormEffects: true,
-    cameraReversed: false,
-    starSpeed: 1.0,
-    minimalistMode: false,
-    palette: 'classic'
-};
-
-// v2.0 Piece-indexed replay state
-let replayPieceData = [];        // Array of piece entries with inputs/events
-let replayPieceIndex = 0;        // Current piece being replayed
-let replayPieceSpawnTime = 0;    // When current replay piece spawned (real time)
-let replayPieceElapsedTime = 0;  // Time since current piece spawned
-let replayInputIndex = 0;        // Current input index within current piece
-let replayRandomEventIndex = 0;  // Current random event index within current piece
-let replayMusicTracks = [];      // Music track sequence (global timing)
-let replayMusicIndex = 0;
-let replayGameStartTime = 0;     // When replay started (for music timing)
-let replayFWordSongId = null;    // Which F Word song was used (easter egg)
-
-// Replay timing speedup: Execute inputs faster than recorded to prevent drift
-// As pieces fall faster, small timing discrepancies accumulate - this compensates
-// Starts at ~1.053x (95% of recorded time), increases 2% each resync
-let replayInputSpeedup = 1.0 / 0.95;
-
-/**
- * Start deterministic game replay (v2.0 piece-indexed)
- * Runs an actual game with recorded pieces and inputs
- */
-window.startGameReplay = function(recording) {
-    console.log('🎬 Starting deterministic replay (v2.0):', recording.username, recording.difficulty, recording.skill_level);
-    
-    const recData = recording.recording_data;
-    if (!recData) {
-        console.error('🎬 No recording data');
-        alert('This recording does not contain replay data.');
-        return;
-    }
-    
-    // Check recording version
-    const isV2 = recData.version === '2.0' && recData.pieceData;
-    
-    if (!isV2) {
-        console.error('🎬 Recording is not v2.0 format - cannot replay');
-        alert('This recording uses an older format that is no longer supported.');
-        return;
-    }
-    
-    console.log('🎬 v2.0 recording has:', recData.pieceData.length, 'pieces');
-    
-    // Store replay data
-    replayData = recording;
-    
-    // Set up piece-indexed replay data (normalize for compacted recordings that strip empty arrays)
-    replayPieceData = (recData.pieceData || []).map(p => ({
-        ...p,
-        inputs: p.inputs || [],
-        randomEvents: p.randomEvents || [],
-        events: p.events || []
-    }));
-    replayPieceIndex = 0;
-    replayInputIndex = 0;
-    replayRandomEventIndex = 0;
-    replayPieceSpawnTime = 0;
-    replayPieceElapsedTime = 0;
-    replayInputSpeedup = 1.0 / 0.95;  // Reset to initial 5% speedup
-    
-    // Music tracks use global timing
-    replayMusicTracks = recData.musicTracks || [];
-    replayMusicIndex = 0;
-    replayGameStartTime = 0;
-    
-    // F Word song selection (easter egg)
-    replayFWordSongId = recData.fWordSongId || null;
-    
-    // Clear tornado replay arrays (populated as events are processed)
-    replayTornadoSpawnData = null;
-    replayTornadoDirChanges = [];
-    replayTornadoDirIndex = 0;
-    replayTornadoDrops = [];
-    replayTornadoDropIndex = 0;
-    
-    // Clear lava projectile replay arrays
-    replayLavaProjectiles = [];
-    replayLavaProjectileIndex = 0;
-    
-    // Clear earthquake replay data
-    replayEarthquakeCrack = null;
-    replayEarthquakeShiftType = null;
-    replaySkipNextSync = false;
-    
-    replayPaused = false;
-    
-    // Hide any existing overlays/menus
-    if (gameOverDiv) gameOverDiv.style.display = 'none';
-    if (modeMenu) modeMenu.classList.add('hidden');
-    if (startOverlay) startOverlay.style.display = 'none';
-    
-    // Hide leaderboard
-    if (window.leaderboard && window.leaderboard.hideLeaderboard) {
-        window.leaderboard.hideLeaderboard();
-    }
-    
-    // Configure game mode from recording
-    gameMode = recording.difficulty;
-    skillLevel = recording.skill_level;
-    window.skillLevel = recording.skill_level;
-    
-    // Set palette from recording (fallback to current if not recorded)
-    if (recData.palette && typeof ColorPalettes !== 'undefined') {
-        replaySavedVisualSettings.palette = currentPaletteId;
-        initColorsFromPalette(recData.palette);
-        updatePalettePreview();
-    }
-    
-    // Save current visual settings before applying replay settings
-    replaySavedVisualSettings.faceOpacity = faceOpacity;
-    replaySavedVisualSettings.stormEffects = stormEffectsToggle ? stormEffectsToggle.checked : true;
-    replaySavedVisualSettings.cameraReversed = cameraReversed;
-    replaySavedVisualSettings.starSpeed = starSpeedSlider ? parseFloat(starSpeedSlider.value) : 1.0;
-    replaySavedVisualSettings.minimalistMode = minimalistMode;
-    
-    // Apply recorded visual settings if present
-    const visualSettings = recData.visualSettings || {};
-    
-    if (visualSettings.faceOpacity !== undefined) {
-        faceOpacity = visualSettings.faceOpacity;
-        if (opacitySlider) opacitySlider.value = Math.round(faceOpacity * 100);
-    }
-    if (visualSettings.stormEffects !== undefined && stormEffectsToggle) {
-        stormEffectsToggle.checked = visualSettings.stormEffects;
-    }
-    if (visualSettings.cameraReversed !== undefined) {
-        cameraReversed = visualSettings.cameraReversed;
-        if (typeof StarfieldSystem !== 'undefined') {
-            StarfieldSystem.setCameraReversed(cameraReversed);
-        }
-        const cameraToggle = document.getElementById('cameraOrientationToggle');
-        if (cameraToggle) cameraToggle.checked = cameraReversed;
-    }
-    if (visualSettings.starSpeed !== undefined) {
-        if (starSpeedSlider) starSpeedSlider.value = visualSettings.starSpeed;
-        if (typeof StarfieldSystem !== 'undefined') {
-            if (visualSettings.starSpeed === 0) {
-                StarfieldSystem.setStarsEnabled(false);
-            } else {
-                StarfieldSystem.setStarsEnabled(true);
-                StarfieldSystem.setStarSpeed(visualSettings.starSpeed);
-            }
-        }
-    }
-    if (visualSettings.minimalistMode !== undefined) {
-        minimalistMode = visualSettings.minimalistMode;
-        if (minimalistToggle) minimalistToggle.checked = minimalistMode;
-        if (typeof applyMinimalistMode === 'function') applyMinimalistMode();
-        if (typeof StarfieldSystem !== 'undefined') {
-            StarfieldSystem.setMinimalistMode(minimalistMode);
-        }
-    }
-    
-    // Set COLS before anything else
-    COLS = (gameMode === 'blizzard' || gameMode === 'hurricane') ? 12 : 10;
-    updateCanvasSize();
-    
-    // Save current challenge mode state before applying replay's challenge mode
-    replaySavedChallengeMode = challengeMode;
-    replaySavedActiveChallenges = new Set(activeChallenges);
-    
-    // Set challenge mode if recorded
-    activeChallenges.clear();
-    if (recData.challenges && recData.challenges.length > 0) {
-        recData.challenges.forEach(c => activeChallenges.add(c));
-        // Determine if combo mode (multiple challenges) or single challenge
-        if (recData.challenges.length > 1) {
-            challengeMode = 'combo';
-        } else {
-            challengeMode = recData.challenges[0];
-        }
-    } else {
-        challengeMode = 'normal';
-    }
-    
-    // Apply challenge mode visual effects (CSS classes, stranger mode rotation, etc.)
-    // We need to apply effects without clearing activeChallenges, so we call the effect-applying
-    // portion directly rather than calling applyChallengeMode which would reset state
-    document.documentElement.classList.remove('stranger-mode');
-    StarfieldSystem.setStrangerMode(false);
-    canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
-    bouncingPieces = [];
-    if (phantomFadeInterval) {
-        clearInterval(phantomFadeInterval);
-        phantomFadeInterval = null;
-    }
-    phantomOpacity = 1.0;
-    nervousVibrateOffset = 0;
-    StormEffects.reset();
-    
-    // Apply visual effects based on active challenges
-    if (challengeMode === 'stranger' || activeChallenges.has('stranger')) {
-        document.documentElement.classList.add('stranger-mode');
-        StarfieldSystem.setStrangerMode(true);
-    }
-    if (challengeMode === 'phantom' || activeChallenges.has('phantom')) {
-        phantomOpacity = 0;
-    }
-    if (challengeMode === 'thinner' || activeChallenges.has('thinner')) {
-        canvas.classList.add('thinner-mode');
-    }
-    if (challengeMode === 'thicker' || activeChallenges.has('thicker')) {
-        canvas.classList.add('thicker-mode');
-    }
-    if (challengeMode === 'longago' || activeChallenges.has('longago')) {
-        canvas.classList.add('longago-mode');
-    }
-    if (challengeMode === 'comingsoon' || activeChallenges.has('comingsoon')) {
-        canvas.classList.add('comingsoon-mode');
-    }
-    
-    // Set replay active BEFORE starting game
-    replayActive = true;
-    replayCompleteShown = false;
-    
-    // CRITICAL: Disable AI mode during replay
-    replaySavedAIMode = aiModeEnabled;
-    aiModeEnabled = false;
-    
-    // Reset game state
-    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    isRandomBlock = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-    isLatticeBlock = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-    fadingBlocks = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    score = 0;
-    lines = 0;
-    level = 1;
-    strikeCount = 0;
-    tsunamiCount = 0;
-    blackHoleCount = 0;
-    volcanoCount = 0;
-    supermassiveBlackHoleCount = 0;
-    superVolcanoCount = 0;
-    volcanoIsSuper = false;
-    dropCounter = 0;
-    dropInterval = 1000;
-    gameOverPending = false;
-    
-    // Clear any active animations
-    tsunamiAnimating = false;
-    blackHoleAnimating = false;
-    blackHoleActive = false;
-    volcanoAnimating = false;
-    gravityAnimating = false;
-    fallingBlocks = [];
-    animatingLines = false;
-    lineAnimations = [];
-    
-    // Reset earthquake state
-    earthquakeActive = false;
-    earthquakePhase = 'shake';
-    earthquakeShakeProgress = 0;
-    earthquakeShakeIntensity = 0;
-    earthquakeCrack = [];
-    earthquakeCrackProgress = 0;
-    earthquakeCrackMap.clear();
-    earthquakeShiftProgress = 0;
-    earthquakeLeftBlocks = [];
-    earthquakeRightBlocks = [];
-    
-    // Reset tornado state
-    tornadoActive = false;
-    tornadoState = 'descending';
-    tornadoSpeed = 8;
-    tornadoY = 0;
-    tornadoX = 0;
-    tornadoPickedBlob = null;
-    tornadoFinalPositions = null;
-    tornadoFinalCenterX = null;
-    tornadoFinalCenterY = null;
-    tornadoFadeProgress = 0;
-    tornadoSnakeVelocity = 0;
-    tornadoSnakeDirection = 1;
-    tornadoSnakeChangeCounter = 0;
-    tornadoParticles = [];
-    tornadoLiftStartY = 0;
-    tornadoLiftHeight = 0;
-    tornadoOrbitAngle = 0;
-    tornadoOrbitRadius = 0;
-    tornadoOrbitStartTime = null;
-    tornadoBlobRotation = 0;
-    tornadoVerticalRotation = 0;
-    tornadoDropTargetX = 0;
-    tornadoDropStartY = 0;
-    tornadoDropVelocity = 0;
-    if (typeof stopTornadoWind === 'function') stopTornadoWind();
-    
-    // Reset volcano state
-    volcanoActive = false;
-    volcanoProjectiles = [];
-    
-    // Spawn first piece from piece data
-    spawnReplayPiece();
-    
-    // Start game running
-    gameRunning = true;
-    currentGameLevel = 1;
-    StarfieldSystem.setCurrentGameLevel(1);
-    StarfieldSystem.reset();
-    StarfieldSystem.hidePlanetStats();
-    StarfieldSystem.setGameRunning(true);
-    setGameInProgress(true);
-    document.body.classList.add('game-running');
-    document.body.classList.add('game-started');
-    gameOverDiv.style.display = 'none';
-    modeMenu.classList.add('hidden');
-    toggleUIElements(false);
-    stopMenuMusic();
-    
-    // Initialize histogram for replay
-    Histogram.init({
-        canvas: histogramCanvas,
-        colorSet: currentColorSet
-    });
-    
-    // Set up recorded music tracks for replay
-    if (replayMusicTracks && replayMusicTracks.length > 0) {
-        setReplayTracks(replayMusicTracks);
-    } else {
-        resetShuffleQueue();
-    }
-    startMusic(gameMode, musicSelect);
-    
-    // Reset timing state
-    replayGameStartTime = Date.now();
-    update.lastTime = 0;
-    dropCounter = 0;
-    lockDelayCounter = 0;
-    lockDelayActive = false;
-    
-    // Show replay UI
-    showReplayUI();
-    
-    // Start the game loop
-    gameLoop = requestAnimationFrame(update);
-    
-    console.log('🎬 v2.0 replay started - game is running');
-};
-
-/**
- * Spawn the next piece from replay data
- * Also syncs board state from snapshot and resets piece timing
- */
-function spawnReplayPiece() {
-    if (replayPieceIndex >= replayPieceData.length) {
-        console.log('🎬 No more pieces to spawn');
-        return false;
-    }
-    
-    const pieceEntry = replayPieceData[replayPieceIndex];
-    
-    // Sync board state from snapshot (ensures perfect sync at each piece)
-    // SKIP sync if special event animation is in progress - the animation will complete
-    // naturally using recorded data, and we'll sync at the next piece after it completes.
-    // Also skip if a special event JUST finished - the snapshot was captured before
-    // the event completed in the original game, so it's stale.
-    // This prevents jarring visual interruptions mid-animation.
-    const skipSyncForAnimation = volcanoAnimating || earthquakeActive || tornadoActive || 
-                                tsunamiAnimating || blackHoleAnimating || gravityAnimating;
-    const skipSyncForJustFinished = replaySkipNextSync;
-    
-    if (skipSyncForJustFinished) {
-        replaySkipNextSync = false; // Clear the flag
-    }
-    
-    if (pieceEntry.boardSnapshot && !skipSyncForAnimation && !skipSyncForJustFinished) {
-        const snapshotBoard = decompressKeyframeBoard(pieceEntry.boardSnapshot, ROWS, COLS);
-        let differences = 0;
-        for (let y = 0; y < ROWS; y++) {
-            for (let x = 0; x < COLS; x++) {
-                if (board[y][x] !== snapshotBoard[y][x]) {
-                    differences++;
-                    board[y][x] = snapshotBoard[y][x];
-                }
-            }
-        }
-        if (differences > 0) {
-            console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
-            // Show visual indicator if significant differences
-            if (differences > 2) {
-                showReplaySyncIndicator();
-                // Increase speedup by 2% to prevent further drift
-                replayInputSpeedup *= 1.02;
-                console.log('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
-            }
-        }
-    } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
-        let reason;
-        if (skipSyncForJustFinished) {
-            reason = 'special event just finished';
-        } else if (volcanoAnimating) {
-            reason = 'volcano animation';
-        } else if (earthquakeActive) {
-            reason = 'earthquake animation';
-        } else if (tornadoActive) {
-            reason = 'tornado animation';
-        } else if (tsunamiAnimating) {
-            reason = 'tsunami animation';
-        } else if (blackHoleAnimating) {
-            reason = 'black hole animation';
-        } else if (gravityAnimating) {
-            reason = 'gravity animation';
-        } else {
-            reason = 'animation in progress';
-        }
-        console.log('🎬 Skipping board sync -', reason);
-    }
-    
-    // Create piece from recorded data
-    const shapeSet = getShapeSetForType(pieceEntry.type);
-    const shape = shapeSet[pieceEntry.type] || SHAPES[pieceEntry.type] || SHAPES['T'];
-    
-    currentPiece = {
-        type: pieceEntry.type,
-        color: pieceEntry.color,
-        shape: shape,
-        x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
-        y: -2,
-        rotationIndex: 0
-    };
-    
-    // Populate nextPieceQueue with upcoming pieces for display
-    nextPieceQueue = [];
-    for (let i = 1; i <= NEXT_PIECE_COUNT && replayPieceIndex + i < replayPieceData.length; i++) {
-        const upcomingEntry = replayPieceData[replayPieceIndex + i];
-        const upcomingShapeSet = getShapeSetForType(upcomingEntry.type);
-        const upcomingShape = upcomingShapeSet[upcomingEntry.type] || SHAPES[upcomingEntry.type] || SHAPES['T'];
-        nextPieceQueue.push({
-            type: upcomingEntry.type,
-            color: upcomingEntry.color,
-            shape: upcomingShape,
-            x: 0,
-            y: 0,
-            rotationIndex: 0
-        });
-    }
-    drawNextPiece();
-    
-    // Reset piece timing
-    replayPieceSpawnTime = Date.now();
-    replayPieceElapsedTime = 0;
-    replayInputIndex = 0;
-    replayRandomEventIndex = 0;
-    pieceSpawnTime = Date.now();
-    
-    console.log('🎬 Spawned piece', replayPieceIndex, ':', pieceEntry.type, pieceEntry.color);
-    
-    return true;
-}
-/**
- * Decompress a board snapshot into a full board array
- */
-function decompressKeyframeBoard(compressed, rows, cols) {
-    const newBoard = Array.from({ length: rows }, () => Array(cols).fill(null));
-    if (!compressed) return newBoard;
-    
-    compressed.forEach(cell => {
-        if (cell.y >= 0 && cell.y < rows && cell.x >= 0 && cell.x < cols) {
-            newBoard[cell.y][cell.x] = cell.c;
-        }
-    });
-    return newBoard;
-}
-
-/**
- * Process replay inputs - v2.0 piece-indexed version
- * All times are relative to piece spawn, syncs at each piece boundary
- */
-function processReplayInputs() {
-    if (!replayActive || replayPaused || !currentPiece) return;
-    if (replayPieceIndex >= replayPieceData.length) return;
-    
-    const pieceEntry = replayPieceData[replayPieceIndex];
-    if (!pieceEntry) return;
-    
-    // Calculate elapsed time since this piece spawned, with speedup to prevent drift
-    replayPieceElapsedTime = (Date.now() - replayPieceSpawnTime) * replayInputSpeedup;
-    
-    // Debug: Log if piece is stuck for a long time
-    if (replayPieceElapsedTime > 10000 && !pieceEntry._stuckLogged) {
-        console.warn('🎬 Piece', replayPieceIndex, 'stuck for', replayPieceElapsedTime, 'ms');
-        console.log('  Type:', pieceEntry.type, 'Inputs:', pieceEntry.inputs.length, 'Processed:', replayInputIndex);
-        console.log('  currentPiece pos:', currentPiece?.x, currentPiece?.y);
-        console.log('  hardDropping:', hardDropping, 'animatingLines:', animatingLines, 'gravityAnimating:', gravityAnimating);
-        pieceEntry._stuckLogged = true;
-    }
-    
-    // SAFETY: If piece is stuck for too long (30 seconds) after all inputs processed, force advance
-    const allInputsProcessed = replayInputIndex >= pieceEntry.inputs.length;
-    if (allInputsProcessed && replayPieceElapsedTime > 30000 && currentPiece && !hardDropping) {
-        console.error('🎬 FORCE ADVANCING: Piece', replayPieceIndex, 'stuck for 30+ seconds');
-        // Force merge and advance
-        mergePiece();
-        clearLines();
-        advanceReplayPiece();
-        return;
-    }
-    
-    // Process all inputs for this piece that should have occurred by now
-    while (replayInputIndex < pieceEntry.inputs.length &&
-           pieceEntry.inputs[replayInputIndex].t <= replayPieceElapsedTime) {
-        
-        const input = pieceEntry.inputs[replayInputIndex];
-        
-        switch (input.type) {
-            case 'left':
-                movePiece(-1);
-                break;
-            case 'right':
-                movePiece(1);
-                break;
-            case 'rotate':
-                rotatePiece();
-                break;
-            case 'rotateCCW':
-                rotatePieceCounterClockwise();
-                break;
-            case 'softDrop':
-                dropPiece();
-                break;
-            case 'hardDrop':
-                hardDrop();
-                break;
-        }
-        
-        replayInputIndex++;
-    }
-    
-    // Process random events for this piece
-    while (replayRandomEventIndex < pieceEntry.randomEvents.length &&
-           pieceEntry.randomEvents[replayRandomEventIndex].t <= replayPieceElapsedTime) {
-        
-        const event = pieceEntry.randomEvents[replayRandomEventIndex];
-        
-        if (event.type === 'gremlin_block' || event.type === 'hail_block') {
-            if (board[event.y] && !board[event.y][event.x]) {
-                board[event.y][event.x] = event.color;
-                isRandomBlock[event.y][event.x] = true;
-                fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
-            }
-        } else if (event.type === 'challenge_sorandom_switch') {
-            soRandomCurrentMode = event.newMode || 'normal';
-            console.log('🎬 Replay: So Random switched to', soRandomCurrentMode);
-        } else if (event.type === 'challenge_gremlin') {
-            if (board[event.y] && !board[event.y][event.x]) {
-                board[event.y][event.x] = event.color;
-                isRandomBlock[event.y][event.x] = true;
-                fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
-            }
-        } else if (event.type === 'tornado_spawn') {
-            console.log('🎬 Replay: Spawning tornado');
-            // Set tornado data for replay before spawning
-            replayTornadoSpawnData = {
-                x: event.x,
-                snakeDirection: event.direction,
-                snakeChangeCounter: event.snakeChangeCounter || 30
-            };
-            spawnTornado();
-        } else if (event.type === 'tornado_direction') {
-            // Queue tornado direction change for updateTornado to use
-            replayTornadoDirChanges.push({
-                newDirection: event.direction,
-                newCounter: event.velocity || 30
-            });
-        } else if (event.type === 'tornado_drop') {
-            // Queue tornado drop target for updateTornado to use
-            replayTornadoDrops.push({
-                targetX: event.targetX
-            });
-        } else if (event.type === 'earthquake') {
-            console.log('🎬 Replay: Spawning earthquake');
-            // Load crack data for replay
-            if (event.crack) {
-                replayEarthquakeCrack = event.crack;
-                replayEarthquakeShiftType = event.shiftType;
-            }
-            spawnEarthquake();
-        } else if (event.type === 'volcano') {
-            console.log('🎬 Replay: Volcano event at column', event.column);
-            // Volcano eruptions are triggered by the volcano system itself
-            // The recording just logs when it happened for debugging
-            
-            // IMPORTANT: Pre-queue ALL lava_projectile events for this piece NOW
-            // The volcano animation runs over several seconds, but the piece may lock
-            // and advance before all projectile events would naturally be processed.
-            // We need all projectile data available before the animation runs.
-            for (let i = replayRandomEventIndex + 1; i < pieceEntry.randomEvents.length; i++) {
-                const futureEvent = pieceEntry.randomEvents[i];
-                if (futureEvent.type === 'lava_projectile') {
-                    replayLavaProjectiles.push({
-                        vx: futureEvent.vx,
-                        vy: futureEvent.vy
-                    });
-                    console.log('🎬 Replay: Pre-queued lava projectile', replayLavaProjectiles.length);
-                }
-            }
-        } else if (event.type === 'lava_projectile') {
-            // Queue lava projectile velocity for spawnLavaProjectile to use
-            // (This may have already been pre-queued by volcano event handler above,
-            //  but we check to avoid duplicates)
-            const alreadyQueued = replayLavaProjectiles.length > replayLavaProjectileIndex;
-            if (!alreadyQueued) {
-                replayLavaProjectiles.push({
-                    vx: event.vx,
-                    vy: event.vy
-                });
-            }
-        }
-        
-        replayRandomEventIndex++;
-    }
-    
-    // Process music track changes (global timing from game start)
-    const globalElapsed = Date.now() - replayGameStartTime;
-    while (replayMusicIndex < replayMusicTracks.length &&
-           replayMusicTracks[replayMusicIndex].t <= globalElapsed) {
-        
-        const musicEvent = replayMusicTracks[replayMusicIndex];
-        if (replayMusicIndex > 0) {
-            console.log('🎬 Replay: Music change to', musicEvent.trackName);
-            skipToNextSong();
-        }
-        replayMusicIndex++;
-    }
-    
-    // Check if all pieces are done
-    const allPiecesDone = replayPieceIndex >= replayPieceData.length - 1 &&
-                          replayInputIndex >= pieceEntry.inputs.length;
-    const gameEnded = gameOverPending || !gameRunning;
-    
-    if (allPiecesDone && gameEnded) {
-        setTimeout(() => {
-            if (replayActive && !replayCompleteShown) {
-                console.log('🎬 Replay complete!');
-                showReplayComplete();
-                // Keep replayActive true so restart works
-            }
-        }, 500);
-    }
-}
-
-/**
- * Called when a piece locks during replay - advance to next piece
- */
-function advanceReplayPiece() {
-    if (!replayActive) return;
-    
-    replayPieceIndex++;
-    
-    if (replayPieceIndex < replayPieceData.length) {
-        // Spawn next piece
-        spawnReplayPiece();
-    } else {
-        console.log('🎬 All pieces replayed');
-        // All pieces done - show completion after a brief delay
-        setTimeout(() => {
-            if (replayActive && !replayCompleteShown) {
-                showReplayComplete();
-            }
-        }, 500);
-    }
-}
-
-/**
- * Check if replay should continue despite apparent game over
- * Returns true if we resynced and should NOT call gameOver()
- */
-function tryReplayResyncOnGameOver() {
-    if (!replayActive) return false;
-    
-    // Check if there are more pieces in the recording
-    if (replayPieceIndex + 1 < replayPieceData.length) {
-        console.log('🎬 DESYNC DETECTED: Game over triggered but recording has more pieces.');
-        console.log('🎬 Resyncing to piece', replayPieceIndex + 1, 'of', replayPieceData.length);
-        
-        // Clear the board position where the "game over" piece would have been
-        // (the board snapshot at next piece will fix everything anyway)
-        
-        // Advance to next piece (this will resync the board from snapshot)
-        replayPieceIndex++;
-        spawnReplayPiece();
-        
-        return true; // Replay continues - don't call gameOver()
-    }
-    
-    // This is the actual end of the recording
-    return false;
-}
-
-// Replay earthquake data (set before spawnEarthquake during replay)
-let replayEarthquakeCrack = null;
-let replayEarthquakeShiftType = null;
-
-// Track if we should skip the next board sync (because a special event just finished
-// and the snapshot was captured before the event completed in the original game)
-let replaySkipNextSync = false;
-
-// Replay tornado data (set before spawnTornado during replay)
-let replayTornadoSpawnData = null;
-// Tornado direction changes and drops (collected from all pieces at replay start)
-let replayTornadoDirChanges = [];
-let replayTornadoDirIndex = 0;
-let replayTornadoDrops = [];
-let replayTornadoDropIndex = 0;
-// Lava projectile velocities (collected as events are processed)
-let replayLavaProjectiles = [];
-let replayLavaProjectileIndex = 0;
-
-/**
- * Show visual indicator that replay was resynced
- */
-function showReplaySyncIndicator() {
-    // Remove any existing indicator
-    const existing = document.getElementById('replaySyncIndicator');
-    if (existing) existing.remove();
-    
-    const indicator = document.createElement('div');
-    indicator.id = 'replaySyncIndicator';
-    indicator.innerHTML = '🔄 RESYNCING';
-    indicator.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(255, 165, 0, 0.9);
-        color: #000;
-        padding: 1vh 2vw;
-        border-radius: 1vh;
-        font-family: Arial, sans-serif;
-        font-size: 2vh;
-        font-weight: bold;
-        z-index: 1001;
-        animation: replaySyncPulse 0.5s ease-out;
-        pointer-events: none;
-    `;
-    
-    // Add animation keyframes if not already present
-    if (!document.getElementById('replaySyncStyles')) {
-        const style = document.createElement('style');
-        style.id = 'replaySyncStyles';
-        style.textContent = `
-            @keyframes replaySyncPulse {
-                0% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-                100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(indicator);
-    
-    // Fade out and remove after delay
-    setTimeout(() => {
-        indicator.style.transition = 'opacity 0.3s ease-out';
-        indicator.style.opacity = '0';
-        setTimeout(() => indicator.remove(), 300);
-    }, 700);
-}
-
-/**
- * Show replay UI controls
- */
-function showReplayUI() {
-    // Remove existing controls if any
-    const existing = document.getElementById('replayControls');
-    if (existing) existing.remove();
-    
-    const controls = document.createElement('div');
-    controls.id = 'replayControls';
-    controls.innerHTML = `
-        <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); 
-                    background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 8px;
-                    display: flex; gap: 15px; align-items: center; z-index: 1000;
-                    font-family: Arial, sans-serif; color: white; font-size: 14px;">
-            <span style="color: #ff6b6b; font-weight: bold;">🎬 REPLAY</span>
-            <span id="replayPlayerName" style="color: #4ecdc4;">${replayData?.username || 'Unknown'}</span>
-            <button id="replayPauseBtn" style="background: #333; border: 1px solid #666; color: white; 
-                    padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; font-size: 14px; 
-                    height: 26px; box-sizing: border-box;">⏸️</button>
-            <button id="replayStopBtn" style="background: #c0392b; border: none; color: white;
-                    padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; font-size: 14px;
-                    height: 26px; box-sizing: border-box;">⏹️ Stop</button>
-        </div>
-    `;
-    document.body.appendChild(controls);
-    
-    // Set up control handlers
-    document.getElementById('replayPauseBtn').onclick = toggleReplayPause;
-    document.getElementById('replayStopBtn').onclick = stopReplay;
-}
-
-/**
- * Toggle replay pause state
- */
-function toggleReplayPause() {
-    replayPaused = !replayPaused;
-    const btn = document.getElementById('replayPauseBtn');
-    if (btn) {
-        btn.textContent = replayPaused ? '▶️' : '⏸️';
-    }
-    
-    if (replayPaused) {
-        // Pause the game
-        paused = true;
-        StarfieldSystem.setPaused(true);
-        // Pause music
-        if (typeof pauseCurrentMusic === 'function') {
-            pauseCurrentMusic();
-        }
-    } else {
-        // Resume - reset piece spawn time to avoid time jump
-        replayPieceSpawnTime = Date.now() - replayPieceElapsedTime;
-        paused = false;
-        StarfieldSystem.setPaused(false);
-        // Resume music
-        if (typeof resumeCurrentMusic === 'function') {
-            resumeCurrentMusic();
-        }
-    }
-}
-
-/**
- * Show replay complete message
- */
-let replayCompleteShown = false;
-
-function showReplayComplete() {
-    // Prevent being called multiple times
-    if (replayCompleteShown) return;
-    replayCompleteShown = true;
-    
-    const finalStats = replayData?.recording_data?.finalStats;
-    
-    // Update displays with final stats
-    if (finalStats) {
-        score = finalStats.score || 0;
-        lines = finalStats.lines || 0;
-        level = finalStats.level || 1;
-        strikeCount = finalStats.strikes || 0;
-        tsunamiCount = finalStats.tsunamis || 0;
-        blackHoleCount = finalStats.blackHoles || 0;
-        volcanoCount = finalStats.volcanoes || 0;
-        
-        scoreDisplay.textContent = formatAsBitcoin(score);
-        linesDisplay.textContent = lines;
-        levelDisplay.textContent = level;
-        strikesDisplay.textContent = strikeCount;
-        tsunamisDisplay.textContent = tsunamiCount;
-        blackHolesDisplay.textContent = blackHoleCount;
-        volcanoesDisplay.textContent = volcanoCount;
-    }
-    
-    // Stop the game loop but keep UI visible
-    gameRunning = false;
-    GamepadController.stopVibration(); // Stop any controller haptic feedback
-    
-    // Stop music
-    stopMusic();
-    stopTornadoWind();
-    
-    // Update replay controls for completion state
-    const pauseBtn = document.getElementById('replayPauseBtn');
-    const stopBtn = document.getElementById('replayStopBtn');
-    
-    if (pauseBtn) {
-        pauseBtn.disabled = true;
-        pauseBtn.style.opacity = '0.5';
-        pauseBtn.style.cursor = 'not-allowed';
-    }
-    
-    if (stopBtn) {
-        // Change Stop to Replay
-        stopBtn.innerHTML = '🔄 Replay';
-        stopBtn.style.background = '#27ae60';
-        stopBtn.onclick = restartReplay;
-    }
-    
-    // Add Exit button if not already present
-    if (!document.getElementById('replayExitBtn')) {
-        const controlsContainer = document.querySelector('#replayControls > div');
-        if (controlsContainer) {
-            const exitBtn = document.createElement('button');
-            exitBtn.id = 'replayExitBtn';
-            exitBtn.innerHTML = '✕ Exit';
-            exitBtn.style.cssText = `
-                background: #c0392b; border: none; color: white;
-                padding: 0 10px; margin: 0; border-radius: 4px; cursor: pointer; 
-                font-size: 14px; height: 26px; box-sizing: border-box;
-            `;
-            exitBtn.onclick = stopReplay;
-            controlsContainer.appendChild(exitBtn);
-        }
-    }
-    
-    console.log('🎬 Replay complete');
-}
-
-/**
- * Restart the current replay from the beginning
- */
-function restartReplay() {
-    if (!replayData) return;
-    
-    console.log('🎬 Restarting replay...');
-    
-    // Store the recording data
-    const recording = replayData;
-    
-    // Stop current replay state
-    replayActive = false;
-    replayCompleteShown = false;
-    gameRunning = false;
-    
-    // Remove old replay controls
-    const existing = document.getElementById('replayControls');
-    if (existing) existing.remove();
-    
-    // Small delay to ensure clean state, then restart
-    setTimeout(() => {
-        window.startGameReplay(recording);
-    }, 100);
-}
-
-/**
- * Stop replay and return to menu
- */
-function stopReplay() {
-    replayActive = false;
-    replayPaused = false;
-    replayData = null;
-    replayCompleteShown = false;  // Reset completion flag
-    
-    // Clear replay music tracks (return to normal shuffle)
-    clearReplayTracks();
-    
-    // Restore AI mode to what it was before replay
-    aiModeEnabled = replaySavedAIMode;
-    
-    // Restore visual settings to what they were before replay
-    faceOpacity = replaySavedVisualSettings.faceOpacity;
-    if (opacitySlider) opacitySlider.value = Math.round(faceOpacity * 100);
-    
-    if (stormEffectsToggle) {
-        stormEffectsToggle.checked = replaySavedVisualSettings.stormEffects;
-    }
-    
-    cameraReversed = replaySavedVisualSettings.cameraReversed;
-    if (typeof StarfieldSystem !== 'undefined') {
-        StarfieldSystem.setCameraReversed(cameraReversed);
-    }
-    const cameraToggle = document.getElementById('cameraOrientationToggle');
-    if (cameraToggle) cameraToggle.checked = cameraReversed;
-    
-    if (starSpeedSlider) {
-        starSpeedSlider.value = replaySavedVisualSettings.starSpeed;
-        if (typeof StarfieldSystem !== 'undefined') {
-            if (replaySavedVisualSettings.starSpeed === 0) {
-                StarfieldSystem.setStarsEnabled(false);
-            } else {
-                StarfieldSystem.setStarsEnabled(true);
-                StarfieldSystem.setStarSpeed(replaySavedVisualSettings.starSpeed);
-            }
-        }
-    }
-    
-    minimalistMode = replaySavedVisualSettings.minimalistMode;
-    if (minimalistToggle) minimalistToggle.checked = minimalistMode;
-    if (typeof applyMinimalistMode === 'function') applyMinimalistMode();
-    if (typeof StarfieldSystem !== 'undefined') {
-        StarfieldSystem.setMinimalistMode(minimalistMode);
-    }
-    
-    // Restore palette
-    if (replaySavedVisualSettings.palette && typeof ColorPalettes !== 'undefined') {
-        initColorsFromPalette(replaySavedVisualSettings.palette);
-        updatePalettePreview();
-    }
-    
-    // Reset v2.0 piece-indexed replay state
-    replayPieceData = [];
-    replayPieceIndex = 0;
-    replayInputIndex = 0;
-    replayRandomEventIndex = 0;
-    replayPieceSpawnTime = 0;
-    replayPieceElapsedTime = 0;
-    replayInputSpeedup = 1.0 / 0.95;  // Reset to initial speedup
-    replayMusicTracks = [];
-    replayMusicIndex = 0;
-    replayGameStartTime = 0;
-    replayFWordSongId = null;
-    replayEarthquakeCrack = null;
-    replayEarthquakeShiftType = null;
-    replaySkipNextSync = false;
-    replayTornadoSpawnData = null;
-    replayTornadoDirChanges = [];
-    replayTornadoDirIndex = 0;
-    replayTornadoDrops = [];
-    replayTornadoDropIndex = 0;
-    replayLavaProjectiles = [];
-    replayLavaProjectileIndex = 0;
-    
-    // Cancel any active animations
-    tsunamiAnimating = false;
-    blackHoleAnimating = false;
-    blackHoleActive = false;
-    volcanoAnimating = false;
-    volcanoActive = false;
-    volcanoProjectiles = [];
-    gravityAnimating = false;
-    earthquakeActive = false;
-    
-    // Full earthquake state reset
-    earthquakePhase = 'shake';
-    earthquakeShakeProgress = 0;
-    earthquakeShakeIntensity = 0;
-    earthquakeCrack = [];
-    earthquakeCrackProgress = 0;
-    earthquakeCrackMap.clear();
-    earthquakeShiftProgress = 0;
-    earthquakeLeftBlocks = [];
-    earthquakeRightBlocks = [];
-    
-    // Full tornado state reset
-    tornadoActive = false;
-    tornadoState = 'descending';
-    tornadoPickedBlob = null;
-    tornadoFinalPositions = null;
-    tornadoFinalCenterX = null;
-    tornadoFinalCenterY = null;
-    tornadoFadeProgress = 0;
-    tornadoSnakeVelocity = 0;
-    tornadoParticles = [];
-    
-    stopTornadoWind(); // Stop any tornado wind sound
-    fallingBlocks = [];
-    animatingLines = false;
-    lineAnimations = [];
-    
-    // Remove replay controls
-    const controls = document.getElementById('replayControls');
-    if (controls) controls.remove();
-    const syncIndicator = document.getElementById('replaySyncIndicator');
-    if (syncIndicator) syncIndicator.remove();
-    
-    // Reset game state
-    gameRunning = false;
-    StarfieldSystem.setGameRunning(false);
-    currentPiece = null;
-    board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    score = 0;
-    lines = 0;
-    level = 1;
-    strikeCount = 0;
-    tsunamiCount = 0;
-    blackHoleCount = 0;
-    volcanoCount = 0;
-    supermassiveBlackHoleCount = 0;
-    superVolcanoCount = 0;
-    volcanoIsSuper = false;
-    
-    // Restore challenge mode to what it was before replay and apply visual effects
-    challengeMode = replaySavedChallengeMode;
-    activeChallenges = new Set(replaySavedActiveChallenges);
-    document.documentElement.classList.remove('stranger-mode');
-    StarfieldSystem.setStrangerMode(false);
-    canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
-    bouncingPieces = [];
-    if (phantomFadeInterval) {
-        clearInterval(phantomFadeInterval);
-        phantomFadeInterval = null;
-    }
-    phantomOpacity = 1.0;
-    nervousVibrateOffset = 0;
-    StormEffects.reset();
-    updateChallengeButtonLabel();
-    
-    // Reset displays
-    scoreDisplay.textContent = formatAsBitcoin(0);
-    linesDisplay.textContent = '0';
-    levelDisplay.textContent = '1';
-    strikesDisplay.textContent = '0';
-    tsunamisDisplay.textContent = '0';
-    blackHolesDisplay.textContent = '0';
-    volcanoesDisplay.textContent = '0';
-    
-    // Show mode menu
-    modeMenu.classList.remove('hidden');
-    document.body.classList.remove('game-running');
-    document.body.classList.remove('game-started');
-    toggleUIElements(true); // Restore How to Play panel
-    setGameInProgress(false);
-    stopMusic();
-    GamepadController.stopVibration(); // Stop any controller haptic feedback
-    startMenuMusic(musicSelect); // Resume menu music
-    
-    // Hide planet stats
-    StarfieldSystem.hidePlanetStats();
-    const planetStats = document.getElementById('planetStats');
-    const planetStatsLeft = document.getElementById('planetStatsLeft');
-    if (planetStats) planetStats.style.display = 'none';
-    if (planetStatsLeft) planetStatsLeft.style.display = 'none';
-    
-    // Hide AI mode indicator (shouldn't be visible during replay anyway)
-    if (aiModeIndicator) aiModeIndicator.style.display = 'none';
-    
-    // Reset canvas to standard width
-    COLS = 10;
-    updateCanvasSize();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    console.log('🎬 Replay stopped');
-}
-
-
-
-function updateReplayDisplays() {
-    scoreDisplay.textContent = formatAsBitcoin(score);
-    linesDisplay.textContent = lines;
-    levelDisplay.textContent = level;
-    strikesDisplay.textContent = strikeCount;
-    tsunamisDisplay.textContent = tsunamiCount;
-    blackHolesDisplay.textContent = blackHoleCount;
-    volcanoesDisplay.textContent = volcanoCount;
-}
-
-/**
- * Trigger gravity animation during replay
- * @param {Array} blobs - Array of {id, color, positions: [{x, sy, ey}]}
- */
-function triggerReplayGravity(blobs) {
-    if (!blobs || blobs.length === 0) return;
-    
-    // Lock the board state - prevent keyframe updates during gravity animation
-    replayGravityBoardLocked = true;
-    
-    // Track which cells are being animated so we skip drawing them from the board
-    // ONLY track START positions - the end positions may have other blocks already there
-    replayAnimatingCells = new Set();
-    
-    // Set up falling blocks for animation, preserving blob grouping
-    fallingBlocks = [];
-    blobs.forEach(blob => {
-        blob.positions.forEach(pos => {
-            // Only track start position - we'll draw the falling block over it
-            replayAnimatingCells.add(`${pos.x},${pos.sy}`);
-            
-            fallingBlocks.push({
-                x: pos.x,
-                startY: pos.sy,
-                currentY: pos.sy * BLOCK_SIZE,
-                targetY: pos.ey,
-                targetYPixels: pos.ey * BLOCK_SIZE,
-                color: blob.color,
-                velocity: 0,
-                done: false,
-                blobId: blob.id,  // Preserve blob grouping for proper rendering
-                isRandom: false
-            });
-        });
-    });
-    
-    gravityAnimating = true;
-}
-
-function drawReplayPiece(piece) {
-    if (!piece || !piece.shape) return;
-    
-    // Calculate positions for drawSolidShape (same as drawPiece does)
-    const positions = [];
-    piece.shape.forEach((row, y) => {
-        if (row) {
-            row.forEach((value, x) => {
-                if (value) {
-                    positions.push([piece.x + x, piece.y + y]);
-                }
-            });
-        }
-    });
-    
-    // Use the same rendering as regular pieces
-    drawSolidShape(ctx, positions, piece.color, BLOCK_SIZE, false, getFaceOpacity());
-}
-
-
-console.log('🎬 Replay system initialized');
+console.log('🎬 Replay system initialized');// Replay system extracted to replay.js (window.GameReplay)

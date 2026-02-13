@@ -114,6 +114,13 @@
         .main-area:has(.mode-menu:not(.hidden)) {
             overflow: visible;
         }
+        /* Vertigo challenge wrapper - transparent to layout when inactive,
+           JS applies oscillating transform when active */
+        #vertigoWrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
             display: block;
@@ -2478,7 +2485,7 @@
         @media (max-height: 500px) and (pointer: coarse) {
             .name-entry-overlay {
                 align-items: flex-start !important;
-                padding-top: 5vh !important;
+                padding-top: 1vh !important;
             }
             .name-entry-popup {
                 padding: 1.5vh 3vw;
@@ -2498,20 +2505,13 @@
                 font-size: max(2.2vh, 14px);
             }
             .name-entry-input {
-                padding: 1.5vh 1vh;
-                font-size: max(2.5vh, 16px);
+                padding: 1vh;
+                font-size: max(2vh, 14px);
                 margin-bottom: 1vh;
-                text-align: center;
-                display: block;
             }
             .name-entry-button {
-                padding: 1.8vh 1vh;
-                font-size: max(2.8vh, 16px);
-                text-align: center;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                -webkit-appearance: none;
+                padding: 1vh;
+                font-size: max(2vh, 14px);
             }
         }
         
