@@ -33,27 +33,11 @@
         document.addEventListener(evt, markUserInteraction, { once: false, capture: true });
     });
 
-    // Cache of blob URLs for fetched audio files.
-    // iPad Safari can't follow GitHub's 302 redirects inside new Audio(url).
-    // fetch() handles redirects transparently, so we fetch → blob → blobURL.
-    const blobUrlCache = {};
-
-    async function fetchAudioBlobUrl(url) {
-        if (blobUrlCache[url]) return blobUrlCache[url];
-        _dbg('fetchAudioBlobUrl: fetching ' + url.substring(url.lastIndexOf('/') + 1));
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            blobUrlCache[url] = blobUrl;
-            _dbg('fetchAudioBlobUrl: OK, blobUrl created');
-            return blobUrl;
-        } catch (e) {
-            _dbg('fetchAudioBlobUrl: FAILED - ' + e.message);
-            return url; // Fallback to original URL
-        }
-    }
+    // iPad detection - iPad Safari can't follow GitHub's 302 redirect chain
+    // in Audio elements (error code 4) or fetch (CORS). Route through proxy.
+    const _isIPadAudio = navigator.userAgent.includes('iPad') || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (_isIPadAudio) _dbg('iPad detected — using music proxy');
 
 // Music system state
 let musicPlaying = false;
@@ -76,8 +60,11 @@ let musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
 let sfxVolume = parseFloat(localStorage.getItem('blockchainstorm_sfxVolume')) || 0.7;
 let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
 
-// MP3 gameplay music - multiple tracks (hosted on GitHub Releases)
-const MUSIC_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
+// MP3 gameplay music - multiple tracks
+// iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
+const GITHUB_MUSIC_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
+const PROXY_MUSIC_URL = 'https://blockchainstorm.onrender.com/api/music/Music/';
+const MUSIC_BASE_URL = _isIPadAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
 
 // MP3 sound effects (hosted on GitHub Releases)
 const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
@@ -380,7 +367,9 @@ const menuOnlySongs = [
 ];
 
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
-const F_WORD_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
+const GITHUB_FWORD_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
+const PROXY_FWORD_URL = 'https://blockchainstorm.onrender.com/api/music/Music-F-Word/';
+const F_WORD_BASE_URL = _isIPadAudio ? PROXY_FWORD_URL : GITHUB_FWORD_URL;
 const fWordSongs = [];
 for (let i = 1; i <= 20; i++) {
     fWordSongs.push({
@@ -564,11 +553,9 @@ function skipToNextSong() {
             musicPlaying = true;
             currentPlayingTrack = nextSongId;
             audio.loop = false;
-            fetchAudioBlobUrl(song.file).then(blobUrl => {
-                audio.src = blobUrl;
-                audio.currentTime = 0;
-                audio.play().catch(e => console.log('Music autoplay prevented:', e));
-            });
+            audio.src = song.file;
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log('Music autoplay prevented:', e));
             console.log('🎵 Returned forward to:', song.name);
             notifySongChange();
             return true;
@@ -633,11 +620,9 @@ function skipToPreviousSong() {
         musicPlaying = true;
         currentPlayingTrack = prevSongId;
         audio.loop = false;
-        fetchAudioBlobUrl(song.file).then(blobUrl => {
-            audio.src = blobUrl;
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log('Music autoplay prevented:', e));
-        });
+        audio.src = song.file;
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Music autoplay prevented:', e));
         console.log('🎵 Skipped back to:', song.name);
         notifySongChange();
     }
@@ -1387,8 +1372,7 @@ function startMusic(gameMode, musicSelect) {
         song = allSongs.find(s => s.id === trackId);
     }
     
-    // Create audio element on-demand — iPad Safari requires elements created within
-    // user gesture handlers. Pass URL to constructor and play immediately.
+    // Create audio element on-demand
     let audio = gameplayMusicElements[trackId];
     let isNewElement = false;
     if (!audio && song) {
@@ -1421,25 +1405,18 @@ function startMusic(gameMode, musicSelect) {
             gameplayMusicElements[trackId] = audio;
         }
         
+        _dbg('startMusic: src=' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state);
+        audio.src = song.file;
+        audio.currentTime = 0;
+        const p = audio.play();
+        if (p && p.then) {
+            p.then(() => _dbg('startMusic: play() OK')).catch(e => {
+                _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+            });
+        }
+        
         // Notify listeners of song change
         notifySongChange();
-        
-        // Fetch blob URL then play (handles GitHub 302 redirects)
-        _dbg('startMusic: fetching blob for ' + song.file.substring(song.file.lastIndexOf('/') + 1) + ', ctx=' + audioContext.state);
-        fetchAudioBlobUrl(song.file).then(blobUrl => {
-            if (currentPlayingTrack !== trackId) {
-                _dbg('startMusic: track changed during fetch, aborting');
-                return;
-            }
-            audio.src = blobUrl;
-            audio.currentTime = 0;
-            const p = audio.play();
-            if (p && p.then) {
-                p.then(() => _dbg('startMusic: play() OK')).catch(e => {
-                    _dbg('startMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-                });
-            }
-        });
     } else {
         // Failed to find audio/song, reset flag
         musicPlaying = false;
@@ -2199,8 +2176,6 @@ function startMenuMusic(musicToggleOrSelect) {
     }
     
     if (song) {
-        _dbg('startMenuMusic: fetching blob for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
-        
         // Stop and discard any existing menu music element
         if (menuMusicElement) {
             menuMusicElement.pause();
@@ -2208,35 +2183,27 @@ function startMenuMusic(musicToggleOrSelect) {
             menuMusicElement = null;
         }
         
-        // Fetch via blob to bypass iPad Safari's inability to follow 302 redirects
-        fetchAudioBlobUrl(song.file).then(blobUrl => {
-            // Check we're still supposed to play
-            if (!menuMusicPlaying) {
-                _dbg('startMenuMusic: stopped during fetch, aborting');
-                return;
-            }
-            
-            menuMusicElement = new Audio(blobUrl);
-            menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-            menuMusicElement.loop = !hasPlayedGame;
-            menuMusicElement.addEventListener('ended', onMenuMusicEnded);
-            
-            // Debug listeners
-            menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
-            menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
-            menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
-            menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
-            
-            _dbg('startMenuMusic: playing from blobUrl');
-            const playPromise = menuMusicElement.play();
-            if (playPromise && playPromise.then) {
-                playPromise.then(() => {
-                    _dbg('startMenuMusic: play() RESOLVED OK');
-                }).catch(e => {
-                    _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-                });
-            }
-        });
+        _dbg('startMenuMusic: creating Audio for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
+        menuMusicElement = new Audio(song.file);
+        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
+        menuMusicElement.loop = !hasPlayedGame;
+        menuMusicElement.addEventListener('ended', onMenuMusicEnded);
+        
+        // Debug listeners
+        menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
+        menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
+        menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
+        menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
+        
+        _dbg('startMenuMusic: calling play()');
+        const playPromise = menuMusicElement.play();
+        if (playPromise && playPromise.then) {
+            playPromise.then(() => {
+                _dbg('startMenuMusic: play() RESOLVED OK');
+            }).catch(e => {
+                _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+            });
+        }
     } else {
         _dbg('startMenuMusic: no song found for trackId=' + trackId);
     }

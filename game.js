@@ -11842,6 +11842,8 @@ if (aiSpeedSlider) {
 }
 
 musicSelect.addEventListener('change', (e) => {
+    // Ignore programmatic changes during intro dismiss
+    if (window._dismissingIntro) return;
     if (e.target.value === 'none') {
         stopMusic();
         stopMenuMusic();
@@ -12520,6 +12522,7 @@ if (startOverlay) {
         // Guard against double-fire (touchend + synthetic click on iOS)
         if (introScreenDismissed) return;
         introScreenDismissed = true;
+        window._dismissingIntro = true;
         
         // Record play click
         const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
@@ -12613,6 +12616,7 @@ if (startOverlay) {
         startOverlay.style.transition = 'opacity 0.15s';
         setTimeout(() => {
             startOverlay.style.display = 'none';
+            window._dismissingIntro = false;
         }, 400);
         
         // Auto-submit audio debug log after intro dismiss (temporary - iPad diagnosis)
