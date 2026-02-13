@@ -12237,15 +12237,12 @@ const startOverlay = document.getElementById('startOverlay');
 // Apply pulse animation only to "Don't Panic!"
 const dontPanicText = document.getElementById('dontPanicText');
 if (dontPanicText) {
-    // Switch from data-i18n (textContent) to data-i18n-html (innerHTML) for line break support
-    const i18nKey = dontPanicText.getAttribute('data-i18n');
-    if (i18nKey) {
+    // Legacy fallback: if old cached HTML still has data-i18n, switch to data-i18n-html
+    const legacyKey = dontPanicText.getAttribute('data-i18n');
+    if (legacyKey) {
         dontPanicText.removeAttribute('data-i18n');
-        dontPanicText.setAttribute('data-i18n-html', i18nKey);
-        // Re-apply translation as innerHTML now that we've switched
-        if (typeof I18n !== 'undefined') {
-            dontPanicText.innerHTML = I18n.t(i18nKey);
-        }
+        dontPanicText.setAttribute('data-i18n-html', legacyKey);
+        if (typeof I18n !== 'undefined') dontPanicText.innerHTML = I18n.t(legacyKey);
     }
     dontPanicText.style.animation = 'pulse 2s ease-in-out infinite';
 

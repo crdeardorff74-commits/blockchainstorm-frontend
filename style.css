@@ -2515,6 +2515,19 @@
             }
         }
         
+        /* Tablet landscape: shift name entry popup toward top so on-screen keyboard doesn't obscure it */
+        @media (min-height: 501px) and (max-height: 1100px) and (pointer: coarse) and (min-width: 768px) {
+            .name-entry-overlay {
+                align-items: flex-start !important;
+                padding-top: 5vh !important;
+            }
+            .name-entry-popup {
+                padding: 2.5vh 3vw;
+                min-width: 320px;
+                max-width: 50vw;
+            }
+        }
+        
         /* Color Palette Dropdown */
         .palette-dropdown {
             position: relative;
