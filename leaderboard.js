@@ -455,10 +455,11 @@ function getChallengeDisplayName(challenge) {
         'carrie': 'Carrie',
         'nokings': 'No Kings',
         'mercurial': 'Mercurial',
-        'sorandom': 'So Random',
-        'combo': 'Combo'
+        'shadowless': 'Shadowless',
+        'amnesia': 'Amnesia',
+        'vertigo': 'Vertigo'
     };
-    return names[challenge] || challenge;
+    return names[challenge] || challenge.charAt(0).toUpperCase() + challenge.slice(1);
 }
 
 // Check if score makes top 20
