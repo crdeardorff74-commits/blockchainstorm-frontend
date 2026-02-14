@@ -938,6 +938,7 @@ function promptForName(scoreData) {
                     ...scoreData,
                     username: username,
                     challengeNames: challengeNames, // Include readable names for email
+                    skipNotification: new URLSearchParams(window.location.search).get('track') === 'false',
                     language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
                     deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
                     os: typeof detectOS === 'function' ? detectOS() : 'unknown'
@@ -1090,6 +1091,9 @@ async function submitScore(gameData) {
         return false;
     }
     
+    // Skip email notifications when ?track=false
+    const suppressEmail = new URLSearchParams(window.location.search).get('track') === 'false';
+    
     const scoreData = {
         game_name: 'blockchainstorm',
         difficulty: window.gameMode || 'downpour',
@@ -1103,7 +1107,8 @@ async function submitScore(gameData) {
         blackholes: gameData.blackholes || 0,
         supermassive_blackholes: gameData.supermassiveBlackHoles || 0,
         super_volcanoes: gameData.superVolcanoes || 0,
-        duration_seconds: Math.floor(gameData.duration || 0)
+        duration_seconds: Math.floor(gameData.duration || 0),
+        skipNotification: suppressEmail
     };
     
     try {
@@ -1230,6 +1235,7 @@ async function notifyGameCompletion(scoreData) {
             username: localStorage.getItem('blockchainstorm_username') || 'Anonymous',
             challengeNames: challengeNames,
             notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
+            skipNotification: new URLSearchParams(window.location.search).get('track') === 'false',
             language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
             deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
             os: typeof detectOS === 'function' ? detectOS() : 'unknown'
@@ -1277,7 +1283,7 @@ async function submitAIScore(scoreData) {
     const dataToSubmit = {
         ...scoreData,
         username: '🤖 Claude',
-        skipNotification: scoreData.skipNotification || false, // Pass through notification flag
+        skipNotification: scoreData.skipNotification || new URLSearchParams(window.location.search).get('track') === 'false', // Pass through notification flag
         language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
         deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
         os: typeof detectOS === 'function' ? detectOS() : 'unknown'
