@@ -195,6 +195,7 @@
         // ------------------------------------------------------------------
 
         function _analyzeLandingSurface(piece) {
+            if (!gameRef) return { totalSupportBlocks: 0, overhangLeft: 0, overhangRight: 0, supportingColors: new Set() };
             const { ROWS, COLS, board } = gameRef;
             const analysis = { totalSupportBlocks: 0, overhangLeft: 0, overhangRight: 0, supportingColors: new Set() };
             const positions = [];

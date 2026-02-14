@@ -285,8 +285,61 @@
         document.documentElement.classList.remove('stranger-mode');
         StarfieldSystem.setStrangerMode(false);
         canvas.classList.remove('thinner-mode', 'thicker-mode', 'longago-mode', 'comingsoon-mode', 'nervous-active');
-        if (window.ChallengeEffects && ChallengeEffects.Rubber) ChallengeEffects.Rubber.reset();
+        if (window.ChallengeEffects && ChallengeEffects.Rubber) {
+            ChallengeEffects.Rubber.reset();
+            // Must init with game state ref — replay may run before startGame() is ever called
+            ChallengeEffects.Rubber.init({
+                get ROWS() { return ROWS; }, get COLS() { return COLS; },
+                get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
+                getCtx: () => ctx,
+                getBlockSize: () => BLOCK_SIZE,
+                getFaceOpacity,
+                drawSolidShape,
+                playSoundEffect: (name) => playSoundEffect(name, soundToggle),
+                applyGravity,
+                isYesAndActive: () => {
+                    const ym = challengeMode === 'yesand' || activeChallenges.has('yesand');
+                    return ym && window.ChallengeEffects && !!ChallengeEffects.YesAnd;
+                },
+                spawnYesAndLimbs: (piece) => ChallengeEffects.YesAnd && ChallengeEffects.YesAnd.spawnLimbs(piece)
+            });
+        }
         if (window.ChallengeEffects && ChallengeEffects.Phantom) ChallengeEffects.Phantom.reset();
+        // Init all gameRef-dependent challenge modules (replay may run before startGame)
+        if (window.ChallengeEffects && ChallengeEffects.SixSeven) {
+            ChallengeEffects.SixSeven.init({ get COLS() { return COLS; }, randomColor });
+        }
+        if (window.ChallengeEffects && ChallengeEffects.Gremlins) {
+            ChallengeEffects.Gremlins.init({
+                get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
+                get fadingBlocks() { return fadingBlocks; },
+                get ROWS() { return ROWS; }, get COLS() { return COLS; },
+                get skillLevel() { return skillLevel; },
+                randomColor, applyGravity,
+                get audioContext() { return audioContext; },
+                soundEnabled: () => soundToggle.checked,
+                recorder: {
+                    isActive: () => window.GameRecorder && window.GameRecorder.isActive(),
+                    recordGremlinBlock: (x, y, c) => window.GameRecorder && window.GameRecorder.recordGremlinBlock(x, y, c),
+                    recordChallengeEvent: (t, d) => window.GameRecorder && window.GameRecorder.recordChallengeEvent(t, d)
+                }
+            });
+        }
+        if (window.ChallengeEffects && ChallengeEffects.Mercurial) {
+            ChallengeEffects.Mercurial.init({
+                randomColor,
+                playRotateSound: () => playSoundEffect('rotate', soundToggle)
+            });
+        }
+        if (window.ChallengeEffects && ChallengeEffects.YesAnd) {
+            ChallengeEffects.YesAnd.init({
+                get ROWS() { return ROWS; }, get COLS() { return COLS; },
+                get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
+                get fadingBlocks() { return fadingBlocks; },
+                getAllBlobs,
+                playSoundEffect: (name) => playSoundEffect(name, soundToggle)
+            });
+        }
         nervousVibrateOffset = 0;
         StormEffects.reset();
         if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.stop();
