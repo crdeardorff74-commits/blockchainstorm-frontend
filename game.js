@@ -1769,8 +1769,10 @@ function initColorsFromPalette(paletteId) {
     COLORS = ColorPalettes.getColors(paletteId);
     COLOR_SETS = ColorPalettes.getColorSets(paletteId);
     
-    // Save to localStorage
-    localStorage.setItem('tantris_palette', paletteId);
+    // Save to localStorage (skip during AI mode to preserve user preference)
+    if (!aiModeEnabled) {
+        localStorage.setItem('tantris_palette', paletteId);
+    }
     
     // Update currentColorSet based on current game mode
     updateCurrentColorSet();
@@ -9945,6 +9947,20 @@ function startAIAutoRestartTimer() {
         // Randomly select challenges
         randomizeAIChallenges();
         
+        // Randomly select a color palette
+        if (typeof ColorPalettes !== 'undefined') {
+            const categories = ColorPalettes.getPalettesByCategory();
+            const allPaletteIds = [];
+            for (const cat of Object.values(categories)) {
+                cat.forEach(p => allPaletteIds.push(p.id));
+            }
+            if (allPaletteIds.length > 0) {
+                const randomPalette = allPaletteIds[Math.floor(Math.random() * allPaletteIds.length)];
+                selectPalette(randomPalette);
+                console.log(`🤖 AI Auto-restart: Palette → ${randomPalette}`);
+            }
+        }
+        
         console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
         
         // Set the skill level globally (both local var and window for AI player)
@@ -11801,6 +11817,11 @@ if (aiModeToggle) {
             // Also stop tuning mode if it was running
             if (aiTuningMode) {
                 stopAITuningMode();
+            }
+            // Restore user's saved palette
+            const savedPalette = localStorage.getItem('tantris_palette') || 'classic';
+            if (savedPalette !== currentPaletteId) {
+                selectPalette(savedPalette);
             }
         }
         // Show/hide speed slider
