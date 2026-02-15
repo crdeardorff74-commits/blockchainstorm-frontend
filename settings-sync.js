@@ -205,12 +205,8 @@ const SettingsSync = {
         
         if (settings.skillLevelSelect !== undefined) {
             const introSkillSelect = document.getElementById('introSkillLevelSelect');
-            const rulesSkillSelect = document.getElementById('rulesSkillLevelSelect');
             if (introSkillSelect) {
                 introSkillSelect.value = settings.skillLevelSelect;
-            }
-            if (rulesSkillSelect) {
-                rulesSkillSelect.value = settings.skillLevelSelect;
             }
         }
         
@@ -468,8 +464,7 @@ const SettingsSync = {
         // Intro screen selects (sync to main and save)
         const introSelects = [
             { intro: 'introMusicSelect', main: 'musicSelect' },
-            { intro: 'introSkillLevelSelect', main: 'skillLevelSelect' },
-            { intro: 'rulesSkillLevelSelect', main: 'skillLevelSelect' }
+            { intro: 'introSkillLevelSelect', main: 'skillLevelSelect' }
         ];
         
         introSelects.forEach(({ intro, main }) => {

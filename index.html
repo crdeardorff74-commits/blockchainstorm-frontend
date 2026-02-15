@@ -74,50 +74,104 @@
             // Inject CSS to permanently hide the inactive title
             const style = document.createElement('style');
             if (isTantris) {
-                style.textContent = '#title-blockchainstorm { display: none !important; }';
+                style.textContent = '#title-blockchainstorm, #title-blockchainstorm-intro { display: none !important; }';
             } else {
-                style.textContent = '#title-tantris { display: none !important; }';
+                style.textContent = '#title-tantris, #title-tantris-intro { display: none !important; }';
             }
             document.head.appendChild(style);
             
-            // Remove inline style from tantris title when on tantris domain (so JS can control it)
+            // Remove inline style from tantris titles when on tantris domain (so JS can control them)
             if (isTantris) {
                 document.addEventListener('DOMContentLoaded', function() {
                     const tantrisTitle = document.getElementById('title-tantris');
                     if (tantrisTitle) tantrisTitle.style.display = '';
+                    const tantrisIntroTitle = document.getElementById('title-tantris-intro');
+                    if (tantrisIntroTitle) tantrisIntroTitle.style.display = '';
                 });
             }
         })();
     </script>
     <div class="start-overlay" id="startOverlay">
         <!-- button class="login-btn" id="introLoginBtn">🔑 Login</button -->
-        <div class="start-message" id="dontPanicText" data-i18n-html="intro.dontPanic"></div>
+        <div class="intro-title well-title" id="title-blockchainstorm-intro">
+                    ₿L<span style="position: relative; display: inline-block;">
+                        <span style="position: relative; z-index: 1; -webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">O</span>
+                        <svg style="position: absolute; left: 62%; top: 50%; transform: translate(-50%, -50%) rotate(10deg) scaleX(1.2); width: 150%; height: 150%; pointer-events: none; z-index: 2;" viewBox="0 0 10 10">
+                            <defs>
+                                <filter id="lightning-glow-intro">
+                                    <feGaussianBlur stdDeviation="0.125" result="coloredBlur"/>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <path d="M 5.5535055,0.41389914 2,5 4.0571956,4.9630996 1.5,9.5 5.9797048,4.3769988 3.6476015,4.3154982 Z" 
+                                  fill="#FFD700"
+                                  stroke="#000000"
+                                  stroke-width="0.15"
+                                  stroke-opacity="0.6"
+                                  filter="url(#lightning-glow-intro)"/>
+                        </svg>
+                    </span>CK<span style="-webkit-text-fill-color: #B87700; color: #B87700; background: none;">CH</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">ai</span><span style="-webkit-text-fill-color: #B87700; color: #B87700; background: none;">N</span>ST<span style="position: relative; display: inline-block;">
+                        <span style="position: relative; z-index: 1; -webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">O</span>
+                        <svg style="position: absolute; left: 62%; top: 50%; transform: translate(-50%, -50%) rotate(10deg) scaleX(1.2); width: 150%; height: 150%; pointer-events: none; z-index: 2;" viewBox="0 0 10 10">
+                            <defs>
+                                <filter id="lightning-glow-intro2">
+                                    <feGaussianBlur stdDeviation="0.125" result="coloredBlur"/>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <path d="M 5.5535055,0.41389914 2,5 4.0571956,4.9630996 1.5,9.5 5.9797048,4.3769988 3.6476015,4.3154982 Z" 
+                                  fill="#FFD700"
+                                  stroke="#000000"
+                                  stroke-width="0.15"
+                                  stroke-opacity="0.6"
+                                  filter="url(#lightning-glow-intro2)"/>
+                        </svg>
+                    </span>ЯM
+        </div>
+        <div class="intro-title well-title" id="title-tantris-intro" style="display: none;">
+                    T<span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">a</span>NT<span style="-webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">Я</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">i</span>S
+        </div>
         <div class="intro-controls" id="introControls">
-            <label class="intro-toggle">
-                <span class="intro-toggle-label" data-i18n="intro.skillLevel">Skill Level</span>
-                <select id="introSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
-                    <option value="breeze" data-i18n="skill.breeze.full">🌤️ Breeze</option>
-                    <option value="tempest" selected data-i18n="skill.tempest.full">🌪️ Tempest</option>
-                    <option value="maelstrom" data-i18n="skill.maelstrom.full">🌀 Maelstrom</option>
-                </select>
-            </label>
-            <label class="intro-toggle">
-                <span class="intro-toggle-label" data-i18n="intro.music">Music</span>
-                <select id="introMusicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
-                    <option value="shuffle" data-i18n="music.shuffle">🎲 Shuffle</option>
-                    <option value="none" data-i18n="music.none">🔇 None</option>
-                    <!-- Populated dynamically from audio.js -->
-                </select>
-            </label>
-            <label class="intro-toggle" id="introFullscreenToggle">
-                <span class="intro-toggle-label" data-i18n="intro.fullScreen">Full Screen</span>
-                <div class="toggle-switch">
-                    <input type="checkbox" id="introFullscreenCheckbox" checked>
-                    <span class="toggle-slider"></span>
+            <!-- Skill Level + Difficulty row (side-by-side on phones) -->
+            <div class="intro-dropdowns-row">
+                <div class="menu-dropdown-wrapper intro-dropdown-wrapper">
+                    <div class="menu-dropdown-label" data-i18n="intro.skillLevel">Skill Level</div>
+                    <button id="introSkillLevelBtn" class="menu-dropdown-btn">🌊 Tempest</button>
                 </div>
-            </label>
+                <div class="menu-dropdown-wrapper intro-dropdown-wrapper">
+                    <div class="menu-dropdown-label" data-i18n="mode.difficulty">Difficulty</div>
+                    <button id="introDifficultyBtn" class="menu-dropdown-btn">⛈️ Downpour</button>
+                </div>
+            </div>
+            <!-- Challenge Mode(s) dropdown button -->
+            <div class="menu-dropdown-wrapper intro-dropdown-wrapper">
+                <div class="menu-dropdown-label" data-i18n="mode.challengeModes">Challenge Mode(s)</div>
+                <button id="introChallengeBtn" class="menu-dropdown-btn" data-i18n="challenge.normal">Normal</button>
+            </div>
+            <div class="intro-toggles-row">
+                <label class="intro-toggle">
+                    <span class="intro-toggle-label" data-i18n="intro.music">Music</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="introMusicCheckbox" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <label class="intro-toggle" id="introFullscreenToggle">
+                    <span class="intro-toggle-label" data-i18n="intro.fullScreen">Full Screen</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="introFullscreenCheckbox">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            </div>
             <button class="start-game-btn" id="startGameBtn" data-i18n="intro.startGame">▶ Start Game</button>
-            <div id="fullscreenHint" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 6px; font-size: 12px; color: #FFD700; text-align: center; line-height: 1.4; max-width: 280px; margin-left: auto; margin-right: auto;"></div>
+            <div id="fullscreenHint" style="display: none; margin-top: max(1.5vh, 12px); padding: 8px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 6px; font-size: 12px; color: #FFD700; text-align: center; line-height: 1.4; white-space: nowrap;"></div>
         </div>
     </div>
     <canvas id="starfield"></canvas>
@@ -127,23 +181,14 @@
     <div class="content-area">
         <div class="game-container">
         <div class="rules-panel">
-            <div class="rules-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh;">
-                <select id="rulesPanelViewSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: max(1.2vh, 10px); width: auto;">
+            <div class="rules-header" style="display: flex; justify-content: center; align-items: center; margin-bottom: 0.5vh;">
+                <select id="rulesPanelViewSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 0.4vh 0.8vw; font-size: max(1.5vh, 12px); width: auto; text-align: left; text-align-last: center;">
                     <option value="rules" selected data-i18n="rules.howToPlay">📖 How to Play</option>
                     <option value="leaderboard-normal" data-i18n="rules.leaderboardNormal">🏆 Normal</option>
                     <option value="leaderboard-challenge" data-i18n="rules.leaderboardChallenge">🏆 Challenge</option>
                     <option value="leaderboard-ai" data-i18n="rules.leaderboardAI">🤖 AI Mode</option>
                     <option value="leaderboard-ai-challenge" data-i18n="rules.leaderboardAIChallenge">🤖 AI Challenge</option>
                 </select>
-                <div id="rulesPanelTitle" style="font-size: max(1.4vh, 11px); color: #fff; display: none;"></div>
-                <div style="display: flex; align-items: center; gap: 0.5vw;">
-                    <span id="skillLevelLabel" style="font-size: max(1.1vh, 9px); color: #888; text-align: right;" data-i18n="rules.skillLevelLabel">Skill Level:</span>
-                    <select id="rulesSkillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: max(1.2vh, 10px);">
-                        <option value="breeze" data-i18n="skill.breeze">Breeze</option>
-                        <option value="tempest" selected data-i18n="skill.tempest">Tempest</option>
-                        <option value="maelstrom" data-i18n="skill.maelstrom">Maelstrom</option>
-                    </select>
-                </div>
             </div>
             <div class="rules-instructions">
                 
@@ -265,21 +310,37 @@
                     T<span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">a</span>NT<span style="-webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">Я</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">i</span>S
                 </div>
                 
-                <div class="challenge-selector">
-                    <div class="mode-menu-heading" data-i18n="mode.selectChallenge">
-                        Select Challenge Mode(s)...
+                <div class="menu-dropdown-group">
+                    <!-- Skill Level dropdown button -->
+                    <div class="menu-dropdown-wrapper">
+                        <div class="menu-dropdown-label" data-i18n="intro.skillLevel">Skill Level</div>
+                        <button id="skillLevelMenuBtn" class="menu-dropdown-btn">🌊 Tempest</button>
                     </div>
-                    <button id="challengeSelectBtn" class="challenge-select-btn" data-i18n="challenge.normal">Normal</button>
+
+                    <!-- Difficulty dropdown button -->
+                    <div class="menu-dropdown-wrapper">
+                        <div class="menu-dropdown-label" data-i18n="mode.difficulty">Difficulty</div>
+                        <button id="difficultyMenuBtn" class="menu-dropdown-btn">⛈️ Downpour</button>
+                    </div>
+
+                    <!-- Challenge Mode(s) dropdown button -->
+                    <div class="menu-dropdown-wrapper">
+                        <div class="menu-dropdown-label" data-i18n="mode.challengeModes">Challenge Mode(s)</div>
+                        <button id="challengeSelectBtn" class="menu-dropdown-btn" data-i18n="challenge.normal">Normal</button>
+                    </div>
+
+                    <!-- START GAME button -->
+                    <button class="menu-start-game-btn" id="menuStartGameBtn" data-i18n="intro.startGame">▶ START GAME</button>
                 </div>
-				
-                <div class="mode-menu-heading" data-i18n="mode.chooseDifficulty">
-                    Choose your difficulty level...
+
+                <!-- Hidden mode buttons for compatibility with existing JS -->
+                <div style="display:none;">
+                    <button class="mode-button" data-mode="drizzle">Drizzle</button>
+                    <button class="mode-button" data-mode="downpour">Downpour</button>
+                    <button class="mode-button" data-mode="hailstorm">Hailstorm</button>
+                    <button class="mode-button" data-mode="blizzard">Blizzard</button>
+                    <button class="mode-button" data-mode="hurricane">Hurricane</button>
                 </div>
-                <button class="mode-button" data-mode="drizzle" data-tooltip="Easy mode - 4 colors, standard 10-wide board" data-i18n="mode.drizzle" data-i18n-tooltip="mode.drizzle.tooltip">🌧️ Drizzle</button>
-                <button class="mode-button" data-mode="downpour" data-tooltip="Standard mode - 6 colors, 10-wide board" data-i18n="mode.downpour" data-i18n-tooltip="mode.downpour.tooltip">⛈️ Downpour</button>
-                <button class="mode-button" data-mode="hailstorm" data-tooltip="8 colors for maximum challenge" data-i18n="mode.hailstorm" data-i18n-tooltip="mode.hailstorm.tooltip">🧊 Hailstorm</button>
-                <button class="mode-button" data-mode="blizzard" data-tooltip="12-wide board with 5-block pieces, 5 colors" data-i18n="mode.blizzard" data-i18n-tooltip="mode.blizzard.tooltip">❄️ Blizzard</button>
-                <button class="mode-button" data-mode="hurricane" data-tooltip="Ultimate challenge - 12-wide + 5-block pieces, 7 colors" data-i18n="mode.hurricane" data-i18n-tooltip="mode.hurricane.tooltip">🌀 Hurricane</button>
 
             </div>
             <div class="game-over" id="gameOver">
@@ -645,9 +706,9 @@
                 <label class="toggle-label">
                     <span class="toggle-label-text" data-i18n="settings.skillLevel">Skill Level</span>
                     <select id="skillLevelSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-left: auto; width: 270px;">
-                        <option value="breeze" data-i18n="skill.breeze.desc">🌤️ Breeze - No disasters</option>
-                        <option value="tempest" selected data-i18n="skill.tempest.desc">🌪️ Tempest - Tsunamis, Black Holes</option>
-                        <option value="maelstrom" data-i18n="skill.maelstrom.desc">🌀 Maelstrom - Full chaos</option>
+                        <option value="breeze" data-i18n="skill.breeze.desc">🌥️ Breeze - No disasters</option>
+                        <option value="tempest" selected data-i18n="skill.tempest.desc">🌊 Tempest - Tsunamis, Black Holes</option>
+                        <option value="maelstrom" data-i18n="skill.maelstrom.desc">🌪️ Maelstrom - Full chaos</option>
                     </select>
                 </label>
             </div>
@@ -798,6 +859,72 @@
             </div><!-- end settings-columns -->
             
             <button class="settings-close-btn" id="settingsCloseBtn" data-i18n="settings.close">Close</button>
+        </div>
+    </div>
+
+    <!-- Skill Level Modal -->
+    <div class="combo-modal-overlay" id="skillLevelModalOverlay">
+        <div class="combo-modal selection-modal">
+            <div class="combo-modal-title" data-i18n="intro.skillLevel">🎮 Skill Level</div>
+            <div class="selection-options-list">
+                <div class="selection-option" data-skill="breeze">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.breeze.full">🌥️ Breeze</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.breeze.modal"><li>Larger color blobs = bigger points</li></ul>
+                </div>
+                <div class="selection-option" data-skill="tempest">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.tempest.full">🌊 Tempest</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.tempest.modal"><li>Larger color blobs = bigger points</li><li>Tsunamis and Black Holes = huge points</li></ul>
+                </div>
+                <div class="selection-option" data-skill="maelstrom">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.maelstrom.full">🌪️ Maelstrom</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.maelstrom.modal"><li>Larger color blobs = bigger points</li><li>Tsunamis, Black Holes and Volcanoes = huge points</li><li>Survive tornadoes and earthquakes</li></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Difficulty Modal -->
+    <div class="combo-modal-overlay" id="difficultyModalOverlay">
+        <div class="combo-modal selection-modal">
+            <div class="combo-modal-title" data-i18n="mode.difficulty">🌦️ Difficulty</div>
+            <div class="selection-options-list">
+                <div class="selection-option" data-mode="drizzle">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="mode.drizzle">🌧️ Drizzle</span>
+                    </div>
+                    <div class="challenge-description" data-i18n="mode.drizzle.tooltip">Easy mode — 4 colors, standard 10-wide board</div>
+                </div>
+                <div class="selection-option" data-mode="downpour">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="mode.downpour">⛈️ Downpour</span>
+                    </div>
+                    <div class="challenge-description" data-i18n="mode.downpour.tooltip">Standard mode — 6 colors, 10-wide board</div>
+                </div>
+                <div class="selection-option" data-mode="hailstorm">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="mode.hailstorm">🧊 Hailstorm</span>
+                    </div>
+                    <div class="challenge-description" data-i18n="mode.hailstorm.tooltip">Hard mode — 8 colors for maximum challenge</div>
+                </div>
+                <div class="selection-option" data-mode="blizzard">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="mode.blizzard">❄️ Blizzard</span>
+                    </div>
+                    <div class="challenge-description" data-i18n="mode.blizzard.tooltip">Wide board — 12-wide with some 5-block pieces, 5 colors</div>
+                </div>
+                <div class="selection-option" data-mode="hurricane">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="mode.hurricane">🌀 Hurricane</span>
+                    </div>
+                    <div class="challenge-description" data-i18n="mode.hurricane.tooltip">Ultimate challenge — 12-wide with more 5-block pieces, 7 colors</div>
+                </div>
+            </div>
         </div>
     </div>
 

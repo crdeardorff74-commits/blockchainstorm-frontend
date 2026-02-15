@@ -796,9 +796,14 @@ const GamepadController = {
     
     // Select current mode from menu
     selectCurrentMode() {
-        const selectedButton = document.querySelector('.mode-button.selected');
-        if (selectedButton) {
-            selectedButton.click();
+        const menuStartBtn = document.getElementById('menuStartGameBtn');
+        if (menuStartBtn) {
+            menuStartBtn.click();
+        } else {
+            const selectedButton = document.querySelector('.mode-button.selected');
+            if (selectedButton) {
+                selectedButton.click();
+            }
         }
     }
 };

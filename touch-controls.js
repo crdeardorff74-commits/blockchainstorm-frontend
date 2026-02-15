@@ -171,8 +171,9 @@ const SwipeControls = {
         const dy = touch.clientY - this.startY;
         
         // Horizontal movement: move piece per column-width of movement
+        // But not while soft-dropping — prevent accidental sideways moves
         const colWidth = typeof BLOCK_SIZE !== 'undefined' ? BLOCK_SIZE : 30;
-        if (Math.abs(dx) >= colWidth) {
+        if (Math.abs(dx) >= colWidth && !this.softDropInterval) {
             const columns = Math.floor(Math.abs(dx) / colWidth);
             const rawDir = dx > 0 ? 1 : -1;  // Don't pre-swap - movePiece handles it
             

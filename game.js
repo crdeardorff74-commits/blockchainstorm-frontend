@@ -791,6 +791,8 @@ function updateCanvasSize() {
         }
     }
     
+    // Update StormEffects with new BLOCK_SIZE so liquid pools reposition correctly
+    StormEffects.updateGameState({ BLOCK_SIZE: BLOCK_SIZE, COLS: COLS, ROWS: ROWS });
 }
 
 window.addEventListener('resize', updateCanvasSize);
@@ -9348,8 +9350,6 @@ function toggleUIElements(show) {
     const pauseBtn = document.getElementById('pauseBtn');
     const planetStatsLeft = document.getElementById('planetStatsLeft');
     const skillLevelSelect = document.getElementById('skillLevelSelect');
-    const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
-    const skillLevelLabel = document.getElementById('skillLevelLabel');
     const rulesPanelViewSelect = document.getElementById('rulesPanelViewSelect');
     
     // Check if leaderboard is currently visible
@@ -9380,8 +9380,6 @@ function toggleUIElements(show) {
         if (controllerControls) controllerControls.classList.remove('hidden-during-play');
         settingsBtn.classList.remove('hidden-during-play');
         if (skillLevelSelect) skillLevelSelect.classList.remove('hidden-during-play');
-        if (rulesSkillLevelSelect) rulesSkillLevelSelect.classList.remove('hidden-during-play');
-        if (skillLevelLabel) skillLevelLabel.classList.remove('hidden-during-play');
         if (rulesPanelViewSelect) rulesPanelViewSelect.classList.remove('hidden-during-play');
         histogramCanvas.style.display = 'none';
         titles.forEach(title => title.style.display = '');
@@ -9406,8 +9404,6 @@ function toggleUIElements(show) {
         if (controllerControls) controllerControls.classList.add('hidden-during-play');
         settingsBtn.classList.add('hidden-during-play');
         if (skillLevelSelect) skillLevelSelect.classList.add('hidden-during-play');
-        if (rulesSkillLevelSelect) rulesSkillLevelSelect.classList.add('hidden-during-play');
-        if (skillLevelLabel) skillLevelLabel.classList.add('hidden-during-play');
         if (rulesPanelViewSelect) rulesPanelViewSelect.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
         titles.forEach(title => title.style.display = 'none');
@@ -9970,10 +9966,9 @@ function startAIAutoRestartTimer() {
         // Update all skill level UI selects
         const skillLevelSelect = document.getElementById('skillLevelSelect');
         const introSkillLevelSelect = document.getElementById('introSkillLevelSelect');
-        const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
         if (skillLevelSelect) skillLevelSelect.value = randomSkill;
         if (introSkillLevelSelect) introSkillLevelSelect.value = randomSkill;
-        if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = randomSkill;
+        if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
         
         // Update special events display for new skill level
         updateSpecialEventsDisplay(randomSkill);
@@ -11314,18 +11309,18 @@ document.addEventListener('keydown', e => {
     // Capture menu state at start of handler (before other handlers might change it)
     const menuWasVisible = !modeMenu.classList.contains('hidden');
     if (menuWasVisible) {
-        if (e.key === 'ArrowUp') {
+        if (e.key === 'Enter') {
             e.preventDefault();
-            selectedModeIndex = (selectedModeIndex - 1 + modeButtonsArray.length) % modeButtonsArray.length;
-            updateSelectedMode();
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedModeIndex = (selectedModeIndex + 1) % modeButtonsArray.length;
-            updateSelectedMode();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
+            closeAllMenuPopups();
             const mode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
             startGame(mode);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            // Close any open selection modals
+            const slModal = document.getElementById('skillLevelModalOverlay');
+            const dModal = document.getElementById('difficultyModalOverlay');
+            if (slModal) slModal.style.display = 'none';
+            if (dModal) dModal.style.display = 'none';
         }
         return;
     }
@@ -11395,6 +11390,11 @@ function updateSelectedMode() {
         }
     });
     
+    // Update difficulty menu button label
+    if (typeof updateDifficultyButton === 'function') {
+        updateDifficultyButton();
+    }
+    
     // Update leaderboard to match selected difficulty if visible
     const leaderboardContent = document.getElementById('leaderboardContent');
     if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
@@ -11445,8 +11445,6 @@ if (rulesPanelViewSelect) {
         const view = rulesPanelViewSelect.value;
         const rulesInstructions = document.querySelector('.rules-instructions');
         const leaderboardContent = document.getElementById('leaderboardContent');
-        const panelTitle = document.getElementById('rulesPanelTitle');
-        const skillLevelLabel = document.getElementById('skillLevelLabel');
         
         // Save preference
         localStorage.setItem('rulesPanelView', view);
@@ -11467,9 +11465,6 @@ if (rulesPanelViewSelect) {
             // Show rules, hide leaderboard
             if (leaderboardContent) leaderboardContent.style.display = 'none';
             if (rulesInstructions) rulesInstructions.style.display = 'block';
-            // Hide title and show skill label
-            if (panelTitle) panelTitle.style.display = 'none';
-            if (skillLevelLabel) skillLevelLabel.style.display = 'inline';
         }
     });
 }
@@ -11634,6 +11629,10 @@ playAgainBtn.addEventListener('click', () => {
     modeMenu.classList.remove('hidden');
     document.body.classList.remove('game-started');
     toggleUIElements(true); // Show UI elements when returning to menu
+    
+    // Update menu dropdown buttons
+    if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
+    if (typeof updateDifficultyButton === 'function') updateDifficultyButton();
     
     // Hide planet stats
     StarfieldSystem.hidePlanetStats();
@@ -11967,7 +11966,7 @@ function updateComboBonusDisplay() {
  comboThinner, comboThicker, comboCarrie, comboNokings,
  comboLongAgo, comboComingSoon, comboNervous, comboSixSeven, comboGremlins,
  comboLattice, comboYesAnd, comboMercurial, comboShadowless, comboAmnesia, comboVertigo].filter(cb => cb).forEach(checkbox => {
-    checkbox.addEventListener('change', updateComboBonusDisplay);
+    checkbox.addEventListener('change', () => { updateComboBonusDisplay(); updateComboHighlights(); });
 });
 
 // Mutual exclusivity: Long Ago and Coming Soon cannot both be selected
@@ -11976,6 +11975,7 @@ comboLongAgo.addEventListener('change', (e) => {
         comboComingSoon.checked = false;
     }
     updateComboBonusDisplay();
+    updateComboHighlights();
 });
 
 comboComingSoon.addEventListener('change', (e) => {
@@ -11983,6 +11983,7 @@ comboComingSoon.addEventListener('change', (e) => {
         comboLongAgo.checked = false;
     }
     updateComboBonusDisplay();
+    updateComboHighlights();
 });
 
 // Mutual exclusivity: Thinner and Thicker cannot both be selected
@@ -11991,6 +11992,7 @@ comboThinner.addEventListener('change', (e) => {
         comboThicker.checked = false;
     }
     updateComboBonusDisplay();
+    updateComboHighlights();
 });
 
 comboThicker.addEventListener('change', (e) => {
@@ -11998,10 +12000,15 @@ comboThicker.addEventListener('change', (e) => {
         comboThinner.checked = false;
     }
     updateComboBonusDisplay();
+    updateComboHighlights();
 });
 
 // Helper function to populate combo modal checkboxes
 function populateComboModal() {
+    // Restore activeChallenges for single challenge modes (applyChallengeMode clears it for non-combo)
+    if (activeChallenges.size === 0 && challengeMode && challengeMode !== 'normal' && challengeMode !== 'combo') {
+        activeChallenges.add(challengeMode);
+    }
     comboStranger.checked = activeChallenges.has('stranger');
     comboDyslexic.checked = activeChallenges.has('dyslexic');
     comboPhantom.checked = activeChallenges.has('phantom');
@@ -12023,7 +12030,31 @@ function populateComboModal() {
     if (comboAmnesia) comboAmnesia.checked = activeChallenges.has('amnesia');
     if (comboVertigo) comboVertigo.checked = activeChallenges.has('vertigo');
     updateComboBonusDisplay();
+    updateComboHighlights();
 }
+
+// Sync .checked class on combo-checkbox-option elements
+function updateComboHighlights() {
+    document.querySelectorAll('.combo-checkbox-option').forEach(option => {
+        const cb = option.querySelector('input[type="checkbox"]');
+        if (cb) {
+            option.classList.toggle('checked', cb.checked);
+        }
+    });
+}
+
+// Make entire combo-checkbox-option clickable (not just the label)
+document.querySelectorAll('.combo-checkbox-option').forEach(option => {
+    option.addEventListener('click', (e) => {
+        // Don't double-toggle if they clicked the label/toggle directly
+        if (e.target.closest('label') || e.target.closest('.toggle-switch')) return;
+        const cb = option.querySelector('input[type="checkbox"]');
+        if (cb) {
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+});
 
 // Challenge display names for the button label
 const challengeDisplayNames = {
@@ -12053,22 +12084,26 @@ const challengeDisplayNames = {
 
 // Function to update the button label based on current selection
 function updateChallengeButtonLabel() {
+    let label;
     if (challengeMode === 'normal' && activeChallenges.size === 0) {
-        challengeSelectBtn.textContent = I18n.t('challenge.normal');
+        label = I18n.t('challenge.normal');
     } else if (challengeMode === 'combo' || activeChallenges.size > 1) {
         // Show count of challenges
         const names = Array.from(activeChallenges).map(c => challengeDisplayNames[c] || c);
         if (names.length <= 2) {
-            challengeSelectBtn.textContent = names.join(' + ');
+            label = names.join(' + ');
         } else {
-            challengeSelectBtn.textContent = I18n.t('challenge.challenges', { count: names.length });
+            label = I18n.t('challenge.challenges', { count: names.length });
         }
     } else if (activeChallenges.size === 1) {
         const mode = Array.from(activeChallenges)[0];
-        challengeSelectBtn.textContent = challengeDisplayNames[mode] || mode;
+        label = challengeDisplayNames[mode] || mode;
     } else {
-        challengeSelectBtn.textContent = challengeDisplayNames[challengeMode] || challengeMode;
+        label = challengeDisplayNames[challengeMode] || challengeMode;
     }
+    challengeSelectBtn.textContent = label;
+    const introBtn = document.getElementById('introChallengeBtn');
+    if (introBtn) introBtn.textContent = label;
 }
 
 // Button click opens the combo modal
@@ -12141,6 +12176,171 @@ comboModalOverlay.addEventListener('click', (e) => {
         comboCancelBtn.click();
     }
 });
+
+// ─── Menu Dropdown Buttons (Skill Level & Difficulty) ───
+const skillLevelMenuBtn = document.getElementById('skillLevelMenuBtn');
+const difficultyMenuBtn = document.getElementById('difficultyMenuBtn');
+const menuStartGameBtn = document.getElementById('menuStartGameBtn');
+const skillLevelModalOverlay = document.getElementById('skillLevelModalOverlay');
+const difficultyModalOverlay = document.getElementById('difficultyModalOverlay');
+
+function closeAllMenuPopups() {
+    // No longer needed for simple popups, but kept for compatibility
+}
+
+// Button label update functions
+function updateSkillLevelButton() {
+    const names = { 'breeze': '🌥️ Breeze', 'tempest': '🌊 Tempest', 'maelstrom': '🌪️ Maelstrom' };
+    const label = names[skillLevel] || '🌊 Tempest';
+    const btn = document.getElementById('skillLevelMenuBtn');
+    const introBtn = document.getElementById('introSkillLevelBtn');
+    if (btn) btn.textContent = label;
+    if (introBtn) introBtn.textContent = label;
+}
+
+function updateDifficultyButton() {
+    const names = { 'drizzle': '🌧️ Drizzle', 'downpour': '⛈️ Downpour', 'hailstorm': '🧊 Hailstorm', 'blizzard': '❄️ Blizzard', 'hurricane': '🌀 Hurricane' };
+    const currentMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+    const label = names[currentMode] || '⛈️ Downpour';
+    const btn = document.getElementById('difficultyMenuBtn');
+    const introBtn = document.getElementById('introDifficultyBtn');
+    if (btn) btn.textContent = label;
+    if (introBtn) introBtn.textContent = label;
+}
+
+// ─── Skill Level Modal ───
+function updateSkillLevelModal() {
+    if (!skillLevelModalOverlay) return;
+    skillLevelModalOverlay.querySelectorAll('.selection-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.skill === skillLevel);
+    });
+}
+
+if (skillLevelMenuBtn) {
+    skillLevelMenuBtn.addEventListener('click', () => {
+        updateSkillLevelModal();
+        skillLevelModalOverlay.style.display = 'flex';
+    });
+}
+
+if (skillLevelModalOverlay) {
+    // Click option to select and close
+    skillLevelModalOverlay.querySelectorAll('.selection-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const level = opt.dataset.skill;
+            if (level) {
+                // Use the settings select to trigger the full setSkillLevel chain
+                const skillLevelSelect = document.getElementById('skillLevelSelect');
+                if (skillLevelSelect) {
+                    skillLevelSelect.value = level;
+                    skillLevelSelect.dispatchEvent(new Event('change'));
+                }
+                updateSkillLevelButton();
+                skillLevelModalOverlay.style.display = 'none';
+                // Refresh leaderboard if visible
+                const leaderboardContent = document.getElementById('leaderboardContent');
+                if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
+                    const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                    window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), level);
+                }
+            }
+        });
+    });
+    // Click outside to close
+    skillLevelModalOverlay.addEventListener('click', (e) => {
+        if (e.target === skillLevelModalOverlay) {
+            skillLevelModalOverlay.style.display = 'none';
+        }
+    });
+}
+
+// ─── Difficulty Modal ───
+function updateDifficultyModal() {
+    if (!difficultyModalOverlay) return;
+    const currentMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+    difficultyModalOverlay.querySelectorAll('.selection-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.mode === currentMode);
+    });
+}
+
+if (difficultyMenuBtn) {
+    difficultyMenuBtn.addEventListener('click', () => {
+        updateDifficultyModal();
+        difficultyModalOverlay.style.display = 'flex';
+    });
+}
+
+if (difficultyModalOverlay) {
+    // Click option to select and close
+    difficultyModalOverlay.querySelectorAll('.selection-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const mode = opt.dataset.mode;
+            if (mode) {
+                const idx = modeButtonsArray.findIndex(btn => btn.getAttribute('data-mode') === mode);
+                if (idx >= 0) {
+                    selectedModeIndex = idx;
+                    updateSelectedMode();
+                }
+                localStorage.setItem('tantris_difficulty', mode);
+                updateDifficultyButton();
+                difficultyModalOverlay.style.display = 'none';
+            }
+        });
+    });
+    // Click outside to close
+    difficultyModalOverlay.addEventListener('click', (e) => {
+        if (e.target === difficultyModalOverlay) {
+            difficultyModalOverlay.style.display = 'none';
+        }
+    });
+}
+
+// START GAME button in mode menu
+if (menuStartGameBtn) {
+    menuStartGameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+        if (e.shiftKey && aiModeEnabled) {
+            startAITuningMode(mode, skillLevel);
+            return;
+        }
+        startGame(mode);
+    });
+    menuStartGameBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+        startGame(mode);
+    }, { passive: false });
+}
+
+// ─── Intro Screen Dropdown Buttons ───
+const introSkillLevelBtn = document.getElementById('introSkillLevelBtn');
+const introDifficultyBtn = document.getElementById('introDifficultyBtn');
+const introChallengeBtn = document.getElementById('introChallengeBtn');
+
+if (introSkillLevelBtn) {
+    introSkillLevelBtn.addEventListener('click', () => {
+        updateSkillLevelModal();
+        skillLevelModalOverlay.style.display = 'flex';
+    });
+}
+if (introDifficultyBtn) {
+    introDifficultyBtn.addEventListener('click', () => {
+        updateDifficultyModal();
+        difficultyModalOverlay.style.display = 'flex';
+    });
+}
+if (introChallengeBtn) {
+    introChallengeBtn.addEventListener('click', () => {
+        populateComboModal();
+        document.getElementById('comboModalOverlay').style.display = 'flex';
+    });
+}
+
+// Initialize menu button labels
+updateSkillLevelButton();
+updateDifficultyButton();
 
 function applyChallengeMode(mode) {
     // Remove all challenge effects first
@@ -12350,7 +12550,13 @@ if (startOverlay) {
     // Get intro screen elements
     const startGameBtn = document.getElementById('startGameBtn');
     const introFullscreenCheckbox = document.getElementById('introFullscreenCheckbox');
-    const introMusicSelect = document.getElementById('introMusicSelect');
+    const introMusicCheckbox = document.getElementById('introMusicCheckbox');
+    
+    // Default Full Screen ON for phones
+    // Default Full Screen ON for phones
+    if (introFullscreenCheckbox && DeviceDetection.isMobile) {
+        introFullscreenCheckbox.checked = true;
+    }
     
     // Show fullscreen hint for mobile users not in fullscreen/standalone mode
     (function showFullscreenHint() {
@@ -12372,57 +12578,42 @@ if (startOverlay) {
         
         if (isIOS) {
             hint.innerHTML = I18n.t('intro.fullscreenHint.ios');
-            // Hide the useless fullscreen toggle on iOS
-            const fsToggle = document.getElementById('introFullscreenToggle');
-            if (fsToggle) fsToggle.style.display = 'none';
         } else if (isAndroid) {
             hint.innerHTML = I18n.t('intro.fullscreenHint.android');
         } else {
             hint.innerHTML = I18n.t('intro.fullscreenHint.generic');
         }
         hint.style.display = 'block';
+        
+        // Hide Music/Full Screen toggles on phones — they'll use settings instead
+        if (DeviceDetection.isMobile) {
+            const togglesRow = document.querySelector('.intro-toggles-row');
+            if (togglesRow) togglesRow.style.display = 'none';
+        }
     })();
     
-    // Sync intro music select with settings music select on load
-    if (introMusicSelect && musicSelect) {
-        // Sync initial value
-        introMusicSelect.value = musicSelect.value;
+    // Sync intro music toggle with settings music select on load
+    if (introMusicCheckbox && musicSelect) {
+        // Sync initial state: checked = any music, unchecked = none
+        introMusicCheckbox.checked = musicSelect.value !== 'none';
         
-        // When intro select changes, sync to settings and play preview
-        introMusicSelect.addEventListener('change', () => {
-            musicSelect.value = introMusicSelect.value;
-            _audioDbg('introMusicSelect change: value=' + introMusicSelect.value);
-            markUserInteraction();
-            
-            // Resume audio context if needed (for SFX)
-            if (audioContext.state === 'suspended') {
-                _audioDbg('introMusicSelect: resuming audioContext');
-                audioContext.resume();
-            }
-            
-            // Stop any currently playing music
-            stopMusic();
-            
-            // Play preview of selected song
-            if (introMusicSelect.value !== 'none') {
-                startMusic(null, introMusicSelect);
-            }
+        // When intro toggle changes, sync to settings
+        introMusicCheckbox.addEventListener('change', () => {
+            musicSelect.value = introMusicCheckbox.checked ? 'shuffle' : 'none';
         });
         
-        // When settings select changes, sync back to intro
+        // When settings select changes, sync back to intro toggle
         musicSelect.addEventListener('change', () => {
-            introMusicSelect.value = musicSelect.value;
+            introMusicCheckbox.checked = musicSelect.value !== 'none';
         });
     }
-    // Sync skill level selectors (intro, settings, rules)
+    // Sync skill level selectors (intro, settings)
     const introSkillLevelSelect = document.getElementById('introSkillLevelSelect');
     const skillLevelSelect = document.getElementById('skillLevelSelect');
-    const rulesSkillLevelSelect = document.getElementById('rulesSkillLevelSelect');
     
     // Sync all selects to the saved skill level from localStorage
     if (introSkillLevelSelect) introSkillLevelSelect.value = skillLevel;
     if (skillLevelSelect) skillLevelSelect.value = skillLevel;
-    if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = skillLevel;
     
     // Function to update rules display based on skill level
     const updateRulesForSkillLevel = function(level) {
@@ -12475,29 +12666,19 @@ if (startOverlay) {
         localStorage.setItem('skillLevel', level);
         if (introSkillLevelSelect) introSkillLevelSelect.value = level;
         if (skillLevelSelect) skillLevelSelect.value = level;
-        if (rulesSkillLevelSelect) rulesSkillLevelSelect.value = level;
         updateRulesForSkillLevel(level);
         updateSpecialEventsDisplay(level);
+        // Update menu button
+        if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
         console.log('🎮 Skill level set to:', level);
     }
     
-    // Wire up all skill level selectors
+    // Wire up skill level selectors
     if (introSkillLevelSelect) {
         introSkillLevelSelect.addEventListener('change', () => setSkillLevel(introSkillLevelSelect.value));
     }
     if (skillLevelSelect) {
         skillLevelSelect.addEventListener('change', () => setSkillLevel(skillLevelSelect.value));
-    }
-    if (rulesSkillLevelSelect) {
-        rulesSkillLevelSelect.addEventListener('change', () => {
-            setSkillLevel(rulesSkillLevelSelect.value);
-            // If leaderboard is visible, refresh it with new skill level
-            const leaderboardContent = document.getElementById('leaderboardContent');
-            if (leaderboardContent && leaderboardContent.style.display !== 'none' && window.leaderboard) {
-                const selectedMode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
-                window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), rulesSkillLevelSelect.value);
-            }
-        });
     }
     
     // Initialize with saved skill level (updates rules display and special events)
@@ -12623,10 +12804,16 @@ if (startOverlay) {
                 // Silently handle fullscreen errors (permissions, unsupported, etc.)
             }
         }
+        // Hide the main menu so it doesn't flash during fade
+        const modeMenuEl = document.getElementById('modeMenu');
+        if (modeMenuEl) modeMenuEl.classList.add('hidden');
         // Fade overlay out visually but keep it in the DOM for 400ms to absorb
         // ghost taps that iOS generates after touchend (~300ms delay).
         startOverlay.style.opacity = '0';
         startOverlay.style.transition = 'opacity 0.15s';
+        // Start game immediately
+        const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+        startGame(mode);
         setTimeout(() => {
             startOverlay.style.display = 'none';
             window._dismissingIntro = false;

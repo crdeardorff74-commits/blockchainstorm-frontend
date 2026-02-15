@@ -180,17 +180,6 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
     
     leaderboardContent.style.display = 'block';
     
-    // Update the panel title to show leaderboard info and hide skill label
-    const panelTitle = document.getElementById('rulesPanelTitle');
-    const skillLevelLabel = document.getElementById('skillLevelLabel');
-    if (panelTitle) {
-        panelTitle.textContent = getModeDisplayName(difficulty);
-        panelTitle.style.display = 'block';
-    }
-    if (skillLevelLabel) {
-        skillLevelLabel.style.display = 'none';
-    }
-    
     leaderboardContent.innerHTML = `
         <div class="leaderboard-loading">
             Loading ${difficulty} leaderboard...
@@ -396,8 +385,6 @@ function hideLeaderboard() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     const rulesInstructions = document.querySelector('.rules-instructions');
     const viewSelect = document.getElementById('rulesPanelViewSelect');
-    const panelTitle = document.getElementById('rulesPanelTitle');
-    const skillLevelLabel = document.getElementById('skillLevelLabel');
     
     if (leaderboardContent) {
         leaderboardContent.style.display = 'none';
@@ -410,14 +397,6 @@ function hideLeaderboard() {
     // Reset the view dropdown to "How to Play"
     if (viewSelect) {
         viewSelect.value = 'rules';
-    }
-    
-    // Hide the title and show skill label
-    if (panelTitle) {
-        panelTitle.style.display = 'none';
-    }
-    if (skillLevelLabel) {
-        skillLevelLabel.style.display = 'inline';
     }
     
     currentLeaderboardMode = null;

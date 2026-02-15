@@ -52,7 +52,24 @@ const StormEffects = (() => {
         if (state.soRandomCurrentMode !== undefined) soRandomCurrentMode = state.soRandomCurrentMode;
         if (state.gameRunning !== undefined) gameRunning = state.gameRunning;
         if (state.paused !== undefined) paused = state.paused;
-        if (state.BLOCK_SIZE !== undefined) BLOCK_SIZE = state.BLOCK_SIZE;
+        if (state.BLOCK_SIZE !== undefined && state.BLOCK_SIZE !== BLOCK_SIZE) {
+            const oldBlockSize = BLOCK_SIZE;
+            BLOCK_SIZE = state.BLOCK_SIZE;
+            // Reposition liquid pools from grid coordinates to new pixel positions
+            liquidPools.forEach(pool => {
+                pool.x = pool.blockX * BLOCK_SIZE + BLOCK_SIZE / 2;
+                pool.y = pool.blockY * BLOCK_SIZE;
+                // Rescale drip streaks
+                pool.dripStreaks.forEach((streak, idx) => {
+                    const relativeY = (streak.y - pool.blockY * oldBlockSize) / oldBlockSize;
+                    streak.y = pool.y + relativeY * BLOCK_SIZE;
+                    const spacing = BLOCK_SIZE / (pool.dripStreaks.length + 1);
+                    streak.offsetX = -BLOCK_SIZE / 2 + spacing * (idx + 1);
+                });
+            });
+        } else if (state.BLOCK_SIZE !== undefined) {
+            BLOCK_SIZE = state.BLOCK_SIZE;
+        }
         if (state.ROWS !== undefined) ROWS = state.ROWS;
         if (state.COLS !== undefined) COLS = state.COLS;
         if (state.board !== undefined) board = state.board;

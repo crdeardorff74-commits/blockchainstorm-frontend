@@ -984,31 +984,35 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgb(0, 0, 0);
             z-index: 2000;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             gap: 20px;
+            padding-bottom: max(8vh, 40px);
+            box-sizing: border-box;
         }
-        .start-message {
-            text-align: center;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            position: relative;
-            height: 120px;
-            min-height: 120px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
+        .intro-title.well-title {
+            font-size: max(5.5vh, 28px);
+            margin-bottom: 0;
+            animation: introThrob 3s ease-in-out infinite;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.05); }
+        @keyframes introThrob {
+            0%, 100% { 
+                opacity: 0.7; 
+                transform: scale(1);
+                filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
+                        drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            }
+            50% { 
+                opacity: 1; 
+                transform: scale(1.05);
+                filter: drop-shadow(0 0.3vh 0.6vh rgba(255, 215, 0, 0.8))
+                        drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
+            }
         }
         
         /* Intro screen controls */
@@ -1016,18 +1020,19 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 0;
             margin-top: 20px;
         }
         .intro-toggle {
             display: flex;
             align-items: center;
             gap: 12px;
+            margin-top: max(1vh, 6px);
             background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
             padding: 12px 20px;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 280px;
+            width: 320px;
             justify-content: space-between;
             cursor: pointer;
             transition: all 0.15s;
@@ -1043,6 +1048,7 @@
             color: #ccc;
             font-size: 14px;
             font-weight: 500;
+            white-space: nowrap;
         }
         .intro-toggle .toggle-switch {
             flex-shrink: 0;
@@ -1059,7 +1065,8 @@
             padding: 16px 44px;
             font-size: 18px;
             font-weight: 600;
-            background: linear-gradient(135deg, #3d7dd4 0%, #2d6dc4 100%);
+            white-space: nowrap;
+            background: linear-gradient(180deg, #5a9ae8 0%, #2d5fb8 100%);
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -1068,15 +1075,51 @@
             box-shadow: 0 4px 20px rgba(61, 125, 212, 0.3);
             text-transform: uppercase;
             letter-spacing: 1px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            width: 320px;
+            box-sizing: border-box;
         }
         .start-game-btn:hover {
-            background: linear-gradient(135deg, #4a8de4 0%, #3d7dd4 100%);
+            background: linear-gradient(180deg, #6aaaf0 0%, #3d6fc8 100%);
             transform: translateY(-1px);
             box-shadow: 0 6px 25px rgba(61, 125, 212, 0.4);
         }
         .start-game-btn:active {
             transform: translateY(0);
+        }
+        .intro-dropdown-wrapper {
+            width: 320px;
+            margin-top: max(0.3vh, 2px);
+        }
+        .intro-dropdown-wrapper:first-child {
+            margin-top: 0;
+        }
+        .intro-dropdowns-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 320px;
+        }
+        .intro-dropdowns-row .intro-dropdown-wrapper {
+            width: 100%;
+        }
+        .intro-controls > .intro-toggle:first-of-type {
+            margin-top: max(1.8vh, 12px);
+        }
+        .intro-toggles-row {
+            display: flex;
+            align-items: stretch;
+            gap: max(0.5vw, 4px);
+            width: 320px;
+            margin-top: max(2.2vh, 14px);
+            margin-bottom: max(0.5vh, 4px);
+        }
+        .intro-toggles-row .intro-toggle {
+            flex: 1;
+            width: auto;
+            margin-top: 0;
+            padding: 8px 10px;
         }
         .login-btn {
             position: absolute;
@@ -1126,7 +1169,7 @@
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #e0e0e0;
-            min-width: 320px;
+            min-width: 280px;
             max-width: 400px;
             position: relative;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -1724,7 +1767,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px 16px;
-            margin-bottom: 16px;
+            margin-bottom: 0;
         }
         .combo-checkbox-option {
             margin: 0;
@@ -1733,10 +1776,19 @@
             border-radius: 6px;
             border: 1px solid transparent;
             transition: all 0.15s;
+            cursor: pointer;
         }
         .combo-checkbox-option:hover {
             border-color: rgba(110, 181, 255, 0.3);
             background: rgba(110, 181, 255, 0.05);
+        }
+        .combo-checkbox-option.checked {
+            border-color: rgba(110, 181, 255, 0.6);
+            background: rgba(110, 181, 255, 0.15);
+        }
+        .combo-checkbox-option.checked:hover {
+            border-color: rgba(110, 181, 255, 0.7);
+            background: rgba(110, 181, 255, 0.2);
         }
         .combo-checkbox-option label {
             cursor: pointer;
@@ -1794,10 +1846,10 @@
         .combo-modal-buttons {
             display: flex;
             gap: 12px;
-            margin-top: 20px;
+            margin-top: 0;
             position: sticky;
             bottom: 0;
-            padding-top: 12px;
+            padding-top: 0;
         }
         .combo-modal-btn {
             flex: 1;
@@ -1824,6 +1876,70 @@
         .combo-modal-btn.cancel:hover {
             background: #4a4a5a;
             color: #fff;
+        }
+
+        /* Selection modals (Skill Level & Difficulty) */
+        .selection-modal {
+            min-width: min(420px, 85vw);
+            max-width: min(480px, 90vw);
+        }
+        .selection-options-list {
+            display: flex;
+            flex-direction: column;
+            gap: max(0.6vh, 4px);
+        }
+        .selection-option {
+            padding: max(1.2vh, 10px) max(1.5vw, 14px);
+            background: transparent;
+            border-radius: max(0.6vh, 5px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .selection-option:hover {
+            border-color: rgba(110, 181, 255, 0.4);
+            background: rgba(110, 181, 255, 0.08);
+        }
+        .selection-option.selected {
+            border-color: rgba(110, 181, 255, 0.6);
+            background: rgba(110, 181, 255, 0.15);
+        }
+        .selection-option-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .selection-option-name {
+            font-size: max(1.6vh, 14px);
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+        .selection-option.selected .selection-option-name {
+            color: #6eb5ff;
+        }
+        .selection-option .challenge-description {
+            font-size: max(1.2vh, 11px);
+            color: #888;
+            margin-top: max(0.4vh, 3px);
+            margin-left: 0;
+        }
+        .selection-option.selected .challenge-description {
+            color: #aaa;
+        }
+        .selection-option-bullets {
+            margin: max(0.4vh, 3px) 0 0 0;
+            padding-left: max(2vh, 16px);
+            list-style: disc;
+            font-size: max(1.2vh, 11px);
+            color: #888;
+            line-height: 1.6;
+        }
+        .selection-option-bullets li {
+            margin: 0;
+            padding: 0;
+        }
+        .selection-option.selected .selection-option-bullets {
+            color: #aaa;
         }
         
         /* Upside-down mode */
@@ -2057,7 +2173,7 @@
                     drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
             animation: titlePulse 3s ease-in-out infinite;
             text-align: center;
-            margin-bottom: 10vh;
+            margin-bottom: 5vh;
         }
         .mode-button {
             width: 90%;
@@ -2197,6 +2313,99 @@
             content: ' ▼';
             font-size: 10px;
             opacity: 0.7;
+        }
+
+        /* ─── Menu Dropdown Group ─── */
+        .menu-dropdown-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            width: 90%;
+            max-width: 340px;
+            pointer-events: auto;
+        }
+        .menu-dropdown-wrapper {
+            position: relative;
+            width: 100%;
+            margin-top: max(2.5vh, 16px);
+        }
+        .menu-dropdown-wrapper:first-child {
+            margin-top: 0;
+        }
+        .menu-dropdown-label {
+            font-size: max(1.2vh, 10px);
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 max(0.4vh, 3px) 0;
+            padding: 0;
+            line-height: 1.2;
+            text-align: left;
+            font-weight: 500;
+        }
+        .menu-dropdown-btn {
+            width: 100%;
+            margin: 0;
+            padding: max(1.2vh, 10px) max(1.5vw, 15px);
+            font-size: max(1.8vh, 14px);
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: max(0.8vh, 6px);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+        .menu-dropdown-btn::after {
+            content: ' ▼';
+            font-size: max(1.2vh, 10px);
+            opacity: 0.7;
+        }
+        .menu-dropdown-btn:hover {
+            background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+            border-color: rgba(110, 181, 255, 0.5);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .menu-dropdown-btn:active {
+            transform: translateY(0);
+        }
+        .menu-dropdown-btn.active {
+            border-color: rgba(110, 181, 255, 0.7);
+            background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+        }
+        .menu-start-game-btn {
+            margin-top: max(3.5vh, 22px);
+            padding: max(1.6vh, 14px) max(4vw, 30px);
+            font-size: max(2vh, 16px);
+            font-weight: 600;
+            white-space: nowrap;
+            background: linear-gradient(180deg, #5a9ae8 0%, #2d5fb8 100%);
+            color: #fff;
+            border: none;
+            border-radius: max(0.8vh, 6px);
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 max(0.4vh, 3px) max(2vh, 15px) rgba(61, 125, 212, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            pointer-events: auto;
+            width: 100%;
+            text-shadow: 0 max(0.2vh, 1px) max(0.4vh, 3px) rgba(0, 0, 0, 0.4);
+        }
+        .menu-start-game-btn:hover {
+            background: linear-gradient(180deg, #6aaaf0 0%, #3d6fc8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 max(0.6vh, 4px) max(2.5vh, 18px) rgba(61, 125, 212, 0.4);
+        }
+        .menu-start-game-btn:active {
+            transform: translateY(0);
         }
         /* Leaderboard Styles */
         .leaderboard-container {
@@ -2523,7 +2732,7 @@
             }
             .name-entry-popup {
                 padding: 2.5vh 3vw;
-                min-width: 320px;
+                min-width: 280px;
                 max-width: 50vw;
             }
         }
@@ -2694,20 +2903,42 @@
                 max-height: 100dvh;
                 border-width: 0.2vh;
             }
-            .start-message {
+            .intro-title {
                 font-size: max(3vw, 20px);
-                height: auto;
-                min-height: 10vh;
             }
             .intro-controls {
-                gap: 1.5vh;
+                gap: 0;
                 margin-top: 2vh;
             }
             .intro-toggle {
-                width: min(280px, 70vw);
+                width: min(320px, 85vw);
                 padding: 1.5vh 2.5vw;
                 gap: 2vw;
                 border-radius: 1vh;
+            }
+            .intro-dropdown-wrapper {
+                width: min(320px, 85vw);
+            }
+            .intro-dropdowns-row {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: max(0.5vw, 4px);
+                width: min(320px, 85vw);
+            }
+            .intro-dropdowns-row .intro-dropdown-wrapper {
+                flex: 1;
+                width: auto;
+                margin-top: 0;
+            }
+            .intro-dropdowns-row .menu-dropdown-btn {
+                font-size: max(1.6vh, 11px);
+            }
+            .intro-toggles-row {
+                width: min(320px, 85vw);
+            }
+            .intro-toggles-row .intro-toggle {
+                width: auto;
+                padding: 1.5vh 2vw;
             }
             .intro-toggle-label {
                 font-size: max(1.8vh, 12px);
@@ -2717,10 +2948,53 @@
                 max-width: 28vw;
             }
             .start-game-btn {
-                margin-top: 2vh;
-                padding: 2vh 6vw;
+                margin-top: max(4vh, 20px) !important;
+                margin-bottom: max(4vh, 20px);
+                padding: 2.5vh 6vw;
                 font-size: max(2vh, 14px);
                 border-radius: 1vh;
+                width: min(320px, 85vw);
+            }
+            .combo-modal {
+                padding: 12px 16px;
+                max-height: 90vh;
+            }
+            .combo-modal-title {
+                font-size: 14px;
+                margin-bottom: 6px;
+            }
+            .game-over {
+                top: 2%;
+                padding: 12px 20px;
+                font-size: 14px;
+                min-width: 150px;
+            }
+            .game-over > div:first-child {
+                font-size: 22px !important;
+                margin-bottom: 6px !important;
+            }
+            .gameover-share-row {
+                gap: 8px;
+                margin-top: 10px;
+                margin-bottom: 4px;
+            }
+            .gameover-share-icon {
+                width: 28px;
+                height: 28px;
+            }
+            .credits-role {
+                width: 45vw;
+                padding-left: 2vw;
+            }
+            .credits-name {
+                width: 40vw;
+            }
+            .credits-row {
+                gap: 4vw;
+                font-size: 14px;
+            }
+            .selection-option {
+                padding: max(0.8vh, 6px) max(1.2vw, 10px);
             }
             /* Settings button scales down */
             .settings-btn {
@@ -2759,6 +3033,19 @@
                 font-size: max(2vh, 13px);
                 border-radius: 1vh;
                 white-space: nowrap;
+            }
+            .menu-dropdown-group {
+                gap: 0;
+                width: 100%;
+                max-width: none;
+            }
+            .menu-dropdown-btn {
+                padding: max(1vh, 8px) max(1.2vw, 10px);
+                font-size: max(1.6vh, 12px);
+            }
+            .menu-start-game-btn {
+                padding: max(1.4vh, 10px) max(3vw, 20px);
+                font-size: max(1.8vh, 13px);
             }
         }
         
@@ -2836,22 +3123,46 @@
                 margin-top: 1vh;
                 margin-bottom: 0.3vh;
             }
-            .start-message {
+            .intro-title {
                 font-size: max(5vh, 20px);
-                height: auto;
-                min-height: auto;
             }
             .intro-controls {
-                gap: 1vh;
+                gap: 0;
                 margin-top: 1vh;
             }
             .intro-toggle {
                 padding: 1vh 2vw;
-                width: min(280px, 50vw);
+                width: min(320px, 50vw);
+            }
+            .intro-dropdown-wrapper {
+                width: min(320px, 50vw);
+            }
+            .intro-dropdowns-row {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: max(0.5vw, 4px);
+                width: min(320px, 50vw);
+            }
+            .intro-dropdowns-row .intro-dropdown-wrapper {
+                flex: 1;
+                width: auto;
+                margin-top: 0;
+            }
+            .intro-dropdowns-row .menu-dropdown-btn {
+                font-size: max(1.4vh, 10px);
+            }
+            .intro-toggles-row {
+                width: min(320px, 50vw);
+            }
+            .intro-toggles-row .intro-toggle {
+                width: auto;
+                padding: 1vh 1.5vw;
             }
             .start-game-btn {
-                margin-top: 1vh;
-                padding: 1.5vh 5vw;
+                margin-top: max(3vh, 16px);
+                margin-bottom: max(3vh, 16px);
+                padding: 2vh 5vw;
+                width: min(320px, 50vw);
             }
             .mode-button {
                 margin: max(1.5vh, 8px) 0;
@@ -3186,3 +3497,74 @@
         }
         .share-dismiss:hover { color: #99a; }
         .share-dismiss svg { width: 1.5vh; height: 1.5vh; opacity: 0.5; }
+
+        /* Phone: make share popup fill most of the screen */
+        @media (pointer: coarse) and (max-width: 1024px) {
+            .share-popup {
+                max-width: 52vw;
+                padding: 5vh 5vw;
+            }
+            .share-close {
+                top: -2vh !important;
+                right: 1vw !important;
+                font-size: 7vh !important;
+                padding: 0 !important;
+                line-height: 0.7 !important;
+            }
+            .share-popup {
+                overflow: visible;
+            }
+            .share-title {
+                font-size: 3.5vh;
+            }
+            .share-subtitle {
+                font-size: 2.4vh;
+            }
+            .share-emoji {
+                font-size: 6vh;
+            }
+            .share-grid {
+                gap: 2.5vh 3vw;
+            }
+            .share-btn {
+                padding: 2.5vh 0;
+            }
+            .share-btn svg {
+                width: 5vh;
+                height: 5vh;
+            }
+            .share-btn span {
+                font-size: 2vh;
+            }
+            .share-dismiss {
+                font-size: 2vh;
+            }
+        }
+
+        /* Phone credits and game-over adjustments */
+        @media (pointer: coarse) {
+            .credits-content {
+                max-width: 90%;
+            }
+            .credits-role {
+                width: 35vw;
+                padding-left: 0;
+                text-align: right;
+            }
+            .credits-name {
+                width: 35vw;
+            }
+            .credits-row {
+                gap: 3vw;
+                font-size: max(1.8vh, 13px);
+            }
+            .game-over {
+                top: 2%;
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+            .game-over > div:first-child {
+                font-size: 20px !important;
+                margin-bottom: 4px !important;
+            }
+        }
