@@ -3541,6 +3541,45 @@
             }
         }
 
+        /* First-time player hint popup */
+        .hint-popup {
+            position: absolute;
+            top: 33%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(20, 20, 50, 0.95) 0%, rgba(10, 25, 55, 0.95) 100%);
+            border: 0.2vh solid rgba(255, 215, 0, 0.4);
+            border-radius: 1.2vh;
+            padding: 2.5vh 1.5vw;
+            color: #fff;
+            font-size: max(1.8vh, 13px);
+            text-align: center;
+            z-index: 100;
+            max-width: 95%;
+            width: 72%;
+            line-height: 1.5;
+            box-shadow: 0 0 3vh rgba(255, 215, 0, 0.15), 0 1vh 4vh rgba(0, 0, 0, 0.6);
+            animation: hintFadeIn 0.4s ease-out;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .hint-popup::after {
+            content: '▶';
+            display: block;
+            margin-top: 1.2vh;
+            font-size: max(1.3vh, 10px);
+            color: rgba(255, 215, 0, 0.5);
+            letter-spacing: 0.1vh;
+        }
+        @keyframes hintFadeIn {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes hintFadeOut {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        }
+        
         /* Phone credits and game-over adjustments */
         @media (pointer: coarse) {
             .credits-content {

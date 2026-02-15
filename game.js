@@ -104,6 +104,97 @@ let gameOverPending = false; // True when waiting for game over timeout
 let cameraReversed = false;
 
 // ============================================
+// FIRST-TIME PLAYER HINT SYSTEM
+// ============================================
+const HintSystem = (() => {
+    const STORAGE_KEY = 'tantris_hints_shown';
+    let hintStep = 0; // 0 = pending blob hint, 1 = waiting for 1st line clear, 2 = waiting for 2nd line clear, 3 = done
+    let currentHint = null;
+    
+    function hasShownHints() {
+        return localStorage.getItem(STORAGE_KEY) === 'true';
+    }
+    
+    function markHintsShown() {
+        localStorage.setItem(STORAGE_KEY, 'true');
+    }
+    
+    function showHint(textKey) {
+        console.log('💡 HintSystem.showHint called:', textKey);
+        dismissHint(); // Remove any existing hint
+        const rulesPanel = document.querySelector('.rules-panel');
+        if (!rulesPanel) return;
+        
+        const hint = document.createElement('div');
+        hint.className = 'hint-popup';
+        hint.textContent = I18n.t(textKey);
+        hint.addEventListener('click', () => dismissHint());
+        rulesPanel.appendChild(hint);
+        currentHint = hint;
+        
+        // Auto-dismiss after 8 seconds
+        hint._timeout = setTimeout(() => dismissHint(), 8000);
+    }
+    
+    function dismissHint() {
+        if (currentHint) {
+            if (currentHint._timeout) clearTimeout(currentHint._timeout);
+            currentHint.style.animation = 'hintFadeOut 0.3s ease-in forwards';
+            const el = currentHint;
+            setTimeout(() => el.remove(), 300);
+            currentHint = null;
+        }
+    }
+    
+    function onGameStart() {
+        console.log('💡 HintSystem.onGameStart, hasShown:', hasShownHints());
+        if (hasShownHints()) return;
+        hintStep = 0;
+        // Show first hint after a brief delay so the player can see the board
+        setTimeout(() => {
+            if (hintStep === 0) {
+                showHint('hint.colorBlobs');
+                hintStep = 1;
+            }
+        }, 2000);
+    }
+    
+    function onLinesClear() {
+        console.log('💡 HintSystem.onLinesClear called, hintStep:', hintStep, 'hasShown:', hasShownHints(), 'skill:', window.skillLevel);
+        if (hasShownHints()) return;
+        
+        if (hintStep <= 1) {
+            // First line clear event - show tsunami hint (advance to step 2)
+            hintStep = 2;
+            if (window.skillLevel !== 'breeze') {
+                setTimeout(() => showHint('hint.tsunami'), 1500);
+            }
+        } else if (hintStep === 2) {
+            // Second line clear event - show black hole hint, then done
+            hintStep = 3;
+            if (window.skillLevel !== 'breeze') {
+                setTimeout(() => showHint('hint.blackHole'), 1500);
+            }
+            markHintsShown();
+        }
+    }
+    
+    function onGameEnd() {
+        console.log('💡 HintSystem.onGameEnd, hintStep:', hintStep);
+        dismissHint();
+        // If they completed at least 1 game, mark hints as shown even if not all displayed
+        if (hintStep > 0) markHintsShown();
+    }
+    
+    function reset() {
+        console.log('💡 HintSystem.reset called');
+        localStorage.removeItem(STORAGE_KEY);
+    }
+    
+    return { onGameStart, onLinesClear, onGameEnd, dismissHint, reset };
+})();
+
+// ============================================
 // DEVICE DETECTION & TABLET MODE SYSTEM - imported from touch-controls.js
 // ============================================
 
@@ -8677,6 +8768,9 @@ function clearLines() {
         
         lines += completedRows.length;
         
+        // Notify hint system of line clear (human games only)
+        if (!aiModeEnabled) HintSystem.onLinesClear();
+        
         // Decrement weather event grace period
         if (weatherEventGracePeriod > 0) {
             weatherEventGracePeriod = Math.max(0, weatherEventGracePeriod - completedRows.length);
@@ -9433,6 +9527,7 @@ async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
+    HintSystem.onGameEnd();
     
     // Record that visitor finished a game (once per visit)
     if (window._visitId && !window._visitFinishRecorded) {
@@ -11039,6 +11134,9 @@ function startGame(mode) {
     gameRunning = true; StarfieldSystem.setGameRunning(true);
     setGameInProgress(true); // Notify audio system game is in progress
     gameOverPending = false; // Reset game over pending flag
+    
+    // Show first-time player hints (human games only)
+    if (!aiModeEnabled) HintSystem.onGameStart();
     document.body.classList.add('game-running');
     document.body.classList.add('game-started');
     gameOverDiv.style.display = 'none';
@@ -12837,6 +12935,10 @@ if (startOverlay) {
                     RenderUtils._dbg();
                     console.log('🔓 Development mode enabled');
                 }
+            } else {
+                e.preventDefault();
+                HintSystem.reset();
+                console.log('🔄 First-time hints reset');
             }
         });
     }

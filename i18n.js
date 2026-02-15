@@ -282,6 +282,9 @@ const I18n = (() => {
             'planet.to': 'to',
             'planet.earth': 'Earth',
             'planet.gTypeStar': 'G-type star',
+            'hint.colorBlobs': 'Build large color blobs for maximum points',
+            'hint.tsunami': 'Stretch a color blob from one side to the other for a TSUNAMI bonus',
+            'hint.blackHole': 'Completely surround one color blob with another for a BLACK HOLE bonus',
         },
         es: {
             'intro.dontPanic': 'ADVERTENCIA: ¡Estos no son los tetrominós de tus padres!<br>These go to 11...',
@@ -477,6 +480,9 @@ const I18n = (() => {
             'planet.gravity': 'Gravedad:', 'planet.day': 'Día:', 'planet.temperature': 'Temperatura:', 'planet.type': 'Tipo:', 'planet.radius': 'Radio:', 'planet.year': 'Año:', 'planet.moons': 'Lunas:', 'planet.to': 'a', 'planet.earth': 'Tierra', 'planet.gTypeStar': 'Estrella tipo G',
             'misc.bugReportSuccess': '✅ ¡Reporte enviado!',
             'misc.bugReportFail': '❌ Envío fallido',
+            'hint.colorBlobs': 'Construye grupos de color grandes para máximos puntos',
+            'hint.tsunami': 'Extiende un grupo de color de un lado al otro para un bonus de TSUNAMI',
+            'hint.blackHole': 'Rodea completamente un grupo de color con otro para un bonus de AGUJERO NEGRO',
         },
         fr: {
             'intro.dontPanic': 'ATTENTION : Ce ne sont pas les tétrominos de vos parents !<br>These go to 11...',
@@ -672,6 +678,9 @@ const I18n = (() => {
             'planet.gravity': 'Gravité :', 'planet.day': 'Jour :', 'planet.temperature': 'Température :', 'planet.type': 'Type :', 'planet.radius': 'Rayon :', 'planet.year': 'Année :', 'planet.moons': 'Lunes :', 'planet.to': 'à', 'planet.earth': 'Terre', 'planet.gTypeStar': 'Étoile de type G',
             'misc.bugReportSuccess': '✅ Rapport envoyé !',
             'misc.bugReportFail': '❌ Échec de l\'envoi',
+            'hint.colorBlobs': 'Construisez de grands groupes de couleur pour un maximum de points',
+            'hint.tsunami': 'Étendez un groupe de couleur d\'un côté à l\'autre pour un bonus TSUNAMI',
+            'hint.blackHole': 'Entourez complètement un groupe de couleur avec un autre pour un bonus TROU NOIR',
         },
         de: {
             'intro.dontPanic': 'WARNUNG: Das sind nicht die Tetrominos deiner Eltern!<br>These go to 11...',
@@ -867,6 +876,9 @@ const I18n = (() => {
             'planet.gravity': 'Gravitation:', 'planet.day': 'Tag:', 'planet.temperature': 'Temperatur:', 'planet.type': 'Typ:', 'planet.radius': 'Radius:', 'planet.year': 'Jahr:', 'planet.moons': 'Monde:', 'planet.to': 'bis', 'planet.earth': 'Erde', 'planet.gTypeStar': 'Stern Typ G',
             'misc.bugReportSuccess': '✅ Bericht gesendet!',
             'misc.bugReportFail': '❌ Senden fehlgeschlagen',
+            'hint.colorBlobs': 'Baue große Farbgruppen für maximale Punkte',
+            'hint.tsunami': 'Erstrecke eine Farbgruppe von einer Seite zur anderen für einen TSUNAMI-Bonus',
+            'hint.blackHole': 'Umschließe eine Farbgruppe vollständig mit einer anderen für einen SCHWARZES-LOCH-Bonus',
         },
         pt: {
             'intro.dontPanic': 'AVISO: Estes não são os tetrominós dos seus pais!<br>These go to 11...',
@@ -953,6 +965,9 @@ const I18n = (() => {
             'rotate.message': 'Gire o dispositivo para o modo paisagem', 'ai.modeOverlay': '🤖 MODO IA',
             'misc.paused': 'PAUSADO', 'misc.speedBonusLabel': 'Bônus Velocidade', 'misc.cascadeBonus': 'Bônus Cascata x{multiplier}', 'misc.supermassiveBlackHole': 'Buraco Negro Supermassivo x2', 'misc.superVolcano': 'Supervulcão x2', 'planet.gravity': 'Gravidade:', 'planet.day': 'Dia:', 'planet.temperature': 'Temperatura:', 'planet.year': 'Ano:', 'planet.moons': 'Luas:', 'planet.to': 'a', 'planet.earth': 'Terra',
             'misc.bugReportSuccess': '✅ Relatório enviado!', 'misc.bugReportFail': '❌ Falha no envio',
+            'hint.colorBlobs': 'Construa grupos de cores grandes para pontos máximos',
+            'hint.tsunami': 'Estenda um grupo de cor de um lado ao outro para um bônus de TSUNAMI',
+            'hint.blackHole': 'Cerque completamente um grupo de cor com outro para um bônus de BURACO NEGRO',
         },
         ja: {
             'intro.dontPanic': '警告：これは君の親のテトロミノではない！ <br>These go to 11...',
@@ -1033,6 +1048,9 @@ const I18n = (() => {
             'rotate.message': '横向きにしてください', 'ai.modeOverlay': '🤖 AIモード',
             'misc.paused': '一時停止', 'misc.speedBonusLabel': '速度ボーナス', 'misc.cascadeBonus': 'カスケードボーナス x{multiplier}', 'misc.supermassiveBlackHole': '超大質量ブラックホール x2', 'misc.superVolcano': 'スーパーボルケーノ x2', 'planet.gravity': '重力:', 'planet.day': '自転:', 'planet.temperature': '温度:', 'planet.year': '公転:', 'planet.moons': '衛星:', 'planet.to': '〜',
             'misc.bugReportSuccess': '✅ レポート送信完了！', 'misc.bugReportFail': '❌ 送信失敗',
+            'hint.colorBlobs': '大きなカラーブロブを作って最大ポイントを獲得',
+            'hint.tsunami': 'カラーブロブを端から端まで伸ばしてTSUNAMIボーナスを獲得',
+            'hint.blackHole': 'あるカラーブロブを別のブロブで完全に囲んでBLACK HOLEボーナスを獲得',
         },
         ko: {
             'intro.dontPanic': '경고: 이것은 부모님 시대의 테트로미노가 아닙니다!<br>These go to 11...', 'intro.skillLevel': '난이도', 'intro.music': '음악', 'intro.fullScreen': '전체 화면', 'intro.startGame': '▶ 게임 시작', 'intro.login': '🔑 로그인',
@@ -1102,6 +1120,9 @@ const I18n = (() => {
             'rotate.message': '기기를 가로 모드로 회전하세요', 'ai.modeOverlay': '🤖 AI 모드',
             'misc.paused': '일시정지', 'misc.speedBonusLabel': '속도 보너스', 'misc.cascadeBonus': '연쇄 보너스 x{multiplier}', 'misc.supermassiveBlackHole': '초대질량 블랙홀 x2', 'misc.superVolcano': '슈퍼화산 x2', 'planet.gravity': '중력:', 'planet.day': '하루:', 'planet.temperature': '온도:', 'planet.year': '공전:', 'planet.moons': '위성:', 'planet.to': '~',
             'misc.bugReportSuccess': '✅ 보고서 전송 완료!', 'misc.bugReportFail': '❌ 전송 실패',
+            'hint.colorBlobs': '큰 색상 블롭을 만들어 최대 점수를 획득하세요',
+            'hint.tsunami': '색상 블롭을 한쪽에서 다른 쪽까지 늘려 TSUNAMI 보너스를 획득하세요',
+            'hint.blackHole': '하나의 색상 블롭을 다른 블롭으로 완전히 둘러싸면 BLACK HOLE 보너스를 획득합니다',
         },
         zh: {
             'intro.dontPanic': '警告：这些可不是你爸妈玩的俄罗斯方块！ <br>These go to 11...', 'intro.skillLevel': '难度', 'intro.music': '音乐', 'intro.fullScreen': '全屏', 'intro.startGame': '▶ 开始游戏', 'intro.login': '🔑 登录',
@@ -1171,6 +1192,9 @@ const I18n = (() => {
             'rotate.message': '请将设备旋转至横屏', 'ai.modeOverlay': '🤖 AI模式',
             'misc.paused': '已暂停', 'misc.speedBonusLabel': '速度奖励', 'misc.cascadeBonus': '连锁奖励 x{multiplier}', 'misc.supermassiveBlackHole': '超大质量黑洞 x2', 'misc.superVolcano': '超级火山 x2', 'planet.gravity': '重力:', 'planet.day': '一天:', 'planet.temperature': '温度:', 'planet.year': '一年:', 'planet.moons': '卫星:', 'planet.to': '至',
             'misc.bugReportSuccess': '✅ 报告已提交！', 'misc.bugReportFail': '❌ 提交失败',
+            'hint.colorBlobs': '建造大色块获得最高分',
+            'hint.tsunami': '将色块从一侧延伸到另一侧获得TSUNAMI奖励',
+            'hint.blackHole': '用一种颜色完全包围另一种颜色获得BLACK HOLE奖励',
         },
         ru: {
             'intro.dontPanic': 'ВНИМАНИЕ: Это не тетромино ваших родителей!<br>These go to 11...', 'intro.skillLevel': 'Уровень', 'intro.music': 'Музыка', 'intro.fullScreen': 'Полный Экран', 'intro.startGame': '▶ Начать', 'intro.login': '🔑 Войти',
@@ -1249,6 +1273,9 @@ const I18n = (() => {
             'rotate.message': 'Поверните устройство горизонтально', 'ai.modeOverlay': '🤖 РЕЖИМ ИИ',
             'misc.paused': 'ПАУЗА', 'misc.speedBonusLabel': 'Бонус Скорости', 'misc.cascadeBonus': 'Каскадный бонус x{multiplier}', 'misc.supermassiveBlackHole': 'Сверхмассивная Чёрная Дыра x2', 'misc.superVolcano': 'Супервулкан x2', 'planet.gravity': 'Гравитация:', 'planet.day': 'День:', 'planet.temperature': 'Температура:', 'planet.year': 'Год:', 'planet.moons': 'Спутники:', 'planet.to': 'до',
             'misc.bugReportSuccess': '✅ Отчёт отправлен!', 'misc.bugReportFail': '❌ Ошибка отправки',
+            'hint.colorBlobs': 'Создавайте большие цветные группы для максимума очков',
+            'hint.tsunami': 'Растяните цветную группу от одного края до другого для бонуса ЦУНАМИ',
+            'hint.blackHole': 'Полностью окружите одну цветную группу другой для бонуса ЧЁРНАЯ ДЫРА',
         },
         it: {
             'intro.dontPanic': 'ATTENZIONE: Questi non sono i tetromini dei tuoi genitori!<br>These go to 11...', 'intro.skillLevel': 'Livello', 'intro.music': 'Musica', 'intro.fullScreen': 'Schermo Intero', 'intro.startGame': '▶ Inizia', 'intro.login': '🔑 Accedi',
@@ -1307,6 +1334,9 @@ const I18n = (() => {
             'misc.bugReportSuccess': '✅ Segnalazione inviata!', 'misc.bugReportFail': '❌ Invio fallito',
             'challenge.amnesia': 'Amnesia (Colori Sbiaditi) +6%', 'challenge.amnesia.desc': 'I colori dei blocchi sbiadiscono lentamente verso il bianco',
             'challenge.vertigo': 'Vertigine (Oscillazione) +2%', 'challenge.vertigo.desc': 'Il pozzo di gioco oscilla e dondola come il ponte di una nave',
+            'hint.colorBlobs': 'Costruisci grandi gruppi di colore per il massimo dei punti',
+            'hint.tsunami': 'Estendi un gruppo di colore da un lato all\'altro per un bonus TSUNAMI',
+            'hint.blackHole': 'Circonda completamente un gruppo di colore con un altro per un bonus BUCO NERO',
         },
         nl: {
             'intro.dontPanic': 'WAARSCHUWING: Dit zijn niet de tetromino\'s van je ouders!<br>These go to 11...', 'intro.skillLevel': 'Niveau', 'intro.music': 'Muziek', 'intro.fullScreen': 'Volledig Scherm', 'intro.startGame': '▶ Start Spel', 'intro.login': '🔑 Inloggen',
@@ -1326,6 +1356,9 @@ const I18n = (() => {
             'rotate.message': 'Draai je apparaat naar liggende modus',
             'challenge.amnesia': 'Amnesie (Vervagende Kleuren) +6%', 'challenge.amnesia.desc': 'Blokkleuren vervagen langzaam naar wit na plaatsing',
             'challenge.vertigo': 'Duizeling (Schommelend) +2%', 'challenge.vertigo.desc': 'Het speelveld schommelt en zwaait als op een scheepsdek',
+            'hint.colorBlobs': 'Bouw grote kleurgroepen voor maximale punten',
+            'hint.tsunami': 'Strek een kleurgroep van de ene kant naar de andere voor een TSUNAMI-bonus',
+            'hint.blackHole': 'Omring een kleurgroep volledig met een andere voor een ZWART GAT-bonus',
         },
         pl: {
             'intro.dontPanic': 'UWAGA: To nie są tetromina twoich rodziców!<br>These go to 11...', 'intro.skillLevel': 'Poziom', 'intro.music': 'Muzyka', 'intro.fullScreen': 'Pełny Ekran', 'intro.startGame': '▶ Rozpocznij',
@@ -1345,6 +1378,9 @@ const I18n = (() => {
             'rotate.message': 'Obróć urządzenie do trybu poziomego',
             'challenge.amnesia': 'Amnezja (Blaknące Kolory) +6%', 'challenge.amnesia.desc': 'Kolory bloków powoli blakną do bieli po umieszczeniu',
             'challenge.vertigo': 'Zawrót Głowy (Kołysanie) +2%', 'challenge.vertigo.desc': 'Pole gry kołysze się jak pokład statku',
+            'hint.colorBlobs': 'Twórz duże grupy kolorów dla maksymalnej liczby punktów',
+            'hint.tsunami': 'Rozciągnij grupę kolorów od jednej strony do drugiej dla bonusu TSUNAMI',
+            'hint.blackHole': 'Całkowicie otocz jedną grupę kolorów drugą dla bonusu CZARNA DZIURA',
         },
         tr: {
             'intro.dontPanic': 'DİKKAT: Bunlar anne babanızın tetrominoları değil!<br>These go to 11...', 'intro.skillLevel': 'Seviye', 'intro.music': 'Müzik', 'intro.fullScreen': 'Tam Ekran', 'intro.startGame': '▶ Oyuna Başla',
@@ -1364,6 +1400,9 @@ const I18n = (() => {
             'rotate.message': 'Cihazınızı yatay moda çevirin',
             'challenge.amnesia': 'Amnezi (Solan Renkler) +6%', 'challenge.amnesia.desc': 'Blok renkleri yerleştirildikten sonra yavaşça beyaza döner',
             'challenge.vertigo': 'Baş Dönmesi (Sallanma) +2%', 'challenge.vertigo.desc': 'Oyun alanı gemi güvertesi gibi sallanır',
+            'hint.colorBlobs': 'Maksimum puan için büyük renk grupları oluşturun',
+            'hint.tsunami': 'Bir renk grubunu bir taraftan diğerine uzatarak TSUNAMI bonusu kazanın',
+            'hint.blackHole': 'Bir renk grubunu başka bir grupla tamamen çevreleyerek KARA DELİK bonusu kazanın',
         },
         ar: {
             'intro.dontPanic': 'تحذير: هذه ليست تتروميونات والديك!<br>These go to 11...', 'intro.skillLevel': 'المستوى', 'intro.music': 'الموسيقى', 'intro.fullScreen': 'ملء الشاشة', 'intro.startGame': '▶ ابدأ اللعب',
@@ -1383,6 +1422,9 @@ const I18n = (() => {
             'rotate.message': 'أدر جهازك إلى الوضع الأفقي',
             'challenge.amnesia': 'فقدان الذاكرة (ألوان باهتة) +6%', 'challenge.amnesia.desc': 'ألوان الكتل تتلاشى ببطء إلى الأبيض بعد وضعها',
             'challenge.vertigo': 'دوار (تأرجح) +2%', 'challenge.vertigo.desc': 'ساحة اللعب تتأرجح وتميل كسطح سفينة',
+            'hint.colorBlobs': 'ابنِ مجموعات ألوان كبيرة للحصول على أقصى النقاط',
+            'hint.tsunami': 'مدّ مجموعة ألوان من جانب إلى آخر للحصول على مكافأة TSUNAMI',
+            'hint.blackHole': 'أحِط مجموعة ألوان بالكامل بمجموعة أخرى للحصول على مكافأة BLACK HOLE',
         },
         hi: {
             'intro.dontPanic': 'चेतावनी: ये आपके माता-पिता के टेट्रोमिनो नहीं हैं!<br>These go to 11...', 'intro.skillLevel': 'स्तर', 'intro.music': 'संगीत', 'intro.fullScreen': 'पूर्ण स्क्रीन', 'intro.startGame': '▶ खेल शुरू',
@@ -1402,6 +1444,9 @@ const I18n = (() => {
             'rotate.message': 'अपने डिवाइस को लैंडस्केप मोड में घुमाएं',
             'challenge.amnesia': 'भूलने की बीमारी (फीके रंग) +6%', 'challenge.amnesia.desc': 'रखने के बाद ब्लॉक के रंग धीरे-धीरे सफेद हो जाते हैं',
             'challenge.vertigo': 'चक्कर (झूलना) +2%', 'challenge.vertigo.desc': 'खेल का मैदान जहाज की तरह हिलता-डुलता है',
+            'hint.colorBlobs': 'अधिकतम अंकों के लिए बड़े रंग समूह बनाएं',
+            'hint.tsunami': 'एक तरफ से दूसरी तरफ रंग समूह फैलाकर TSUNAMI बोनस प्राप्त करें',
+            'hint.blackHole': 'एक रंग समूह को दूसरे से पूरी तरह घेरकर BLACK HOLE बोनस प्राप्त करें',
         }
     };
 
