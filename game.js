@@ -108,8 +108,9 @@ let cameraReversed = false;
 // ============================================
 const HintSystem = (() => {
     const STORAGE_KEY = 'tantris_hints_shown';
-    let hintStep = 0; // 0 = pending blob hint, 1 = waiting for 1st line clear, 2 = waiting for 2nd line clear, 3 = done
+    let hintStep = 0; // 0 = pending blob hint, 1 = waiting for 10 pieces, 2 = waiting for 20 pieces, 3 = done
     let currentHint = null;
+    let pieceCount = 0;
     
     function hasShownHints() {
         return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -150,6 +151,7 @@ const HintSystem = (() => {
         console.log('💡 HintSystem.onGameStart, hasShown:', hasShownHints());
         if (hasShownHints()) return;
         hintStep = 0;
+        pieceCount = 0;
         // Show first hint after a brief delay so the player can see the board
         setTimeout(() => {
             if (hintStep === 0) {
@@ -159,21 +161,19 @@ const HintSystem = (() => {
         }, 2000);
     }
     
-    function onLinesClear() {
-        console.log('💡 HintSystem.onLinesClear called, hintStep:', hintStep, 'hasShown:', hasShownHints(), 'skill:', window.skillLevel);
+    function onPiecePlaced() {
         if (hasShownHints()) return;
+        pieceCount++;
         
-        if (hintStep <= 1) {
-            // First line clear event - show tsunami hint (advance to step 2)
+        if (hintStep <= 1 && pieceCount >= 10) {
             hintStep = 2;
             if (window.skillLevel !== 'breeze') {
-                setTimeout(() => showHint('hint.tsunami'), 1500);
+                setTimeout(() => showHint('hint.tsunami'), 500);
             }
-        } else if (hintStep === 2) {
-            // Second line clear event - show black hole hint, then done
+        } else if (hintStep === 2 && pieceCount >= 20) {
             hintStep = 3;
             if (window.skillLevel !== 'breeze') {
-                setTimeout(() => showHint('hint.blackHole'), 1500);
+                setTimeout(() => showHint('hint.blackHole'), 500);
             }
             markHintsShown();
         }
@@ -191,7 +191,7 @@ const HintSystem = (() => {
         localStorage.removeItem(STORAGE_KEY);
     }
     
-    return { onGameStart, onLinesClear, onGameEnd, dismissHint, reset };
+    return { onGameStart, onPiecePlaced, onGameEnd, dismissHint, reset };
 })();
 
 // ============================================
@@ -7222,6 +7222,9 @@ function mergePiece() {
         });
     });
     
+    // Notify hint system of piece placement (human games only)
+    if (!aiModeEnabled) HintSystem.onPiecePlaced();
+    
     // Amnesia mode: stamp placement times for newly placed blocks
     const isAmnesiaMode = challengeMode === 'amnesia' || activeChallenges.has('amnesia');
     if (isAmnesiaMode && window.ChallengeEffects) {
@@ -8767,9 +8770,6 @@ function clearLines() {
         Histogram.updateWithScore(scoreIncrease);
         
         lines += completedRows.length;
-        
-        // Notify hint system of line clear (human games only)
-        if (!aiModeEnabled) HintSystem.onLinesClear();
         
         // Decrement weather event grace period
         if (weatherEventGracePeriod > 0) {
