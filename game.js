@@ -10680,22 +10680,6 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
-    // Record that visitor actually started a game (once per visit)
-    if (window._visitId) {
-        if (!window._visitStartRecorded) {
-            window._visitStartRecorded = true;
-        }
-        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/started`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                difficulty: mode || null,
-                skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
-                mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
-                challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : []
-            })
-        }).catch(() => {});
-    }
     // Request fullscreen on mobile if not already fullscreen (fallback if intro screen didn't trigger it)
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         const fsCheckbox = document.getElementById('introFullscreenCheckbox');
@@ -12815,55 +12799,28 @@ if (startOverlay) {
         introScreenDismissed = true;
         window._dismissingIntro = true;
         
-        // Record play click
-        const timeToPlay = (Date.now() - _visitLoadTime) / 1000;
-        if (_trackingEnabled) {
+        // Record that visitor started a game
+        const sendStarted = () => {
             if (_visitId) {
-                // Visit already recorded, just mark as played
-                fetch(`https://blockchainstorm.onrender.com/api/visit/${_visitId}/played`, {
+                const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+                fetch(`https://blockchainstorm.onrender.com/api/visit/${_visitId}/started`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ timeToPlay })
+                    body: JSON.stringify({
+                        difficulty: mode,
+                        skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
+                        mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
+                        challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : []
+                    })
                 }).catch(() => {});
-            } else if (!_visitRecorded) {
-                // Visit POST may still be in-flight or user clicked Play as first interaction
-                (async () => {
-                    try {
-                        // Ensure visit is recorded first
-                        if (!_interactionDetected) {
-                            _interactionDetected = true;
-                            ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
-                                document.removeEventListener(evt, _recordVisit)
-                            );
-                        }
-                        const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                referrer: document.referrer || null,
-                                userAgent: navigator.userAgent || null,
-                                language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
-                                screenWidth: screen.width,
-                                screenHeight: screen.height,
-                                deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
-                                os: detectOS()
-                            })
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            _visitId = data.visit_id;
-                            window._visitId = data.visit_id;
-                            _visitRecorded = true;
-                            fetch(`https://blockchainstorm.onrender.com/api/visit/${data.visit_id}/played`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ timeToPlay })
-                            }).catch(() => {});
-                        }
-                    } catch (e) {}
-                })();
             }
+        };
+        if (_visitId) {
+            sendStarted();
+        } else {
+            setTimeout(sendStarted, 1500);
         }
+        
         // Mark that user has interacted (gates audio system)
         markUserInteraction();
         
