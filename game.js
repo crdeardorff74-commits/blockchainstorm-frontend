@@ -12229,11 +12229,9 @@ if (skillLevelModalOverlay) {
         opt.addEventListener('click', () => {
             const level = opt.dataset.skill;
             if (level) {
-                // Use the settings select to trigger the full setSkillLevel chain
-                const skillLevelSelect = document.getElementById('skillLevelSelect');
-                if (skillLevelSelect) {
-                    skillLevelSelect.value = level;
-                    skillLevelSelect.dispatchEvent(new Event('change'));
+                // Call setSkillLevel directly (exposed globally)
+                if (window.setSkillLevel) {
+                    window.setSkillLevel(level);
                 }
                 updateSkillLevelButton();
                 skillLevelModalOverlay.style.display = 'none';
@@ -12672,6 +12670,7 @@ if (startOverlay) {
         if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
         console.log('🎮 Skill level set to:', level);
     }
+    window.setSkillLevel = setSkillLevel;
     
     // Wire up skill level selectors
     if (introSkillLevelSelect) {
