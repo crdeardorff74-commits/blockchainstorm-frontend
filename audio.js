@@ -759,6 +759,20 @@ function setupMediaSession() {
         // previoustrack not supported
     }
     
+    // Handle seek requests from iOS Control Center / lock screen
+    try {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+            const audio = currentPlayingTrack && gameplayMusicElements[currentPlayingTrack];
+            const menuAudio = menuMusicElement;
+            const target = audio || menuAudio;
+            if (target && details.seekTime != null) {
+                target.currentTime = details.seekTime;
+            }
+        });
+    } catch (e) {
+        // seekto not supported
+    }
+    
     console.log('🎵 Media Session API initialized - earbud/media key controls enabled');
 }
 
