@@ -12810,7 +12810,8 @@ if (startOverlay) {
                         difficulty: mode,
                         skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
                         mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
-                        challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : []
+                        challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : [],
+                        gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
                     })
                 }).catch(() => {});
             }

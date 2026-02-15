@@ -94,6 +94,13 @@ const GamepadController = {
         // Update controls display to show controller buttons
         this.updateControlsDisplay();
         
+        // Flag gamepad usage on the visit record
+        if (window._visitId) {
+            fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/gamepad`, {
+                method: 'PATCH'
+            }).catch(() => {});
+        }
+        
         // Show notification to player
         this.showNotification('🎮 Controller Connected!', gamepad.id);
     },
