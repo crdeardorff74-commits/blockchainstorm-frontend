@@ -54,7 +54,6 @@
             z-index: 1;
             filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
                     drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
-            animation: titlePulse 3s ease-in-out infinite;
         }
         @keyframes titlePulse {
             0%, 100% { 
