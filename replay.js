@@ -382,6 +382,7 @@
         strikeCount = 0; tsunamiCount = 0; blackHoleCount = 0; volcanoCount = 0;
         supermassiveBlackHoleCount = 0; superVolcanoCount = 0; volcanoIsSuper = false;
         dropCounter = 0; dropInterval = 1000; gameOverPending = false;
+        updateStats();
 
         // Clear active animations
         tsunamiAnimating = false; blackHoleAnimating = false; blackHoleActive = false;
