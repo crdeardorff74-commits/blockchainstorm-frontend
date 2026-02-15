@@ -27,6 +27,12 @@ const GamepadController = {
     rightStickWasRight: false,
     rightStickWasUp: false,
     rightStickWasDown: false,
+    // Menu navigation state
+    menuNav: {
+        activeScreen: null,
+        focusIndex: 0,
+        lastItems: null  // Track items to detect changes
+    },
     // Haptic feedback state
     vibrationSupported: false,
     vibrationEnabled: true, // Can be toggled by user
@@ -106,6 +112,10 @@ const GamepadController = {
             
             // Stop any ongoing vibration
             this.stopVibration();
+            
+            // Clear menu focus
+            this.clearFocus();
+            this.menuNav.activeScreen = null;
         }
         
         // Update controls display to show keyboard controls
@@ -144,66 +154,9 @@ const GamepadController = {
             const gp = gamepads[0];
             if (!gp) return;
             
-            // Handle intro screen - any button to start
-            const startOverlayElement = document.getElementById('startOverlay');
-            const startGameButton = document.getElementById('startGameBtn');
-            // Check if intro is visible using computed style (handles both CSS and inline styles)
-            const introVisible = startOverlayElement && 
-                window.getComputedStyle(startOverlayElement).display !== 'none' &&
-                window.getComputedStyle(startOverlayElement).visibility !== 'hidden';
-            if (introVisible) {
-                if (this.anyButtonJustPressed() && startGameButton) {
-                    startGameButton.click();
-                }
-                return; // Don't process other inputs during intro
-            }
-            
-            // Handle game over state - any button to play again
-            const gameOverElement = document.getElementById('gameOver');
-            const playAgainButton = document.getElementById('playAgainBtn');
-            if (gameOverElement && gameOverElement.style.display === 'block') {
-                if (this.anyButtonJustPressed() && playAgainButton) {
-                    playAgainButton.click();
-                }
-                return; // Don't process other inputs during game over
-            }
-            
-            // Handle high score name entry - any button to submit
-            const nameEntryOverlay = document.getElementById('nameEntryOverlay');
-            const nameEntrySubmit = document.getElementById('nameEntrySubmit');
-            if (nameEntryOverlay && nameEntryOverlay.style.display !== 'none' && 
-                window.getComputedStyle(nameEntryOverlay).display !== 'none') {
-                if (this.anyButtonJustPressed() && nameEntrySubmit && !nameEntrySubmit.disabled) {
-                    nameEntrySubmit.click();
-                }
-                return; // Don't process other inputs during name entry
-            }
-            
-            // Handle mode menu navigation
-            const modeMenuElement = document.getElementById('modeMenu');
-            if (modeMenuElement && !modeMenuElement.classList.contains('hidden')) {
-                const now = Date.now();
-                // D-pad or stick up/down to navigate modes (with repeat delay)
-                const stickUp = gp.axes[1] < -0.5;
-                const stickDown = gp.axes[1] > 0.5;
-                
-                if (now - this.lastMoveTime >= this.repeatDelay) {
-                    if (this.wasButtonJustPressed(gp, this.buttons.D_UP) || (stickUp && !this.menuStickWasUp)) {
-                        this.navigateMenu(-1);
-                        this.lastMoveTime = now;
-                    } else if (this.wasButtonJustPressed(gp, this.buttons.D_DOWN) || (stickDown && !this.menuStickWasDown)) {
-                        this.navigateMenu(1);
-                        this.lastMoveTime = now;
-                    }
-                }
-                this.menuStickWasUp = stickUp;
-                this.menuStickWasDown = stickDown;
-                
-                // A button to select mode
-                if (this.wasButtonJustPressed(gp, this.buttons.A)) {
-                    this.selectCurrentMode();
-                }
-                return; // Don't process gameplay inputs in menu
+            // Handle menu navigation (intro, mode menu, modals, game over, etc.)
+            if (this.updateMenuNavigation(gp)) {
+                return; // Menu consumed input
             }
             
             // Handle pause toggle even when paused
@@ -482,6 +435,225 @@ const GamepadController = {
         } catch (error) {
             return false;
         }
+    },
+    
+    // === MENU NAVIGATION SYSTEM ===
+    
+    // Detect which screen is currently active and return its focusable items
+    detectActiveScreen() {
+        // Check modals first (highest priority - they overlay everything)
+        const skillModal = document.getElementById('skillLevelModalOverlay');
+        if (skillModal && window.getComputedStyle(skillModal).display !== 'none') {
+            const options = Array.from(skillModal.querySelectorAll('.selection-option'));
+            const selectedIdx = options.findIndex(o => o.classList.contains('selected'));
+            return { 
+                id: 'skillModal', items: options, 
+                defaultIndex: Math.max(0, selectedIdx), 
+                onBack: () => { skillModal.style.display = 'none'; } 
+            };
+        }
+        
+        const diffModal = document.getElementById('difficultyModalOverlay');
+        if (diffModal && window.getComputedStyle(diffModal).display !== 'none') {
+            const options = Array.from(diffModal.querySelectorAll('.selection-option'));
+            const selectedIdx = options.findIndex(o => o.classList.contains('selected'));
+            return { 
+                id: 'diffModal', items: options, 
+                defaultIndex: Math.max(0, selectedIdx), 
+                onBack: () => { diffModal.style.display = 'none'; } 
+            };
+        }
+        
+        const comboModal = document.getElementById('comboModalOverlay');
+        if (comboModal && window.getComputedStyle(comboModal).display !== 'none') {
+            const checkboxLabels = Array.from(comboModal.querySelectorAll('.combo-checkbox-option label'));
+            const cancelBtn = document.getElementById('comboCancelBtn');
+            const applyBtn = document.getElementById('comboApplyBtn');
+            const items = [...checkboxLabels];
+            if (cancelBtn) items.push(cancelBtn);
+            if (applyBtn) items.push(applyBtn);
+            return { 
+                id: 'comboModal', items, defaultIndex: 0, 
+                onBack: () => { if (cancelBtn) cancelBtn.click(); } 
+            };
+        }
+        
+        const settings = document.getElementById('settingsOverlay');
+        if (settings && window.getComputedStyle(settings).display !== 'none') {
+            const closeBtn = document.getElementById('settingsCloseBtn');
+            return { 
+                id: 'settings', items: closeBtn ? [closeBtn] : [], defaultIndex: 0, 
+                onBack: () => { if (closeBtn) closeBtn.click(); } 
+            };
+        }
+        
+        const nameEntry = document.getElementById('nameEntryOverlay');
+        if (nameEntry && window.getComputedStyle(nameEntry).display !== 'none') {
+            const submitBtn = document.getElementById('nameEntrySubmit');
+            return { 
+                id: 'nameEntry', items: submitBtn && !submitBtn.disabled ? [submitBtn] : [], 
+                defaultIndex: 0 
+            };
+        }
+        
+        const gameOver = document.getElementById('gameOver');
+        if (gameOver && gameOver.style.display === 'block') {
+            const playAgain = document.getElementById('playAgainBtn');
+            return { id: 'gameOver', items: playAgain ? [playAgain] : [], defaultIndex: 0 };
+        }
+        
+        const shareOverlay = document.getElementById('shareOverlay');
+        if (shareOverlay && window.getComputedStyle(shareOverlay).display !== 'none') {
+            const closeBtn = document.getElementById('shareCloseBtn');
+            return { 
+                id: 'share', items: closeBtn ? [closeBtn] : [], defaultIndex: 0, 
+                onBack: () => { if (closeBtn) closeBtn.click(); } 
+            };
+        }
+        
+        const intro = document.getElementById('startOverlay');
+        if (intro && window.getComputedStyle(intro).display !== 'none' && 
+            window.getComputedStyle(intro).visibility !== 'hidden') {
+            const items = [];
+            const skillBtn = document.getElementById('introSkillLevelBtn');
+            const diffBtn = document.getElementById('introDifficultyBtn');
+            const challengeBtn = document.getElementById('introChallengeBtn');
+            const startBtn = document.getElementById('startGameBtn');
+            
+            if (skillBtn) items.push(skillBtn);
+            if (diffBtn) items.push(diffBtn);
+            if (challengeBtn) items.push(challengeBtn);
+            
+            // Add toggle switches (Music, Fullscreen)
+            const toggles = document.querySelectorAll('.intro-toggles-row .intro-toggle');
+            toggles.forEach(t => items.push(t));
+            
+            if (startBtn) items.push(startBtn);
+            
+            return { id: 'intro', items, defaultIndex: items.length - 1 }; // Default to Start Game
+        }
+        
+        const modeMenu = document.getElementById('modeMenu');
+        if (modeMenu && !modeMenu.classList.contains('hidden')) {
+            const items = [];
+            const skillBtn = document.getElementById('skillLevelMenuBtn');
+            const diffBtn = document.getElementById('difficultyMenuBtn');
+            const challengeBtn = document.getElementById('challengeSelectBtn');
+            const startBtn = document.getElementById('menuStartGameBtn');
+            
+            if (skillBtn) items.push(skillBtn);
+            if (diffBtn) items.push(diffBtn);
+            if (challengeBtn) items.push(challengeBtn);
+            if (startBtn) items.push(startBtn);
+            
+            return { id: 'modeMenu', items, defaultIndex: items.length - 1 }; // Default to START GAME
+        }
+        
+        return null; // No menu screen active
+    },
+    
+    // Main menu navigation handler - returns true if a menu consumed input
+    updateMenuNavigation(gp) {
+        const screen = this.detectActiveScreen();
+        
+        if (!screen || !screen.items || screen.items.length === 0) {
+            // No active menu screen
+            if (this.menuNav.activeScreen) {
+                this.clearFocus();
+                this.menuNav.activeScreen = null;
+            }
+            return false;
+        }
+        
+        // Screen changed - reset focus to default
+        if (screen.id !== this.menuNav.activeScreen) {
+            this.clearFocus();
+            this.menuNav.activeScreen = screen.id;
+            this.menuNav.focusIndex = screen.defaultIndex || 0;
+        }
+        
+        // Clamp focus index to valid range
+        if (this.menuNav.focusIndex >= screen.items.length) {
+            this.menuNav.focusIndex = screen.items.length - 1;
+        }
+        if (this.menuNav.focusIndex < 0) {
+            this.menuNav.focusIndex = 0;
+        }
+        
+        // Apply visual focus
+        this.applyFocus(screen.items, this.menuNav.focusIndex);
+        
+        const now = Date.now();
+        const stickUp = gp.axes[1] < -0.5;
+        const stickDown = gp.axes[1] > 0.5;
+        
+        // Up/Down navigation with repeat delay
+        if (now - this.lastMoveTime >= this.repeatDelay) {
+            if (this.wasButtonJustPressed(gp, this.buttons.D_UP) || (stickUp && !this.menuStickWasUp)) {
+                this.menuNav.focusIndex--;
+                if (this.menuNav.focusIndex < 0) this.menuNav.focusIndex = screen.items.length - 1;
+                this.applyFocus(screen.items, this.menuNav.focusIndex);
+                if (typeof playSoundEffect === 'function') playSoundEffect('move', true);
+                this.lastMoveTime = now;
+            } else if (this.wasButtonJustPressed(gp, this.buttons.D_DOWN) || (stickDown && !this.menuStickWasDown)) {
+                this.menuNav.focusIndex++;
+                if (this.menuNav.focusIndex >= screen.items.length) this.menuNav.focusIndex = 0;
+                this.applyFocus(screen.items, this.menuNav.focusIndex);
+                if (typeof playSoundEffect === 'function') playSoundEffect('move', true);
+                this.lastMoveTime = now;
+            }
+        }
+        this.menuStickWasUp = stickUp;
+        this.menuStickWasDown = stickDown;
+        
+        // A button (or Start) to activate focused item
+        if (this.wasButtonJustPressed(gp, this.buttons.A) || this.wasButtonJustPressed(gp, this.buttons.START)) {
+            const item = screen.items[this.menuNav.focusIndex];
+            if (item) {
+                // For toggle labels, click the checkbox inside
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.click();
+                } else {
+                    item.click();
+                }
+                if (typeof playSoundEffect === 'function') playSoundEffect('rotate', true);
+            }
+        }
+        
+        // B button or Back button to go back/close modal
+        if (this.wasButtonJustPressed(gp, this.buttons.B) || this.wasButtonJustPressed(gp, this.buttons.BACK)) {
+            if (screen.onBack) {
+                screen.onBack();
+                if (typeof playSoundEffect === 'function') playSoundEffect('move', true);
+            }
+        }
+        
+        // Consume all other button presses so they don't leak to gameplay
+        // (Read remaining face buttons to update their states)
+        this.wasButtonJustPressed(gp, this.buttons.X);
+        this.wasButtonJustPressed(gp, this.buttons.Y);
+        
+        return true; // Menu consumed input
+    },
+    
+    // Apply visual focus indicator to the focused item
+    applyFocus(items, focusIndex) {
+        // Remove focus from all items
+        document.querySelectorAll('.gamepad-focus').forEach(el => el.classList.remove('gamepad-focus'));
+        
+        // Apply focus to current item
+        if (items && items[focusIndex]) {
+            items[focusIndex].classList.add('gamepad-focus');
+            // Scroll into view if needed (for long lists like combo modal)
+            items[focusIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    },
+    
+    // Remove all focus indicators
+    clearFocus() {
+        document.querySelectorAll('.gamepad-focus').forEach(el => el.classList.remove('gamepad-focus'));
+        this.menuNav.focusIndex = 0;
     },
     
     // === HAPTIC FEEDBACK METHODS ===

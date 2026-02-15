@@ -3604,3 +3604,32 @@
                 margin-bottom: 4px !important;
             }
         }
+
+/* === Gamepad Focus Indicator === */
+.gamepad-focus {
+    outline: 0.3vh solid #FFD700 !important;
+    outline-offset: 0.25vh;
+    box-shadow: 0 0 1.2vh rgba(255, 215, 0, 0.45), inset 0 0 0.5vh rgba(255, 215, 0, 0.08) !important;
+    transition: outline 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* Ensure focus is visible on dark backgrounds */
+.selection-option.gamepad-focus {
+    border-color: #FFD700 !important;
+}
+
+.combo-checkbox-option label.gamepad-focus {
+    border-radius: 0.6vh;
+}
+
+/* Pulsing animation for primary action buttons when focused */
+.start-game-btn.gamepad-focus,
+.menu-start-game-btn.gamepad-focus,
+#playAgainBtn.gamepad-focus {
+    animation: gamepadPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes gamepadPulse {
+    0%, 100% { box-shadow: 0 0 1.2vh rgba(255, 215, 0, 0.45); }
+    50% { box-shadow: 0 0 2vh rgba(255, 215, 0, 0.7), 0 0 3vh rgba(255, 215, 0, 0.3); }
+}
