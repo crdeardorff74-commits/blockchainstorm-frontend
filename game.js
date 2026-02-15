@@ -12590,6 +12590,8 @@ if (startOverlay) {
 
     const _recordVisit = async function() {
         if (_interactionDetected || !_trackingEnabled) return;
+        // Ignore interactions within the first second (likely bots)
+        if (Date.now() - _visitLoadTime < 1000) return;
         _interactionDetected = true;
         // Remove interaction listeners once triggered
         ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
