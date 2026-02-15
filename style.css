@@ -996,7 +996,6 @@
         .intro-title.well-title {
             font-size: max(5.5vh, 28px);
             margin-bottom: 0;
-            animation: introThrob 3s ease-in-out infinite;
         }
         
         @keyframes introThrob {
