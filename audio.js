@@ -852,7 +852,13 @@ function initShuffleQueues() {
         }
     } else {
         gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
-        console.log('🎵 Created new gameplay shuffle queue');
+        // First-ever player: put Meet Cute first
+        const mcIdx = gameplayShuffleQueue.indexOf('meet_cute');
+        if (mcIdx > 0) {
+            gameplayShuffleQueue.splice(mcIdx, 1);
+            gameplayShuffleQueue.unshift('meet_cute');
+        }
+        console.log('🎵 Created new gameplay shuffle queue (first time - Meet Cute first)');
     }
     
     // Try to load F Word queue from localStorage
