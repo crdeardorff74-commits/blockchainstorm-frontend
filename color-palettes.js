@@ -381,6 +381,42 @@ const ColorPalettes = (() => {
                 7: ['#332288', '#88CCEE', '#44AA99', '#117733', '#999933', '#DDCC77', '#CC6677'],
                 8: null
             }
+        },
+        'colorblind3': {
+            name: 'Colorblind Safe (T)',
+            category: 'Accessibility',
+            colors: ['#EE3377', '#009988', '#EE7733', '#33BBEE', '#CC3311', '#AADDAA', '#BBBBBB', '#882255'],
+            sets: {
+                4: ['#EE3377', '#009988', '#33BBEE', '#EE7733'],
+                5: ['#EE3377', '#009988', '#33BBEE', '#EE7733', '#882255'],
+                6: ['#EE3377', '#009988', '#EE7733', '#33BBEE', '#CC3311', '#882255'],
+                7: ['#EE3377', '#009988', '#EE7733', '#33BBEE', '#CC3311', '#AADDAA', '#882255'],
+                8: null
+            }
+        },
+        'colorblinduni': {
+            name: 'Colorblind Universal',
+            category: 'Accessibility',
+            colors: ['#56B4E9', '#E69F00', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#BBBBBB'],
+            sets: {
+                4: ['#56B4E9', '#E69F00', '#009E73', '#CC79A7'],
+                5: ['#56B4E9', '#E69F00', '#009E73', '#D55E00', '#CC79A7'],
+                6: ['#56B4E9', '#E69F00', '#009E73', '#F0E442', '#D55E00', '#CC79A7'],
+                7: ['#56B4E9', '#E69F00', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7'],
+                8: null
+            }
+        },
+        'a11yhighcontrast': {
+            name: 'High Contrast',
+            category: 'Accessibility',
+            colors: ['#FFFFFF', '#FFFF00', '#00FFFF', '#FF00FF', '#FF4400', '#44FF00', '#4488FF', '#FF0044'],
+            sets: {
+                4: ['#FFFFFF', '#FFFF00', '#FF00FF', '#4488FF'],
+                5: ['#FFFFFF', '#FFFF00', '#00FFFF', '#FF00FF', '#FF4400'],
+                6: ['#FFFFFF', '#FFFF00', '#00FFFF', '#FF00FF', '#FF4400', '#4488FF'],
+                7: ['#FFFFFF', '#FFFF00', '#00FFFF', '#FF00FF', '#FF4400', '#44FF00', '#4488FF'],
+                8: null
+            }
         }
     };
     
