@@ -101,8 +101,7 @@ const SettingsSync = {
         
         // Select dropdowns
         const selects = [
-            'musicSelect',
-            'skillLevelSelect'
+            'musicSelect'
         ];
         
         selects.forEach(id => {
@@ -182,8 +181,7 @@ const SettingsSync = {
         
         // Apply select dropdowns
         const selects = [
-            'musicSelect',
-            'skillLevelSelect'
+            'musicSelect'
         ];
         
         selects.forEach(id => {
@@ -200,13 +198,6 @@ const SettingsSync = {
             const introMusicSelect = document.getElementById('introMusicSelect');
             if (introMusicSelect) {
                 introMusicSelect.value = settings.musicSelect;
-            }
-        }
-        
-        if (settings.skillLevelSelect !== undefined) {
-            const introSkillSelect = document.getElementById('introSkillLevelSelect');
-            if (introSkillSelect) {
-                introSkillSelect.value = settings.skillLevelSelect;
             }
         }
         
@@ -444,8 +435,7 @@ const SettingsSync = {
         
         // Select dropdowns (main settings)
         const selects = [
-            'musicSelect',
-            'skillLevelSelect'
+            'musicSelect'
         ];
         
         selects.forEach(id => {
@@ -463,8 +453,7 @@ const SettingsSync = {
         
         // Intro screen selects (sync to main and save)
         const introSelects = [
-            { intro: 'introMusicSelect', main: 'musicSelect' },
-            { intro: 'introSkillLevelSelect', main: 'skillLevelSelect' }
+            { intro: 'introMusicSelect', main: 'musicSelect' }
         ];
         
         introSelects.forEach(({ intro, main }) => {

@@ -852,11 +852,11 @@ function initShuffleQueues() {
         }
     } else {
         gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
-        // First-ever player: put Meet Cute first
+        // First-ever player: put Meet Cute last (queue pops from end, so last = first played)
         const mcIdx = gameplayShuffleQueue.indexOf('meet_cute');
-        if (mcIdx > 0) {
+        if (mcIdx >= 0 && mcIdx < gameplayShuffleQueue.length - 1) {
             gameplayShuffleQueue.splice(mcIdx, 1);
-            gameplayShuffleQueue.unshift('meet_cute');
+            gameplayShuffleQueue.push('meet_cute');
         }
         console.log('🎵 Created new gameplay shuffle queue (first time - Meet Cute first)');
     }
