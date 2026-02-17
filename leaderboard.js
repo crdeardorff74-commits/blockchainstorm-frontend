@@ -284,9 +284,16 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         const speedBonus = entry.speedBonus || 1.0;
         
         // Build replay cell
-        const replayCell = entry.recording_id 
-            ? `<td class="replay-col"><span class="replay-btn" data-recording-id="${entry.recording_id}" title="Watch replay">▶️</span></td>`
-            : '<td class="replay-col"><span class="replay-btn no-recording" title="No recording available">▶️</span></td>';
+        const youtubeGameScore = 2288519000; // Digeratist's ₿228.8519 game with no recording
+        const isYoutubeGame = !entry.recording_id && entry.username === 'Digeratist' && entry.score === youtubeGameScore;
+        let replayCell;
+        if (entry.recording_id) {
+            replayCell = `<td class="replay-col"><span class="replay-btn" data-recording-id="${entry.recording_id}" title="Watch replay">▶️</span></td>`;
+        } else if (isYoutubeGame) {
+            replayCell = `<td class="replay-col"><span class="replay-btn youtube-recording" title="Watch on YouTube">▶️</span></td>`;
+        } else {
+            replayCell = '<td class="replay-col"><span class="replay-btn no-recording" title="No recording available">▶️</span></td>';
+        }
         
         // All rows can show tooltip (for speed bonus), add data attributes
         const rowClasses = [rowClass, 'has-tooltip', hasChallenge ? 'has-challenges' : ''].filter(c => c).join(' ');
@@ -322,6 +329,8 @@ function attachReplayButtonListeners() {
             const recordingId = btn.getAttribute('data-recording-id');
             if (recordingId) {
                 await startReplay(recordingId);
+            } else if (btn.classList.contains('youtube-recording')) {
+                showYoutubeRecordingPopup();
             } else if (btn.classList.contains('no-recording')) {
                 showNoRecordingPopup();
             }
@@ -347,6 +356,39 @@ function showNoRecordingPopup() {
                 background: #333; color: #aaa; border: 1px solid #555;
                 padding: 8px 24px; border-radius: 4px; cursor: pointer; font-size: 14px;
             ">OK</button>
+        `;
+        document.body.appendChild(popup);
+    }
+    popup.style.display = 'block';
+}
+
+function showYoutubeRecordingPopup() {
+    let popup = document.getElementById('youtubeRecordingPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'youtubeRecordingPopup';
+        popup.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95); color: #aaa; padding: 24px 32px;
+            border-radius: 8px; font-size: 16px; z-index: 100001;
+            border: 2px solid #555; box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+            text-align: center; max-width: 90vw;
+        `;
+        popup.innerHTML = `
+            <div style="margin-bottom: 16px; line-height: 1.6;">
+                A playback recording for this game is not available, as the score was so high that
+                submission was unsuccessful, exposing a flaw in the database. A video of the game
+                is available on YouTube:
+            </div>
+            <a href="https://www.youtube.com/watch?v=UJLXsKeiKzk&t=627s" target="_blank" rel="noopener" style="
+                color: #FFD700; text-decoration: underline; font-size: 16px;
+            ">Watch on YouTube ▶</a>
+            <div style="margin-top: 16px;">
+                <button onclick="this.parentElement.parentElement.style.display='none'" style="
+                    background: #333; color: #aaa; border: 1px solid #555;
+                    padding: 8px 24px; border-radius: 4px; cursor: pointer; font-size: 14px;
+                ">OK</button>
+            </div>
         `;
         document.body.appendChild(popup);
     }
