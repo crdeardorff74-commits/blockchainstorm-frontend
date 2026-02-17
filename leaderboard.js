@@ -230,6 +230,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         const isPlayerScore = scoreToHighlight && entryScore === targetScore;
         if (isPlayerScore) {
             console.log(`🎯 Highlighting score at rank ${index + 1}: ${entryScore}`);
+            window.lastLeaderboardRank = index + 1;
         }
         const rowClass = isPlayerScore ? 'player-score' : '';
         
