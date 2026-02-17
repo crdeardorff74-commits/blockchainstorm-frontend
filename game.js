@@ -938,6 +938,16 @@ const strikesDisplay = document.getElementById('strikes');
 const tsunamisDisplay = document.getElementById('tsunamis');
 const blackHolesDisplay = document.getElementById('blackholes');
 const volcanoesDisplay = document.getElementById('volcanoes');
+
+// Gold glow trigger for special event stats
+function triggerGoldGlow(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    row.classList.remove('gold-glow');
+    void row.offsetWidth; // force reflow to restart animation
+    row.classList.add('gold-glow');
+    setTimeout(() => row.classList.remove('gold-glow'), 2500);
+}
 const finalScoreDisplay = document.getElementById('finalScore');
 const finalStatsDisplay = document.getElementById('finalStats');
 const planetStatsDiv = document.getElementById('planetStats');
@@ -7451,6 +7461,7 @@ function checkForSpecialFormations() {
         // (Column clearing will happen when warming transitions to eruption)
         triggerVolcano(v.lavaBlob, v.eruptionColumn, v.edgeType);
         volcanoCount++;
+        triggerGoldGlow('volcanoesRow');
         
         // Record event for AI analysis
         if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
@@ -7471,6 +7482,7 @@ function checkForSpecialFormations() {
             const bh = blackHoleData[0];
             triggerBlackHole(bh.innerBlob, bh.outerBlob);
             blackHoleCount++;
+            triggerGoldGlow('blackholesRow');
             
             if (isSupermassiveBlackHole) {
                 supermassiveBlackHoleCount++;
@@ -7534,6 +7546,7 @@ function checkForSpecialFormations() {
             // Trigger the actual clearing animation
             triggerTsunamiAnimation(blob);
             tsunamiCount++;
+            triggerGoldGlow('tsunamisRow');
             
             // Record event for AI analysis
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
@@ -8590,6 +8603,7 @@ function clearLines() {
         if (isStrike) {
             triggerLightning(300); // Single strike for 4 lines
             strikeCount++;
+            triggerGoldGlow('strikesRow');
             
             // Record event for AI analysis
             if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.recordEvent) {
