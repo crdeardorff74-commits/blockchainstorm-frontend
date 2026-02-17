@@ -284,7 +284,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         const speedBonus = entry.speedBonus || 1.0;
         
         // Build replay cell
-        const youtubeGameScore = 2288519000; // Digeratist's ₿228.8519 game with no recording
+        const youtubeGameScore = 2288519500; // Digeratist's ₿228.8519 game with no recording
         const isYoutubeGame = !entry.recording_id && entry.username === 'Digeratist' && entry.score === youtubeGameScore;
         let replayCell;
         if (entry.recording_id) {
