@@ -4634,6 +4634,9 @@ function updateEarthquake() {
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
             console.log('🌍 Earthquake finished, earthquakeActive = false');
             
+            // Check for line clears AFTER earthquake is done and gravity settled
+            clearLines();
+            
             // During replay, skip the next board sync since the snapshot was captured
             // before the earthquake completed in the original game
             if (GameReplay.isActive()) {
@@ -8354,7 +8357,8 @@ function updateFallingBlocks() {
         checkForSpecialFormations();
         
         // DON'T call applyGravity here - the multi-pass simulation already handled everything!
-        // Just check for line clears
+        // Just check for line clears (also handles any pendingLineCheck from earlier)
+        pendingLineCheck = false;
         clearLines();
     }
 }
@@ -8972,7 +8976,9 @@ function clearLines() {
             
             // Check if another clearLines was requested during the animation
             // (e.g., tornado dropped a piece that completed a line)
-            if (pendingLineCheck) {
+            // Only consume the flag if gravity isn't running - otherwise gravity's
+            // completion handler will call clearLines() and catch it
+            if (pendingLineCheck && !gravityAnimating) {
                 pendingLineCheck = false;
                 console.log('🔄 Processing deferred line check');
                 clearLines();
@@ -9342,6 +9348,8 @@ function dropPiece() {
             const isGremlinsMode = challengeMode === 'gremlins' || activeChallenges.has('gremlins');
             if (isGremlinsMode && window.ChallengeEffects && ChallengeEffects.Gremlins) {
                 ChallengeEffects.Gremlins.trigger();  // checks counter internally, fires if ready
+                // Check if gremlins completed a line
+                clearLines();
             }
         } else {
             // During replay, check if we should resync instead of ending
