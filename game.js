@@ -9950,6 +9950,12 @@ function showGameOverScreen() {
     console.log('showGameOverScreen called');
     console.log('gameOverDiv:', gameOverDiv);
     
+    // Show leaderboard rank if available
+    if (window.lastLeaderboardRank && !finalStatsDisplay.querySelector('.rank-display')) {
+        const rankHTML = `<br><span class="rank-display" style="color: #FFD700; font-size: 1.2em;">🏆 Leaderboard Rank: #${window.lastLeaderboardRank}</span><br>`;
+        finalStatsDisplay.innerHTML += rankHTML;
+    }
+    
     // Hide planet stats when showing game over screen
     StarfieldSystem.hidePlanetStats();
     
@@ -10923,6 +10929,7 @@ function startGame(mode) {
     gameStartTime = Date.now(); // Track game duration
     volcanoCount = 0;
     supermassiveBlackHoleCount = 0;
+    window.lastLeaderboardRank = null;
     superVolcanoCount = 0;
     volcanoIsSuper = false;
     currentGameLevel = 1; StarfieldSystem.setCurrentGameLevel(1); // Reset starfield journey

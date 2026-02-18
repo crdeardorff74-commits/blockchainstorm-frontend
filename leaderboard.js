@@ -949,6 +949,12 @@ function promptForName(scoreData) {
             saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
             console.log('Score saved to local leaderboard');
             
+            // Set rank immediately from local data (before async server call)
+            const localRank = updatedScores.findIndex(s => s.score === scoreData.score && s.username === username) + 1;
+            if (localRank > 0) {
+                window.lastLeaderboardRank = localRank;
+            }
+            
             // Try to submit to server with retries
             const submitToServer = async (retryCount = 0, maxRetries = 5) => {
                 // Add human-readable challenge names for the email
@@ -1018,6 +1024,20 @@ function promptForName(scoreData) {
             
             // Display leaderboard with player's score highlighted
             await displayLeaderboard(scoreData.difficulty, scoreData.score, scoreData.mode, scoreData.skillLevel || 'tempest');
+            
+            // Update rank display if game over screen already showing (race condition fallback)
+            if (window.lastLeaderboardRank) {
+                const finalStats = document.getElementById('finalStats');
+                if (finalStats) {
+                    const existing = finalStats.querySelector('.rank-display');
+                    const rankSpan = `<span class="rank-display" style="color: #FFD700; font-size: 1.2em;">🏆 Leaderboard Rank: #${window.lastLeaderboardRank}</span>`;
+                    if (existing) {
+                        existing.outerHTML = rankSpan;
+                    } else {
+                        finalStats.innerHTML += `<br>${rankSpan}<br>`;
+                    }
+                }
+            }
             
         } catch (error) {
             console.error('Error during score submission:', error);
