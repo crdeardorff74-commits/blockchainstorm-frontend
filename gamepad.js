@@ -189,32 +189,10 @@ const GamepadController = {
         // Apply movement with repeat delay
         if (now - this.lastMoveTime >= this.repeatDelay) {
             if (leftPressed) {
-                if (!collides(currentPiece, -1, 0)) {
-                    currentPiece.x--;
-                    playSoundEffect('move', soundToggle);
-                    // Record input for replay
-                    if (window.GameRecorder && window.GameRecorder.isActive()) {
-                        window.GameRecorder.recordInput('left', {
-                            x: currentPiece.x,
-                            y: currentPiece.y,
-                            rotation: currentPiece.rotationIndex || 0
-                        });
-                    }
-                }
+                movePiece(-1);
                 this.lastMoveTime = now;
             } else if (rightPressed) {
-                if (!collides(currentPiece, 1, 0)) {
-                    currentPiece.x++;
-                    playSoundEffect('move', soundToggle);
-                    // Record input for replay
-                    if (window.GameRecorder && window.GameRecorder.isActive()) {
-                        window.GameRecorder.recordInput('right', {
-                            x: currentPiece.x,
-                            y: currentPiece.y,
-                            rotation: currentPiece.rotationIndex || 0
-                        });
-                    }
-                }
+                movePiece(1);
                 this.lastMoveTime = now;
             }
             
