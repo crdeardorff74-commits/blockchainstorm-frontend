@@ -3885,12 +3885,12 @@ function updateTornado() {
             
             // Show cascade-style popup
             cascadeBonusDisplay = {
-                text: `Disaster Averted ₿${bonusBitcoin}.0`,
+                text: I18n.t('misc.touchdownBonus', { bonus: bonusBitcoin }),
                 multiplier: Math.min(tornadoTouchdownCount + 1, 5),
                 startTime: Date.now(),
                 duration: 2000
             };
-            console.log(`🌪️ Disaster Averted Bonus #${tornadoTouchdownCount}: ₿${bonusBitcoin}.0`);
+            console.log(`🌪️ Touchdown Bonus #${tornadoTouchdownCount}: ₿${bonusBitcoin}.0`);
             
             canvas.classList.add('touchdown-active');
             playSoundEffect('gold', soundToggle);
