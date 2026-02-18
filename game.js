@@ -1946,6 +1946,7 @@ let tornadoSnakeVelocity = 0; // Current horizontal velocity
 let tornadoSnakeDirection = 1; // 1 or -1
 let tornadoSnakeChangeCounter = 0; // Frames until direction change
 let tornadoParticles = []; // Swirling particles around tornado
+let tornadoTouchdownCount = 0; // Number of disaster averted bonuses this game
 
 let disintegrationParticles = []; // Particles for blob explosion
 
@@ -3875,9 +3876,22 @@ function updateTornado() {
         
         // Check if hit bottom
         if (tornadoRow >= ROWS) {
-            // Touched bottom - TOUCHDOWN BONUS!
-            score *= 2;
+            // Touched bottom - DISASTER AVERTED BONUS!
+            tornadoTouchdownCount++;
+            const bonusBitcoin = tornadoTouchdownCount; // 1 BTC first time, 2 BTC second, etc.
+            const bonusRaw = bonusBitcoin * 10000000; // Convert to raw score units
+            score += bonusRaw;
             updateStats();
+            
+            // Show cascade-style popup
+            cascadeBonusDisplay = {
+                text: `Disaster Averted ₿${bonusBitcoin}.0`,
+                multiplier: Math.min(tornadoTouchdownCount + 1, 5),
+                startTime: Date.now(),
+                duration: 2000
+            };
+            console.log(`🌪️ Disaster Averted Bonus #${tornadoTouchdownCount}: ₿${bonusBitcoin}.0`);
+            
             canvas.classList.add('touchdown-active');
             playSoundEffect('gold', soundToggle);
             GamepadController.vibrateTornadoImpact(false); // Touchdown celebration
@@ -10945,6 +10959,7 @@ function startGame(mode) {
     tornadoActive = false;
     stopTornadoWind(); // Make sure wind sound stops
     tornadoState = 'descending';
+    tornadoTouchdownCount = 0;
     tornadoY = 0;
     tornadoX = 0;
     tornadoSpeed = 8;
