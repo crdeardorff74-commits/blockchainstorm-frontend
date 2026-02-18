@@ -336,6 +336,7 @@
                 get ROWS() { return ROWS; }, get COLS() { return COLS; },
                 get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
                 get fadingBlocks() { return fadingBlocks; },
+                get skillLevel() { return skillLevel; },
                 getAllBlobs,
                 playSoundEffect: (name) => playSoundEffect(name, soundToggle)
             });
@@ -490,6 +491,22 @@
                     console.log('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
                 }
             }
+            
+            // Reconstruct lattice grid from first board snapshot
+            // At piece 0, all non-null cells are lattice blocks (no player pieces yet)
+            const isLatticeMode = challengeMode === 'lattice' || activeChallenges.has('lattice');
+            if (replayPieceIndex === 0 && isLatticeMode && window.ChallengeEffects && ChallengeEffects.Lattice) {
+                let latticeCount = 0;
+                for (let y = 0; y < ROWS; y++) {
+                    for (let x = 0; x < COLS; x++) {
+                        if (board[y][x] !== null) {
+                            isLatticeBlock[y][x] = true;
+                            latticeCount++;
+                        }
+                    }
+                }
+                console.log('🎬 Reconstructed lattice grid from snapshot:', latticeCount, 'blocks');
+            }
         } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
             let reason;
             if (skipSyncForJustFinished) reason = 'special event just finished';
@@ -599,6 +616,18 @@
                     board[event.y][event.x] = event.color;
                     isRandomBlock[event.y][event.x] = true;
                     fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
+                }
+            } else if (event.type === 'yesand_limb') {
+                if (board[event.y] && !board[event.y][event.x]) {
+                    board[event.y][event.x] = event.color;
+                    isRandomBlock[event.y][event.x] = false;
+                    fadingBlocks[event.y][event.x] = { opacity: 0.01, scale: 0.15 };
+                    playSoundEffect('yesand', soundToggle);
+                }
+            } else if (event.type === 'mercurial_color') {
+                if (currentPiece) {
+                    currentPiece.color = event.color;
+                    playSoundEffect('rotate', soundToggle);
                 }
             } else if (event.type === 'tornado_spawn') {
                 console.log('🎬 Replay: Spawning tornado');

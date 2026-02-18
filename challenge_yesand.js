@@ -57,6 +57,131 @@
          * @param {Object} piece - The piece that was just placed
          * @returns {boolean} True if a limb was spawned
          */
+
+        /**
+         * Check if placing a block at (x, y) with the given color would trigger
+         * a row clear, tsunami, black hole, or volcano.
+         */
+        function wouldTriggerSpecial(x, y, color) {
+            const { board, ROWS, COLS, skillLevel } = gameRef;
+
+            // 1. Row completion check
+            let filledInRow = 0;
+            for (let col = 0; col < COLS; col++) {
+                if (col === x || board[y][col] !== null) filledInRow++;
+            }
+            if (filledInRow >= COLS) return true;
+
+            // 2. Temporarily place for blob analysis
+            const oldVal = board[y][x];
+            board[y][x] = color;
+
+            function bfs(sx, sy, c) {
+                const blob = [];
+                const visited = new Set();
+                const stack = [[sx, sy]];
+                while (stack.length > 0) {
+                    const [bx, by] = stack.pop();
+                    const key = `${bx},${by}`;
+                    if (visited.has(key)) continue;
+                    if (bx < 0 || bx >= COLS || by < 0 || by >= ROWS) continue;
+                    if (board[by][bx] !== c) continue;
+                    visited.add(key);
+                    blob.push([bx, by]);
+                    stack.push([bx+1,by],[bx-1,by],[bx,by+1],[bx,by-1]);
+                }
+                return blob;
+            }
+
+            function enveloped(inner, innerSet, outerSet) {
+                const dirs8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+                for (const [ix, iy] of inner) {
+                    for (const [dx, dy] of dirs8) {
+                        const nx = ix+dx, ny = iy+dy, key = `${nx},${ny}`;
+                        if (nx<0||nx>=COLS||ny<0||ny>=ROWS) return false;
+                        if (!innerSet.has(key) && !outerSet.has(key)) return false;
+                    }
+                }
+                return true;
+            }
+
+            function volcanoEnveloped(inner, innerSet, outerSet, tB, tL, tR) {
+                const dirs8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+                for (const [ix, iy] of inner) {
+                    for (const [dx, dy] of dirs8) {
+                        const nx = ix+dx, ny = iy+dy, key = `${nx},${ny}`;
+                        if (ny>=ROWS&&tB) continue;
+                        if (nx<0&&tL) continue;
+                        if (nx>=COLS&&tR) continue;
+                        if (nx<0||nx>=COLS||ny<0||ny>=ROWS) return false;
+                        if (!innerSet.has(key) && !outerSet.has(key)) return false;
+                    }
+                }
+                return true;
+            }
+
+            // 3. Tsunami: blob spans full width
+            const myBlob = bfs(x, y, color);
+            let mnX = COLS, mxX = -1;
+            for (const [bx] of myBlob) { if (bx < mnX) mnX = bx; if (bx > mxX) mxX = bx; }
+            if (mnX === 0 && mxX === COLS - 1 && skillLevel !== 'breeze') {
+                board[y][x] = oldVal; return true;
+            }
+
+            // 4. Black hole: check envelopment in both directions
+            const mySet = new Set(myBlob.map(p => `${p[0]},${p[1]}`));
+            const neighborColors = new Set();
+            const dirs8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+            for (const [bx, by] of myBlob) {
+                for (const [dx, dy] of dirs8) {
+                    const nx = bx+dx, ny = by+dy;
+                    if (nx>=0 && nx<COLS && ny>=0 && ny<ROWS && board[ny][nx] !== null && board[ny][nx] !== color)
+                        neighborColors.add(board[ny][nx]);
+                }
+            }
+
+            for (const nc of neighborColors) {
+                let sx=-1, sy=-1;
+                findSeed: for (const [bx,by] of myBlob) {
+                    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+                        const nx=bx+dx, ny=by+dy;
+                        if (nx>=0&&nx<COLS&&ny>=0&&ny<ROWS&&board[ny][nx]===nc) { sx=nx;sy=ny;break findSeed; }
+                    }
+                }
+                if (sx<0) continue;
+                const nBlob = bfs(sx, sy, nc);
+                const nSet = new Set(nBlob.map(p=>`${p[0]},${p[1]}`));
+                if (enveloped(myBlob,mySet,nSet) || enveloped(nBlob,nSet,mySet)) {
+                    board[y][x] = oldVal; return true;
+                }
+            }
+
+            // 5. Volcano: edge-touching blob enveloped by neighbor
+            const tB = myBlob.some(([,by])=>by===ROWS-1);
+            const tL = myBlob.some(([bx])=>bx===0);
+            const tR = myBlob.some(([bx])=>bx===COLS-1);
+            if (tB||tL||tR) {
+                for (const nc of neighborColors) {
+                    let sx=-1,sy=-1;
+                    findSeed2: for (const [bx,by] of myBlob) {
+                        for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+                            const nx=bx+dx,ny=by+dy;
+                            if (nx>=0&&nx<COLS&&ny>=0&&ny<ROWS&&board[ny][nx]===nc) { sx=nx;sy=ny;break findSeed2; }
+                        }
+                    }
+                    if (sx<0) continue;
+                    const nBlob = bfs(sx,sy,nc);
+                    const nSet = new Set(nBlob.map(p=>`${p[0]},${p[1]}`));
+                    if (volcanoEnveloped(myBlob,mySet,nSet,tB,tL,tR)) {
+                        board[y][x] = oldVal; return true;
+                    }
+                }
+            }
+
+            board[y][x] = oldVal;
+            return false;
+        }
+
         function spawnLimbs(piece) {
             if (!gameRef) return false;
 
@@ -112,20 +237,39 @@
                 return false;
             }
 
-            // Pick one random adjacent space
-            const idx = Math.floor(Math.random() * adjacentSpaces.length);
-            const [limbX, limbY] = adjacentSpaces[idx];
+            // Shuffle candidates (Fisher-Yates)
+            for (let i = adjacentSpaces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [adjacentSpaces[i], adjacentSpaces[j]] = [adjacentSpaces[j], adjacentSpaces[i]];
+            }
 
-            // Place the limb with fade-in animation
-            board[limbY][limbX] = targetBlob.color;
-            isRandomBlock[limbY][limbX] = false;
-            fadingBlocks[limbY][limbX] = { opacity: 0.01, scale: 0.15 };
+            // Find first candidate that won't trigger a special formation
+            const color = targetBlob.color;
+            for (const [limbX, limbY] of adjacentSpaces) {
+                if (wouldTriggerSpecial(limbX, limbY, color)) continue;
 
-            gameRef.playSoundEffect('yesand');
-            console.log(`🎭 Yes, And... spawned limb at [${limbX}, ${limbY}]`);
+                // Place the limb with fade-in animation
+                board[limbY][limbX] = color;
+                isRandomBlock[limbY][limbX] = false;
+                fadingBlocks[limbY][limbX] = { opacity: 0.01, scale: 0.15 };
 
-            spawnedLimb = true;
-            return true;
+                // Record for replay
+                const rec = gameRef.recorder;
+                if (rec && rec.isActive()) {
+                    rec.recordChallengeEvent('yesand_limb', { x: limbX, y: limbY, color: color });
+                }
+
+                gameRef.playSoundEffect('yesand');
+                console.log(`🎭 Yes, And... spawned limb at [${limbX}, ${limbY}]`);
+
+                spawnedLimb = true;
+                return true;
+            }
+
+            // All candidates would trigger specials — skip
+            console.log('🎭 Yes, And... all candidates would trigger specials, skipping');
+            spawnedLimb = false;
+            return false;
         }
 
         return {

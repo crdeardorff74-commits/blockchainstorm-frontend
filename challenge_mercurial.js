@@ -50,6 +50,12 @@
                 interval = 2000 + Math.random() * 2000;
                 timer = 0;
                 gameRef.playRotateSound();
+
+                // Record for replay
+                if (gameRef.recorder && gameRef.recorder.isActive()) {
+                    gameRef.recorder.recordChallengeEvent('mercurial_color', { color: newColor });
+                }
+
                 return newColor;
             }
             return null;

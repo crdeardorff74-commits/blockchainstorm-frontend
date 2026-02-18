@@ -7269,8 +7269,9 @@ function mergePiece() {
     }
     
     // Yes, And... mode: Spawn random limbs after piece lands
+    // During replay, limb placement is handled by recorded yesand_limb events
     const isYesAndMode = challengeMode === 'yesand' || activeChallenges.has('yesand');
-    if (isYesAndMode && window.ChallengeEffects && ChallengeEffects.YesAnd) {
+    if (isYesAndMode && window.ChallengeEffects && ChallengeEffects.YesAnd && !GameReplay.isActive()) {
         ChallengeEffects.YesAnd.spawnLimbs(currentPiece);
     } else if (window.ChallengeEffects && ChallengeEffects.YesAnd) {
         ChallengeEffects.YesAnd.clearSpawnFlag();
@@ -10542,8 +10543,9 @@ function update(time = 0) {
     updateLineAnimations();
     if (!paused) {
         // Mercurial mode: Change piece color every 2-4 seconds
+        // During replay, color changes are handled by recorded mercurial_color events
         const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial');
-        if (isMercurialMode && currentPiece && !hardDropping && window.ChallengeEffects && ChallengeEffects.Mercurial) {
+        if (isMercurialMode && currentPiece && !hardDropping && !GameReplay.isActive() && window.ChallengeEffects && ChallengeEffects.Mercurial) {
             const newColor = ChallengeEffects.Mercurial.update(deltaTime);
             if (newColor) currentPiece.color = newColor;
         }
@@ -11104,7 +11106,11 @@ function startGame(mode) {
     if (window.ChallengeEffects && ChallengeEffects.Mercurial) {
         ChallengeEffects.Mercurial.init({
             randomColor,
-            playRotateSound: () => playSoundEffect('rotate', soundToggle)
+            playRotateSound: () => playSoundEffect('rotate', soundToggle),
+            recorder: {
+                isActive: () => window.GameRecorder && window.GameRecorder.isActive(),
+                recordChallengeEvent: (t, d) => window.GameRecorder && window.GameRecorder.recordChallengeEvent(t, d)
+            }
         });
     }
     
@@ -11114,8 +11120,13 @@ function startGame(mode) {
             get ROWS() { return ROWS; }, get COLS() { return COLS; },
             get board() { return board; }, get isRandomBlock() { return isRandomBlock; },
             get fadingBlocks() { return fadingBlocks; },
+            get skillLevel() { return skillLevel; },
             getAllBlobs,
-            playSoundEffect: (name) => playSoundEffect(name, soundToggle)
+            playSoundEffect: (name) => playSoundEffect(name, soundToggle),
+            recorder: {
+                isActive: () => window.GameRecorder && window.GameRecorder.isActive(),
+                recordChallengeEvent: (t, d) => window.GameRecorder && window.GameRecorder.recordChallengeEvent(t, d)
+            }
         });
     }
     
