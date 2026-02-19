@@ -67,7 +67,10 @@ const PROXY_MUSIC_URL = 'https://blockchainstorm.onrender.com/api/music/Music/';
 const MUSIC_BASE_URL = _isIOSAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
 
 // MP3 sound effects (hosted on GitHub Releases)
-const SFX_BASE_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
+// iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
+const GITHUB_SFX_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
+const PROXY_SFX_URL = 'https://blockchainstorm.onrender.com/api/music/SFX/';
+const SFX_BASE_URL = _isIOSAudio ? PROXY_SFX_URL : GITHUB_SFX_URL;
 
 // Sound effect MP3s
 const soundEffectFiles = {
@@ -167,31 +170,34 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
     const clone = banjoAudio.cloneNode();
     clone.volume = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
     
-    // When banjo finishes, either call the callback or resume music
-    clone.onended = () => {
+    // Track whether banjo completed (ended or failed) to prevent double-firing
+    let banjoCompleted = false;
+    
+    function completeBanjo(source) {
+        if (banjoCompleted) return;
+        banjoCompleted = true;
+        
         if (onComplete) {
-            // Custom callback provided - reset pause state and call it
             musicPaused = false;
             onComplete();
-            console.log('🎵 Banjo finished, running callback');
+            console.log('🎵 Banjo finished (' + source + '), running callback');
         } else if (!wasPaused && pausedAudioElement) {
-            // Resume the specific audio element we paused
             pausedAudioElement.play().catch(e => console.log('Music resume prevented:', e));
             musicPaused = false;
-            console.log('🎵 Music resumed after banjo');
+            console.log('🎵 Music resumed after banjo (' + source + ')');
         }
-    };
+    }
+    
+    // When banjo finishes, either call the callback or resume music
+    clone.onended = () => completeBanjo('ended');
+    
+    // Safety timeout: if banjo doesn't play within 4s (e.g. iOS load failure),
+    // fire the callback anyway so the F Word song isn't stuck
+    setTimeout(() => completeBanjo('timeout'), 4000);
     
     clone.play().catch(e => {
         console.log('Banjo autoplay prevented:', e);
-        // Call callback or resume music if banjo couldn't play
-        if (onComplete) {
-            musicPaused = false;
-            onComplete();
-        } else if (!wasPaused && pausedAudioElement) {
-            pausedAudioElement.play().catch(err => console.log('Music resume prevented:', err));
-            musicPaused = false;
-        }
+        completeBanjo('catch');
     });
     
     console.log('🪕 Banjo playing, music paused');
