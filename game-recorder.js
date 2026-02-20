@@ -6,7 +6,7 @@
 console.log("📹 Game Recorder v2.0 loaded - piece-relative timing for accurate replay");
 
 const GameRecorder = (() => {
-    const API_URL = 'https://blockchainstorm.onrender.com/api';
+    const API_URL = AppConfig.GAME_API;
     
     // Recording state
     let recording = null;

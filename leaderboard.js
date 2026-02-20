@@ -2,7 +2,7 @@
 // All leaderboard-related functionality
 
 // API Configuration
-const API_URL = 'https://blockchainstorm.onrender.com/api';
+const API_URL = AppConfig.GAME_API;
 
 // Minimum score to qualify for leaderboard (scores below this display as ₿0.0000)
 const MIN_LEADERBOARD_SCORE = 500;

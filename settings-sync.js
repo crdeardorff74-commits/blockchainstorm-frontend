@@ -26,7 +26,7 @@
 })();
 
 const SettingsSync = {
-    API_URL: 'https://official-intelligence-api.onrender.com',
+    API_URL: AppConfig.AUTH_API,
     GAME_NAME: 'blockchainstorm',
     LOCAL_STORAGE_KEY: 'blockchainstorm_settings',
     

@@ -62,14 +62,14 @@ let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
 
 // MP3 gameplay music - multiple tracks
 // iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
-const GITHUB_MUSIC_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music/';
-const PROXY_MUSIC_URL = 'https://blockchainstorm.onrender.com/api/music/Music/';
+const GITHUB_MUSIC_URL = AppConfig.GITHUB_RELEASES + '/Music/';
+const PROXY_MUSIC_URL = AppConfig.GAME_API + '/music/Music/';
 const MUSIC_BASE_URL = _isIOSAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
 
 // MP3 sound effects (hosted on GitHub Releases)
 // iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
-const GITHUB_SFX_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/SFX/';
-const PROXY_SFX_URL = 'https://blockchainstorm.onrender.com/api/music/SFX/';
+const GITHUB_SFX_URL = AppConfig.GITHUB_RELEASES + '/SFX/';
+const PROXY_SFX_URL = AppConfig.GAME_API + '/music/SFX/';
 const SFX_BASE_URL = _isIOSAudio ? PROXY_SFX_URL : GITHUB_SFX_URL;
 
 // Sound effect MP3s
@@ -373,8 +373,8 @@ const menuOnlySongs = [
 ];
 
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
-const GITHUB_FWORD_URL = 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download/Music-F-Word/';
-const PROXY_FWORD_URL = 'https://blockchainstorm.onrender.com/api/music/Music-F-Word/';
+const GITHUB_FWORD_URL = AppConfig.GITHUB_RELEASES + '/Music-F-Word/';
+const PROXY_FWORD_URL = AppConfig.GAME_API + '/music/Music-F-Word/';
 const F_WORD_BASE_URL = _isIOSAudio ? PROXY_FWORD_URL : GITHUB_FWORD_URL;
 const fWordSongs = [];
 for (let i = 1; i <= 20; i++) {

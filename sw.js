@@ -21,6 +21,7 @@ const CORE_ASSETS = [
     '/starfield.js',
     '/storm-effects.js',
     '/auth.js',
+    '/config.js',
     '/manifest.json',
     '/favicon.ico'
 ];

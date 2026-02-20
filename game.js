@@ -340,7 +340,7 @@ async function submitBugReport(debugLog, bugDescription, silent = false) {
             timestamp: new Date().toISOString()
         };
         
-        const response = await fetch('https://blockchainstorm.onrender.com/api/bug-report', {
+        const response = await fetch(`${AppConfig.GAME_API}/bug-report`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
@@ -9569,7 +9569,7 @@ async function gameOver() {
     // Record that visitor finished a game (once per visit)
     if (window._visitId && !window._visitFinishRecorded) {
         window._visitFinishRecorded = true;
-        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/finished`, {
+        fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/finished`, {
             method: 'PATCH'
         }).catch(() => {});
     }
@@ -11649,7 +11649,7 @@ function updateShareLinks() {
 
 function trackShareClick(platform) {
     if (window._visitId) {
-        fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/shared`, {
+        fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/shared`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ platform: platform })
@@ -12653,7 +12653,7 @@ if (startOverlay) {
             document.removeEventListener(evt, _recordVisit)
         );
         try {
-            const res = await fetch('https://blockchainstorm.onrender.com/api/visit', {
+            const res = await fetch(`${AppConfig.GAME_API}/visit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -12860,7 +12860,7 @@ if (startOverlay) {
         const sendStarted = () => {
             if (_visitId) {
                 const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
-                fetch(`https://blockchainstorm.onrender.com/api/visit/${_visitId}/started`, {
+                fetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

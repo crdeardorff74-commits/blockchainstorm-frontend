@@ -96,7 +96,7 @@ const GamepadController = {
         
         // Flag gamepad usage on the visit record
         if (window._visitId) {
-            fetch(`https://blockchainstorm.onrender.com/api/visit/${window._visitId}/gamepad`, {
+            fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/gamepad`, {
                 method: 'PATCH'
             }).catch(() => {});
         }

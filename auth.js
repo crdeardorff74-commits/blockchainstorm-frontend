@@ -4,7 +4,7 @@
  * Modified for BLOCKCHaiNSTORM game integration
  */
 
-const AUTH_API_URL = 'https://official-intelligence-api.onrender.com';
+const AUTH_API_URL = AppConfig.AUTH_API;
 let authCurrentUser = null;
 let isRegisterMode = false;
 
