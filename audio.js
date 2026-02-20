@@ -64,6 +64,7 @@ let kickScheduler = null;
 let menuMusicPlaying = false;
 let menuOscillators = [];
 let menuMusicElement = null; // MP3 element for menu music
+let blessedMenuAudio = null; // Reusable Audio element "blessed" by user gesture (iPad Safari)
 let hasPlayedGame = false; // Track if a game has been completed
 let gameInProgress = false; // Track if a game is currently running
 let fullSongPlayedOnMenu = false; // Track if a full song has completed on main menu
@@ -102,38 +103,51 @@ const soundEffectVolumes = {
     banjo: 0.8     // UFO delivery sound
 };
 
-// Preloaded sound effect audio elements
-let soundEffectElements = {};
+// Decoded AudioBuffers for sound effects (played through Web Audio API)
+// Web Audio API bypasses iPad Safari's Audio element autoplay restrictions entirely.
+// Once audioContext is resumed (on first user gesture), all buffer playback works.
+let soundEffectBuffers = {};
+let soundEffectsFetching = false;
 
-// Pre-warm browser cache for sound effect MP3s.
-// These elements are NOT used for playback (iPad Safari blocks pre-created Audio elements).
-// Instead, playMP3SoundEffect() creates fresh Audio elements each time.
+// Fetch and decode MP3 sound effects into AudioBuffers
 function initSoundEffects() {
+    if (soundEffectsFetching) return;
+    soundEffectsFetching = true;
+
     Object.keys(soundEffectFiles).forEach(id => {
-        const audio = new Audio(soundEffectFiles[id]);
-        audio.volume = 0;
-        audio.preload = 'auto';
-        audio.addEventListener('error', () => {
-            Logger.warn('🔊 SFX preload failed for ' + id + ': ' + (audio.error ? 'code=' + audio.error.code + ' ' + audio.error.message : 'unknown'));
-        });
-        soundEffectElements[id] = audio;
+        fetch(soundEffectFiles[id])
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.arrayBuffer();
+            })
+            .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+            .then(audioBuffer => {
+                soundEffectBuffers[id] = audioBuffer;
+                _dbg('SFX decoded: ' + id + ' (' + audioBuffer.duration.toFixed(1) + 's)');
+            })
+            .catch(e => {
+                Logger.warn('🔊 SFX load failed for ' + id + ': ' + e.message);
+            });
     });
-    Logger.info('🔊 Pre-warming sound effect cache:', Object.keys(soundEffectFiles));
+    Logger.info('🔊 Loading sound effects via Web Audio API:', Object.keys(soundEffectFiles));
 }
 
-// Play an MP3 sound effect
+// Play an MP3 sound effect via Web Audio API (works on iPad without user gesture)
 function playMP3SoundEffect(effectId, soundToggle) {
     if (!soundToggle || !soundToggle.checked) return;
     if (sfxMuted) return;
 
-    const url = soundEffectFiles[effectId];
-    if (url) {
-        // Create a fresh Audio element each time instead of cloning pre-created ones.
-        // iPad Safari marks pre-created Audio elements as "tainted" and blocks playback
-        // even after user interaction; fresh elements created post-gesture always work.
-        const audio = new Audio(url);
-        audio.volume = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
-        audio.play().catch(e => Logger.debug('Sound effect play prevented:', e));
+    const buffer = soundEffectBuffers[effectId];
+    if (buffer) {
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+        source.buffer = buffer;
+        gainNode.gain.value = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        source.start(audioContext.currentTime);
+    } else {
+        _dbg('SFX buffer not ready for: ' + effectId);
     }
 }
 
@@ -148,16 +162,16 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
         return;
     }
     
-    const banjoUrl = soundEffectFiles['banjo'];
-    if (!banjoUrl) {
+    const banjoBuffer = soundEffectBuffers['banjo'];
+    if (!banjoBuffer) {
         if (onComplete) onComplete();
         return;
     }
-    
+
     // Directly pause the current music track
     const wasPaused = musicPaused;
     let pausedAudioElement = null;
-    
+
     if (!wasPaused) {
         // First try the tracked current playing track
         if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
@@ -177,7 +191,7 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
                 }
             }
         }
-        
+
         // Also check menu music
         if (!pausedAudioElement && menuMusicElement && !menuMusicElement.paused) {
             pausedAudioElement = menuMusicElement;
@@ -186,45 +200,43 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
             Logger.debug('🎵 Paused menu music for banjo');
         }
     }
-    
-    // Create fresh Audio element (iPad Safari blocks clones of pre-created elements)
-    const clone = new Audio(banjoUrl);
-    clone.volume = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
-    
+
+    // Play banjo via Web Audio API (works on iPad without user gesture)
+    const source = audioContext.createBufferSource();
+    const gainNode = audioContext.createGain();
+    source.buffer = banjoBuffer;
+    gainNode.gain.value = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
     // Track whether banjo completed (ended or failed) to prevent double-firing
     let banjoCompleted = false;
-    
-    function completeBanjo(source) {
+
+    function completeBanjo(src) {
         if (banjoCompleted) return;
         banjoCompleted = true;
-        
+
         if (onComplete) {
             musicPaused = false;
             onComplete();
-            Logger.debug('🎵 Banjo finished (' + source + '), running callback');
+            Logger.debug('🎵 Banjo finished (' + src + '), running callback');
         } else if (!wasPaused && pausedAudioElement) {
             pausedAudioElement.play().catch(e => Logger.debug('Music resume prevented:', e));
             musicPaused = false;
-            Logger.debug('🎵 Music resumed after banjo (' + source + ')');
+            Logger.debug('🎵 Music resumed after banjo (' + src + ')');
         }
     }
-    
-    // When banjo finishes, either call the callback or resume music
-    clone.onended = () => completeBanjo('ended');
-    
-    // Safety timeout: if banjo doesn't play within 4s (e.g. iOS load failure),
-    // fire the callback anyway so the F Word song isn't stuck
-    setTimeout(() => completeBanjo('timeout'), 4000);
-    
-    clone.play().catch(e => {
-        Logger.debug('Banjo autoplay prevented:', e);
-        completeBanjo('catch');
-    });
-    
-    Logger.debug('🪕 Banjo playing, music paused');
+
+    source.onended = () => completeBanjo('ended');
+
+    // Safety timeout in case buffer playback doesn't fire onended
+    setTimeout(() => completeBanjo('timeout'), Math.ceil(banjoBuffer.duration * 1000) + 500);
+
+    source.start(audioContext.currentTime);
+    Logger.debug('🪕 Banjo playing via Web Audio API, music paused');
 }
 
-// Initialize sound effects on load
+// Initialize sound effects on load (fetch + decode into AudioBuffers)
 initSoundEffects();
 
 // Songs for during gameplay (non-Cascade songs)
@@ -2213,38 +2225,45 @@ function startMenuMusic(musicToggleOrSelect, forceCredits) {
         song = menuOnlySongs.find(s => s.id === trackId);
     }
     _dbg('startMenuMusic: trackId=' + trackId + ', song found=' + !!song);
-    
-    // iPad Safari requires Audio elements to be created within user gesture handlers.
-    // Pre-created elements are marked "tainted" and can never play.
-    // So we always create fresh, passing URL to constructor, and play immediately.
-    
+
     // Stop and discard any existing menu music element
     if (menuMusicElement) {
         menuMusicElement.pause();
+        menuMusicElement.removeEventListener('ended', onMenuMusicEnded);
         menuMusicElement.removeAttribute('src');
+        menuMusicElement.load();
+        // Keep blessedMenuAudio reference alive for reuse on iOS
         menuMusicElement = null;
     }
-    
+
     if (song) {
-        // Stop and discard any existing menu music element
-        if (menuMusicElement) {
-            menuMusicElement.pause();
-            menuMusicElement.removeAttribute('src');
-            menuMusicElement = null;
+        // On iOS, reuse the "blessed" Audio element if available.
+        // iPad Safari only allows play() on elements that were first played during a
+        // user gesture. By reusing that same element (just changing src), subsequent
+        // play() calls work even from setTimeout/async callbacks.
+        if (_isIOSAudio && blessedMenuAudio) {
+            _dbg('startMenuMusic: reusing blessed Audio for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
+            menuMusicElement = blessedMenuAudio;
+            menuMusicElement.src = song.file;
+        } else {
+            _dbg('startMenuMusic: creating new Audio for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
+            menuMusicElement = new Audio(song.file);
+            // On iOS, save this element as the blessed one on first creation
+            if (_isIOSAudio && !blessedMenuAudio) {
+                blessedMenuAudio = menuMusicElement;
+                _dbg('startMenuMusic: saved as blessedMenuAudio');
+            }
         }
-        
-        _dbg('startMenuMusic: creating Audio for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
-        menuMusicElement = new Audio(song.file);
+
         menuMusicElement.volume = musicMuted ? 0 : musicVolume;
         menuMusicElement.loop = !playCredits;
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
-        
-        // Debug listeners
-        menuMusicElement.addEventListener('playing', () => _dbg('menuMusic EVENT: playing'));
-        menuMusicElement.addEventListener('pause', () => _dbg('menuMusic EVENT: pause'));
-        menuMusicElement.addEventListener('error', () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown')));
-        menuMusicElement.addEventListener('canplay', () => _dbg('menuMusic EVENT: canplay'));
-        
+
+        // Debug listeners (use named functions to avoid duplicates on reused element)
+        menuMusicElement.onplaying = () => _dbg('menuMusic EVENT: playing');
+        menuMusicElement.onerror = () => _dbg('menuMusic EVENT: error code=' + (menuMusicElement.error ? menuMusicElement.error.code + ' msg=' + menuMusicElement.error.message : 'unknown'));
+        menuMusicElement.oncanplay = () => _dbg('menuMusic EVENT: canplay');
+
         _dbg('startMenuMusic: calling play()');
         const playPromise = menuMusicElement.play();
         if (playPromise && playPromise.then) {
@@ -2252,29 +2271,8 @@ function startMenuMusic(musicToggleOrSelect, forceCredits) {
                 _dbg('startMenuMusic: play() RESOLVED OK');
             }).catch(e => {
                 _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
-                // Reset flag so a retry can succeed (e.g. iPad autoplay policy)
+                // Reset flag so a retry can succeed
                 menuMusicPlaying = false;
-
-                // On iOS, play() fails outside user gesture context.
-                // Retry on next user tap/touch — the element is already loaded,
-                // so play() inside the gesture handler will succeed.
-                if (_isIOSAudio && menuMusicElement) {
-                    const retryEl = menuMusicElement;
-                    const retryHandler = () => {
-                        document.removeEventListener('touchend', retryHandler, true);
-                        if (retryEl && retryEl.paused && !menuMusicPlaying) {
-                            menuMusicPlaying = true;
-                            retryEl.play().then(() => {
-                                _dbg('startMenuMusic: iOS retry play() OK');
-                            }).catch(e2 => {
-                                _dbg('startMenuMusic: iOS retry play() REJECTED: ' + e2.message);
-                                menuMusicPlaying = false;
-                            });
-                        }
-                    };
-                    document.addEventListener('touchend', retryHandler, { once: true, capture: true });
-                    _dbg('startMenuMusic: registered iOS touch-retry handler');
-                }
             });
         }
     } else {
@@ -2299,12 +2297,14 @@ function stopMenuMusic() {
     if (!menuMusicPlaying) return;
     menuMusicPlaying = false;
 
-    // Stop MP3 playback and fully clean up to prevent stale Audio elements
+    // Stop MP3 playback and clean up
     if (menuMusicElement) {
         menuMusicElement.pause();
         menuMusicElement.removeEventListener('ended', onMenuMusicEnded);
         menuMusicElement.removeAttribute('src');
         menuMusicElement.load(); // Release network resources
+        // On iOS, keep blessedMenuAudio reference alive — don't null it
+        // so startMenuMusic can reuse the gesture-blessed element later
         menuMusicElement = null;
     }
     
