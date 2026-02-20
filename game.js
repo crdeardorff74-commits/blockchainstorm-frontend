@@ -9994,8 +9994,9 @@ function showGameOverScreen() {
     creditsMusicTimeoutId = setTimeout(() => {
         Logger.debug('Starting credits music after 3 second delay');
         // Stop any existing menu music and restart with end credits
+        // Pass forceCredits=true to guarantee credits playlist regardless of hasPlayedGame state
         stopMenuMusic();
-        startMenuMusic(musicSelect); // This will play End Credits version since hasPlayedGame is true
+        startMenuMusic(musicSelect, true);
         creditsMusicTimeoutId = null;
     }, 3000);
 }

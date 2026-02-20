@@ -2167,13 +2167,14 @@ function stopMusic() {
 // Atmospheric menu music - Stranger Things inspired synth theme
 let currentMenuMusicSelect = null; // Store reference for credits song-end handling
 
-function startMenuMusic(musicToggleOrSelect) {
-    _dbg('startMenuMusic called, menuMusicPlaying=' + menuMusicPlaying + ', hasPlayedGame=' + hasPlayedGame);
+function startMenuMusic(musicToggleOrSelect, forceCredits) {
+    const playCredits = forceCredits || hasPlayedGame;
+    _dbg('startMenuMusic called, menuMusicPlaying=' + menuMusicPlaying + ', hasPlayedGame=' + hasPlayedGame + ', forceCredits=' + !!forceCredits + ', playCredits=' + playCredits);
     if (menuMusicPlaying) { _dbg('startMenuMusic: already playing, returning'); return; }
-    
+
     // Store reference for song-end handling
     currentMenuMusicSelect = musicToggleOrSelect;
-    
+
     // Check if music is enabled - handle both checkbox (legacy) and select element
     let musicEnabled = true;
     if (musicToggleOrSelect) {
@@ -2185,14 +2186,16 @@ function startMenuMusic(musicToggleOrSelect) {
         }
     }
     if (!musicEnabled) { _dbg('startMenuMusic: music disabled, returning'); return; }
-    
+
     menuMusicPlaying = true;
-    
-    // Choose track based on whether a game has been played
+
+    // Choose track based on whether credits should play
+    // forceCredits=true is passed from the game-over credits timeout to guarantee
+    // the right playlist even if hasPlayedGame is somehow stale
     let trackId;
     let song;
-    
-    if (hasPlayedGame) {
+
+    if (playCredits) {
         // End credits: shuffle through all Cascade variations
         trackId = getNextFromQueue(creditsShuffleQueue, creditsSongs, 'credits');
         song = creditsSongs.find(s => s.id === trackId);
@@ -2226,7 +2229,7 @@ function startMenuMusic(musicToggleOrSelect) {
         _dbg('startMenuMusic: creating Audio for ' + song.file.substring(song.file.lastIndexOf('/') + 1));
         menuMusicElement = new Audio(song.file);
         menuMusicElement.volume = musicMuted ? 0 : musicVolume;
-        menuMusicElement.loop = !hasPlayedGame;
+        menuMusicElement.loop = !playCredits;
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
         
         // Debug listeners
