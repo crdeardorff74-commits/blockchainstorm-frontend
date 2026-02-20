@@ -10726,10 +10726,11 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
-    // Request fullscreen on mobile if not already fullscreen (fallback if intro screen didn't trigger it)
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    // Request fullscreen on mobile if not already fullscreen and no request is in flight
+    // (dismissIntro already requests fullscreen, so skip if that's still resolving)
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && !window._fullscreenRequested) {
         const fsCheckbox = document.getElementById('introFullscreenCheckbox');
-        if (DeviceDetection.isMobile || DeviceDetection.isTablet || 
+        if (DeviceDetection.isMobile || DeviceDetection.isTablet ||
             (fsCheckbox && fsCheckbox.checked)) {
             try {
                 const elem = document.documentElement;
@@ -12908,16 +12909,20 @@ if (startOverlay) {
         const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
             DeviceDetection.isMobile || DeviceDetection.isTablet;
         if (wantFullscreen) {
+            window._fullscreenRequested = true;
             try {
                 const elem = document.documentElement;
                 if (elem.requestFullscreen) {
-                    elem.requestFullscreen().catch(() => {});
+                    elem.requestFullscreen().catch(() => {}).finally(() => { window._fullscreenRequested = false; });
                 } else if (elem.webkitRequestFullscreen) {
                     elem.webkitRequestFullscreen();
+                    window._fullscreenRequested = false;
                 } else if (elem.msRequestFullscreen) {
                     elem.msRequestFullscreen();
+                    window._fullscreenRequested = false;
                 }
             } catch (e) {
+                window._fullscreenRequested = false;
                 // Silently handle fullscreen errors (permissions, unsupported, etc.)
             }
         }
