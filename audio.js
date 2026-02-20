@@ -105,28 +105,35 @@ const soundEffectVolumes = {
 // Preloaded sound effect audio elements
 let soundEffectElements = {};
 
-// Initialize sound effect audio elements
+// Pre-warm browser cache for sound effect MP3s.
+// These elements are NOT used for playback (iPad Safari blocks pre-created Audio elements).
+// Instead, playMP3SoundEffect() creates fresh Audio elements each time.
 function initSoundEffects() {
     Object.keys(soundEffectFiles).forEach(id => {
         const audio = new Audio(soundEffectFiles[id]);
-        audio.volume = soundEffectVolumes[id] || 0.7;
+        audio.volume = 0;
         audio.preload = 'auto';
+        audio.addEventListener('error', () => {
+            Logger.warn('🔊 SFX preload failed for ' + id + ': ' + (audio.error ? 'code=' + audio.error.code + ' ' + audio.error.message : 'unknown'));
+        });
         soundEffectElements[id] = audio;
     });
-    Logger.info('🔊 Initialized sound effect MP3s:', Object.keys(soundEffectFiles));
+    Logger.info('🔊 Pre-warming sound effect cache:', Object.keys(soundEffectFiles));
 }
 
 // Play an MP3 sound effect
 function playMP3SoundEffect(effectId, soundToggle) {
     if (!soundToggle || !soundToggle.checked) return;
     if (sfxMuted) return;
-    
-    const audio = soundEffectElements[effectId];
-    if (audio) {
-        // Clone the audio to allow overlapping plays
-        const clone = audio.cloneNode();
-        clone.volume = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
-        clone.play().catch(e => Logger.debug('Sound effect autoplay prevented:', e));
+
+    const url = soundEffectFiles[effectId];
+    if (url) {
+        // Create a fresh Audio element each time instead of cloning pre-created ones.
+        // iPad Safari marks pre-created Audio elements as "tainted" and blocks playback
+        // even after user interaction; fresh elements created post-gesture always work.
+        const audio = new Audio(url);
+        audio.volume = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
+        audio.play().catch(e => Logger.debug('Sound effect play prevented:', e));
     }
 }
 
@@ -141,8 +148,8 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
         return;
     }
     
-    const banjoAudio = soundEffectElements['banjo'];
-    if (!banjoAudio) {
+    const banjoUrl = soundEffectFiles['banjo'];
+    if (!banjoUrl) {
         if (onComplete) onComplete();
         return;
     }
@@ -180,8 +187,8 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
         }
     }
     
-    // Clone and play banjo
-    const clone = banjoAudio.cloneNode();
+    // Create fresh Audio element (iPad Safari blocks clones of pre-created elements)
+    const clone = new Audio(banjoUrl);
     clone.volume = (soundEffectVolumes['banjo'] || 0.8) * sfxVolume;
     
     // Track whether banjo completed (ended or failed) to prevent double-firing
