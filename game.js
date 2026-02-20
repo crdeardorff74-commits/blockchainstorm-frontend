@@ -3,7 +3,7 @@
 Logger.info("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction } = window.AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction } = AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -9967,23 +9967,34 @@ function stopLeaderboardCloseDetection() {
 function showGameOverScreen() {
     Logger.debug('showGameOverScreen called');
     Logger.debug('gameOverDiv:', gameOverDiv);
-    
+
     // Show leaderboard rank if available
     if (window.lastLeaderboardRank && !finalStatsDisplay.querySelector('.rank-display')) {
         const rankHTML = `<br><span class="rank-display" style="color: #FFD700; font-size: 1.2em;">🏆 Leaderboard Rank: #${window.lastLeaderboardRank}</span><br>`;
         finalStatsDisplay.innerHTML += rankHTML;
     }
-    
+
     // Hide planet stats when showing game over screen
     StarfieldSystem.hidePlanetStats();
-    
+
     gameOverDiv.style.display = 'block';
     updateShareLinks();
-    
+
     Logger.debug('About to call startCreditsAnimation');
     startCreditsAnimation();
     Logger.debug('startCreditsAnimation returned');
-    
+
+    // Cancel any pending credits music timeout (prevents double-start if called twice)
+    if (creditsMusicTimeoutId) {
+        clearTimeout(creditsMusicTimeoutId);
+        creditsMusicTimeoutId = null;
+        Logger.debug('Cleared stale credits music timeout');
+    }
+
+    // Ensure no music is currently playing before scheduling credits music
+    stopMenuMusic();
+    stopMusic();
+
     // Delay music start by 3 seconds after credits begin
     creditsMusicTimeoutId = setTimeout(() => {
         Logger.debug('Starting credits music after 3 second delay');

@@ -1,7 +1,7 @@
 // Audio System Module for BLOCKCHaiNSTORM
 // Handles all sound effects, music, and audio context management
 
-(function() {
+const AudioSystem = (function() {
 
     // === AUDIO DEBUG LOGGER (collects in memory, no on-screen display) ===
     const _dbgLines = [];
@@ -2168,7 +2168,7 @@ function stopMusic() {
 let currentMenuMusicSelect = null; // Store reference for credits song-end handling
 
 function startMenuMusic(musicToggleOrSelect) {
-    _dbg('startMenuMusic called, menuMusicPlaying=' + menuMusicPlaying);
+    _dbg('startMenuMusic called, menuMusicPlaying=' + menuMusicPlaying + ', hasPlayedGame=' + hasPlayedGame);
     if (menuMusicPlaying) { _dbg('startMenuMusic: already playing, returning'); return; }
     
     // Store reference for song-end handling
@@ -2262,13 +2262,17 @@ function onMenuMusicEnded() {
 }
 
 function stopMenuMusic() {
+    _dbg('stopMenuMusic called, menuMusicPlaying=' + menuMusicPlaying);
     if (!menuMusicPlaying) return;
     menuMusicPlaying = false;
-    
-    // Stop MP3 playback
+
+    // Stop MP3 playback and fully clean up to prevent stale Audio elements
     if (menuMusicElement) {
         menuMusicElement.pause();
-        menuMusicElement.currentTime = 0;
+        menuMusicElement.removeEventListener('ended', onMenuMusicEnded);
+        menuMusicElement.removeAttribute('src');
+        menuMusicElement.load(); // Release network resources
+        menuMusicElement = null;
     }
     
     // Legacy synth cleanup (keep for backwards compatibility)
@@ -2984,8 +2988,8 @@ function getEffectiveSfxVolume(effectId) {
     return (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
 }
 
-    // Export all public functions for use in main game
-    window.AudioSystem = {
+    // Public API
+    return {
         audioContext,
         startMusic,
         stopMusic,
