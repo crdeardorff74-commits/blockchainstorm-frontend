@@ -1,5 +1,7 @@
 // TaNTЯiS Service Worker
-const CACHE_NAME = 'tantris-v2';
+// Bump APP_VERSION on each deploy to bust caches and notify users
+const APP_VERSION = '3.28';
+const CACHE_NAME = `tantris-v${APP_VERSION}`;
 
 // Core files to cache for offline play
 const CORE_ASSETS = [
@@ -26,12 +28,19 @@ const CORE_ASSETS = [
     '/favicon.ico'
 ];
 
-// Install: cache core assets
+// Install: cache core assets and notify clients of update
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('📦 PWA: Caching core assets');
+            console.log('📦 PWA: Caching core assets for v' + APP_VERSION);
             return cache.addAll(CORE_ASSETS);
+        }).then(() => {
+            // Notify all open tabs that a new version is available
+            return self.clients.matchAll({ type: 'window' }).then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({ type: 'SW_UPDATED', version: APP_VERSION });
+                });
+            });
         })
     );
     // Activate immediately
@@ -64,7 +73,7 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     // API calls and analytics: network only, don't cache
-    if (url.hostname.includes('onrender.com') || 
+    if (url.hostname.includes('onrender.com') ||
         url.hostname.includes('github.com') ||
         url.pathname.startsWith('/api/')) {
         return;

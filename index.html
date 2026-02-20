@@ -1358,6 +1358,47 @@
 
 <script>
 if ('serviceWorker' in navigator) {
+    // Listen for update notifications from the service worker
+    let updateToastShown = false;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_UPDATED' && !updateToastShown) {
+            updateToastShown = true;
+            console.log('📦 PWA: New version available (v' + event.data.version + ')');
+
+            const toast = document.createElement('div');
+            toast.textContent = 'Update available \u2014 tap to refresh';
+            Object.assign(toast.style, {
+                position: 'fixed',
+                bottom: '12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0, 150, 180, 0.9)',
+                color: '#fff',
+                padding: '10px 22px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontFamily: 'Arial, sans-serif',
+                zIndex: '99999',
+                pointerEvents: 'auto',
+                cursor: 'pointer',
+                opacity: '0',
+                transition: 'opacity 0.3s',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.3)'
+            });
+            document.body.appendChild(toast);
+
+            requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+            toast.addEventListener('click', () => window.location.reload());
+
+            // Auto-dismiss after 15 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 15000);
+        }
+    });
+
     navigator.serviceWorker.register('/sw.js')
         .then(reg => console.log('📦 PWA: Service worker registered'))
         .catch(err => console.log('PWA: SW registration failed:', err));
