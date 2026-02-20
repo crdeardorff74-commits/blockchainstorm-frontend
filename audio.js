@@ -426,6 +426,7 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
+let blessedGameplayAudio = null; // Reusable Audio element "blessed" by user gesture (iPad Safari)
 
 // Persistent shuffle queues - saved to localStorage, persist across sessions
 let gameplayShuffleQueue = [];
@@ -1373,6 +1374,35 @@ function playMelodyNote(freq, duration) {
 let currentMusicSelection = 'shuffle';
 let currentMusicSelectElement = null;
 
+// Pre-bless an Audio element during a user gesture so that later play() calls
+// (outside gesture context, e.g. after async/await) work on iPad Safari.
+// Call this synchronously inside a click/touchend handler before any await.
+function blessAudio() {
+    if (!_isIOSAudio) return; // Only needed on iOS
+    if (blessedGameplayAudio && blessedMenuAudio) return; // Already blessed
+
+    const a = new Audio();
+    // Silent play() from gesture context "unlocks" this element for future use
+    a.volume = 0;
+    a.play().then(() => {
+        a.pause();
+        a.volume = 1;
+        _dbg('blessAudio: gameplay element blessed');
+    }).catch(() => {});
+    if (!blessedGameplayAudio) blessedGameplayAudio = a;
+
+    if (!blessedMenuAudio) {
+        const b = new Audio();
+        b.volume = 0;
+        b.play().then(() => {
+            b.pause();
+            b.volume = 1;
+            _dbg('blessAudio: menu element blessed');
+        }).catch(() => {});
+        blessedMenuAudio = b;
+    }
+}
+
 // Main music controller - now uses MP3 tracks based on dropdown selection
 function startMusic(gameMode, musicSelect) {
     _dbg('startMusic called, musicPlaying=' + musicPlaying + ', interacted=' + userHasInteracted);
@@ -1432,10 +1462,16 @@ function startMusic(gameMode, musicSelect) {
     }
     
     // Create audio element on-demand
+    // On iOS, reuse the blessed element so play() works outside gesture context
     let audio = gameplayMusicElements[trackId];
     let isNewElement = false;
     if (!audio && song) {
-        audio = new Audio();
+        if (_isIOSAudio && blessedGameplayAudio) {
+            audio = blessedGameplayAudio;
+            _dbg('startMusic: reusing blessed gameplay Audio');
+        } else {
+            audio = new Audio();
+        }
         audio.volume = musicMuted ? 0 : musicVolume;
         isNewElement = true;
     }
@@ -3076,6 +3112,8 @@ function getEffectiveSfxVolume(effectId) {
         _dbg,
         _getDbgLog,
         // User interaction gate
-        markUserInteraction
+        markUserInteraction,
+        // iOS audio blessing (call synchronously from gesture handler before async work)
+        blessAudio
     };
 })(); // End IIFE

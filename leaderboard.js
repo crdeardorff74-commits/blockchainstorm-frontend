@@ -339,6 +339,10 @@ function attachReplayButtonListeners() {
     replayBtns.forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            // Pre-bless Audio elements during this gesture so replay music works on iPad
+            if (typeof AudioSystem !== 'undefined' && AudioSystem.blessAudio) {
+                AudioSystem.blessAudio();
+            }
             const recordingId = btn.getAttribute('data-recording-id');
             if (recordingId) {
                 await startReplay(recordingId);
