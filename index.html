@@ -1256,61 +1256,78 @@
 
 <script>
 if ('serviceWorker' in navigator) {
-    let updateToastShown = false;
+    let updateHandled = false;
 
-    function showUpdateToast(version) {
-        if (updateToastShown) return;
-        updateToastShown = true;
+    function handleUpdate(version) {
+        if (updateHandled) return;
+        updateHandled = true;
         console.log('📦 PWA: New version available' + (version ? ' (v' + version + ')' : ''));
 
-        const toast = document.createElement('div');
-        toast.textContent = 'Update available \u2014 tap to refresh';
-        Object.assign(toast.style, {
-            position: 'fixed',
-            bottom: '12px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(0, 150, 180, 0.9)',
-            color: '#fff',
-            padding: '10px 22px',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontFamily: 'Arial, sans-serif',
-            zIndex: '99999',
-            pointerEvents: 'auto',
-            cursor: 'pointer',
-            opacity: '0',
-            transition: 'opacity 0.3s',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.3)'
-        });
-        document.body.appendChild(toast);
+        // If still on intro screen, silently refresh — user hasn't started anything yet
+        var intro = document.getElementById('startOverlay');
+        if (intro && intro.style.display !== 'none') {
+            console.log('📦 PWA: On intro screen, auto-refreshing');
+            window.location.reload();
+            return;
+        }
 
-        requestAnimationFrame(() => { toast.style.opacity = '1'; });
+        // If on main menu (not in game, not on game-over/credits), show toast
+        var onMenu = !document.body.classList.contains('game-running') &&
+            !document.body.classList.contains('game-started');
+        var modeMenu = document.getElementById('modeMenu');
+        if (!onMenu && modeMenu && !modeMenu.classList.contains('hidden')) {
+            onMenu = true; // game-started stays on body after first game, so also check menu visibility
+        }
 
-        toast.addEventListener('click', () => window.location.reload());
-
-        // Auto-dismiss after 15 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 400);
-        }, 15000);
+        if (onMenu) {
+            var toast = document.createElement('div');
+            toast.textContent = 'Update available \u2014 tap to refresh';
+            Object.assign(toast.style, {
+                position: 'fixed',
+                bottom: '12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0, 150, 180, 0.9)',
+                color: '#fff',
+                padding: '10px 22px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontFamily: 'Arial, sans-serif',
+                zIndex: '99999',
+                pointerEvents: 'auto',
+                cursor: 'pointer',
+                opacity: '0',
+                transition: 'opacity 0.3s',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.3)'
+            });
+            document.body.appendChild(toast);
+            requestAnimationFrame(function() { toast.style.opacity = '1'; });
+            toast.addEventListener('click', function() { window.location.reload(); });
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                setTimeout(function() { toast.remove(); }, 400);
+            }, 15000);
+        } else {
+            // In game or credits — skip; they'll get the update on next page load
+            console.log('📦 PWA: In game/credits, skipping update notification');
+        }
     }
 
     // Primary: listen for explicit SW_UPDATED message (sent after activate + claim)
-    navigator.serviceWorker.addEventListener('message', (event) => {
+    navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'SW_UPDATED') {
-            showUpdateToast(event.data.version);
+            handleUpdate(event.data.version);
         }
     });
 
     // Fallback: detect when a new SW takes control of this page
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-        showUpdateToast();
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+        handleUpdate();
     });
 
     navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('📦 PWA: Service worker registered'))
-        .catch(err => console.log('PWA: SW registration failed:', err));
+        .then(function(reg) { console.log('📦 PWA: Service worker registered'); })
+        .catch(function(err) { console.log('PWA: SW registration failed:', err); });
 }
 </script>
 
