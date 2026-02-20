@@ -1,6 +1,6 @@
 // TaNTЯiS Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '3.29';
+const APP_VERSION = '3.30';
 const CACHE_NAME = `tantris-v${APP_VERSION}`;
 
 // Core files to cache for offline play
@@ -28,26 +28,19 @@ const CORE_ASSETS = [
     '/favicon.ico'
 ];
 
-// Install: cache core assets and notify clients of update
+// Install: cache core assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('📦 PWA: Caching core assets for v' + APP_VERSION);
             return cache.addAll(CORE_ASSETS);
-        }).then(() => {
-            // Notify all open tabs that a new version is available
-            return self.clients.matchAll({ type: 'window' }).then((clients) => {
-                clients.forEach((client) => {
-                    client.postMessage({ type: 'SW_UPDATED', version: APP_VERSION });
-                });
-            });
         })
     );
     // Activate immediately
     self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: clean up old caches, take control, then notify clients
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -59,10 +52,20 @@ self.addEventListener('activate', (event) => {
                         return caches.delete(name);
                     })
             );
+        }).then(() => {
+            // Take control of all pages immediately
+            return self.clients.claim();
+        }).then(() => {
+            // Notify all open tabs that a new version is available
+            // Done AFTER claim() so we actually control these clients
+            return self.clients.matchAll({ type: 'window' }).then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({ type: 'SW_UPDATED', version: APP_VERSION });
+                });
+                console.log('📦 PWA: Notified ' + clients.length + ' client(s) of v' + APP_VERSION);
+            });
         })
     );
-    // Take control of all pages immediately
-    self.clients.claim();
 });
 
 // Fetch: network-first for API calls, cache-first for assets
