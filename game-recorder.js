@@ -729,7 +729,7 @@ const GameRecorder = (() => {
     };
 })();
 
-// Export for use as module
+// Also expose on window — many modules use window.GameRecorder guards for optional recording
 if (typeof window !== 'undefined') {
     window.GameRecorder = GameRecorder;
 }
