@@ -15,9 +15,23 @@
     }
 
     // Initialize Web Audio API
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    _dbg('audioContext created, state=' + audioContext.state);
-    audioContext.addEventListener('statechange', () => _dbg('audioContext statechange → ' + audioContext.state));
+    let audioContext;
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        _dbg('audioContext created, state=' + audioContext.state);
+        audioContext.addEventListener('statechange', () => _dbg('audioContext statechange → ' + audioContext.state));
+    } catch (err) {
+        Logger.error('🛡️ Failed to create AudioContext:', err);
+        // Create a stub so the rest of the module doesn't crash
+        audioContext = {
+            state: 'closed',
+            resume: () => Promise.resolve(),
+            createGain: () => ({ gain: { value: 1 }, connect: () => {}, disconnect: () => {} }),
+            createBufferSource: () => ({ connect: () => {}, start: () => {}, stop: () => {} }),
+            destination: {},
+            addEventListener: () => {}
+        };
+    }
 
     // Guard: block music playback until user has interacted.
     // iPad Safari auto-fires change events that call startMusic before any tap.

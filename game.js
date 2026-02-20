@@ -10403,9 +10403,10 @@ function downloadRecordingJSON(recording, filename) {
 function update(time = 0) {
     if (!gameRunning || gameOverPending) return;
 
+  try {
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
-    
+
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (GameReplay.isActive()) {
         GameReplay.processInputs();
@@ -10714,6 +10715,12 @@ function update(time = 0) {
         };
         ctx.restore();
     }
+
+  } catch (err) {
+    Logger.error('🛡️ Error in game loop:', err);
+    // Attempt to restore canvas state in case ctx.save/restore got unbalanced
+    try { ctx.restore(); } catch (_) {}
+  }
 
     gameLoop = requestAnimationFrame(update);
 }

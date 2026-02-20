@@ -661,10 +661,11 @@ const StormEffects = (() => {
      */
     function draw() {
         if (!stormEffectsToggle || !stormEffectsToggle.checked) return;
-        
+
         // Storm particles only - dripping liquids drawn separately via drawLiquidsOnTop()
         if (stormParticles.length === 0 && splashParticles.length === 0) return;
-        
+
+      try {
         ctx.save();
         
         // Draw storm particles
@@ -801,8 +802,12 @@ const StormEffects = (() => {
         });
         
         ctx.restore();
+      } catch (err) {
+        Logger.error('🛡️ Error in storm effects draw:', err);
+        try { ctx.restore(); } catch (_) {}
+      }
     }
-    
+
     /**
      * Reset all storm effects (call on game start/end)
      */

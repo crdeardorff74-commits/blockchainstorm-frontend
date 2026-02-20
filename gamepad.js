@@ -129,9 +129,15 @@ const GamepadController = {
         this.updateControlsDisplay();
     },
     
+    /** @type {number|null} ID for the gamepad polling interval */
+    pollingIntervalId: null,
+
     startPolling() {
+        // Prevent duplicate polling intervals
+        if (this.pollingIntervalId) return;
+
         // Check for controllers periodically (some browsers don't fire events)
-        setInterval(() => {
+        this.pollingIntervalId = setInterval(() => {
             if (!this.connected) {
                 try {
                     const gamepads = navigator.getGamepads();
@@ -148,6 +154,13 @@ const GamepadController = {
                 }
             }
         }, 1000); // Check every second
+    },
+
+    stopPolling() {
+        if (this.pollingIntervalId) {
+            clearInterval(this.pollingIntervalId);
+            this.pollingIntervalId = null;
+        }
     },
     
     update() {

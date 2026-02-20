@@ -63,6 +63,7 @@ const StarfieldSystem = (function() {
     
     // Stranger Mode - Upside Down particles (ash/spore flakes)
     let strangerMode = false;
+    let starfieldAnimId = null; // rAF ID for cancellation
     const ashParticles = [];
     const numAshParticles = 150;
     
@@ -1799,7 +1800,7 @@ const StarfieldSystem = (function() {
         try { starfieldCtx.restore(); } catch (_) {}
       }
 
-        requestAnimationFrame(animateStarfield);
+        starfieldAnimId = requestAnimationFrame(animateStarfield);
     }
     
     // ============================================
@@ -1820,7 +1821,20 @@ const StarfieldSystem = (function() {
     
     return {
         init: init,
-        
+
+        // Animation loop control
+        stopAnimation: () => {
+            if (starfieldAnimId) {
+                cancelAnimationFrame(starfieldAnimId);
+                starfieldAnimId = null;
+            }
+        },
+        startAnimation: () => {
+            if (!starfieldAnimId) {
+                animateStarfield();
+            }
+        },
+
         // State setters
         setGameRunning: (val) => { gameRunning = val; },
         setPaused: (val) => { paused = val; },

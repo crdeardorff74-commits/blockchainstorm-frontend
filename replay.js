@@ -153,6 +153,7 @@
     // ==================== START REPLAY ====================
 
     function start(recording) {
+      try {
         Logger.info('🎬 Starting deterministic replay (v2.0):', recording.username, recording.difficulty, recording.skill_level);
 
         const recData = recording.recording_data;
@@ -453,6 +454,12 @@
 
         gameLoop = requestAnimationFrame(update);
         Logger.info('🎬 v2.0 replay started - game is running');
+
+      } catch (err) {
+        Logger.error('🛡️ Error starting replay:', err);
+        alert('Failed to start replay. The recording data may be corrupted.');
+        stop();
+      }
     }
 
     // ==================== SPAWN PIECE ====================
