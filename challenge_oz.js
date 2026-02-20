@@ -1,5 +1,5 @@
 /**
- * challenge_oz.js - Oz challenge for BLOCKCHaiNSTORM / TaNTRiS
+ * challenge_oz.js - Oz challenge for TaNTЯiS
  *
  * Falling pieces are rendered in grayscale, hiding their true color
  * until they land. The board retains real colors — only the active

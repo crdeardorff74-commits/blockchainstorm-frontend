@@ -1,5 +1,5 @@
 /**
- * TaNTЯiS / BLOCKCHaiNSTORM - Internationalization Module
+ * TaNTЯiS - Internationalization Module
  * Handles language detection, translation lookups, and DOM translation
  */
 

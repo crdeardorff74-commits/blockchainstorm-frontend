@@ -1,5 +1,5 @@
 /**
- * challenge_vertigo.js - Vertigo challenge for BLOCKCHaiNSTORM / TaNTRiS
+ * challenge_vertigo.js - Vertigo challenge for TaNTЯiS
  * 
  * The game board has a persistent slow oscillating tilt, zoom, and sway,
  * like playing on a rocking ship. Multiple sine waves at incommensurate

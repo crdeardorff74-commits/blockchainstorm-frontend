@@ -1,7 +1,7 @@
 /**
  * Official Intelligence - Auth Module
  * Shared authentication functions for all pages
- * Modified for BLOCKCHaiNSTORM game integration
+ * Modified for TaNTЯiS game integration
  */
 
 const AUTH_API_URL = AppConfig.AUTH_API;

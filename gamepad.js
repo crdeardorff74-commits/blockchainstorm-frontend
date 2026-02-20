@@ -1,5 +1,5 @@
 /**
- * gamepad.js - Gamepad Controller System for BLOCKCHaiNSTORM / TaNTRiS
+ * gamepad.js - Gamepad Controller System for TaNTЯiS
  *
  * Handles gamepad connection/disconnection, input polling, button mapping,
  * menu navigation, haptic feedback (vibration patterns for game events),
@@ -10,10 +10,12 @@
  * GamepadController object exists when game.js references it. The actual
  * init() and update() calls happen asynchronously after all globals exist.
  *
- * Exports: window.GamepadController
+ * Exports: GamepadController
  */
 
-const GamepadController = {
+const GamepadController = (function() {
+
+const controller = {
     enabled: false,
     connected: false,
     deadzone: 0.25,
@@ -978,4 +980,6 @@ const GamepadController = {
     }
 };
 
-window.GamepadController = GamepadController;
+return controller;
+
+})(); // end GamepadController IIFE

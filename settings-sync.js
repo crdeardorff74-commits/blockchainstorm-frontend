@@ -1,5 +1,5 @@
 /**
- * Settings Sync for BLOCKCHaiNSTORM
+ * Settings Sync for TaNTЯiS
  * Saves and restores game settings locally and syncs to server for logged-in users
  */
 
@@ -27,8 +27,8 @@
 
 const SettingsSync = {
     API_URL: AppConfig.AUTH_API,
-    GAME_NAME: 'blockchainstorm',
-    LOCAL_STORAGE_KEY: 'blockchainstorm_settings',
+    GAME_NAME: 'tantris',
+    LOCAL_STORAGE_KEY: 'tantris_settings',
     
     // Debounce timer for saving
     saveTimeout: null,
@@ -145,8 +145,8 @@ const SettingsSync = {
         });
         
         // Audio mute states from localStorage (managed by audio.js)
-        settings.musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
-        settings.sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
+        settings.musicMuted = localStorage.getItem('tantris_musicMuted') === 'true';
+        settings.sfxMuted = localStorage.getItem('tantris_sfxMuted') === 'true';
         
         // Controls configuration
         if (typeof ControlsConfig !== 'undefined' && ControlsConfig.getBindings) {
@@ -226,16 +226,16 @@ const SettingsSync = {
         // Apply volume settings via audio.js localStorage keys
         // These will be picked up when volume controls are created
         if (settings.musicVolumeSlider !== undefined) {
-            localStorage.setItem('blockchainstorm_musicVolume', (settings.musicVolumeSlider / 100).toString());
+            localStorage.setItem('tantris_musicVolume', (settings.musicVolumeSlider / 100).toString());
         }
         if (settings.sfxVolumeSlider !== undefined) {
-            localStorage.setItem('blockchainstorm_sfxVolume', (settings.sfxVolumeSlider / 100).toString());
+            localStorage.setItem('tantris_sfxVolume', (settings.sfxVolumeSlider / 100).toString());
         }
         if (settings.musicMuted !== undefined) {
-            localStorage.setItem('blockchainstorm_musicMuted', settings.musicMuted.toString());
+            localStorage.setItem('tantris_musicMuted', settings.musicMuted.toString());
             // Also update audio system state if available
-            if (typeof window.AudioSystem !== 'undefined' && window.AudioSystem.setMusicMuted) {
-                window.AudioSystem.setMusicMuted(settings.musicMuted);
+            if (typeof AudioSystem !== 'undefined' && AudioSystem.setMusicMuted) {
+                AudioSystem.setMusicMuted(settings.musicMuted);
             }
             // Update mute button icon if it exists
             const musicMuteBtn = document.getElementById('musicMuteBtn');
@@ -245,10 +245,10 @@ const SettingsSync = {
             }
         }
         if (settings.sfxMuted !== undefined) {
-            localStorage.setItem('blockchainstorm_sfxMuted', settings.sfxMuted.toString());
+            localStorage.setItem('tantris_sfxMuted', settings.sfxMuted.toString());
             // Also update audio system state if available
-            if (typeof window.AudioSystem !== 'undefined' && window.AudioSystem.setSfxMuted) {
-                window.AudioSystem.setSfxMuted(settings.sfxMuted);
+            if (typeof AudioSystem !== 'undefined' && AudioSystem.setSfxMuted) {
+                AudioSystem.setSfxMuted(settings.sfxMuted);
             }
             // Update mute button icon if it exists
             const sfxMuteBtn = document.getElementById('sfxMuteBtn');

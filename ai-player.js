@@ -1,5 +1,5 @@
 /**
- * AI Player Module for TaNTЯiS / BLOCKCHaiNSTORM
+ * AI Player Module for TaNTЯiS
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
@@ -1109,5 +1109,3 @@ const AIPlayer = (() => {
         shadowEvaluate
     };
 })();
-
-window.AIPlayer = AIPlayer;

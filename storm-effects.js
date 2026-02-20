@@ -1,4 +1,4 @@
-// Storm Particle System Module for BLOCKCHaiNSTORM
+// Storm Particle System Module for TaNTЯiS
 // Handles all weather visual effects: rain, hail, snow, hurricane winds, and challenge liquids
 // This is purely cosmetic - can be toggled off without affecting gameplay
 
@@ -850,7 +850,3 @@ const StormEffects = (() => {
     };
 })();
 
-// Export for use in game.js
-if (typeof window !== 'undefined') {
-    window.StormEffects = StormEffects;
-}

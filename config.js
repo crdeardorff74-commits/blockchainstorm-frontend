@@ -1,5 +1,5 @@
 /**
- * Centralized configuration for BLOCKCHaiNSTORM / TaNTЯiS
+ * Centralized configuration for TaNTЯiS
  * All API endpoints, shared utilities, and external URLs in one place.
  * This file must be loaded before all other scripts.
  */

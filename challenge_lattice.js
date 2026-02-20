@@ -1,5 +1,5 @@
 /**
- * challenge_lattice.js - Lattice challenge for BLOCKCHaiNSTORM / TaNTRiS
+ * challenge_lattice.js - Lattice challenge for TaNTЯiS
  * 
  * Pre-fills the bottom half of the board with random scattered blocks
  * at game start. Lattice blocks are rendered with silver edges and are

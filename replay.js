@@ -1,5 +1,5 @@
 /**
- * replay.js - Deterministic Replay System for BLOCKCHaiNSTORM / TaNTRiS
+ * replay.js - Deterministic Replay System for TaNTЯiS
  *
  * Replays recorded games by running an actual game with recorded pieces
  * and inputs injected at timestamps. Supports board snapshot syncing,
@@ -9,10 +9,10 @@
  * Accesses game globals directly (board, currentPiece, score, etc.)
  * since they are already global in game.js.
  *
- * Exports: window.GameReplay
+ * Exports: GameReplay
  */
 
-(function () {
+const GameReplay = (function () {
     'use strict';
 
     // ==================== PRIVATE STATE ====================
@@ -1119,7 +1119,6 @@
         animateClearLines
     };
 
-    window.GameReplay = GameReplay;
-    window.startGameReplay = start;
+    return GameReplay;
 
 })();

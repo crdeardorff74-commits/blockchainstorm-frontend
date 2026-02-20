@@ -1,5 +1,5 @@
 /**
- * Controls Configuration Module for BLOCKCHaiNSTORM
+ * Controls Configuration Module for TaNTЯiS
  * Allows players to customize keyboard and gamepad controls
  */
 

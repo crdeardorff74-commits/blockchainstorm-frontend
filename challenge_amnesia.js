@@ -1,5 +1,5 @@
 /**
- * challenge_amnesia.js - Amnesia challenge for BLOCKCHaiNSTORM / TaNTRiS
+ * challenge_amnesia.js - Amnesia challenge for TaNTЯiS
  * 
  * Block colors slowly fade to white after placement, hiding their true color.
  * The underlying board color is never modified — blobs, scoring, and special

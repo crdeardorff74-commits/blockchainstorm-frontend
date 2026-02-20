@@ -1,6 +1,8 @@
 // ===== LEADERBOARD MODULE =====
 // All leaderboard-related functionality
 
+window.leaderboard = (function() {
+
 // API Configuration
 const API_URL = AppConfig.GAME_API;
 
@@ -54,7 +56,7 @@ function censorProfanity(text) {
 window.testHighScore = async function(testScore = 1000000) {
     Logger.debug('Testing high score system with score:', testScore);
     const scoreData = {
-        game: 'blockchainstorm',
+        game: 'tantris',
         difficulty: 'drizzle',
         mode: 'normal',
         score: testScore,
@@ -91,9 +93,9 @@ window.testHighScore = async function(testScore = 1000000) {
  */
 async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest') {
     try {
-        Logger.info(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`);
+        Logger.info(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/tantris/${difficulty}/${mode}?skill_level=${skillLevel}`);
         
-        const response = await apiFetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`, {
+        const response = await apiFetch(`${API_URL}/leaderboard/tantris/${difficulty}/${mode}?skill_level=${skillLevel}`, {
             method: 'GET',
             mode: 'cors',
             cache: 'no-store',
@@ -119,7 +121,7 @@ async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempe
 
 // Local storage fallback for leaderboard
 function getLocalLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest') {
-    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}_${skillLevel}`;
+    const key = `tantris_leaderboard_${difficulty}_${mode}_${skillLevel}`;
     const stored = localStorage.getItem(key);
     if (stored) {
         try {
@@ -134,7 +136,7 @@ function getLocalLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest'
 
 // Save to local leaderboard
 function saveLocalLeaderboard(difficulty, scores, mode = 'normal', skillLevel = 'tempest') {
-    const key = `blockchainstorm_leaderboard_${difficulty}_${mode}_${skillLevel}`;
+    const key = `tantris_leaderboard_${difficulty}_${mode}_${skillLevel}`;
     try {
         const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
@@ -420,8 +422,8 @@ async function startReplay(recordingId) {
         Logger.info('🎬 Recording loaded:', recording.username, recording.score, 'pts');
         
         // Call the game's replay function if available
-        if (typeof window.startGameReplay === 'function') {
-            window.startGameReplay(recording);
+        if (typeof GameReplay !== 'undefined' && GameReplay.start) {
+            GameReplay.start(recording);
         } else {
             Logger.error('🎬 Replay function not available');
             alert('Replay feature not yet available');
@@ -663,7 +665,7 @@ function promptForName(scoreData) {
     input.parentNode.replaceChild(newInput, input);
     
     // Pre-fill with saved username if available
-    const savedUsername = localStorage.getItem('blockchainstorm_username');
+    const savedUsername = localStorage.getItem('tantris_username');
     newInput.value = savedUsername || '';
     
     // Create custom on-screen keyboard (only for standalone iOS apps where system keyboard doesn't work)
@@ -944,7 +946,7 @@ function promptForName(scoreData) {
         
         // Save username for next time (save the raw input, not censored version)
         if (rawUsername !== 'Anonymous') {
-            localStorage.setItem('blockchainstorm_username', rawUsername);
+            localStorage.setItem('tantris_username', rawUsername);
         }
         
         // Submit pending game recording with the entered username
@@ -1193,7 +1195,7 @@ async function submitScore(gameData) {
     const suppressEmail = new URLSearchParams(window.location.search).get('track') === 'false';
     
     const scoreData = {
-        game_name: 'blockchainstorm',
+        game_name: 'tantris',
         difficulty: window.gameMode || 'downpour',
         mode: 'normal',
         score: gameData.score,
@@ -1358,7 +1360,7 @@ async function notifyGameCompletion(scoreData) {
         
         const dataToSubmit = {
             ...scoreData,
-            username: localStorage.getItem('blockchainstorm_username') || 'Anonymous',
+            username: localStorage.getItem('tantris_username') || 'Anonymous',
             challengeNames: challengeNames,
             notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
             skipNotification: new URLSearchParams(window.location.search).get('track') === 'false',
@@ -1457,8 +1459,8 @@ function clearLastPlayerScore() {
     lastPlayerScore = null;
 }
 
-// Export functions for use in game.js
-window.leaderboard = {
+// Public API
+return {
     displayLeaderboard,
     hideLeaderboard,
     checkIfTopTen,
@@ -1471,3 +1473,5 @@ window.leaderboard = {
     notifyGameCompletion,
     clearLastPlayerScore
 };
+
+})(); // end leaderboard IIFE

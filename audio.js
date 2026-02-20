@@ -1,4 +1,4 @@
-// Audio System Module for BLOCKCHaiNSTORM
+// Audio System Module for TaNTЯiS
 // Handles all sound effects, music, and audio context management
 
 const AudioSystem = (function() {
@@ -69,10 +69,10 @@ let gameInProgress = false; // Track if a game is currently running
 let fullSongPlayedOnMenu = false; // Track if a full song has completed on main menu
 
 // Music volume controls
-let musicVolume = parseFloat(localStorage.getItem('blockchainstorm_musicVolume')) || 0.5;
-let musicMuted = localStorage.getItem('blockchainstorm_musicMuted') === 'true';
-let sfxVolume = parseFloat(localStorage.getItem('blockchainstorm_sfxVolume')) || 0.7;
-let sfxMuted = localStorage.getItem('blockchainstorm_sfxMuted') === 'true';
+let musicVolume = parseFloat(localStorage.getItem('tantris_musicVolume')) || 0.5;
+let musicMuted = localStorage.getItem('tantris_musicMuted') === 'true';
+let sfxVolume = parseFloat(localStorage.getItem('tantris_sfxVolume')) || 0.7;
+let sfxMuted = localStorage.getItem('tantris_sfxMuted') === 'true';
 
 // MP3 gameplay music - multiple tracks
 // iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
@@ -416,9 +416,9 @@ let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
 // localStorage keys for queue persistence
-const GAMEPLAY_QUEUE_KEY = 'blockchainstorm_gameplayQueue';
-const FWORD_QUEUE_KEY = 'blockchainstorm_fwordQueue';
-const PURGED_SONGS_KEY = 'blockchainstorm_purgedSongs';
+const GAMEPLAY_QUEUE_KEY = 'tantris_gameplayQueue';
+const FWORD_QUEUE_KEY = 'tantris_fwordQueue';
+const PURGED_SONGS_KEY = 'tantris_purgedSongs';
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -804,7 +804,7 @@ function updateMediaSessionMetadata() {
     if (songInfo) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: songInfo.name,
-            artist: 'TaNTЯiS / BLOCKCHaiNSTORM',
+            artist: 'TaNTЯiS',
             album: 'Game Soundtrack'
         });
     }
@@ -2909,7 +2909,7 @@ function playSmallExplosion(soundToggle) {
 
 function setMusicVolume(volume) {
     musicVolume = Math.max(0, Math.min(1, volume));
-    localStorage.setItem('blockchainstorm_musicVolume', musicVolume.toString());
+    localStorage.setItem('tantris_musicVolume', musicVolume.toString());
     applyMusicVolume();
 }
 
@@ -2919,7 +2919,7 @@ function getMusicVolume() {
 
 function setMusicMuted(muted) {
     musicMuted = muted;
-    localStorage.setItem('blockchainstorm_musicMuted', muted.toString());
+    localStorage.setItem('tantris_musicMuted', muted.toString());
     applyMusicVolume();
 }
 
@@ -2950,7 +2950,7 @@ function applyMusicVolume() {
 
 function setSfxVolume(volume) {
     sfxVolume = Math.max(0, Math.min(1, volume));
-    localStorage.setItem('blockchainstorm_sfxVolume', sfxVolume.toString());
+    localStorage.setItem('tantris_sfxVolume', sfxVolume.toString());
     applySfxVolume();
 }
 
@@ -2960,7 +2960,7 @@ function getSfxVolume() {
 
 function setSfxMuted(muted) {
     sfxMuted = muted;
-    localStorage.setItem('blockchainstorm_sfxMuted', muted.toString());
+    localStorage.setItem('tantris_sfxMuted', muted.toString());
 }
 
 function isSfxMuted() {

@@ -654,15 +654,10 @@ function startCreditsAnimation() {
         return;
     }
     
-    // Set the game title based on branding
+    // Set the game title in credits
     const gameTitleDiv = document.getElementById('gameTitle');
     if (gameTitleDiv) {
-        const isTantris = (window.GAME_TITLE || '').toUpperCase().includes('TANT');
-        if (isTantris) {
-            gameTitleDiv.innerHTML = 'T<span class="credits-ai">a</span>NTЯ<span class="credits-ai">i</span>S';
-        } else {
-            gameTitleDiv.innerHTML = '₿LOCKCH<span class="credits-ai">ai</span>NSTOЯM';
-        }
+        gameTitleDiv.innerHTML = 'T<span class="credits-ai">a</span>NTЯ<span class="credits-ai">i</span>S';
     }
     
     // Hide settings button during end credits
@@ -1444,7 +1439,7 @@ function updateSongInfoDisplay(songInfo) {
     if (!songInfo) {
         songInfoElement.style.display = 'none';
         // Reset browser tab title when no song playing
-        document.title = window.GAME_TITLE || 'TaNTЯiS';
+        document.title = 'TaNTЯiS';
         return;
     }
     
@@ -1460,7 +1455,7 @@ function updateSongInfoDisplay(songInfo) {
     }
     
     // Update browser tab title with current song
-    const gameTitle = window.GAME_TITLE || 'TaNTЯiS';
+    const gameTitle = 'TaNTЯiS';
     document.title = `${gameTitle} - ${songInfo.name}`;
     
     if (songDurationEl && songInfo.duration > 0) {
@@ -7596,7 +7591,7 @@ function checkForSpecialFormations() {
 }
 
 // ============================================================================
-// BLOCKCHAINSTORM - COMPLETE GRAVITY SYSTEM (V2 - REWRITE)
+// TaNTЯiS - COMPLETE GRAVITY SYSTEM (V2 - REWRITE)
 // ============================================================================
 // Algorithm:
 // 1. Create phantom board
@@ -9632,7 +9627,7 @@ async function gameOver() {
                     recording: recording,
                     gameData: {
                         username: '🤖 Claude',
-                        game: 'blockchainstorm',
+                        game: 'tantris',
                         playerType: 'ai',
                         difficulty: gameMode,
                         skillLevel: skillLevel,
@@ -9667,7 +9662,7 @@ async function gameOver() {
                 pendingRecording = {
                     recording: recording,
                     gameData: {
-                        game: 'blockchainstorm',
+                        game: 'tantris',
                         playerType: 'human',
                         difficulty: gameMode,
                         skillLevel: skillLevel,
@@ -9746,8 +9741,8 @@ async function gameOver() {
     
     // Prepare score data for submission
     const scoreData = {
-        game: 'blockchainstorm',
-        gameTitle: window.GAME_TITLE || 'BLOCKCHaiNSTOЯM',
+        game: 'tantris',
+        gameTitle: 'TaNTЯiS',
         difficulty: gameMode,
         mode: isChallenge ? 'challenge' : 'normal',
         skillLevel: skillLevel,
@@ -9848,7 +9843,7 @@ async function gameOver() {
         }
         // Submit pending recording with stored username or Anonymous
         if (typeof window.submitPendingRecording === 'function') {
-            const storedUsername = localStorage.getItem('blockchainstorm_username') || 'Anonymous';
+            const storedUsername = localStorage.getItem('tantris_username') || 'Anonymous';
             window.submitPendingRecording(storedUsername);
         }
     }
@@ -13005,7 +13000,7 @@ document.addEventListener('keydown', (e) => {
 }, { once: true });
 
 // Initialize high score system
-Logger.info(`🏆 ${window.GAME_TITLE || 'BLOCKCHaiNSTORM'} High Score System Initialized`);
+Logger.info('🏆 TaNTЯiS High Score System Initialized');
 Logger.debug('💡 To test high score prompt in console, type: testHighScore(1000000)');
 Logger.debug('📊 Leaderboard uses server if available, falls back to local storage');
 

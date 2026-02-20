@@ -1,6 +1,6 @@
 /**
  * touch-controls.js - Device Detection, Swipe Gestures, Touch Controls & Tablet Mode
- *                     for BLOCKCHaiNSTORM / TaNTRiS
+ *                     for TaNTЯiS
  *
  * Handles:
  *   - DeviceDetection: phone/tablet/desktop identification
@@ -14,9 +14,11 @@
  * handlers that only fire after game.js has loaded, so this file can be
  * loaded before game.js. Init calls remain in game.js.
  *
- * Exports: window.DeviceDetection, window.detectOS, window.SwipeControls,
- *          window.TabletMode, window.touchRepeat, window.initTouchControls
+ * Exports: DeviceDetection, detectOS, SwipeControls,
+ *          TabletMode, touchRepeat, initTouchControls
  */
+
+const { DeviceDetection, detectOS, SwipeControls, TabletMode, touchRepeat, initTouchControls } = (function() {
 
 // ============================================
 
@@ -505,9 +507,6 @@ function initTouchControls() {
     Logger.info('📱 Touch controls initialized with key repeat');
 }
 
-window.DeviceDetection = DeviceDetection;
-window.detectOS = detectOS;
-window.SwipeControls = SwipeControls;
-window.TabletMode = TabletMode;
-window.touchRepeat = touchRepeat;
-window.initTouchControls = initTouchControls;
+return { DeviceDetection, detectOS, SwipeControls, TabletMode, touchRepeat, initTouchControls };
+
+})(); // end touch-controls IIFE

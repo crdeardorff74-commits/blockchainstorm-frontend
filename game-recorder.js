@@ -1,5 +1,5 @@
 /**
- * Game Recorder Module for TaNTЯiS / BLOCKCHaiNSTORM
+ * Game Recorder Module for TaNTЯiS
  * Records human gameplay for analysis and playback
  * v2.0: Piece-relative timing - all events indexed by piece for perfect sync
  */
@@ -518,7 +518,7 @@ const GameRecorder = (() => {
      * @param {Object} recordingData - The recording object returned by stopRecording().
      * @param {Object} [gameData={}] - Additional game metadata to include in the submission.
      * @param {string} [gameData.username='anonymous'] - Player username.
-     * @param {string} [gameData.game='blockchainstorm'] - Game identifier.
+     * @param {string} [gameData.game='tantris'] - Game identifier.
      * @param {string} [gameData.playerType] - Player type override.
      * @param {string} [gameData.difficulty] - Difficulty override.
      * @param {string} [gameData.skillLevel] - Skill level override.
@@ -542,7 +542,7 @@ const GameRecorder = (() => {
             const payload = {
                 // From gameData
                 username: gameData.username || 'anonymous',
-                game: gameData.game || 'blockchainstorm',
+                game: gameData.game || 'tantris',
                 playerType: gameData.playerType || recordingData.playerType || 'human',
                 difficulty: gameData.difficulty || recordingData.difficulty,
                 skillLevel: gameData.skillLevel || recordingData.skillLevel || 'tempest',
