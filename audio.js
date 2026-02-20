@@ -2252,6 +2252,29 @@ function startMenuMusic(musicToggleOrSelect, forceCredits) {
                 _dbg('startMenuMusic: play() RESOLVED OK');
             }).catch(e => {
                 _dbg('startMenuMusic: play() REJECTED: ' + e.name + ': ' + e.message);
+                // Reset flag so a retry can succeed (e.g. iPad autoplay policy)
+                menuMusicPlaying = false;
+
+                // On iOS, play() fails outside user gesture context.
+                // Retry on next user tap/touch — the element is already loaded,
+                // so play() inside the gesture handler will succeed.
+                if (_isIOSAudio && menuMusicElement) {
+                    const retryEl = menuMusicElement;
+                    const retryHandler = () => {
+                        document.removeEventListener('touchend', retryHandler, true);
+                        if (retryEl && retryEl.paused && !menuMusicPlaying) {
+                            menuMusicPlaying = true;
+                            retryEl.play().then(() => {
+                                _dbg('startMenuMusic: iOS retry play() OK');
+                            }).catch(e2 => {
+                                _dbg('startMenuMusic: iOS retry play() REJECTED: ' + e2.message);
+                                menuMusicPlaying = false;
+                            });
+                        }
+                    };
+                    document.addEventListener('touchend', retryHandler, { once: true, capture: true });
+                    _dbg('startMenuMusic: registered iOS touch-retry handler');
+                }
             });
         }
     } else {
