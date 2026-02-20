@@ -48,8 +48,8 @@ function updateUserMenu() {
     if (menu && authCurrentUser) {
         menu.innerHTML = `
             <div class="user-info">
-                ${authCurrentUser.avatar_url ? `<img src="${authCurrentUser.avatar_url}" alt="">` : ''}
-                <span>${authCurrentUser.display_name || authCurrentUser.username}</span>
+                ${authCurrentUser.avatar_url ? `<img src="${escapeHtml(authCurrentUser.avatar_url)}" alt="">` : ''}
+                <span>${escapeHtml(authCurrentUser.display_name || authCurrentUser.username)}</span>
                 <button onclick="logout()" style="margin-left: 10px;">LOGOUT</button>
             </div>
         `;

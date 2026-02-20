@@ -357,8 +357,8 @@ const GamepadController = {
         `;
         
         notification.innerHTML = `
-            <div style="margin-bottom: 5px;">${title}</div>
-            ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${subtitle}</div>` : ''}
+            <div style="margin-bottom: 5px;">${escapeHtml(title)}</div>
+            ${subtitle ? `<div style="font-size: 12px; opacity: 0.7; font-weight: normal;">${escapeHtml(subtitle)}</div>` : ''}
             <div style="font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: normal;">
                 Configure controls in ⚙️ Settings
             </div>
