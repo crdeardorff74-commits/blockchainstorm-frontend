@@ -139,8 +139,14 @@ const ErrorBoundary = {
 
         window.addEventListener('unhandledrejection', (event) => {
             const reason = event.reason;
+            const msg = reason instanceof Error ? reason.message : String(reason);
+            // Suppress transient SW/cache errors that occur during service worker updates
+            if (msg && (/Cache/.test(msg) || /ServiceWorker/.test(msg) || /sw\.js/.test(msg) || /Failed to fetch/.test(msg))) {
+                Logger.debug('🛡️ Suppressed SW-related rejection:', msg);
+                return;
+            }
             this._handle({
-                message: reason instanceof Error ? reason.message : String(reason),
+                message: msg,
                 stack: reason instanceof Error ? reason.stack : undefined,
                 type: 'unhandled_rejection'
             });

@@ -1264,10 +1264,11 @@ if ('serviceWorker' in navigator) {
         console.log('📦 PWA: New version available' + (version ? ' (v' + version + ')' : ''));
 
         // If still on intro screen, silently refresh — user hasn't started anything yet
+        // Small delay lets the SW activation fully settle before we reload
         var intro = document.getElementById('startOverlay');
         if (intro && intro.style.display !== 'none') {
-            console.log('📦 PWA: On intro screen, auto-refreshing');
-            window.location.reload();
+            console.log('📦 PWA: On intro screen, auto-refreshing in 1s');
+            setTimeout(function() { window.location.reload(); }, 1000);
             return;
         }
 
