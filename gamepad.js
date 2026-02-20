@@ -74,22 +74,22 @@ const GamepadController = {
             this.startPolling();
         } catch (error) {
             // Silently fail if gamepad API not available or blocked by permissions
-            console.log('Gamepad API not available');
+            Logger.debug('Gamepad API not available');
             this.enabled = false;
         }
     },
     
     onConnect(gamepad) {
-        console.log('🎮 Controller connected:', gamepad.id);
-        console.log('   Buttons:', gamepad.buttons.length);
-        console.log('   Axes:', gamepad.axes.length);
+        Logger.info('🎮 Controller connected:', gamepad.id);
+        Logger.debug('   Buttons:', gamepad.buttons.length);
+        Logger.debug('   Axes:', gamepad.axes.length);
         
         this.connected = true;
         this.enabled = true;
         
         // Check for vibration support
         this.vibrationSupported = !!(gamepad.vibrationActuator || gamepad.hapticActuators);
-        console.log('   Vibration:', this.vibrationSupported ? 'Supported' : 'Not supported');
+        Logger.debug('   Vibration:', this.vibrationSupported ? 'Supported' : 'Not supported');
         
         // Update controls display to show controller buttons
         this.updateControlsDisplay();
@@ -106,7 +106,7 @@ const GamepadController = {
     },
     
     onDisconnect(gamepad) {
-        console.log('🎮 Controller disconnected:', gamepad.id);
+        Logger.info('🎮 Controller disconnected:', gamepad.id);
         
         // Check if any controllers still connected
         const gamepads = navigator.getGamepads();

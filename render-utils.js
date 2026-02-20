@@ -25,7 +25,7 @@ const RenderUtils = (() => {
     
     function adjustBrightness(color, factor) {
         if (!color || !color.startsWith('#')) {
-            console.warn('adjustBrightness received non-hex color:', color);
+            Logger.warn('adjustBrightness received non-hex color:', color);
             return color || '#808080';
         }
         
@@ -35,7 +35,7 @@ const RenderUtils = (() => {
         let b = parseInt(hex.substring(4, 6), 16);
         
         if (isNaN(r) || isNaN(g) || isNaN(b)) {
-            console.warn('adjustBrightness failed to parse color:', color);
+            Logger.warn('adjustBrightness failed to parse color:', color);
             return '#808080';
         }
         

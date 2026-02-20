@@ -701,15 +701,15 @@ const StarfieldSystem = (function() {
     // Sun image (normal mode)
     const sunImage = new Image();
     sunImage.crossOrigin = 'anonymous';
-    sunImage.onload = () => { console.log('Sun image loaded'); };
-    sunImage.onerror = () => { console.log('Sun image failed to load, using procedural'); };
+    sunImage.onload = () => { Logger.debug('Sun image loaded'); };
+    sunImage.onerror = () => { Logger.debug('Sun image failed to load, using procedural'); };
     sunImage.src = 'https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg';
     
     // Alternate sun image (minimalist mode)
     const sunImageMinimalist = new Image();
     sunImageMinimalist.crossOrigin = 'anonymous';
-    sunImageMinimalist.onload = () => { console.log('Minimalist sun image loaded'); };
-    sunImageMinimalist.onerror = () => { console.log('Minimalist sun image failed to load'); };
+    sunImageMinimalist.onload = () => { Logger.debug('Minimalist sun image loaded'); };
+    sunImageMinimalist.onerror = () => { Logger.debug('Minimalist sun image failed to load'); };
     sunImageMinimalist.src = 'https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764973199/gettyimages-1406174121_gjatmr.jpg';
     
     // Planet/asteroid animation state
@@ -1202,7 +1202,7 @@ const StarfieldSystem = (function() {
         
         const linesDisplay = document.getElementById('lines');
         if (!linesDisplay) {
-            console.error('Could not find lines display element');
+            Logger.debug('Could not find lines display element');
             return;
         }
         const linesRect = linesDisplay.getBoundingClientRect();
@@ -1211,7 +1211,7 @@ const StarfieldSystem = (function() {
         ufoTargetX = (linesRect.left + linesRect.width / 2) * scaleFactor;
         ufoTargetY = (linesRect.top + linesRect.height / 2) * scaleFactor;
         
-        console.log(`UFO Target: X=${ufoTargetX}, Y=${ufoTargetY}, Element text="${linesDisplay.textContent}"`);
+        Logger.debug(`UFO Target: X=${ufoTargetX}, Y=${ufoTargetY}, Element text="${linesDisplay.textContent}"`);
         
         const edges = ['left', 'right', 'top', 'bottom'];
         ufoEntryEdge = edges[Math.floor(Math.random() * edges.length)];
@@ -1238,7 +1238,7 @@ const StarfieldSystem = (function() {
                 break;
         }
         
-        console.log('🛸 UFO ACTIVATED! The answer to everything is being celebrated!');
+        Logger.info('🛸 UFO ACTIVATED! The answer to everything is being celebrated!');
         if (playSoundEffectCallback && soundToggleRef) {
             playSoundEffectCallback('special', soundToggleRef);
         }
@@ -1282,7 +1282,7 @@ const StarfieldSystem = (function() {
                 if (!ufoZIndexBoosted && ufoCircleAngle > Math.PI * 4) {
                     ufoCanvas.style.zIndex = '10';
                     ufoZIndexBoosted = true;
-                    console.log('🛸 UFO now in front of panels');
+                    Logger.debug('🛸 UFO now in front of panels');
                 }
                 
                 if (ufoCircleAngle > Math.PI * 6) {
@@ -1297,11 +1297,11 @@ const StarfieldSystem = (function() {
                         const songRect = songInfoEl.getBoundingClientRect();
                         ufoSwoopTargetX = songRect.left + songRect.width / 2;
                         ufoSwoopTargetY = songRect.top + songRect.height / 2;
-                        console.log('🛸 UFO swooping to music info!');
+                        Logger.debug('🛸 UFO swooping to music info!');
                     } else {
                         // No music info visible, just exit normally
                         ufoPhase = 'exiting';
-                        console.log('🛸 UFO exiting (no music info visible)');
+                        Logger.debug('🛸 UFO exiting (no music info visible)');
                     }
                 }
                 break;
@@ -1318,7 +1318,7 @@ const StarfieldSystem = (function() {
                     ufoY += (swoopDy / swoopDist) * ufoSpeed * 2;
                 } else {
                     // Reached the music info - trigger callback and exit
-                    console.log('🛸 UFO reached music info - delivering special song!');
+                    Logger.debug('🛸 UFO reached music info - delivering special song!');
                     if (ufoSwoopCallback) {
                         ufoSwoopCallback();
                     }
@@ -1361,7 +1361,7 @@ const StarfieldSystem = (function() {
                         ufoCanvas.style.zIndex = '0';
                         ufoZIndexBoosted = false;
                     }
-                    console.log('🛸 UFO has departed after celebrating the ultimate answer!');
+                    Logger.info('🛸 UFO has departed after celebrating the ultimate answer!');
                 }
                 break;
         }
@@ -1372,7 +1372,7 @@ const StarfieldSystem = (function() {
         if (!ufoActive) return;
         ufoPhase = 'exiting';
         ufoBeamOpacity = 0;
-        console.log('🛸 UFO departing early - lines changed from 42!');
+        Logger.debug('🛸 UFO departing early - lines changed from 42!');
     }
     
     function drawUFO() {
@@ -1461,7 +1461,7 @@ const StarfieldSystem = (function() {
     
     function showPlanetStats(planet) {
         setTimeout(() => {
-            console.log('Showing planet stats for:', planet.name);
+            Logger.debug('Showing planet stats for:', planet.name);
             
             if (!planetStatsDiv || !planetStatsContent) {
                 planetStatsDiv = document.getElementById('planetStats');

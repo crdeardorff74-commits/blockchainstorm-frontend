@@ -3,7 +3,7 @@
  * Records human gameplay for analysis and playback
  * v2.0: Piece-relative timing - all events indexed by piece for perfect sync
  */
-console.log("📹 Game Recorder v2.0 loaded - piece-relative timing for accurate replay");
+Logger.info("📹 Game Recorder v2.0 loaded - piece-relative timing for accurate replay");
 
 const GameRecorder = (() => {
     const API_URL = AppConfig.GAME_API;
@@ -15,7 +15,18 @@ const GameRecorder = (() => {
     let currentPieceSpawnTime = 0;
     
     /**
-     * Start recording a new game
+     * Start recording a new game session. Initializes internal recording state
+     * with the provided configuration and begins capturing piece data.
+     * @param {Object} config - Game configuration for this recording session.
+     * @param {string} [config.gameVersion='unknown'] - Version identifier of the game build.
+     * @param {string} [config.playerType='human'] - Player type, e.g. 'human' or 'ai'.
+     * @param {string} [config.difficulty='drizzle'] - Difficulty setting for the game.
+     * @param {string} [config.skillLevel='tempest'] - Skill level setting.
+     * @param {string} [config.palette='classic'] - Color palette used.
+     * @param {string} [config.mode='normal'] - Game mode identifier.
+     * @param {string[]} [config.challenges=[]] - Active challenge mode identifiers.
+     * @param {Object} [config.visualSettings={}] - Visual settings in effect.
+     * @returns {boolean} Always returns true to indicate recording has started.
      */
     function startRecording(config) {
         recording = {
@@ -45,13 +56,18 @@ const GameRecorder = (() => {
         currentPieceIndex = -1;
         currentPieceSpawnTime = 0;
         
-        console.log('📹 Recording started (v2.0 piece-relative)');
+        Logger.info('📹 Recording started (v2.0 piece-relative)');
         return true;
     }
     
     /**
-     * Called when a new piece spawns - creates a new piece entry
-     * This MUST be called before any inputs for that piece are recorded
+     * Record the spawn of a new piece. Creates a new piece entry with a board
+     * snapshot. Must be called before any inputs for that piece are recorded.
+     * @param {Object} piece - The spawned piece object.
+     * @param {string} piece.type - Single-character piece type identifier (e.g. 'I', 'T', 'O').
+     * @param {string} piece.color - Color identifier for the piece.
+     * @param {Array<Array<*>>} board - The current board state as a 2D array.
+     * @returns {void}
      */
     function recordPieceSpawn(piece, board) {
         if (!isRecording || !recording) return;
@@ -73,7 +89,11 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record a player input - time is relative to current piece spawn
+     * Record a player input event. The timestamp is stored relative to the
+     * current piece's spawn time for piece-relative replay accuracy.
+     * @param {string} inputType - The type of input (e.g. 'left', 'right', 'rotate', 'hardDrop').
+     * @param {Object} [data={}] - Additional data associated with the input event.
+     * @returns {void}
      */
     function recordInput(inputType, data = {}) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -91,7 +111,23 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record a piece placement (when piece locks)
+     * Record the final placement of a piece when it locks into the board.
+     * Optionally includes AI shadow evaluation data for human-vs-AI comparison.
+     * @param {Object} piece - The piece that was placed.
+     * @param {number} piece.x - Final x-coordinate of the piece.
+     * @param {number} piece.y - Final y-coordinate of the piece.
+     * @param {number} [piece.rotationIndex=0] - Final rotation state.
+     * @param {Array<Array<*>>} board - The board state (unused directly, reserved for future use).
+     * @param {Object} [moveData={}] - Metadata about how the piece was placed.
+     * @param {boolean} [moveData.hardDrop] - Whether the piece was hard-dropped.
+     * @param {number} [moveData.softDropDistance] - Number of rows soft-dropped.
+     * @param {number} [moveData.rotations] - Number of rotations performed.
+     * @param {number} [moveData.lateralMoves] - Number of lateral moves performed.
+     * @param {number} [moveData.thinkTime] - Time in ms the player spent deciding.
+     * @param {Object|null} [aiShadow=null] - AI shadow evaluation for comparison.
+     * @param {Object} [aiShadow.chosen] - The AI's top-ranked placement.
+     * @param {Array} [aiShadow.alternatives] - Alternative placements evaluated by the AI.
+     * @returns {void}
      */
     function recordMove(piece, board, moveData = {}, aiShadow = null) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -142,7 +178,15 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record AI decision metadata
+     * Record AI decision metadata for the current piece, including the chosen
+     * placement, alternatives considered, and danger assessment.
+     * @param {Object} decisionMeta - AI decision details.
+     * @param {Object} decisionMeta.chosen - The placement the AI selected.
+     * @param {Array} [decisionMeta.alternatives] - Top alternative placements (up to 3 stored).
+     * @param {number} [decisionMeta.scoreDifferential] - Score gap between best and second-best.
+     * @param {string} [decisionMeta.dangerLevel] - Current danger assessment level.
+     * @param {Object} [decisionMeta.gameState] - Snapshot of relevant game state metrics.
+     * @returns {void}
      */
     function recordAIDecision(decisionMeta) {
         if (!isRecording || !recording || !decisionMeta || currentPieceIndex < 0) return;
@@ -160,7 +204,11 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record tornado spawn - relative to current piece
+     * Record a tornado spawn event, timestamped relative to the current piece.
+     * @param {number} x - Column position where the tornado spawned.
+     * @param {number} snakeDirection - Current snake movement direction.
+     * @param {number} snakeChangeCounter - Counter tracking snake direction changes.
+     * @returns {void}
      */
     function recordTornadoSpawn(x, snakeDirection, snakeChangeCounter) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -180,7 +228,10 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record tornado direction change
+     * Record a change in tornado movement direction.
+     * @param {number} newDirection - The new direction value for the tornado.
+     * @param {number} velocity - The tornado's current velocity.
+     * @returns {void}
      */
     function recordTornadoDirection(newDirection, velocity) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -199,7 +250,9 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record tornado drop position
+     * Record the column where a tornado drops its payload.
+     * @param {number} targetX - The target column for the tornado drop.
+     * @returns {void}
      */
     function recordTornadoDrop(targetX) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -217,7 +270,13 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record earthquake
+     * Record an earthquake event, including the crack path and shift type.
+     * @param {Array<Object>} crackPath - Array of crack point objects describing the fissure.
+     * @param {number} crackPath[].x - X-coordinate of the crack point.
+     * @param {number} crackPath[].y - Y-coordinate of the crack point.
+     * @param {string} crackPath[].edge - Edge identifier for the crack point.
+     * @param {string} shiftType - The type of board shift caused by the earthquake.
+     * @returns {void}
      */
     function recordEarthquake(crackPath, shiftType) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -236,7 +295,10 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record volcano eruption
+     * Record a volcano eruption event.
+     * @param {number} column - The column where the volcano erupted.
+     * @param {string} edgeType - The type of edge effect from the eruption.
+     * @returns {void}
      */
     function recordVolcanoEruption(column, edgeType) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -255,7 +317,10 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record lava projectile
+     * Record a lava projectile launched by a volcano.
+     * @param {number} vx - Horizontal velocity of the projectile.
+     * @param {number} vy - Vertical velocity of the projectile.
+     * @returns {void}
      */
     function recordLavaProjectile(vx, vy) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -273,7 +338,12 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record hail/gremlin block
+     * Record a hail or gremlin block placement on the board.
+     * Also exported as `recordGremlinBlock`.
+     * @param {number} x - Column where the block was placed.
+     * @param {number} y - Row where the block was placed.
+     * @param {string} color - Color identifier of the placed block.
+     * @returns {void}
      */
     function recordHailBlock(x, y, color) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -291,7 +361,10 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record challenge mode event
+     * Record a challenge-mode-specific event, timestamped relative to the current piece.
+     * @param {string} eventType - The challenge event type identifier.
+     * @param {Object} data - Event-specific payload data.
+     * @returns {void}
      */
     function recordChallengeEvent(eventType, data) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -309,7 +382,11 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record a music track change
+     * Record a music track change during gameplay. Timestamp is relative to
+     * the overall recording start time (not piece-relative).
+     * @param {string} trackId - Unique identifier for the music track.
+     * @param {string} trackName - Human-readable name of the track.
+     * @returns {void}
      */
     function recordMusicTrack(trackId, trackName) {
         if (!isRecording || !recording) return;
@@ -324,12 +401,14 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record which F Word song was used (easter egg)
+     * Record which F Word easter egg song was selected during gameplay.
+     * @param {string} songId - Identifier of the F Word song used.
+     * @returns {void}
      */
     function recordFWordSong(songId) {
         if (!isRecording || !recording) return;
         recording.fWordSongId = songId;
-        console.log('📹 F Word song recorded:', songId);
+        Logger.debug('📹 F Word song recorded:', songId);
     }
     
     /**
@@ -340,7 +419,11 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Record special event (strikes, tsunamis, etc.)
+     * Record a special game event such as strikes or tsunamis, stored relative
+     * to the current piece's spawn time.
+     * @param {string} eventType - The event type identifier (e.g. 'strike', 'tsunami').
+     * @param {Object} [data={}] - Additional event-specific data.
+     * @returns {void}
      */
     function recordEvent(eventType, data = {}) {
         if (!isRecording || !recording || currentPieceIndex < 0) return;
@@ -359,7 +442,21 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Stop recording and finalize
+     * Stop the current recording session and finalize it. Computes human-vs-AI
+     * comparison statistics if shadow data is present, attaches final game
+     * stats, and returns the complete recording object.
+     * @param {Object} finalStats - Final game statistics at the time of game over.
+     * @param {number} [finalStats.score=0] - Final score.
+     * @param {number} [finalStats.lines=0] - Total lines cleared.
+     * @param {number} [finalStats.level=1] - Final level reached.
+     * @param {number} [finalStats.strikes=0] - Number of strikes received.
+     * @param {number} [finalStats.tsunamis=0] - Number of tsunamis survived.
+     * @param {number} [finalStats.blackHoles=0] - Number of black hole events.
+     * @param {number} [finalStats.volcanoes=0] - Number of volcano eruptions.
+     * @param {number} [finalStats.supermassiveBlackHoles=0] - Number of supermassive black holes.
+     * @param {number} [finalStats.superVolcanoes=0] - Number of super volcano eruptions.
+     * @param {Array<Array<*>>} [finalStats.board] - Final board state for snapshot.
+     * @returns {Object|null} The complete recording object, or null if not recording.
      */
     function stopRecording(finalStats) {
         if (!isRecording || !recording) return null;
@@ -404,7 +501,7 @@ const GameRecorder = (() => {
             humanVsAI
         };
         
-        console.log('📹 Recording stopped:', recording.pieceData.length, 'pieces,', 
+        Logger.info('📹 Recording stopped:', recording.pieceData.length, 'pieces,',
                     recording.finalStats.duration, 'ms');
         
         const result = recording;
@@ -415,12 +512,29 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Submit recording to server
+     * Submit a completed recording to the server via the game API.
+     * Merges recording data with game metadata into a single payload.
+     * @async
+     * @param {Object} recordingData - The recording object returned by stopRecording().
+     * @param {Object} [gameData={}] - Additional game metadata to include in the submission.
+     * @param {string} [gameData.username='anonymous'] - Player username.
+     * @param {string} [gameData.game='blockchainstorm'] - Game identifier.
+     * @param {string} [gameData.playerType] - Player type override.
+     * @param {string} [gameData.difficulty] - Difficulty override.
+     * @param {string} [gameData.skillLevel] - Skill level override.
+     * @param {string} [gameData.mode] - Game mode override.
+     * @param {string[]} [gameData.challenges] - Active challenges override.
+     * @param {number} [gameData.speedBonus=1.0] - Speed bonus multiplier.
+     * @param {number} [gameData.durationSeconds] - Game duration in seconds.
+     * @param {string} [gameData.endCause='game_over'] - Reason the game ended.
+     * @param {string|null} [gameData.debugLog=null] - Optional debug log data.
+     * @returns {Promise<{success: boolean, recordingId?: string, error?: string}>}
+     *   Result object indicating success or failure with an optional recording ID or error message.
      */
     async function submitRecording(recordingData, gameData = {}) {
         // Guard against null/undefined recording data
         if (!recordingData) {
-            console.error('📹 submitRecording called with null/undefined recordingData!');
+            Logger.error('📹 submitRecording called with null/undefined recordingData!');
             return { success: false, error: 'No recording data' };
         }
         
@@ -455,9 +569,9 @@ const GameRecorder = (() => {
                 recording: recordingData
             };
             
-            console.log('📹 Submitting recording to server...');
-            console.log('📹 Payload size:', JSON.stringify(payload).length, 'bytes');
-            console.log('📹 Recording has', recordingData.pieceData?.length || 0, 'pieces');
+            Logger.info('📹 Submitting recording to server...');
+            Logger.debug('📹 Payload size:', JSON.stringify(payload).length, 'bytes');
+            Logger.debug('📹 Recording has', recordingData.pieceData?.length || 0, 'pieces');
             
             const response = await apiFetch(`${API_URL}/recording`, {
                 method: 'POST',
@@ -469,29 +583,38 @@ const GameRecorder = (() => {
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('📹 Recording submitted successfully, ID:', result.recording_id);
+                Logger.info('📹 Recording submitted successfully, ID:', result.recording_id);
                 return { success: true, recordingId: result.recording_id };
             } else {
                 const errorText = await response.text();
-                console.error('📹 Recording submission failed:', response.status, errorText);
+                Logger.error('📹 Recording submission failed:', response.status, errorText);
                 return { success: false, error: errorText };
             }
         } catch (error) {
-            console.error('📹 Recording submission error:', error);
+            Logger.error('📹 Recording submission error:', error);
             return { success: false, error: error.message };
         }
     }
     
     /**
-     * Check if currently recording
+     * Check whether a recording session is currently active.
+     * @returns {boolean} True if currently recording, false otherwise.
      */
     function isActive() {
         return isRecording;
     }
     
     /**
-     * Add AI shadow data to a specific piece entry by index
-     * Used for async shadow evaluations that complete after the piece index has advanced
+     * Attach AI shadow evaluation data to a specific piece entry by its index.
+     * Used when asynchronous AI evaluations complete after the current piece
+     * index has already advanced.
+     * @param {number} pieceIndex - Zero-based index into the pieceData array.
+     * @param {Object} piece - The piece object for placement comparison.
+     * @param {number} piece.x - The piece's final x-coordinate.
+     * @param {number} [piece.rotationIndex=0] - The piece's final rotation state.
+     * @param {Object} aiShadow - AI shadow evaluation result.
+     * @param {Object} [aiShadow.chosen] - The AI's top-ranked placement choice.
+     * @returns {void}
      */
     function addAIShadow(pieceIndex, piece, aiShadow) {
         if (!isRecording || !recording || pieceIndex < 0) return;
@@ -519,21 +642,28 @@ const GameRecorder = (() => {
     }
     
     /**
-     * Get current recording (for inspection)
+     * Get the current in-progress recording object for inspection.
+     * Returns null if no recording is active.
+     * @returns {Object|null} The current recording object, or null.
      */
     function getRecording() {
         return recording;
     }
     
     /**
-     * Get current piece index
+     * Get the zero-based index of the current piece being recorded.
+     * Returns -1 if no piece has been spawned yet.
+     * @returns {number} The current piece index, or -1 before any piece spawns.
      */
     function getCurrentPieceIndex() {
         return currentPieceIndex;
     }
     
     /**
-     * Compress board to array of non-null cells
+     * Compress a 2D board array into a sparse list of non-null cells.
+     * Each entry records the x, y coordinates and color of an occupied cell.
+     * @param {Array<Array<*>>} board - The board state as a 2D array (rows x columns).
+     * @returns {Array<{x: number, y: number, c: *}>} Sparse array of occupied cells.
      */
     function compressBoard(board) {
         if (!board) return [];

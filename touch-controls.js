@@ -115,7 +115,7 @@ const SwipeControls = {
         document.addEventListener('touchend', this._onTouchEnd, { passive: false });
         document.addEventListener('touchcancel', this._onTouchCancel, { passive: false });
         
-        console.log('👆 Swipe gesture controls enabled');
+        Logger.info('👆 Swipe gesture controls enabled');
     },
     
     disable() {
@@ -128,7 +128,7 @@ const SwipeControls = {
         document.removeEventListener('touchcancel', this._onTouchCancel);
         
         this.stopSoftDrop();
-        console.log('👆 Swipe gesture controls disabled');
+        Logger.debug('👆 Swipe gesture controls disabled');
     },
     
     getSwapDir() {
@@ -269,10 +269,10 @@ const TabletMode = {
     
     init() {
         const deviceType = DeviceDetection.detect();
-        console.log('📱 Device detected:', deviceType);
-        console.log('   Touch:', DeviceDetection.isTouch);
-        console.log('   Mobile:', DeviceDetection.isMobile);
-        console.log('   Tablet:', DeviceDetection.isTablet);
+        Logger.debug('📱 Device detected:', deviceType);
+        Logger.debug('   Touch:', DeviceDetection.isTouch);
+        Logger.debug('   Mobile:', DeviceDetection.isMobile);
+        Logger.debug('   Tablet:', DeviceDetection.isTablet);
         
         // Enable tablet mode if mobile/tablet AND no controller
         this.updateMode();
@@ -288,7 +288,7 @@ const TabletMode = {
         if (shouldEnable !== this.enabled) {
             this.enabled = shouldEnable;
             this.applyMode();
-            console.log('📱 Tablet mode:', this.enabled ? 'ENABLED' : 'DISABLED');
+            Logger.info('📱 Tablet mode:', this.enabled ? 'ENABLED' : 'DISABLED');
         }
     },
     
@@ -502,7 +502,7 @@ function initTouchControls() {
         togglePause();
     });
     
-    console.log('📱 Touch controls initialized with key repeat');
+    Logger.info('📱 Touch controls initialized with key repeat');
 }
 
 window.DeviceDetection = DeviceDetection;

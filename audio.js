@@ -6,7 +6,7 @@
     // === AUDIO DEBUG LOGGER (collects in memory, no on-screen display) ===
     const _dbgLines = [];
     function _dbg(msg) {
-        console.log('🔊DBG: ' + msg);
+        Logger.debug('🔊DBG: ' + msg);
         _dbgLines.push(new Date().toLocaleTimeString() + ' ' + msg);
         if (_dbgLines.length > 100) _dbgLines.shift();
     }
@@ -99,7 +99,7 @@ function initSoundEffects() {
         audio.preload = 'auto';
         soundEffectElements[id] = audio;
     });
-    console.log('🔊 Initialized sound effect MP3s:', Object.keys(soundEffectFiles));
+    Logger.info('🔊 Initialized sound effect MP3s:', Object.keys(soundEffectFiles));
 }
 
 // Play an MP3 sound effect
@@ -112,7 +112,7 @@ function playMP3SoundEffect(effectId, soundToggle) {
         // Clone the audio to allow overlapping plays
         const clone = audio.cloneNode();
         clone.volume = (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
-        clone.play().catch(e => console.log('Sound effect autoplay prevented:', e));
+        clone.play().catch(e => Logger.debug('Sound effect autoplay prevented:', e));
     }
 }
 
@@ -143,7 +143,7 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
             pausedAudioElement = gameplayMusicElements[currentPlayingTrack];
             pausedAudioElement.pause();
             musicPaused = true;
-            console.log('🎵 Paused gameplay music for banjo:', currentPlayingTrack);
+            Logger.debug('🎵 Paused gameplay music for banjo:', currentPlayingTrack);
         } else {
             // Fallback: find and pause any playing gameplay music element
             for (const [trackId, audio] of Object.entries(gameplayMusicElements)) {
@@ -151,7 +151,7 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
                     pausedAudioElement = audio;
                     pausedAudioElement.pause();
                     musicPaused = true;
-                    console.log('🎵 Paused playing audio (fallback) for banjo:', trackId);
+                    Logger.debug('🎵 Paused playing audio (fallback) for banjo:', trackId);
                     break;
                 }
             }
@@ -162,7 +162,7 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
             pausedAudioElement = menuMusicElement;
             pausedAudioElement.pause();
             musicPaused = true;
-            console.log('🎵 Paused menu music for banjo');
+            Logger.debug('🎵 Paused menu music for banjo');
         }
     }
     
@@ -180,11 +180,11 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
         if (onComplete) {
             musicPaused = false;
             onComplete();
-            console.log('🎵 Banjo finished (' + source + '), running callback');
+            Logger.debug('🎵 Banjo finished (' + source + '), running callback');
         } else if (!wasPaused && pausedAudioElement) {
-            pausedAudioElement.play().catch(e => console.log('Music resume prevented:', e));
+            pausedAudioElement.play().catch(e => Logger.debug('Music resume prevented:', e));
             musicPaused = false;
-            console.log('🎵 Music resumed after banjo (' + source + ')');
+            Logger.debug('🎵 Music resumed after banjo (' + source + ')');
         }
     }
     
@@ -196,11 +196,11 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
     setTimeout(() => completeBanjo('timeout'), 4000);
     
     clone.play().catch(e => {
-        console.log('Banjo autoplay prevented:', e);
+        Logger.debug('Banjo autoplay prevented:', e);
         completeBanjo('catch');
     });
     
-    console.log('🪕 Banjo playing, music paused');
+    Logger.debug('🪕 Banjo playing, music paused');
 }
 
 // Initialize sound effects on load
@@ -495,7 +495,7 @@ function insertFWordSong() {
     // Get next song from F Word queue (refills when empty)
     if (fWordShuffleQueue.length === 0) {
         fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
-        console.log('🛸 Refilled F Word queue:', fWordShuffleQueue.length, 'songs');
+        Logger.debug('🛸 Refilled F Word queue:', fWordShuffleQueue.length, 'songs');
     }
     
     const songId = fWordShuffleQueue.pop();
@@ -505,7 +505,7 @@ function insertFWordSong() {
     saveQueuesToStorage();
     
     nextSongOverride = selectedSong;
-    console.log('🛸 F Word song queued:', selectedSong.name, '| Queue remaining:', fWordShuffleQueue.length);
+    Logger.debug('🛸 F Word song queued:', selectedSong.name, '| Queue remaining:', fWordShuffleQueue.length);
     return selectedSong;
 }
 
@@ -514,7 +514,7 @@ function insertFWordSongById(songId) {
     const selectedSong = fWordSongs.find(s => s.id === songId);
     if (selectedSong) {
         nextSongOverride = selectedSong;
-        console.log('🛸 F Word song queued (replay):', selectedSong.name);
+        Logger.debug('🛸 F Word song queued (replay):', selectedSong.name);
         return selectedSong;
     }
     // Fallback to queue if not found
@@ -523,10 +523,10 @@ function insertFWordSongById(songId) {
 
 function skipToNextSong() {
     if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        console.log('🎵 Skip next: Not in shuffle mode or not playing');
+        Logger.info('🎵 Skip next: Not in shuffle mode or not playing');
         return false;
     }
-    
+
     // Stop current track
     if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
         const audio = gameplayMusicElements[currentPlayingTrack];
@@ -561,8 +561,8 @@ function skipToNextSong() {
             audio.loop = false;
             audio.src = song.file;
             audio.currentTime = 0;
-            audio.play().catch(e => console.log('Music autoplay prevented:', e));
-            console.log('🎵 Returned forward to:', song.name);
+            audio.play().catch(e => Logger.debug('Music autoplay prevented:', e));
+            Logger.info('🎵 Returned forward to:', song.name);
             notifySongChange();
             return true;
         }
@@ -579,19 +579,19 @@ function skipToNextSong() {
         startMusic(null, currentMusicSelectElement);
     }
     
-    console.log('🎵 Skipped to next song');
+    Logger.info('🎵 Skipped to next song');
     return true;
 }
 
 // Skip to previous song (only works in shuffle mode)
 function skipToPreviousSong() {
     if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        console.log('🎵 Skip prev: Not in shuffle mode or not playing');
+        Logger.info('🎵 Skip prev: Not in shuffle mode or not playing');
         return false;
     }
     
     if (songHistory.length === 0) {
-        console.log('🎵 Skip prev: No song history');
+        Logger.info('🎵 Skip prev: No song history');
         return false;
     }
     
@@ -628,8 +628,8 @@ function skipToPreviousSong() {
         audio.loop = false;
         audio.src = song.file;
         audio.currentTime = 0;
-        audio.play().catch(e => console.log('Music autoplay prevented:', e));
-        console.log('🎵 Skipped back to:', song.name);
+        audio.play().catch(e => Logger.debug('Music autoplay prevented:', e));
+        Logger.info('🎵 Skipped back to:', song.name);
         notifySongChange();
     }
     
@@ -655,7 +655,7 @@ function pauseCurrentMusic() {
         musicPaused = true;
         updateMediaSessionState();
         notifyPauseStateChange();
-        console.log('🎵 Music paused');
+        Logger.debug('🎵 Music paused');
         return true;
     }
     
@@ -665,7 +665,7 @@ function pauseCurrentMusic() {
         musicPaused = true;
         updateMediaSessionState();
         notifyPauseStateChange();
-        console.log('🎵 Menu music paused');
+        Logger.debug('🎵 Menu music paused');
         return true;
     }
     
@@ -679,21 +679,21 @@ function resumeCurrentMusic() {
     // Resume gameplay music if it was playing
     if (currentPlayingTrack && gameplayMusicElements[currentPlayingTrack]) {
         const audio = gameplayMusicElements[currentPlayingTrack];
-        audio.play().catch(e => console.log('Music resume prevented:', e));
+        audio.play().catch(e => Logger.debug('Music resume prevented:', e));
         musicPaused = false;
         updateMediaSessionState();
         notifyPauseStateChange();
-        console.log('🎵 Music resumed');
+        Logger.debug('🎵 Music resumed');
         return true;
     }
     
     // Resume menu music if it was playing
     if (menuMusicElement && menuMusicPlaying) {
-        menuMusicElement.play().catch(e => console.log('Menu music resume prevented:', e));
+        menuMusicElement.play().catch(e => Logger.debug('Menu music resume prevented:', e));
         musicPaused = false;
         updateMediaSessionState();
         notifyPauseStateChange();
-        console.log('🎵 Menu music resumed');
+        Logger.debug('🎵 Menu music resumed');
         return true;
     }
     
@@ -719,7 +719,7 @@ function isMusicPaused() {
 // Media Session API for hardware media controls (earbuds, keyboards, etc.)
 function setupMediaSession() {
     if (!('mediaSession' in navigator)) {
-        console.log('🎵 Media Session API not supported');
+        Logger.info('🎵 Media Session API not supported');
         return;
     }
     
@@ -779,7 +779,7 @@ function setupMediaSession() {
         // seekto not supported
     }
     
-    console.log('🎵 Media Session API initialized - earbud/media key controls enabled');
+    Logger.info('🎵 Media Session API initialized - earbud/media key controls enabled');
 }
 
 // Update Media Session metadata with current song info
@@ -851,9 +851,9 @@ function initShuffleQueues() {
             gameplayShuffleQueue = gameplayShuffleQueue.filter(id => 
                 gameplaySongs.some(s => s.id === id)
             );
-            console.log('🎵 Loaded gameplay queue from storage:', gameplayShuffleQueue.length, 'songs remaining');
+            Logger.debug('🎵 Loaded gameplay queue from storage:', gameplayShuffleQueue.length, 'songs remaining');
         } catch (e) {
-            console.warn('🎵 Failed to parse saved gameplay queue, creating new');
+            Logger.warn('🎵 Failed to parse saved gameplay queue, creating new');
             gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
         }
     } else {
@@ -864,7 +864,7 @@ function initShuffleQueues() {
             gameplayShuffleQueue.splice(mcIdx, 1);
             gameplayShuffleQueue.push('meet_cute');
         }
-        console.log('🎵 Created new gameplay shuffle queue (first time - Meet Cute first)');
+        Logger.debug('🎵 Created new gameplay shuffle queue (first time - Meet Cute first)');
     }
     
     // Try to load F Word queue from localStorage
@@ -876,14 +876,14 @@ function initShuffleQueues() {
             fWordShuffleQueue = fWordShuffleQueue.filter(id => 
                 fWordSongs.some(s => s.id === id)
             );
-            console.log('🛸 Loaded F Word queue from storage:', fWordShuffleQueue.length, 'songs remaining');
+            Logger.debug('🛸 Loaded F Word queue from storage:', fWordShuffleQueue.length, 'songs remaining');
         } catch (e) {
-            console.warn('🛸 Failed to parse saved F Word queue, creating new');
+            Logger.warn('🛸 Failed to parse saved F Word queue, creating new');
             fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
         }
     } else {
         fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
-        console.log('🛸 Created new F Word shuffle queue');
+        Logger.debug('🛸 Created new F Word shuffle queue');
     }
     
     // Credits queue doesn't need persistence (only used during end credits)
@@ -892,8 +892,8 @@ function initShuffleQueues() {
     // Save initial queues
     saveQueuesToStorage();
     
-    console.log('🎵 Gameplay queue:', gameplayShuffleQueue.length, 'songs');
-    console.log('🛸 F Word queue:', fWordShuffleQueue.length, 'songs');
+    Logger.debug('🎵 Gameplay queue:', gameplayShuffleQueue.length, 'songs');
+    Logger.debug('🛸 F Word queue:', fWordShuffleQueue.length, 'songs');
 }
 
 // Save queues to localStorage
@@ -902,7 +902,7 @@ function saveQueuesToStorage() {
         localStorage.setItem(GAMEPLAY_QUEUE_KEY, JSON.stringify(gameplayShuffleQueue));
         localStorage.setItem(FWORD_QUEUE_KEY, JSON.stringify(fWordShuffleQueue));
     } catch (e) {
-        console.warn('🎵 Failed to save queues to storage:', e);
+        Logger.warn('🎵 Failed to save queues to storage:', e);
     }
 }
 
@@ -919,7 +919,7 @@ function loadPurgedSongs() {
             return JSON.parse(saved);
         }
     } catch (e) {
-        console.warn('🎵 Failed to load purged songs:', e);
+        Logger.warn('🎵 Failed to load purged songs:', e);
     }
     return {};
 }
@@ -929,7 +929,7 @@ function savePurgedSongs(purgedSongs) {
     try {
         localStorage.setItem(PURGED_SONGS_KEY, JSON.stringify(purgedSongs));
     } catch (e) {
-        console.warn('🎵 Failed to save purged songs:', e);
+        Logger.warn('🎵 Failed to save purged songs:', e);
     }
 }
 
@@ -947,7 +947,7 @@ function isSongPurged(songId) {
         // Expired - remove from purge list
         delete purgedSongs[songId];
         savePurgedSongs(purgedSongs);
-        console.log('🎵 Purge expired for:', songId);
+        Logger.debug('🎵 Purge expired for:', songId);
         return false;
     }
     
@@ -972,10 +972,10 @@ function purgeSong(songId, duration) {
     const song = allSongs.find(s => s.id === songId);
     const songName = song ? song.name : songId;
     if (duration === null) {
-        console.log('🚫 Purged indefinitely:', songName);
+        Logger.debug('🚫 Purged indefinitely:', songName);
     } else {
         const days = Math.round(duration / (24 * 60 * 60 * 1000));
-        console.log(`🚫 Purged for ${days} days:`, songName);
+        Logger.debug(`🚫 Purged for ${days} days:`, songName);
     }
 }
 
@@ -1013,14 +1013,14 @@ function getPurgedSongs() {
 // Clear all purged songs
 function clearAllPurgedSongs() {
     savePurgedSongs({});
-    console.log('🎵 Cleared all purged songs');
+    Logger.debug('🎵 Cleared all purged songs');
 }
 
 // Skip to next song with purge support
 // purgeType: 'none', 'short' (1 week), 'long' (3 days), 'indefinite'
 function skipToNextSongWithPurge(purgeType = 'none') {
     if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        console.log('🎵 Skip next: Not in shuffle mode or not playing');
+        Logger.info('🎵 Skip next: Not in shuffle mode or not playing');
         return { skipped: false };
     }
     
@@ -1063,7 +1063,7 @@ function resetShuffleQueue() {
     gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
     lastPlayedGameplaySong = null;
     saveQueuesToStorage();
-    console.log('🎵 Reset gameplay shuffle queue for replay');
+    Logger.debug('🎵 Reset gameplay shuffle queue for replay');
 }
 
 // Set replay mode with specific track list from recording
@@ -1072,7 +1072,7 @@ function setReplayTracks(trackList) {
     replayTrackList = trackList || [];
     replayTrackIndex = 0;
     nextSongOverride = null; // Clear any leftover queued F Word song
-    console.log('🎵 Replay mode enabled with', replayTrackList.length, 'tracks:', replayTrackList.map(t => t.trackName || t.trackId));
+    Logger.debug('🎵 Replay mode enabled with', replayTrackList.length, 'tracks:', replayTrackList.map(t => t.trackName || t.trackId));
 }
 
 // Clear replay mode (return to normal shuffle)
@@ -1081,7 +1081,7 @@ function clearReplayTracks() {
     replayTrackList = [];
     replayTrackIndex = 0;
     nextSongOverride = null; // Clear any queued F Word song
-    console.log('🎵 Replay mode disabled, returning to shuffle');
+    Logger.debug('🎵 Replay mode disabled, returning to shuffle');
 }
 
 // Get next track from replay list (returns null if exhausted)
@@ -1091,7 +1091,7 @@ function getNextReplayTrack() {
     }
     const track = replayTrackList[replayTrackIndex];
     replayTrackIndex++;
-    console.log('🎵 Replay track', replayTrackIndex, 'of', replayTrackList.length, ':', track.trackName || track.trackId);
+    Logger.debug('🎵 Replay track', replayTrackIndex, 'of', replayTrackList.length, ':', track.trackName || track.trackId);
     return track.trackId;
 }
 
@@ -1107,7 +1107,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
             }
         }
         if (queue.length < beforeLength) {
-            console.log(`🎵 Filtered ${beforeLength - queue.length} purged songs from queue`);
+            Logger.debug(`🎵 Filtered ${beforeLength - queue.length} purged songs from queue`);
             saveQueuesToStorage();
         }
     }
@@ -1121,7 +1121,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
             newQueue = newQueue.filter(id => !isSongPurged(id));
             if (newQueue.length === 0) {
                 // All songs are purged! Clear purges and try again
-                console.warn('🎵 All songs purged! Clearing purge list.');
+                Logger.warn('🎵 All songs purged! Clearing purge list.');
                 clearAllPurgedSongs();
                 newQueue = shuffleArray(songList.map(s => s.id));
             }
@@ -1134,11 +1134,11 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
             // Swap it with a random position that's not the last
             const swapIndex = Math.floor(Math.random() * (newQueue.length - 1));
             [newQueue[swapIndex], newQueue[newQueue.length - 1]] = [newQueue[newQueue.length - 1], newQueue[swapIndex]];
-            console.log(`🎵 Moved ${lastPlayed} away from top of queue to prevent repeat`);
+            Logger.debug(`🎵 Moved ${lastPlayed} away from top of queue to prevent repeat`);
         }
         
         queue.push(...newQueue);
-        console.log(`🎵 Refilled ${queueName} queue:`, [...queue]);
+        Logger.debug(`🎵 Refilled ${queueName} queue:`, [...queue]);
     }
     
     // Find a song that doesn't have a recently played family
@@ -1149,7 +1149,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     
     // Check if this song's family was recently played
     if (recentlyPlayedFamilies.includes(candidateFamily)) {
-        console.log(`🎵 "${candidateName}" family "${candidateFamily}" was recently played, looking for alternative...`);
+        Logger.debug(`🎵 "${candidateName}" family "${candidateFamily}" was recently played, looking for alternative...`);
         
         // Search through queue for a song with a different family
         let foundAlternative = false;
@@ -1161,14 +1161,14 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
             if (!recentlyPlayedFamilies.includes(altFamily)) {
                 // Found an alternative! Swap it to the top
                 [queue[i], queue[selectedIndex]] = [queue[selectedIndex], queue[i]];
-                console.log(`🎵 Swapped to "${altName}" (family: "${altFamily}") to maintain separation`);
+                Logger.debug(`🎵 Swapped to "${altName}" (family: "${altFamily}") to maintain separation`);
                 foundAlternative = true;
                 break;
             }
         }
         
         if (!foundAlternative) {
-            console.log(`🎵 No alternative found, playing "${candidateName}" anyway`);
+            Logger.debug(`🎵 No alternative found, playing "${candidateName}" anyway`);
         }
     }
     
@@ -1182,7 +1182,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     if (recentlyPlayedFamilies.length > MIN_FAMILY_SEPARATION) {
         recentlyPlayedFamilies.shift();
     }
-    console.log(`🎵 Recently played families:`, [...recentlyPlayedFamilies]);
+    Logger.debug(`🎵 Recently played families:`, [...recentlyPlayedFamilies]);
     
     // Track what we just played
     if (queueName === 'gameplay') {
@@ -1370,20 +1370,20 @@ function startMusic(gameMode, musicSelect) {
         trackId = nextSongOverride.id;
         song = nextSongOverride;
         nextSongOverride = null; // Clear after use
-        console.log('🛸 Playing UFO-delivered song:', song.name);
+        Logger.debug('🛸 Playing UFO-delivered song:', song.name);
     } else if (replayModeActive && selection === 'shuffle') {
         // Replay mode: use tracks from recording in order
         trackId = getNextReplayTrack();
         if (trackId) {
             song = allSongs.find(s => s.id === trackId);
             if (!song) {
-                console.warn('🎵 Replay track not found:', trackId, '- falling back to shuffle');
+                Logger.warn('🎵 Replay track not found:', trackId, '- falling back to shuffle');
                 trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
                 song = allSongs.find(s => s.id === trackId);
             }
         } else {
             // Replay tracks exhausted, fall back to shuffle
-            console.log('🎵 Replay tracks exhausted, continuing with shuffle');
+            Logger.debug('🎵 Replay tracks exhausted, continuing with shuffle');
             trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
             song = allSongs.find(s => s.id === trackId);
         }
@@ -1391,7 +1391,7 @@ function startMusic(gameMode, musicSelect) {
         // Shuffle mode: use persistent queue (no repeats until all played)
         trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
         song = allSongs.find(s => s.id === trackId);
-        console.log('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
+        Logger.debug('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
     } else {
         // Use the specifically selected track
         trackId = selection;
@@ -1456,20 +1456,20 @@ function onSongEnded(event) {
     // Only handle if we're still playing music and in shuffle mode
     if (!musicPlaying || currentMusicSelection !== 'shuffle') return;
     
-    console.log('🎵 Song ended in shuffle mode, playing next track');
+    Logger.debug('🎵 Song ended in shuffle mode, playing next track');
     
     // Check if we should insert an F Word song (main menu only, not during game or credits)
     if (!gameInProgress && !hasPlayedGame) {
         if (fullSongPlayedOnMenu) {
             // A full song has already played on the menu - 1/4 chance of F Word
             if (Math.random() < 0.25) {
-                console.log('🎲 F Word song chance triggered on main menu!');
+                Logger.debug('🎲 F Word song chance triggered on main menu!');
                 insertFWordSong();
             }
         } else {
             // Mark that a full song has now completed on the menu
             fullSongPlayedOnMenu = true;
-            console.log('🎵 First full song completed on main menu');
+            Logger.debug('🎵 First full song completed on main menu');
         }
     }
     
@@ -1498,7 +1498,7 @@ function onSongEnded(event) {
 // Audio elements are created on-demand in startMusic() when a track plays.
 // Pre-creating 138 Audio elements overwhelms iPad Safari.
 function initGameplayMusic() {
-    console.log('🎵 Gameplay music initialized (lazy-load, ' + allSongs.length + ' tracks available)');
+    Logger.info('🎵 Gameplay music initialized (lazy-load, ' + allSongs.length + ' tracks available)');
 }
 
 // DRIZZLE MODE - Slowest, chill 80s synth with light bass (100 BPM)
@@ -2182,7 +2182,7 @@ function startMenuMusic(musicToggleOrSelect) {
         // End credits: shuffle through all Cascade variations
         trackId = getNextFromQueue(creditsShuffleQueue, creditsSongs, 'credits');
         song = creditsSongs.find(s => s.id === trackId);
-        console.log('🎵 Playing end credits:', trackId, '| Remaining in queue:', creditsShuffleQueue.length);
+        Logger.info('🎵 Playing end credits:', trackId, '| Remaining in queue:', creditsShuffleQueue.length);
     } else {
         // Intro: play the intro song
         trackId = 'cascade_void_intro';
@@ -2240,7 +2240,7 @@ function onMenuMusicEnded() {
     // Only handle if we're playing credits music (hasPlayedGame is true)
     if (!menuMusicPlaying || !hasPlayedGame) return;
     
-    console.log('🎵 Credits song ended, playing next from queue');
+    Logger.debug('🎵 Credits song ended, playing next from queue');
     
     // Reset state and play next
     menuMusicPlaying = false;

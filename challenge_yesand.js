@@ -232,7 +232,7 @@
             }
 
             if (adjacentSpaces.length === 0) {
-                console.log('🎭 Yes, And... found no available spaces for limbs');
+                Logger.info('🎭 Yes, And... found no available spaces for limbs');
                 spawnedLimb = false;
                 return false;
             }
@@ -260,14 +260,14 @@
                 }
 
                 gameRef.playSoundEffect('yesand');
-                console.log(`🎭 Yes, And... spawned limb at [${limbX}, ${limbY}]`);
+                Logger.info(`🎭 Yes, And... spawned limb at [${limbX}, ${limbY}]`);
 
                 spawnedLimb = true;
                 return true;
             }
 
             // All candidates would trigger specials — skip
-            console.log('🎭 Yes, And... all candidates would trigger specials, skipping');
+            Logger.info('🎭 Yes, And... all candidates would trigger specials, skipping');
             spawnedLimb = false;
             return false;
         }

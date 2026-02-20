@@ -3,7 +3,7 @@
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */
-console.log("🎮 AI Player v3.22 loaded - simplified move calculation, fixed piece identity tracking");
+Logger.info("🎮 AI Player v3.22 loaded - simplified move calculation, fixed piece identity tracking");
 
 const AIPlayer = (() => {
     // Configuration
@@ -68,7 +68,7 @@ const AIPlayer = (() => {
             events: [],
             finalState: null
         };
-        console.log('🎬 Fallback recording started');
+        Logger.info('🎬 Fallback recording started');
     }
     
     function fallbackRecordDecision(board, piece, placements, chosen) {
@@ -134,7 +134,7 @@ const AIPlayer = (() => {
             duration: Date.now() - fallbackRecording.startTime
         };
         
-        console.log('🎬 Fallback recording finalized');
+        Logger.info('🎬 Fallback recording finalized');
         return fallbackRecording;
     }
     
@@ -147,7 +147,7 @@ const AIPlayer = (() => {
         try {
             // Check if we're on file:// protocol - workers don't work there
             if (window.location.protocol === 'file:') {
-                console.warn('🤖 Running from file:// - Web Workers disabled, using inline fallback');
+                Logger.warn('🤖 Running from file:// - Web Workers disabled, using inline fallback');
                 workerReady = false;
                 return;
             }
@@ -157,7 +157,7 @@ const AIPlayer = (() => {
             // Don't set workerReady until we get a response
             let initTimeout = setTimeout(() => {
                 if (!workerReady) {
-                    console.warn('🤖 Worker failed to respond, using inline fallback');
+                    Logger.warn('🤖 Worker failed to respond, using inline fallback');
                     worker = null;
                 }
             }, 2000);
@@ -167,7 +167,7 @@ const AIPlayer = (() => {
                 if (!workerReady) {
                     workerReady = true;
                     clearTimeout(initTimeout);
-                    console.log('🤖 AI Worker confirmed ready');
+                    Logger.info('🤖 AI Worker confirmed ready');
                     // Apply any pending config that was set before worker was ready
                     applyPendingConfig();
                 }
@@ -192,15 +192,15 @@ const AIPlayer = (() => {
             };
             
             worker.onerror = function(e) {
-                console.error('AI Worker error:', e.message);
+                Logger.error('AI Worker error:', e.message);
                 workerReady = false;
                 worker = null;
                 clearTimeout(initTimeout);
             };
             
-            console.log('🤖 AI Worker initializing...');
+            Logger.debug('🤖 AI Worker initializing...');
         } catch (e) {
-            console.warn('🤖 Web Worker not available, using inline fallback:', e.message);
+            Logger.warn('🤖 Web Worker not available, using inline fallback:', e.message);
             workerReady = false;
         }
     }
@@ -210,7 +210,7 @@ const AIPlayer = (() => {
      */
     function init(state) {
         initWorker();
-        console.log('🤖 AI Player initialized');
+        Logger.info('🤖 AI Player initialized');
     }
     
     /**
@@ -255,14 +255,14 @@ const AIPlayer = (() => {
      */
     function setConfig(config) {
         if (worker && workerReady) {
-            console.log('🔧 AIPlayer: Sending new config to worker', config);
+            Logger.debug('🔧 AIPlayer: Sending new config to worker', config);
             worker.postMessage({
                 command: 'setConfig',
                 newConfig: config
             });
             pendingConfig = null;
         } else {
-            console.log('🔧 AIPlayer: Worker not ready, queuing config for later');
+            Logger.debug('🔧 AIPlayer: Worker not ready, queuing config for later');
             pendingConfig = config;
         }
     }
@@ -273,7 +273,7 @@ const AIPlayer = (() => {
      */
     function applyPendingConfig() {
         if (pendingConfig && worker && workerReady) {
-            console.log('🔧 AIPlayer: Applying queued config now that worker is ready');
+            Logger.debug('🔧 AIPlayer: Applying queued config now that worker is ready');
             worker.postMessage({
                 command: 'setConfig',
                 newConfig: pendingConfig
@@ -490,11 +490,11 @@ const AIPlayer = (() => {
         
         if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
             currentMode = 'survival';
-            console.log(`🔴 FALLBACK: Switching to SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
+            Logger.debug(`🔴 FALLBACK: Switching to SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
             fallbackRecordEvent('modeSwitch', { from: 'colorBuilding', to: 'survival', stackHeight });
         } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
             currentMode = 'colorBuilding';
-            console.log(`🟢 FALLBACK: Switching to COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
+            Logger.debug(`🟢 FALLBACK: Switching to COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
             fallbackRecordEvent('modeSwitch', { from: 'survival', to: 'colorBuilding', stackHeight });
         }
     }
@@ -562,14 +562,14 @@ const AIPlayer = (() => {
         if (!workerReady || !worker) {
             // Fallback: use inline synchronous calculation (fallbackFindBest calls fallbackUpdateMode)
             const best = fallbackFindBest(board, piece, cols, rows);
-            console.log(`🤖 FALLBACK: mode=${currentMode}, stackHeight=${currentStackHeight}`);
+            Logger.debug(`🤖 FALLBACK: mode=${currentMode}, stackHeight=${currentStackHeight}`);
             callback(best, null);
             return;
         }
         
         // Cancel any pending callback - we're starting a new request
         if (pendingCallback) {
-            console.log('🤖 Cancelling stale AI calculation, starting fresh for new piece');
+            Logger.debug('🤖 Cancelling stale AI calculation, starting fresh for new piece');
         }
         
         // Increment request ID to invalidate old responses
@@ -581,7 +581,7 @@ const AIPlayer = (() => {
             // If worker returned a requestId, check it matches
             // If no requestId in response (old worker), just use the callback
             if (responseRequestId !== undefined && responseRequestId !== thisRequestId) {
-                console.log(`🤖 Ignoring stale response (request ${responseRequestId}, current ${currentRequestId})`);
+                Logger.debug(`🤖 Ignoring stale response (request ${responseRequestId}, current ${currentRequestId})`);
                 return;
             }
             callback(bestPlacement, decisionMeta);
@@ -693,7 +693,7 @@ const AIPlayer = (() => {
         if (lastCalculatedPieceId === currentPieceId && !duringEarthquake && !duringUFO) {
             samePieceCount++;
             if (samePieceCount >= STUCK_THRESHOLD) {
-                console.log(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
+                Logger.debug(`🤖 AI stuck on same piece (${samePieceCount} cycles) - forcing drop`);
                 moveQueue = ['drop'];
                 lastMoveTime = now;
                 samePieceCount = 0;
@@ -713,7 +713,7 @@ const AIPlayer = (() => {
                 samePositionCount++;
                 if (samePositionCount >= STUCK_THRESHOLD) {
                     // Piece hasn't moved after multiple attempts - force immediate drop
-                    console.log(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
+                    Logger.debug(`🤖 AI stuck detected (${samePositionCount} attempts at same position) - forcing drop`);
                     moveQueue = ['drop'];
                     lastMoveTime = Date.now();
                     samePositionCount = 0; // Reset after forcing drop
@@ -868,11 +868,11 @@ const AIPlayer = (() => {
         
         if (currentMode === 'colorBuilding' && stackHeight >= thresholds.upper) {
             currentMode = 'survival';
-            console.log(`🔴 AI SWITCHING TO SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
+            Logger.debug(`🔴 AI SWITCHING TO SURVIVAL (height ${stackHeight} >= ${thresholds.upper})`);
             recordEvent('modeSwitch', { from: 'colorBuilding', to: 'survival', stackHeight });
         } else if (currentMode === 'survival' && stackHeight <= thresholds.lower) {
             currentMode = 'colorBuilding';
-            console.log(`🟢 AI SWITCHING TO COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
+            Logger.debug(`🟢 AI SWITCHING TO COLOR BUILDING (height ${stackHeight} <= ${thresholds.lower})`);
             recordEvent('modeSwitch', { from: 'survival', to: 'colorBuilding', stackHeight });
         }
     }
@@ -905,7 +905,7 @@ const AIPlayer = (() => {
                 command: 'startRecording',
                 skillLevel: currentSkillLevel
             });
-            console.log('🎬 AI Recording started (worker)');
+            Logger.info('🎬 AI Recording started (worker)');
         } else {
             // Use fallback recording
             fallbackStartRecording();
@@ -924,7 +924,7 @@ const AIPlayer = (() => {
                     if (e.data.recordingStopped) {
                         currentRecording = e.data.recording;
                         worker.removeEventListener('message', handler);
-                        console.log('🎬 AI Recording stopped (worker)');
+                        Logger.info('🎬 AI Recording stopped (worker)');
                         resolve(currentRecording);
                     }
                 };
@@ -966,7 +966,7 @@ const AIPlayer = (() => {
     function downloadRecording(recording) {
         const data = recording || currentRecording;
         if (!data) {
-            console.warn('No recording available to download');
+            Logger.warn('No recording available to download');
             return;
         }
         
@@ -980,7 +980,7 @@ const AIPlayer = (() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        console.log('🎬 Recording downloaded');
+        Logger.info('🎬 Recording downloaded');
     }
     
     /**

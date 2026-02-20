@@ -85,7 +85,9 @@ const ControlsConfig = (() => {
     let gamepadConnected = false;
     
     /**
-     * Initialize the controls config system
+     * Initialize the controls configuration system. Loads saved bindings from
+     * localStorage and sets up gamepad connection/disconnection listeners.
+     * @returns {void}
      */
     function init() {
         // Load saved bindings from localStorage
@@ -111,7 +113,7 @@ const ControlsConfig = (() => {
             gamepadConnected = false;
         }
         
-        console.log('🎮 Controls Config initialized');
+        Logger.info('🎮 Controls Config initialized');
     }
     
     /**
@@ -135,10 +137,10 @@ const ControlsConfig = (() => {
                         GamepadController.vibrationEnabled = vibrationEnabled;
                     }
                 }
-                console.log('🎮 Loaded controls from localStorage');
+                Logger.debug('🎮 Loaded controls from localStorage');
             }
         } catch (e) {
-            console.warn('🎮 Failed to load controls from localStorage:', e);
+            Logger.warn('🎮 Failed to load controls from localStorage:', e);
         }
     }
     
@@ -153,14 +155,17 @@ const ControlsConfig = (() => {
                 vibrationEnabled: vibrationEnabled
             };
             localStorage.setItem('controlsConfig', JSON.stringify(data));
-            console.log('🎮 Saved controls to localStorage');
+            Logger.debug('🎮 Saved controls to localStorage');
         } catch (e) {
-            console.warn('🎮 Failed to save controls to localStorage:', e);
+            Logger.warn('🎮 Failed to save controls to localStorage:', e);
         }
     }
     
     /**
-     * Get current bindings for settings sync
+     * Get the current keyboard and gamepad bindings along with vibration state,
+     * suitable for settings synchronization.
+     * @returns {{keyboard: Object<string, string[]>, gamepad: Object<string, number[]>, vibrationEnabled: boolean}}
+     *   An object containing the current keyboard bindings, gamepad bindings, and vibration toggle state.
      */
     function getBindings() {
         return {
@@ -171,7 +176,14 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Apply bindings from settings sync
+     * Apply a set of bindings received from settings sync. Merges with defaults,
+     * persists to localStorage, syncs vibration with GamepadController, and
+     * refreshes the settings UI.
+     * @param {Object} bindings - Bindings object to apply.
+     * @param {Object<string, string[]>} [bindings.keyboard] - Keyboard action-to-keys map.
+     * @param {Object<string, number[]>} [bindings.gamepad] - Gamepad action-to-button-indices map.
+     * @param {boolean} [bindings.vibrationEnabled] - Whether gamepad vibration is enabled.
+     * @returns {void}
      */
     function applyBindings(bindings) {
         if (bindings && bindings.keyboard) {
@@ -192,7 +204,9 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Check if a key is bound to an action
+     * Look up which game action a keyboard key is bound to.
+     * @param {string} key - The KeyboardEvent.key value to look up (e.g. 'ArrowLeft', ' ').
+     * @returns {string|null} The action name (e.g. 'moveLeft', 'hardDrop'), or null if unbound.
      */
     function getKeyboardAction(key) {
         for (const [action, keys] of Object.entries(keyboardBindings)) {
@@ -204,7 +218,9 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Check if a gamepad button is bound to an action
+     * Look up which game action a gamepad button index is bound to.
+     * @param {number} buttonIndex - The Gamepad API button index (0-15 for standard gamepads).
+     * @returns {string|null} The action name (e.g. 'rotateCW', 'pause'), or null if unbound.
      */
     function getGamepadAction(buttonIndex) {
         for (const [action, buttons] of Object.entries(gamepadBindings)) {
@@ -216,7 +232,10 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Format key name for display
+     * Convert a KeyboardEvent.key value into a human-readable display string.
+     * Maps special keys like ' ' to 'Space' and arrow keys to arrow symbols.
+     * @param {string} key - The raw key name from KeyboardEvent.key.
+     * @returns {string} A user-friendly display name for the key.
      */
     function formatKeyName(key) {
         const keyNames = {
@@ -232,14 +251,20 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Format gamepad button for display
+     * Convert a gamepad button index into a human-readable display label
+     * (e.g. 0 becomes 'A', 14 becomes 'D-Left').
+     * @param {number} buttonIndex - The Gamepad API button index.
+     * @returns {string} A user-friendly label for the button.
      */
     function formatGamepadButton(buttonIndex) {
         return GAMEPAD_BUTTON_NAMES[buttonIndex] || `Btn ${buttonIndex}`;
     }
     
     /**
-     * Update the controls UI in settings
+     * Rebuild and render the controls configuration UI inside the settings panel.
+     * Shows either gamepad or keyboard bindings depending on whether a gamepad
+     * is connected. Attaches event listeners for rebinding and reset actions.
+     * @returns {void}
      */
     function updateUI() {
         const container = document.getElementById('controlsConfigContainer');
@@ -513,7 +538,10 @@ const ControlsConfig = (() => {
     }
     
     /**
-     * Reset all bindings to defaults
+     * Reset all keyboard and gamepad bindings to their factory defaults,
+     * re-enable vibration, persist to localStorage, trigger a settings sync
+     * save, and refresh the UI.
+     * @returns {void}
      */
     function resetToDefaults() {
         keyboardBindings = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD));
@@ -533,16 +561,24 @@ const ControlsConfig = (() => {
         }
         
         updateUI();
-        console.log('🎮 Controls reset to defaults');
+        Logger.info('🎮 Controls reset to defaults');
     }
     
     /**
-     * Check if gamepad is currently connected
+     * Check whether a gamepad is currently connected to the browser.
+     * @returns {boolean} True if at least one gamepad is connected, false otherwise.
      */
     function isGamepadConnected() {
         return gamepadConnected;
     }
     
+    /**
+     * Public API for the ControlsConfig module.
+     * @property {Object<string, string[]>} keyboard - (getter) Current keyboard bindings map.
+     * @property {Object<string, number[]>} gamepad - (getter) Current gamepad bindings map.
+     * @property {boolean} vibrationEnabled - (getter/setter) Whether gamepad vibration is enabled.
+     *   Setting this value also syncs with GamepadController and persists to localStorage.
+     */
     // Public API
     return {
         init,
@@ -558,7 +594,7 @@ const ControlsConfig = (() => {
         get keyboard() { return keyboardBindings; },
         get gamepad() { return gamepadBindings; },
         get vibrationEnabled() { return vibrationEnabled; },
-        set vibrationEnabled(val) { 
+        set vibrationEnabled(val) {
             vibrationEnabled = val;
             if (typeof GamepadController !== 'undefined') {
                 GamepadController.vibrationEnabled = val;

@@ -57,7 +57,7 @@
          * @param {Object} piece - currentPiece at the moment of landing
          */
         function triggerBounce(piece) {
-            console.log('🏀 BOUNCE! Piece doesn\'t touch same color');
+            Logger.info('🏀 BOUNCE! Piece doesn\'t touch same color');
 
             const landing = _analyzeLandingSurface(piece);
             const blobSize = landing.totalSupportBlocks;
@@ -75,7 +75,7 @@
                 vx = 0.075 * (landing.overhangRight - landing.overhangLeft);
             }
 
-            console.log(`🎯 Bounce physics: height=${(-vy).toFixed(2)} (from ${blobSize} blocks), horizontal=${vx.toFixed(2)}`);
+            Logger.info(`🎯 Bounce physics: height=${(-vy).toFixed(2)} (from ${blobSize} blocks), horizontal=${vx.toFixed(2)}`);
 
             bouncingPieces.push({
                 shape: piece.shape,
@@ -139,7 +139,7 @@
                             if (_isValidPosition(piece)) {
                                 _merge(piece);
                             } else if (!_findValidLanding(piece)) {
-                                console.log('⚠️ Bounce piece could not find valid landing - removing');
+                                Logger.info('⚠️ Bounce piece could not find valid landing - removing');
                             }
                             return false;
                         } else {
@@ -337,7 +337,7 @@
             }
 
             if (!found) {
-                console.log('⚠️ No valid position found, placing at top of well');
+                Logger.info('⚠️ No valid position found, placing at top of well');
                 validY = 0;
                 for (let y = 0; y < shape.length; y++) {
                     for (let x = 0; x < shape[y].length; x++) {
@@ -363,7 +363,7 @@
                     }
                 }
             }
-            console.log(`🎯 Bouncing piece merged (${placed} blocks)`);
+            Logger.info(`🎯 Bouncing piece merged (${placed} blocks)`);
 
             // Yes, And… limb after bounce
             if (gameRef.isYesAndActive()) {

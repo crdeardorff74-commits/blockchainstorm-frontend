@@ -1,6 +1,7 @@
 /**
  * Centralized configuration for BLOCKCHaiNSTORM / TaNTЯiS
- * All API endpoints and external URLs in one place.
+ * All API endpoints, shared utilities, and external URLs in one place.
+ * This file must be loaded before all other scripts.
  */
 const AppConfig = {
     // Game API (leaderboard, scores, recordings, visits, bug reports, media proxy)
@@ -59,3 +60,48 @@ async function apiFetch(url, options = {}) {
         throw error;
     }
 }
+
+/**
+ * Lightweight logger with level control.
+ * Set Logger.level to control verbosity:
+ *   'debug' - everything (development)
+ *   'info'  - info, warn, error (default in production)
+ *   'warn'  - warn and error only
+ *   'error' - errors only
+ *   'off'   - silence all logging
+ *
+ * Usage: Logger.debug('message'), Logger.info('message'),
+ *        Logger.warn('message'), Logger.error('message')
+ *
+ * Enable debug in browser console: Logger.level = 'debug'
+ */
+const Logger = {
+    /** @type {'debug'|'info'|'warn'|'error'|'off'} */
+    level: 'info',
+
+    _levels: { debug: 0, info: 1, warn: 2, error: 3, off: 4 },
+
+    _shouldLog(level) {
+        return this._levels[level] >= this._levels[this.level];
+    },
+
+    /** Log debug-level messages (hidden in production by default). */
+    debug(...args) {
+        if (this._shouldLog('debug')) console.log(...args);
+    },
+
+    /** Log info-level messages (visible at 'info' and below). */
+    info(...args) {
+        if (this._shouldLog('info')) console.log(...args);
+    },
+
+    /** Log warnings (visible at 'warn' and below). */
+    warn(...args) {
+        if (this._shouldLog('warn')) console.warn(...args);
+    },
+
+    /** Log errors (always visible unless level is 'off'). */
+    error(...args) {
+        if (this._shouldLog('error')) console.error(...args);
+    }
+};

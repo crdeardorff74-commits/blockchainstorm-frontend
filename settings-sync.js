@@ -21,7 +21,7 @@
         sessionStorage.setItem('oi_token', token);
         // Clean URL (remove token from address bar)
         window.history.replaceState({}, '', window.location.pathname);
-        console.log('⚙️ Token received from main site');
+        Logger.info('⚙️ Token received from main site');
     }
 })();
 
@@ -60,9 +60,9 @@ const SettingsSync = {
     saveToLocalStorage(settings) {
         try {
             localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(settings));
-            console.log('⚙️ Settings saved to localStorage');
+            Logger.debug('⚙️ Settings saved to localStorage');
         } catch (error) {
-            console.error('⚙️ Failed to save to localStorage:', error);
+            Logger.error('⚙️ Failed to save to localStorage:', error);
         }
     },
     
@@ -74,11 +74,11 @@ const SettingsSync = {
             const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
             if (stored) {
                 const settings = JSON.parse(stored);
-                console.log('⚙️ Loaded settings from localStorage:', settings);
+                Logger.debug('⚙️ Loaded settings from localStorage:', settings);
                 return settings;
             }
         } catch (error) {
-            console.error('⚙️ Failed to load from localStorage:', error);
+            Logger.error('⚙️ Failed to load from localStorage:', error);
         }
         return null;
     },
@@ -161,11 +161,11 @@ const SettingsSync = {
      */
     applySettings(settings) {
         if (!settings || Object.keys(settings).length === 0) {
-            console.log('⚙️ No saved settings to apply');
+            Logger.debug('⚙️ No saved settings to apply');
             return;
         }
         
-        console.log('⚙️ Applying saved settings:', settings);
+        Logger.debug('⚙️ Applying saved settings:', settings);
         
         // Apply checkboxes
         const checkboxes = [
@@ -277,7 +277,7 @@ const SettingsSync = {
             ControlsConfig.applyBindings(settings.controlBindings);
         }
         
-        console.log('⚙️ Settings applied successfully');
+        Logger.debug('⚙️ Settings applied successfully');
     },
     
     /**
@@ -285,12 +285,12 @@ const SettingsSync = {
      */
     async loadSettings() {
         if (!this.isLoggedIn()) {
-            console.log('⚙️ Not logged in, skipping settings load');
+            Logger.info('⚙️ Not logged in, skipping settings load');
             return null;
         }
         
         const url = `${this.API_URL}/settings/${this.GAME_NAME}`;
-        console.log('⚙️ Loading settings from:', url);
+        Logger.debug('⚙️ Loading settings from:', url);
         
         try {
             const response = await apiFetch(url, {
@@ -298,29 +298,29 @@ const SettingsSync = {
                 auth: true
             });
             
-            console.log('⚙️ Settings response status:', response.status);
+            Logger.debug('⚙️ Settings response status:', response.status);
             
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.log('⚙️ Token expired or invalid');
+                    Logger.info('⚙️ Token expired or invalid');
                     return null;
                 }
                 if (response.status === 404) {
                     // Endpoint might not be deployed yet - not an error
-                    console.log('⚙️ Settings endpoint not available (404)');
+                    Logger.info('⚙️ Settings endpoint not available (404)');
                     return null;
                 }
                 throw new Error(`HTTP ${response.status}`);
             }
             
             const data = await response.json();
-            console.log('⚙️ Loaded settings from server:', data);
+            Logger.info('⚙️ Loaded settings from server:', data);
             
             this.settingsLoaded = true;
             return data.settings || {};
             
         } catch (error) {
-            console.error('⚙️ Failed to load settings:', error);
+            Logger.error('⚙️ Failed to load settings:', error);
             return null;
         }
     },
@@ -365,20 +365,20 @@ const SettingsSync = {
             
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.log('⚙️ Token expired during save');
+                    Logger.info('⚙️ Token expired during save');
                     return;
                 }
                 if (response.status === 404) {
-                    console.log('⚙️ Settings endpoint not available');
+                    Logger.info('⚙️ Settings endpoint not available');
                     return;
                 }
                 throw new Error(`HTTP ${response.status}`);
             }
             
-            console.log('⚙️ Settings saved to server');
+            Logger.info('⚙️ Settings saved to server');
             
         } catch (error) {
-            console.error('⚙️ Failed to save settings to server:', error);
+            Logger.error('⚙️ Failed to save settings to server:', error);
         }
     },
     
@@ -386,10 +386,10 @@ const SettingsSync = {
      * Initialize settings sync - call after DOM ready
      */
     async init() {
-        console.log('⚙️ Initializing Settings Sync');
+        Logger.info('⚙️ Initializing Settings Sync');
         const token = sessionStorage.getItem('oi_token');
-        console.log('⚙️ Token exists:', !!token);
-        console.log('⚙️ Logged in:', this.isLoggedIn());
+        Logger.info('⚙️ Token exists:', !!token);
+        Logger.info('⚙️ Logged in:', this.isLoggedIn());
         
         // First, load settings from localStorage (available for all users)
         const localSettings = this.loadFromLocalStorage();
@@ -410,7 +410,7 @@ const SettingsSync = {
         // Attach change listeners to all settings elements
         this.attachListeners();
         
-        console.log('⚙️ Settings Sync initialized');
+        Logger.info('⚙️ Settings Sync initialized');
     },
     
     /**
@@ -431,12 +431,12 @@ const SettingsSync = {
             const elem = document.getElementById(id);
             if (elem) {
                 elem.addEventListener('change', () => {
-                    console.log(`⚙️ Setting changed: ${id}`);
+                    Logger.debug(`⚙️ Setting changed: ${id}`);
                     this.saveSettings();
                 });
                 attachedCount++;
             } else {
-                console.warn(`⚙️ Element not found: ${id}`);
+                Logger.warn(`⚙️ Element not found: ${id}`);
             }
         });
         
@@ -449,12 +449,12 @@ const SettingsSync = {
             const elem = document.getElementById(id);
             if (elem) {
                 elem.addEventListener('change', () => {
-                    console.log(`⚙️ Setting changed: ${id}`);
+                    Logger.debug(`⚙️ Setting changed: ${id}`);
                     this.saveSettings();
                 });
                 attachedCount++;
             } else {
-                console.warn(`⚙️ Element not found: ${id}`);
+                Logger.warn(`⚙️ Element not found: ${id}`);
             }
         });
         
@@ -468,7 +468,7 @@ const SettingsSync = {
             const mainElem = document.getElementById(main);
             if (introElem) {
                 introElem.addEventListener('change', () => {
-                    console.log(`⚙️ Setting changed: ${intro}`);
+                    Logger.debug(`⚙️ Setting changed: ${intro}`);
                     // Sync to main select
                     if (mainElem) {
                         mainElem.value = introElem.value;
@@ -490,16 +490,16 @@ const SettingsSync = {
             const elem = document.getElementById(id);
             if (elem) {
                 elem.addEventListener('change', () => {
-                    console.log(`⚙️ Setting changed: ${id}`);
+                    Logger.debug(`⚙️ Setting changed: ${id}`);
                     this.saveSettings();
                 });
                 attachedCount++;
             } else {
-                console.warn(`⚙️ Element not found: ${id}`);
+                Logger.warn(`⚙️ Element not found: ${id}`);
             }
         });
         
-        console.log(`⚙️ Attached listeners to ${attachedCount} settings elements`);
+        Logger.debug(`⚙️ Attached listeners to ${attachedCount} settings elements`);
         
         // Set up observer for dynamic volume controls (created by game.js)
         this.observeVolumeControls();
@@ -524,7 +524,7 @@ const SettingsSync = {
                     // Buttons need 'click', sliders need 'change'
                     const eventType = id.includes('Btn') ? 'click' : 'change';
                     elem.addEventListener(eventType, () => {
-                        console.log(`⚙️ Volume setting changed: ${id}`);
+                        Logger.debug(`⚙️ Volume setting changed: ${id}`);
                         this.saveSettings();
                     });
                     // Also listen for input for real-time slider changes
@@ -533,7 +533,7 @@ const SettingsSync = {
                             this.saveSettings();
                         });
                     }
-                    console.log(`⚙️ Attached listener to dynamic element: ${id}`);
+                    Logger.debug(`⚙️ Attached listener to dynamic element: ${id}`);
                 }
             });
         };

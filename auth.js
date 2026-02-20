@@ -46,7 +46,7 @@ async function checkAuth() {
             sessionStorage.removeItem('oi_token');
         }
     } catch (err) {
-        console.error('Auth check failed:', err);
+        Logger.error('Auth check failed:', err);
     }
 }
 

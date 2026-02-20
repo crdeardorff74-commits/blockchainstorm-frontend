@@ -52,7 +52,7 @@ function censorProfanity(text) {
 
 // Debug function to test high score system
 window.testHighScore = async function(testScore = 1000000) {
-    console.log('Testing high score system with score:', testScore);
+    Logger.debug('Testing high score system with score:', testScore);
     const scoreData = {
         game: 'blockchainstorm',
         difficulty: 'drizzle',
@@ -69,21 +69,29 @@ window.testHighScore = async function(testScore = 1000000) {
     };
     
     const isTopTen = await checkIfTopTen('drizzle', testScore);
-    console.log('Is this score in the top 20?', isTopTen);
+    Logger.debug('Is this score in the top 20?', isTopTen);
     
     if (isTopTen) {
-        console.log('Score makes top 20! Showing name entry prompt...');
+        Logger.debug('Score makes top 20! Showing name entry prompt...');
         promptForName(scoreData);
     } else {
-        console.log('Score does not make top 20. Showing leaderboard only...');
+        Logger.debug('Score does not make top 20. Showing leaderboard only...');
         await displayLeaderboard('drizzle', testScore);
     }
 };
 
-// Fetch leaderboard for a specific difficulty and mode
+/**
+ * Fetches leaderboard data from the server for a specific difficulty, mode, and skill level.
+ * Falls back to local storage if the server request fails or times out.
+ * @async
+ * @param {string} difficulty - The difficulty level (e.g., 'drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane').
+ * @param {string} [mode='normal'] - The game mode (e.g., 'normal', 'challenge', 'ai', 'ai-challenge').
+ * @param {string} [skillLevel='tempest'] - The skill level filter for the leaderboard.
+ * @returns {Promise<Array<Object>>} An array of leaderboard entry objects, sorted by score descending.
+ */
 async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest') {
     try {
-        console.log(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`);
+        Logger.info(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`);
         
         const response = await apiFetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`, {
             method: 'GET',
@@ -97,13 +105,13 @@ async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempe
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        console.log('Leaderboard data received:', data);
+        Logger.info('Leaderboard data received:', data);
         return data.leaderboard || [];
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.error('Leaderboard fetch timed out, using local storage fallback');
+            Logger.error('Leaderboard fetch timed out, using local storage fallback');
         } else {
-            console.error('Error fetching leaderboard, using local storage fallback:', error);
+            Logger.error('Error fetching leaderboard, using local storage fallback:', error);
         }
         return getLocalLeaderboard(difficulty, mode, skillLevel);
     }
@@ -117,7 +125,7 @@ function getLocalLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempest'
         try {
             return JSON.parse(stored);
         } catch (e) {
-            console.error('Error parsing local leaderboard:', e);
+            Logger.error('Error parsing local leaderboard:', e);
             return [];
         }
     }
@@ -131,11 +139,21 @@ function saveLocalLeaderboard(difficulty, scores, mode = 'normal', skillLevel = 
         const topScores = scores.slice(0, 20);
         localStorage.setItem(key, JSON.stringify(topScores));
     } catch (e) {
-        console.error('Error saving local leaderboard:', e);
+        Logger.error('Error saving local leaderboard:', e);
     }
 }
 
-// Display leaderboard in the left panel
+/**
+ * Displays the leaderboard in the left rules panel, replacing the rules/instructions content.
+ * Fetches current scores from the server, renders them as an HTML table, and highlights
+ * the player's score if provided.
+ * @async
+ * @param {string} difficulty - The difficulty level to display (e.g., 'drizzle', 'downpour').
+ * @param {number|null} [playerScore=null] - The current player's score to highlight in the leaderboard, or null for no highlight.
+ * @param {string} [mode='normal'] - The game mode (e.g., 'normal', 'challenge', 'ai-challenge').
+ * @param {string} [skillLevel='tempest'] - The skill level filter for the leaderboard.
+ * @returns {Promise<void>}
+ */
 async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal', skillLevel = 'tempest') {
     const rulesPanel = document.querySelector('.rules-panel');
     const rulesInstructions = rulesPanel.querySelector('.rules-instructions');
@@ -221,7 +239,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         const targetScore = Number(scoreToHighlight);
         const isPlayerScore = scoreToHighlight && entryScore === targetScore;
         if (isPlayerScore) {
-            console.log(`🎯 Highlighting score at rank ${index + 1}: ${entryScore}`);
+            Logger.info(`🎯 Highlighting score at rank ${index + 1}: ${entryScore}`);
             window.lastLeaderboardRank = index + 1;
         }
         const rowClass = isPlayerScore ? 'player-score' : '';
@@ -391,7 +409,7 @@ function showYoutubeRecordingPopup() {
 // Fetch recording and start replay
 async function startReplay(recordingId) {
     try {
-        console.log(`🎬 Fetching recording ${recordingId}...`);
+        Logger.info(`🎬 Fetching recording ${recordingId}...`);
         
         const response = await apiFetch(`${API_URL}/recording/${recordingId}`, { timeout: 15000 });
         if (!response.ok) {
@@ -399,23 +417,27 @@ async function startReplay(recordingId) {
         }
         
         const recording = await response.json();
-        console.log('🎬 Recording loaded:', recording.username, recording.score, 'pts');
+        Logger.info('🎬 Recording loaded:', recording.username, recording.score, 'pts');
         
         // Call the game's replay function if available
         if (typeof window.startGameReplay === 'function') {
             window.startGameReplay(recording);
         } else {
-            console.error('🎬 Replay function not available');
+            Logger.error('🎬 Replay function not available');
             alert('Replay feature not yet available');
         }
         
     } catch (error) {
-        console.error('🎬 Failed to load recording:', error);
+        Logger.error('🎬 Failed to load recording:', error);
         alert('Failed to load recording');
     }
 }
 
-// Hide leaderboard and show rules again
+/**
+ * Hides the leaderboard panel and restores the rules/instructions view.
+ * Resets the view dropdown to "How to Play" and clears the current leaderboard mode.
+ * @returns {void}
+ */
 function hideLeaderboard() {
     const leaderboardContent = document.getElementById('leaderboardContent');
     const rulesInstructions = document.querySelector('.rules-instructions');
@@ -437,7 +459,11 @@ function hideLeaderboard() {
     currentLeaderboardMode = null;
 }
 
-// Get display name for a mode
+/**
+ * Returns the human-readable display name (with emoji) for a given difficulty mode.
+ * @param {string} mode - The internal difficulty mode key (e.g., 'drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane').
+ * @returns {string} The display name with emoji prefix, or the raw mode string if not found.
+ */
 function getModeDisplayName(mode) {
     const names = {
         'drizzle': '🌧️ Drizzle',
@@ -476,39 +502,69 @@ function getChallengeDisplayName(challenge) {
     return names[challenge] || challenge.charAt(0).toUpperCase() + challenge.slice(1);
 }
 
-// Check if score makes top 20
+/**
+ * Checks whether a given score qualifies for the top 20 on the leaderboard.
+ * Returns false for scores below the minimum leaderboard threshold.
+ * @async
+ * @param {string} difficulty - The difficulty level to check against (e.g., 'drizzle', 'downpour').
+ * @param {number} score - The player's score to evaluate.
+ * @param {string} [mode='normal'] - The game mode (e.g., 'normal', 'challenge').
+ * @param {string} [skillLevel='tempest'] - The skill level filter for the leaderboard.
+ * @returns {Promise<boolean>} True if the score qualifies for the top 20, false otherwise.
+ */
 async function checkIfTopTen(difficulty, score, mode = 'normal', skillLevel = 'tempest') {
-    console.log(`Checking if score ${score} makes top 20 for ${difficulty} (${mode}) skill:${skillLevel}`);
+    Logger.debug(`Checking if score ${score} makes top 20 for ${difficulty} (${mode}) skill:${skillLevel}`);
     
     // Don't allow scores that display as ₿0.0000 on the leaderboard
     if (score < MIN_LEADERBOARD_SCORE) {
-        console.log(`Score ${score} is below minimum ${MIN_LEADERBOARD_SCORE}, not eligible for leaderboard`);
+        Logger.debug(`Score ${score} is below minimum ${MIN_LEADERBOARD_SCORE}, not eligible for leaderboard`);
         return false;
     }
     
     const scores = await fetchLeaderboard(difficulty, mode, skillLevel);
     
     if (!Array.isArray(scores)) {
-        console.log('Scores is not an array:', scores);
+        Logger.debug('Scores is not an array:', scores);
         return true;
     }
     
     if (scores.length < 20) {
-        console.log(`Only ${scores.length} scores, automatically top 20`);
+        Logger.debug(`Only ${scores.length} scores, automatically top 20`);
         return true;
     }
     
     const lowestTopTen = scores[19].score;
     const result = score > lowestTopTen;
-    console.log(`Lowest top 20 score: ${lowestTopTen}, player score: ${score}, makes top 20: ${result}`);
+    Logger.debug(`Lowest top 20 score: ${lowestTopTen}, player score: ${score}, makes top 20: ${result}`);
     return result;
 }
 
-// Prompt for player name when they get a high score
+/**
+ * Shows the name entry overlay for players who achieved a high score.
+ * Pre-fills the input with the previously saved username if available.
+ * On submission, saves the score locally, submits to the server with retries,
+ * and then displays the updated leaderboard with the player's score highlighted.
+ * @param {Object} scoreData - The game score data object.
+ * @param {number} scoreData.score - The player's final score.
+ * @param {string} scoreData.difficulty - The difficulty level played.
+ * @param {string} scoreData.mode - The game mode (e.g., 'normal', 'challenge').
+ * @param {number} scoreData.lines - Total lines cleared.
+ * @param {number} scoreData.level - Final level reached.
+ * @param {number} [scoreData.strikes] - Number of lightning strike events.
+ * @param {number} [scoreData.tsunamis] - Number of tsunami events.
+ * @param {number} [scoreData.volcanoes] - Number of volcano events.
+ * @param {number} [scoreData.blackholes] - Number of black hole events.
+ * @param {number} [scoreData.supermassiveBlackHoles] - Number of supermassive black hole events.
+ * @param {number} [scoreData.superVolcanoes] - Number of super volcano events.
+ * @param {Array<string>} [scoreData.challenges] - List of active challenge IDs.
+ * @param {number} [scoreData.speedBonus] - Speed bonus multiplier.
+ * @param {string} [scoreData.skillLevel] - The skill level setting.
+ * @returns {void}
+ */
 function promptForName(scoreData) {
-    console.log('=== promptForName START ===');
-    console.log('Score:', scoreData.score);
-    console.log('Difficulty:', scoreData.difficulty);
+    Logger.debug('=== promptForName START ===');
+    Logger.debug('Score:', scoreData.score);
+    Logger.debug('Difficulty:', scoreData.difficulty);
     
     // Get elements
     const overlay = document.getElementById('nameEntryOverlay');
@@ -516,7 +572,7 @@ function promptForName(scoreData) {
     const scoreDisplay = document.getElementById('nameEntryScore');
     const submitBtn = document.getElementById('nameEntrySubmit');
     
-    console.log('Element lookup results:', {
+    Logger.debug('Element lookup results:', {
         overlay: !!overlay,
         input: !!input,
         scoreDisplay: !!scoreDisplay,
@@ -524,15 +580,15 @@ function promptForName(scoreData) {
     });
     
     if (!overlay) {
-        console.error('❌ CRITICAL: nameEntryOverlay element not found!');
-        console.log('Checking DOM for all elements with IDs...');
+        Logger.error('❌ CRITICAL: nameEntryOverlay element not found!');
+        Logger.debug('Checking DOM for all elements with IDs...');
         const allIds = Array.from(document.querySelectorAll('[id]')).map(el => el.id);
-        console.log('All IDs in document:', allIds);
+        Logger.debug('All IDs in document:', allIds);
         return;
     }
     
     if (!input || !scoreDisplay || !submitBtn) {
-        console.error('❌ Missing required elements inside overlay!', {
+        Logger.error('❌ Missing required elements inside overlay!', {
             input: !!input,
             scoreDisplay: !!scoreDisplay,
             submitBtn: !!submitBtn
@@ -540,24 +596,24 @@ function promptForName(scoreData) {
         return;
     }
     
-    console.log('✅ All required elements found');
+    Logger.debug('✅ All required elements found');
     
     // Store score data for later submission
     lastScoreData = scoreData;
     
     // Display the score
     scoreDisplay.textContent = formatAsBitcoin(scoreData.score);
-    console.log('Score display updated to:', scoreDisplay.textContent);
+    Logger.debug('Score display updated to:', scoreDisplay.textContent);
     
     // CRITICAL: Hide the game over div FIRST to prevent overlap
     const gameOverDiv = document.getElementById('gameOver');
     if (gameOverDiv) {
         gameOverDiv.style.display = 'none';
-        console.log('Game over div hidden');
+        Logger.debug('Game over div hidden');
     }
     
     // Show overlay with maximum priority - FORCE ALL STYLES
-    console.log('Setting overlay to display: flex');
+    Logger.debug('Setting overlay to display: flex');
     overlay.style.setProperty('display', 'flex', 'important');
     overlay.style.setProperty('visibility', 'visible', 'important');
     overlay.style.setProperty('opacity', '1', 'important');
@@ -572,21 +628,21 @@ function promptForName(scoreData) {
     
     // Double-check the overlay is visible
     setTimeout(() => {
-        console.log('Overlay display style after timeout:', overlay.style.display);
-        console.log('Overlay computed style after timeout:', window.getComputedStyle(overlay).display);
-        console.log('Overlay visibility:', window.getComputedStyle(overlay).visibility);
-        console.log('Overlay opacity:', window.getComputedStyle(overlay).opacity);
-        console.log('Overlay z-index:', window.getComputedStyle(overlay).zIndex);
+        Logger.debug('Overlay display style after timeout:', overlay.style.display);
+        Logger.debug('Overlay computed style after timeout:', window.getComputedStyle(overlay).display);
+        Logger.debug('Overlay visibility:', window.getComputedStyle(overlay).visibility);
+        Logger.debug('Overlay opacity:', window.getComputedStyle(overlay).opacity);
+        Logger.debug('Overlay z-index:', window.getComputedStyle(overlay).zIndex);
         if (overlay.style.display !== 'flex') {
-            console.error('❌ WARNING: Overlay display changed unexpectedly! Forcing back to flex');
+            Logger.error('❌ WARNING: Overlay display changed unexpectedly! Forcing back to flex');
             overlay.style.setProperty('display', 'flex', 'important');
         }
     }, 100);
     
-    console.log('Overlay display style is now:', overlay.style.display);
-    console.log('Overlay computed style:', window.getComputedStyle(overlay).display);
+    Logger.debug('Overlay display style is now:', overlay.style.display);
+    Logger.debug('Overlay computed style:', window.getComputedStyle(overlay).display);
     
-    console.log('✅ Name entry overlay should now be visible');
+    Logger.debug('✅ Name entry overlay should now be visible');
     
     // Remove any existing event listeners by cloning the elements
     const newSubmitBtn = submitBtn.cloneNode(true);
@@ -862,29 +918,29 @@ function promptForName(scoreData) {
             if (savedUsername) {
                 newInput.select();
             }
-            console.log('Input focused');
+            Logger.debug('Input focused');
         }, 150);
     }
     
-    console.log('Input setup complete, saved username:', savedUsername);
+    Logger.debug('Input setup complete, saved username:', savedUsername);
     
     // Add submit handler
     const handleSubmit = async () => {
-        console.log('=== handleSubmit START ===');
+        Logger.debug('=== handleSubmit START ===');
         
         // Prevent double submission using module-level flag
         if (isSubmittingScore) {
-            console.log('Already submitting, ignoring duplicate');
+            Logger.debug('Already submitting, ignoring duplicate');
             return;
         }
         isSubmittingScore = true;
         newSubmitBtn.disabled = true;
         newSubmitBtn.textContent = 'Saving...';
-        console.log('Button set to Saving...');
+        Logger.debug('Button set to Saving...');
         
         const rawUsername = newInput.value.trim() || 'Anonymous';
         const username = censorProfanity(rawUsername);
-        console.log('Submitting score with username:', username);
+        Logger.debug('Submitting score with username:', username);
         
         // Save username for next time (save the raw input, not censored version)
         if (rawUsername !== 'Anonymous') {
@@ -900,11 +956,11 @@ function promptForName(scoreData) {
         overlay.style.display = 'none';
         const keyboard = document.getElementById('customKeyboard');
         if (keyboard) keyboard.style.display = 'none';
-        console.log('Overlay hidden');
+        Logger.debug('Overlay hidden');
         
         // Don't save scores that display as ₿0.0000
         if (scoreData.score < MIN_LEADERBOARD_SCORE) {
-            console.log(`Score ${scoreData.score} below minimum, not saving to leaderboard`);
+            Logger.debug(`Score ${scoreData.score} below minimum, not saving to leaderboard`);
             const gameOverDiv = document.getElementById('gameOver');
             if (gameOverDiv) {
                 gameOverDiv.style.display = 'block';
@@ -916,7 +972,7 @@ function promptForName(scoreData) {
         try {
             // Save to local leaderboard first using local data only (no network)
             const localScores = getLocalLeaderboard(scoreData.difficulty, scoreData.mode);
-            console.log('Got local scores:', localScores.length);
+            Logger.debug('Got local scores:', localScores.length);
             
             const newEntry = {
                 username: username,
@@ -939,7 +995,7 @@ function promptForName(scoreData) {
                 .slice(0, 20);
             
             saveLocalLeaderboard(scoreData.difficulty, updatedScores, scoreData.mode);
-            console.log('Score saved to local leaderboard');
+            Logger.debug('Score saved to local leaderboard');
             
             // Set rank immediately from local data (before async server call)
             const localRank = updatedScores.findIndex(s => s.score === scoreData.score && s.username === username) + 1;
@@ -974,27 +1030,27 @@ function promptForName(scoreData) {
 
                     if (response.ok) {
                         const result = await response.json();
-                        console.log('Score submitted successfully to server:', result);
+                        Logger.info('Score submitted successfully to server:', result);
                         return true;
                     } else {
-                        console.error('Server submission failed:', response.status);
+                        Logger.error('Server submission failed:', response.status);
                         throw new Error(`HTTP ${response.status}`);
                     }
                 } catch (serverError) {
                     if (serverError.name === 'AbortError') {
-                        console.error(`Server submission timed out (attempt ${retryCount + 1}/${maxRetries + 1})`);
+                        Logger.error(`Server submission timed out (attempt ${retryCount + 1}/${maxRetries + 1})`);
                     } else {
-                        console.error(`Error submitting score (attempt ${retryCount + 1}/${maxRetries + 1}):`, serverError.message);
+                        Logger.error(`Error submitting score (attempt ${retryCount + 1}/${maxRetries + 1}):`, serverError.message);
                     }
                     
                     // Retry with exponential backoff
                     if (retryCount < maxRetries) {
                         const delay = Math.min(2000 * Math.pow(2, retryCount), 30000); // 2s, 4s, 8s, 16s, 30s
-                        console.log(`Retrying in ${delay/1000}s...`);
+                        Logger.info(`Retrying in ${delay/1000}s...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         return submitToServer(retryCount + 1, maxRetries);
                     } else {
-                        console.error('All retry attempts failed. Score saved locally only.');
+                        Logger.error('All retry attempts failed. Score saved locally only.');
                         return false;
                     }
                 }
@@ -1024,7 +1080,7 @@ function promptForName(scoreData) {
             }
             
         } catch (error) {
-            console.error('Error during score submission:', error);
+            Logger.error('Error during score submission:', error);
         }
         
         // Always show the game-over div so user can click Play Again
@@ -1035,17 +1091,17 @@ function promptForName(scoreData) {
         
         // Reset submission flag for next game
         isSubmittingScore = false;
-        console.log('=== handleSubmit END ===');
+        Logger.debug('=== handleSubmit END ===');
         
         // Notify game.js that score submission is complete (triggers credits animation)
         if (typeof window.onScoreSubmitted === 'function') {
-            console.log('Calling window.onScoreSubmitted()');
+            Logger.debug('Calling window.onScoreSubmitted()');
             window.onScoreSubmitted();
         }
     };
     
     newSubmitBtn.addEventListener('click', handleSubmit);
-    console.log('Submit button click handler attached');
+    Logger.debug('Submit button click handler attached');
     
     newInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -1053,9 +1109,9 @@ function promptForName(scoreData) {
             handleSubmit();
         }
     });
-    console.log('Enter key handler attached to input');
+    Logger.debug('Enter key handler attached to input');
     
-    console.log('=== promptForName END ===');
+    Logger.debug('=== promptForName END ===');
 }
 
 // Keyboard navigation for leaderboards
@@ -1099,21 +1155,37 @@ async function checkAuth() {
         if (response.ok) {
             currentUser = await response.json();
             isAnonymous = false;
-            console.log('User logged in:', currentUser.username);
+            Logger.info('User logged in:', currentUser.username);
         } else {
             isAnonymous = true;
         }
     } catch (error) {
-        console.log('Not logged in or API unavailable');
+        Logger.info('Not logged in or API unavailable');
         isAnonymous = true;
     }
 }
 
-// Submit score to backend
+/**
+ * Submits a game score to the backend server. Scores below the minimum
+ * leaderboard threshold are silently ignored.
+ * @async
+ * @param {Object} gameData - The game data to submit.
+ * @param {number} gameData.score - The player's final score.
+ * @param {number} gameData.lines - Total lines cleared.
+ * @param {number} gameData.level - Final level reached.
+ * @param {number} [gameData.strikes] - Number of lightning strike events.
+ * @param {number} [gameData.tsunamis] - Number of tsunami events.
+ * @param {number} [gameData.volcanoes] - Number of volcano events.
+ * @param {number} [gameData.blackholes] - Number of black hole events.
+ * @param {number} [gameData.supermassiveBlackHoles] - Number of supermassive black hole events.
+ * @param {number} [gameData.superVolcanoes] - Number of super volcano events.
+ * @param {number} [gameData.duration] - Game duration in seconds.
+ * @returns {Promise<Object|false|undefined>} The server response object on success, false if below minimum score, or undefined on error.
+ */
 async function submitScore(gameData) {
     // Don't save scores that display as ₿0.0000
     if (gameData.score < MIN_LEADERBOARD_SCORE) {
-        console.log(`Score ${gameData.score || 'unknown'} below minimum, not saving`);
+        Logger.debug(`Score ${gameData.score || 'unknown'} below minimum, not saving`);
         return false;
     }
     
@@ -1147,35 +1219,51 @@ async function submitScore(gameData) {
         
         if (response.ok) {
             const result = await response.json();
-            console.log('Score submitted:', result);
+            Logger.info('Score submitted:', result);
             
             if (isAnonymous && result.message && result.message.includes('register')) {
-                console.log('Anonymous score saved. Register to claim it!');
+                Logger.info('Anonymous score saved. Register to claim it!');
             }
             
             return result;
         } else {
-            console.error('Failed to submit score:', response.status);
+            Logger.error('Failed to submit score:', response.status);
         }
     } catch (error) {
-        console.error('Error submitting score:', error);
+        Logger.error('Error submitting score:', error);
     }
 }
 
-// Fetch leaderboard (deprecated - use fetchLeaderboard for full features)
-// Kept for backwards compatibility
+/**
+ * Fetches leaderboard data for a given difficulty and mode.
+ * @deprecated Use {@link fetchLeaderboard} instead, which supports the skillLevel parameter.
+ * @async
+ * @param {string} [difficulty='downpour'] - The difficulty level to fetch.
+ * @param {string} [mode='normal'] - The game mode to fetch.
+ * @returns {Promise<Array<Object>>} An array of leaderboard entry objects.
+ */
 async function getLeaderboard(difficulty = 'downpour', mode = 'normal') {
     return fetchLeaderboard(difficulty, mode, 'tempest');
 }
 
-// HTML escape utility
+/**
+ * Escapes HTML special characters in a string to prevent XSS attacks.
+ * Uses the browser's built-in DOM text encoding via a temporary div element.
+ * @param {string} text - The raw text string to escape.
+ * @returns {string} The HTML-escaped string safe for insertion into the DOM.
+ */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Format score as Bitcoin
+/**
+ * Formats a numeric score as a Bitcoin-style currency string.
+ * Divides the score by 10,000,000 and prefixes with the Bitcoin symbol.
+ * @param {number} points - The raw score in points (e.g., 10000000 becomes "₿1.0000").
+ * @returns {string} The formatted string (e.g., "₿1.0000").
+ */
 function formatAsBitcoin(points) {
     const btc = points / 10000000;
     return '₿' + btc.toFixed(4);
@@ -1240,11 +1328,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Send game completion notification (for non-high-score games)
+/**
+ * Sends a game completion notification to the server for games that did not
+ * achieve a high score. Uses the same submit endpoint with a `notifyOnly` flag
+ * so the backend sends an email notification without creating a leaderboard entry.
+ * Fails silently since notifications are non-critical.
+ * @async
+ * @param {Object} scoreData - The game score data object.
+ * @param {number} scoreData.score - The player's final score.
+ * @param {string} scoreData.difficulty - The difficulty level played.
+ * @param {string} scoreData.mode - The game mode.
+ * @param {number} scoreData.lines - Total lines cleared.
+ * @param {number} scoreData.level - Final level reached.
+ * @param {Array<string>} [scoreData.challenges] - List of active challenge IDs.
+ * @returns {Promise<boolean>} True if the notification was sent successfully, false otherwise.
+ */
 async function notifyGameCompletion(scoreData) {
     // Don't notify for scores that display as ₿0.0000
     if (scoreData.score < MIN_LEADERBOARD_SCORE) {
-        console.log(`Score ${scoreData.score} below minimum, skipping notification`);
+        Logger.debug(`Score ${scoreData.score} below minimum, skipping notification`);
         return false;
     }
     
@@ -1274,26 +1376,39 @@ async function notifyGameCompletion(scoreData) {
         });
 
         if (response.ok) {
-            console.log('Game completion notification sent');
+            Logger.info('Game completion notification sent');
             return true;
         } else {
-            console.log('Game notification endpoint returned:', response.status);
+            Logger.info('Game notification endpoint returned:', response.status);
             return false;
         }
     } catch (error) {
         // Silently fail - this is just a notification, not critical
-        console.log('Game completion notification failed (non-critical):', error.message);
+        Logger.info('Game completion notification failed (non-critical):', error.message);
         return false;
     }
 }
 
-// Submit AI score automatically (no popup)
+/**
+ * Submits an AI player's score automatically without showing a name entry popup.
+ * The username is always set to the robot emoji Claude name. Scores below the
+ * minimum leaderboard threshold are silently ignored.
+ * @async
+ * @param {Object} scoreData - The AI game score data object.
+ * @param {number} scoreData.score - The AI player's final score.
+ * @param {string} scoreData.difficulty - The difficulty level played.
+ * @param {string} scoreData.mode - The game mode (e.g., 'ai', 'ai-challenge').
+ * @param {number} scoreData.lines - Total lines cleared.
+ * @param {number} scoreData.level - Final level reached.
+ * @param {boolean} [scoreData.skipNotification] - Whether to suppress email notifications.
+ * @returns {Promise<boolean>} True if the score was submitted successfully, false otherwise.
+ */
 async function submitAIScore(scoreData) {
-    console.log('=== submitAIScore START ===');
+    Logger.debug('=== submitAIScore START ===');
     
     // Don't save scores that display as ₿0.0000
     if (scoreData.score < MIN_LEADERBOARD_SCORE) {
-        console.log(`AI score ${scoreData.score} below minimum, not saving`);
+        Logger.debug(`AI score ${scoreData.score} below minimum, not saving`);
         return false;
     }
     
@@ -1317,23 +1432,27 @@ async function submitAIScore(scoreData) {
 
         if (response.ok) {
             const result = await response.json();
-            console.log('AI score submitted successfully:', result);
+            Logger.info('AI score submitted successfully:', result);
             return true;
         } else {
-            console.error('AI score submission failed:', response.status);
+            Logger.error('AI score submission failed:', response.status);
             return false;
         }
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.error('AI score submission timed out');
+            Logger.error('AI score submission timed out');
         } else {
-            console.error('Error submitting AI score:', error);
+            Logger.error('Error submitting AI score:', error);
         }
         return false;
     }
 }
 
-// Clear the last player score (call when starting a new game)
+/**
+ * Clears the stored last player score used for leaderboard highlighting.
+ * Should be called when starting a new game to prevent stale score highlights.
+ * @returns {void}
+ */
 function clearLastPlayerScore() {
     lastPlayerScore = null;
 }

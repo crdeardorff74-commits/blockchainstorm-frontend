@@ -1469,7 +1469,7 @@ const I18n = (() => {
     function init() {
         currentLang = detectLanguage();
         applyTranslations();
-        console.log(`🌐 i18n initialized: ${currentLang} (${SUPPORTED_LANGUAGES[currentLang]})`);
+        Logger.info(`🌐 i18n initialized: ${currentLang} (${SUPPORTED_LANGUAGES[currentLang]})`);
     }
     
     /**
@@ -1492,11 +1492,13 @@ const I18n = (() => {
     }
     
     /**
-     * Scan the DOM for elements with data-i18n attributes and apply translations.
-     * - data-i18n="key" → sets textContent
-     * - data-i18n-html="key" → sets innerHTML (for strings containing markup)
-     * - data-i18n-placeholder="key" → sets placeholder attribute
-     * - data-i18n-tooltip="key" → sets data-tooltip attribute
+     * Scan the DOM for elements with data-i18n attributes and apply translations
+     * using the current language. Supports multiple attribute conventions:
+     * - data-i18n="key" sets textContent
+     * - data-i18n-html="key" sets innerHTML (for strings containing markup)
+     * - data-i18n-placeholder="key" sets the placeholder attribute
+     * - data-i18n-tooltip="key" sets the data-tooltip attribute
+     * @returns {void}
      */
     function applyTranslations() {
         // Text content
@@ -1524,29 +1526,51 @@ const I18n = (() => {
         });
     }
     
+    /**
+     * Set the active language and persist the choice to localStorage.
+     * Immediately re-applies all DOM translations. Does nothing if the
+     * language code is not in the supported languages list.
+     * @param {string} lang - ISO 639-1 language code (e.g. 'en', 'fr', 'ja').
+     * @returns {void}
+     */
     function setLanguage(lang) {
         if (!SUPPORTED_LANGUAGES[lang]) return;
         currentLang = lang;
         localStorage.setItem('tantris_language', lang);
         applyTranslations();
-        console.log(`🌐 Language changed to: ${lang} (${SUPPORTED_LANGUAGES[lang]})`);
+        Logger.info(`🌐 Language changed to: ${lang} (${SUPPORTED_LANGUAGES[lang]})`);
     }
-    
+
+    /**
+     * Get the currently active language code.
+     * @returns {string} ISO 639-1 language code (e.g. 'en', 'fr').
+     */
     function getLanguage() {
         return currentLang;
     }
-    
+
+    /**
+     * Get the display name for a given language code, or the current
+     * language if no code is provided.
+     * @param {string} [lang] - ISO 639-1 language code. Defaults to the current language.
+     * @returns {string} The native display name (e.g. 'English', 'Francais'), or 'Unknown'.
+     */
     function getLanguageName(lang) {
         return SUPPORTED_LANGUAGES[lang || currentLang] || 'Unknown';
     }
-    
+
+    /**
+     * Get a shallow copy of all supported languages as a code-to-name map.
+     * @returns {Object<string, string>} Map of language codes to their native display names.
+     */
     function getSupportedLanguages() {
         return { ...SUPPORTED_LANGUAGES };
     }
 
     /**
-     * Returns the full browser language string (e.g. "en-US", "fr-FR")
-     * for including in score submissions / emails.
+     * Get the full browser language string (e.g. "en-US", "fr-FR") as reported
+     * by the browser, useful for score submissions and analytics.
+     * @returns {string} The browser's language tag, or 'en' as a fallback.
      */
     function getBrowserLanguage() {
         return navigator.language || navigator.userLanguage || 'en';

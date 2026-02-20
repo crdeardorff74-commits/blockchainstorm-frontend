@@ -84,7 +84,7 @@
     function consumeLavaProjectile() {
         if (replayLavaProjectileIndex < replayLavaProjectiles.length) {
             const proj = replayLavaProjectiles[replayLavaProjectileIndex++];
-            console.log('🌋 Replay: Using recorded projectile', replayLavaProjectileIndex,
+            Logger.debug('🌋 Replay: Using recorded projectile', replayLavaProjectileIndex,
                 'vx:', proj.vx.toFixed(2), 'vy:', proj.vy.toFixed(2));
             return proj;
         }
@@ -153,23 +153,23 @@
     // ==================== START REPLAY ====================
 
     function start(recording) {
-        console.log('🎬 Starting deterministic replay (v2.0):', recording.username, recording.difficulty, recording.skill_level);
+        Logger.info('🎬 Starting deterministic replay (v2.0):', recording.username, recording.difficulty, recording.skill_level);
 
         const recData = recording.recording_data;
         if (!recData) {
-            console.error('🎬 No recording data');
+            Logger.error('🎬 No recording data');
             alert('This recording does not contain replay data.');
             return;
         }
 
         const isV2 = recData.version === '2.0' && recData.pieceData;
         if (!isV2) {
-            console.error('🎬 Recording is not v2.0 format - cannot replay');
+            Logger.error('🎬 Recording is not v2.0 format - cannot replay');
             alert('This recording uses an older format that is no longer supported.');
             return;
         }
 
-        console.log('🎬 v2.0 recording has:', recData.pieceData.length, 'pieces');
+        Logger.info('🎬 v2.0 recording has:', recData.pieceData.length, 'pieces');
 
         // Store replay data
         replayData = recording;
@@ -452,14 +452,14 @@
         showUI();
 
         gameLoop = requestAnimationFrame(update);
-        console.log('🎬 v2.0 replay started - game is running');
+        Logger.info('🎬 v2.0 replay started - game is running');
     }
 
     // ==================== SPAWN PIECE ====================
 
     function spawnPiece() {
         if (replayPieceIndex >= replayPieceData.length) {
-            console.log('🎬 No more pieces to spawn');
+            Logger.debug('🎬 No more pieces to spawn');
             return false;
         }
 
@@ -484,11 +484,11 @@
                 }
             }
             if (differences > 0) {
-                console.log('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
+                Logger.debug('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
                 if (differences > 2) {
                     showSyncIndicator();
                     replayInputSpeedup *= 1.02;
-                    console.log('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
+                    Logger.debug('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
                 }
             }
             
@@ -505,7 +505,7 @@
                         }
                     }
                 }
-                console.log('🎬 Reconstructed lattice grid from snapshot:', latticeCount, 'blocks');
+                Logger.debug('🎬 Reconstructed lattice grid from snapshot:', latticeCount, 'blocks');
             }
         } else if (pieceEntry.boardSnapshot && (skipSyncForAnimation || skipSyncForJustFinished)) {
             let reason;
@@ -517,7 +517,7 @@
             else if (blackHoleAnimating) reason = 'black hole animation';
             else if (gravityAnimating) reason = 'gravity animation';
             else reason = 'animation in progress';
-            console.log('🎬 Skipping board sync -', reason);
+            Logger.debug('🎬 Skipping board sync -', reason);
         }
 
         // Create piece from recorded data
@@ -550,7 +550,7 @@
         replayRandomEventIndex = 0;
         pieceSpawnTime = Date.now();
 
-        console.log('🎬 Spawned piece', replayPieceIndex, ':', pieceEntry.type, pieceEntry.color);
+        Logger.debug('🎬 Spawned piece', replayPieceIndex, ':', pieceEntry.type, pieceEntry.color);
         return true;
     }
 
@@ -567,17 +567,17 @@
 
         // Debug stuck piece
         if (replayPieceElapsedTime > 10000 && !pieceEntry._stuckLogged) {
-            console.warn('🎬 Piece', replayPieceIndex, 'stuck for', replayPieceElapsedTime, 'ms');
-            console.log('  Type:', pieceEntry.type, 'Inputs:', pieceEntry.inputs.length, 'Processed:', replayInputIndex);
-            console.log('  currentPiece pos:', currentPiece?.x, currentPiece?.y);
-            console.log('  hardDropping:', hardDropping, 'animatingLines:', animatingLines, 'gravityAnimating:', gravityAnimating);
+            Logger.debug('🎬 Piece', replayPieceIndex, 'stuck for', replayPieceElapsedTime, 'ms');
+            Logger.debug('  Type:', pieceEntry.type, 'Inputs:', pieceEntry.inputs.length, 'Processed:', replayInputIndex);
+            Logger.debug('  currentPiece pos:', currentPiece?.x, currentPiece?.y);
+            Logger.debug('  hardDropping:', hardDropping, 'animatingLines:', animatingLines, 'gravityAnimating:', gravityAnimating);
             pieceEntry._stuckLogged = true;
         }
 
         // Force advance if stuck 30+ seconds
         const allInputsProcessed = replayInputIndex >= pieceEntry.inputs.length;
         if (allInputsProcessed && replayPieceElapsedTime > 30000 && currentPiece && !hardDropping) {
-            console.error('🎬 FORCE ADVANCING: Piece', replayPieceIndex, 'stuck for 30+ seconds');
+            Logger.error('🎬 FORCE ADVANCING: Piece', replayPieceIndex, 'stuck for 30+ seconds');
             mergePiece();
             clearLines();
             advancePiece();
@@ -630,7 +630,7 @@
                     playSoundEffect('rotate', soundToggle);
                 }
             } else if (event.type === 'tornado_spawn') {
-                console.log('🎬 Replay: Spawning tornado');
+                Logger.debug('🎬 Replay: Spawning tornado');
                 replayTornadoSpawnData = {
                     x: event.x,
                     snakeDirection: event.direction,
@@ -645,20 +645,20 @@
             } else if (event.type === 'tornado_drop') {
                 replayTornadoDrops.push({ targetX: event.targetX });
             } else if (event.type === 'earthquake') {
-                console.log('🎬 Replay: Spawning earthquake');
+                Logger.debug('🎬 Replay: Spawning earthquake');
                 if (event.crack) {
                     replayEarthquakeCrack = event.crack;
                     replayEarthquakeShiftType = event.shiftType;
                 }
                 spawnEarthquake();
             } else if (event.type === 'volcano') {
-                console.log('🎬 Replay: Volcano event at column', event.column);
+                Logger.debug('🎬 Replay: Volcano event at column', event.column);
                 // Pre-queue ALL lava_projectile events for this piece NOW
                 for (let i = replayRandomEventIndex + 1; i < pieceEntry.randomEvents.length; i++) {
                     const futureEvent = pieceEntry.randomEvents[i];
                     if (futureEvent.type === 'lava_projectile') {
                         replayLavaProjectiles.push({ vx: futureEvent.vx, vy: futureEvent.vy });
-                        console.log('🎬 Replay: Pre-queued lava projectile', replayLavaProjectiles.length);
+                        Logger.debug('🎬 Replay: Pre-queued lava projectile', replayLavaProjectiles.length);
                     }
                 }
             } else if (event.type === 'lava_projectile') {
@@ -676,7 +676,7 @@
         while (replayMusicIndex < replayMusicTracks.length &&
                replayMusicTracks[replayMusicIndex].t <= globalElapsed) {
             if (replayMusicIndex > 0) {
-                console.log('🎬 Replay: Music change to', replayMusicTracks[replayMusicIndex].trackName);
+                Logger.debug('🎬 Replay: Music change to', replayMusicTracks[replayMusicIndex].trackName);
                 skipToNextSong();
             }
             replayMusicIndex++;
@@ -690,7 +690,7 @@
         if (allPiecesDone && gameEnded) {
             setTimeout(() => {
                 if (replayActive && !replayCompleteShown) {
-                    console.log('🎬 Replay complete!');
+                    Logger.info('🎬 Replay complete!');
                     showComplete();
                 }
             }, 500);
@@ -705,7 +705,7 @@
         if (replayPieceIndex < replayPieceData.length) {
             spawnPiece();
         } else {
-            console.log('🎬 All pieces replayed');
+            Logger.info('🎬 All pieces replayed');
             setTimeout(() => {
                 if (replayActive && !replayCompleteShown) showComplete();
             }, 500);
@@ -715,8 +715,8 @@
     function tryResyncOnGameOver() {
         if (!replayActive) return false;
         if (replayPieceIndex + 1 < replayPieceData.length) {
-            console.log('🎬 DESYNC DETECTED: Game over triggered but recording has more pieces.');
-            console.log('🎬 Resyncing to piece', replayPieceIndex + 1, 'of', replayPieceData.length);
+            Logger.debug('🎬 DESYNC DETECTED: Game over triggered but recording has more pieces.');
+            Logger.debug('🎬 Resyncing to piece', replayPieceIndex + 1, 'of', replayPieceData.length);
             replayPieceIndex++;
             spawnPiece();
             return true;
@@ -865,14 +865,14 @@
             }
         }
 
-        console.log('🎬 Replay complete');
+        Logger.info('🎬 Replay complete');
     }
 
     // ==================== RESTART / STOP ====================
 
     function restart() {
         if (!replayData) return;
-        console.log('🎬 Restarting replay...');
+        Logger.info('🎬 Restarting replay...');
         const recording = replayData;
         replayActive = false;
         replayCompleteShown = false;
@@ -1009,7 +1009,7 @@
         updateCanvasSize();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        console.log('🎬 Replay stopped');
+        Logger.info('🎬 Replay stopped');
     }
 
     // ==================== DISPLAY / DRAW HELPERS ====================

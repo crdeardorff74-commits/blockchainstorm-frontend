@@ -1,6 +1,6 @@
 // Starfield System - imported from starfield.js
 // The StarfieldSystem module handles: Stars, Sun, Planets, Asteroid Belt, UFO
-console.log("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
+Logger.info("🎮 Game v3.28 loaded - Tsunami push reconciliation for stacked blobs");
 
 // Audio System - imported from audio.js
 const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction } = window.AudioSystem;
@@ -121,7 +121,7 @@ const HintSystem = (() => {
     }
     
     function showHint(textKey) {
-        console.log('💡 HintSystem.showHint called:', textKey);
+        Logger.debug('💡 HintSystem.showHint called:', textKey);
         dismissHint(); // Remove any existing hint
         const rulesPanel = document.querySelector('.rules-panel');
         if (!rulesPanel) return;
@@ -148,7 +148,7 @@ const HintSystem = (() => {
     }
     
     function onGameStart() {
-        console.log('💡 HintSystem.onGameStart, hasShown:', hasShownHints());
+        Logger.debug('💡 HintSystem.onGameStart, hasShown:', hasShownHints());
         if (hasShownHints()) return;
         hintStep = 0;
         pieceCount = 0;
@@ -180,14 +180,14 @@ const HintSystem = (() => {
     }
     
     function onGameEnd() {
-        console.log('💡 HintSystem.onGameEnd, hintStep:', hintStep);
+        Logger.debug('💡 HintSystem.onGameEnd, hintStep:', hintStep);
         dismissHint();
         // If they completed at least 1 game, mark hints as shown even if not all displayed
         if (hintStep > 0) markHintsShown();
     }
     
     function reset() {
-        console.log('💡 HintSystem.reset called');
+        Logger.debug('💡 HintSystem.reset called');
         localStorage.removeItem(STORAGE_KEY);
     }
     
@@ -345,7 +345,7 @@ async function submitBugReport(debugLog, bugDescription, silent = false) {
             showBugReportConfirmation(response.ok);
         }
     } catch (e) {
-        console.error('Bug report submission failed:', e);
+        Logger.error('Bug report submission failed:', e);
         if (!silent) showBugReportConfirmation(false);
     }
 }
@@ -438,7 +438,7 @@ GamepadController.init();
 try {
     TabletMode.init();
 } catch (e) {
-    console.error('TabletMode.init() error:', e instanceof Error ? e.message : e);
+    Logger.error('TabletMode.init() error:', e instanceof Error ? e.message : e);
 }
 
 // Initialize starfield system
@@ -447,7 +447,7 @@ try {
         StarfieldSystem.init();
     }
 } catch (e) {
-    console.error('StarfieldSystem.init() error:', e);
+    Logger.error('StarfieldSystem.init() error:', e);
 }
 // Note: setSoundCallback is called after soundToggle is defined (line ~820)
 
@@ -455,7 +455,7 @@ try {
 try {
     initTouchControls();
 } catch (e) {
-    console.error('initTouchControls() error:', e);
+    Logger.error('initTouchControls() error:', e);
 }
 
 // Update tablet mode when gamepad connects/disconnects
@@ -643,14 +643,14 @@ function getCreditsElements() {
 }
 
 function startCreditsAnimation() {
-    console.log('startCreditsAnimation called');
+    Logger.debug('startCreditsAnimation called');
     
     const { overlay: creditsOverlay, scroll: creditsScroll } = getCreditsElements();
-    console.log('creditsOverlay:', creditsOverlay);
-    console.log('creditsScroll:', creditsScroll);
+    Logger.debug('creditsOverlay:', creditsOverlay);
+    Logger.debug('creditsScroll:', creditsScroll);
     
     if (!creditsOverlay || !creditsScroll) {
-        console.error('Credits elements not found! creditsOverlay:', creditsOverlay, 'creditsScroll:', creditsScroll);
+        Logger.error('Credits elements not found! creditsOverlay:', creditsOverlay, 'creditsScroll:', creditsScroll);
         return;
     }
     
@@ -684,10 +684,10 @@ function startCreditsAnimation() {
         // Now get content height (must be after display:block and render)
         const creditsContent = creditsScroll.querySelector('.credits-content');
         creditsContentHeight = creditsContent ? creditsContent.offsetHeight : 0;
-        console.log('Credits content height:', creditsContentHeight, 'Screen height:', screenHeight);
+        Logger.debug('Credits content height:', creditsContentHeight, 'Screen height:', screenHeight);
         
         if (creditsContentHeight === 0) {
-            console.error('Credits content height is 0! creditsContent:', creditsContent);
+            Logger.error('Credits content height is 0! creditsContent:', creditsContent);
             return;
         }
         
@@ -701,7 +701,7 @@ function startCreditsAnimation() {
                 creditsAnimationId = requestAnimationFrame(animateCredits);
             } else {
                 // Animation complete - stop but keep overlay visible
-                console.log('Credits animation complete');
+                Logger.debug('Credits animation complete');
                 creditsAnimationId = null;
             }
         }
@@ -1559,21 +1559,21 @@ StarfieldSystem.setUFOSwoopCallback(() => {
     // During replay, use the recorded F Word song; otherwise pick random and record it
     if (GameReplay.isActive() && GameReplay.getFWordSongId()) {
         insertFWordSongById(GameReplay.getFWordSongId());
-        console.log('🛸 UFO delivered recorded song:', GameReplay.getFWordSongId());
+        Logger.info('🛸 UFO delivered recorded song:', GameReplay.getFWordSongId());
     } else {
         // Queue a random F Word song and record which one was selected
         const selectedSong = insertFWordSong();
         if (window.GameRecorder && window.GameRecorder.isActive()) {
             window.GameRecorder.recordFWordSong(selectedSong.id);
         }
-        console.log('🛸 UFO delivered special song!');
+        Logger.info('🛸 UFO delivered special song!');
     }
     
     // Play banjo sound effect, then skip to the F Word song when banjo finishes
     playBanjoWithMusicPause(soundToggle, () => {
         // After banjo finishes, immediately skip to the queued F Word song
         skipToNextSong();
-        console.log('🎵 Skipped to F Word song after banjo');
+        Logger.info('🎵 Skipped to F Word song after banjo');
     });
 });
 
@@ -1585,7 +1585,7 @@ function initPaletteDropdown() {
     const paletteDropdown = document.getElementById('paletteDropdown');
     
     if (!dropdownBtn || !dropdownMenu || !palettePreview || typeof ColorPalettes === 'undefined') {
-        console.warn('Palette dropdown elements not found or ColorPalettes not loaded');
+        Logger.warn('Palette dropdown elements not found or ColorPalettes not loaded');
         return;
     }
     
@@ -1712,7 +1712,7 @@ function selectPalette(paletteId) {
         }
     }
     
-    console.log('🎨 Palette changed to:', paletteId);
+    Logger.info('🎨 Palette changed to:', paletteId);
 }
 
 // Initialize palette dropdown when DOM is ready
@@ -1735,7 +1735,7 @@ function createAIModeIndicator() {
 
 function exitAIGame() {
     if (!aiModeEnabled) return;
-    console.log('🤖 AI game cancelled by user');
+    Logger.info('🤖 AI game cancelled by user');
     
     // Stop the game loop
     gameRunning = false;
@@ -2220,7 +2220,7 @@ function updateBlackHoleAnimation() {
     
     // Animation complete
     if (progress >= 1) {
-        console.log('🕳️ Black hole animation complete');
+        Logger.info('🕳️ Black hole animation complete');
         blackHoleAnimating = false;
         blackHoleActive = false;
         blackHoleShakeIntensity = 0;
@@ -2232,10 +2232,10 @@ function updateBlackHoleAnimation() {
         // During replay, skip the next board sync
         if (GameReplay.isActive()) {
             GameReplay.setSkipNextSync(true);
-            console.log('🎬 Will skip next board sync (black hole just finished)');
+            Logger.debug('🎬 Will skip next board sync (black hole just finished)');
         }
         
-        console.log('🕳️ Black hole calling applyGravity()');
+        Logger.debug('🕳️ Black hole calling applyGravity()');
         // Apply gravity after black hole
         applyGravity();
         // Note: checkForSpecialFormations will be called after gravity animation completes
@@ -2300,7 +2300,7 @@ function drawBlackHole() {
 // ============================================
 
 function triggerVolcano(lavaBlob, eruptionColumn, edgeType = 'bottom') {
-    console.log('🌋 Volcano triggered! Starting warming phase...', 'Lava blob size:', lavaBlob.positions.length, 'Eruption column:', eruptionColumn, 'Edge:', edgeType);
+    Logger.info('🌋 Volcano triggered! Starting warming phase...', 'Lava blob size:', lavaBlob.positions.length, 'Eruption column:', eruptionColumn, 'Edge:', edgeType);
     
     volcanoActive = true;
     volcanoAnimating = true;
@@ -2349,7 +2349,7 @@ function updateVolcanoAnimation() {
         
         // When warming completes, transition to eruption phase
         if (warmingProgress >= 1) {
-            console.log('🌋 Warming complete! Starting eruption...', 'Blob size:', volcanoLavaBlob.positions.length);
+            Logger.info('🌋 Warming complete! Starting eruption...', 'Blob size:', volcanoLavaBlob.positions.length);
             volcanoPhase = 'erupting';
             volcanoStartTime = Date.now(); // Reset timer for eruption phase
             volcanoVibrateOffset = { x: 0, y: 0 }; // Stop vibrating
@@ -2366,7 +2366,7 @@ function updateVolcanoAnimation() {
             if (volcanoIsSuper) {
                 lavaPoints *= 2;
                 showSuperEventBonus('superVolcano');
-                console.log(`🌋🌊 SUPERVOLCANO x2! Points doubled!`);
+                Logger.info(`🌋🌊 SUPERVOLCANO x2! Points doubled!`);
                 volcanoIsSuper = false; // Reset flag after use
             }
             
@@ -2376,7 +2376,7 @@ function updateVolcanoAnimation() {
                 cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
                 lavaPoints *= cascadeMultiplier;
                 showCascadeBonus(cascadeMultiplier);
-                console.log(`🌋 VOLCANO CASCADE BONUS! x${cascadeMultiplier}`);
+                Logger.info(`🌋 VOLCANO CASCADE BONUS! x${cascadeMultiplier}`);
             }
             
             const finalVolcanoScore = applyScoreModifiers(lavaPoints * level);
@@ -2606,14 +2606,14 @@ function updateVolcanoAnimation() {
         const allProjectilesLanded = volcanoProjectiles.length === 0;
         
         if (allBlocksEjected && allProjectilesLanded) {
-            console.log('🌋 Volcano eruption complete, applying gravity');
+            Logger.info('🌋 Volcano eruption complete, applying gravity');
             volcanoAnimating = false;
             volcanoActive = false;
             volcanoPhase = 'warming'; // Reset for next volcano
             // During replay, skip the next board sync
             if (GameReplay.isActive()) {
                 GameReplay.setSkipNextSync(true);
-                console.log('🎬 Will skip next board sync (volcano just finished)');
+                Logger.debug('🎬 Will skip next board sync (volcano just finished)');
             }
             applyGravity();
         }
@@ -2693,7 +2693,7 @@ function spawnLavaProjectile() {
         slidingWall: null // null, 'left', or 'right' - when hitting a wall edge
     });
     
-    console.log('🌋 Projectile spawned, remaining lava blocks:', volcanoLavaBlob.positions.length);
+    Logger.debug('🌋 Projectile spawned, remaining lava blocks:', volcanoLavaBlob.positions.length);
 }
 
 function drawVolcano() {
@@ -2996,9 +2996,9 @@ function triggerTsunamiAnimation(blob) {
         tsunamiPositions.add(`${x},${y}`);
     });
     
-    console.log('Tsunami color:', blob.color);
-    console.log('Tsunami positions:', blob.positions.length, 'blocks');
-    console.log('Analyzing which blocks need to be pushed (with interlocking detection)...');
+    Logger.debug('Tsunami color:', blob.color);
+    Logger.debug('Tsunami positions:', blob.positions.length, 'blocks');
+    Logger.debug('Analyzing which blocks need to be pushed (with interlocking detection)...');
     
     // Track which cells we've already processed for blob detection
     const processed = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
@@ -3060,7 +3060,7 @@ function triggerTsunamiAnimation(blob) {
     }
     
     // STEP 1: Find all non-tsunami blobs
-    console.log('=== Step 1: Finding all blobs ===');
+    Logger.debug('=== Step 1: Finding all blobs ===');
     const allBlobs = [];
     let blobId = 0;
     
@@ -3079,10 +3079,10 @@ function triggerTsunamiAnimation(blob) {
             }
         }
     }
-    console.log(`  Found ${allBlobs.length} blobs`);
+    Logger.debug(`  Found ${allBlobs.length} blobs`);
     
     // STEP 2: Detect interlocking blobs (same algorithm as gravity)
-    console.log('=== Step 2: Detecting interlocking blobs ===');
+    Logger.debug('=== Step 2: Detecting interlocking blobs ===');
     
     const parent = new Map();
     allBlobs.forEach(b => parent.set(b.id, b.id));
@@ -3141,7 +3141,7 @@ function triggerTsunamiAnimation(blob) {
                 // This catches the "S sitting inside a C" case
                 if ((minYB < minYA && maxYB > maxYA) || (minYA < minYB && maxYA > maxYB)) {
                     isInterlocked = true;
-                    console.log(`  🔗 True interlock: ${blobA.color} and ${blobB.color} wrap in col ${colX}`);
+                    Logger.debug(`  🔗 True interlock: ${blobA.color} and ${blobB.color} wrap in col ${colX}`);
                     break;
                 }
                 
@@ -3150,7 +3150,7 @@ function triggerTsunamiAnimation(blob) {
                 const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
                 if (overlap > 0) {
                     isInterlocked = true;
-                    console.log(`  🔗 Overlap interlock: ${blobA.color} and ${blobB.color} overlap in col ${colX}`);
+                    Logger.debug(`  🔗 Overlap interlock: ${blobA.color} and ${blobB.color} overlap in col ${colX}`);
                     break;
                 }
                 // Note: overlap == 0 means touching, overlap == -1 means adjacent
@@ -3171,10 +3171,10 @@ function triggerTsunamiAnimation(blob) {
         blobGroups.get(root).push(b);
     });
     
-    console.log(`  Found ${blobGroups.size} blob groups (including singles)`);
+    Logger.debug(`  Found ${blobGroups.size} blob groups (including singles)`);
     
     // STEP 3: Calculate push for each blob group
-    console.log('=== Step 3: Calculating push distances ===');
+    Logger.debug('=== Step 3: Calculating push distances ===');
     
     // Track push amount for each position (for cascading)
     const pushAmountAt = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
@@ -3190,7 +3190,7 @@ function triggerTsunamiAnimation(blob) {
     const groupsToPush = [];
     
     // PASS 1: Find groups directly on tsunami
-    console.log('--- Pass 1: Groups directly on tsunami ---');
+    Logger.debug('--- Pass 1: Groups directly on tsunami ---');
     const processedGroups = new Set();
     
     blobGroups.forEach((groupBlobs, groupId) => {
@@ -3215,7 +3215,7 @@ function triggerTsunamiAnimation(blob) {
                 });
             });
             
-            console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush}`);
+            Logger.debug(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush}`);
             groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
         }
     });
@@ -3226,7 +3226,7 @@ function triggerTsunamiAnimation(blob) {
     
     while (foundNew) {
         foundNew = false;
-        console.log(`--- Pass ${pass}: Cascading ---`);
+        Logger.debug(`--- Pass ${pass}: Cascading ---`);
         
         blobGroups.forEach((groupBlobs, groupId) => {
             if (processedGroups.has(groupId)) return;
@@ -3253,7 +3253,7 @@ function triggerTsunamiAnimation(blob) {
                     });
                 });
                 
-                console.log(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush} (cascade)`);
+                Logger.debug(`  Group [${groupBlobs.map(b => b.color).join('+')}]: ${allBlocks.length} blocks, push=${maxPush} (cascade)`);
                 groupsToPush.push({ blocks: allBlocks, pushAmount: maxPush });
                 foundNew = true;
             }
@@ -3261,14 +3261,14 @@ function triggerTsunamiAnimation(blob) {
         
         pass++;
         if (pass > 20) {
-            console.warn('Tsunami cascade detection exceeded 20 passes, stopping');
+            Logger.warn('Tsunami cascade detection exceeded 20 passes, stopping');
             break;
         }
     }
     
     // RECONCILIATION PASS: Check if any pushed group is also sitting on another pushed group
     // with a larger push distance, and if so, inherit that larger distance
-    console.log('=== Reconciliation: Checking for larger push distances from neighbors ===');
+    Logger.debug('=== Reconciliation: Checking for larger push distances from neighbors ===');
     let reconciliationChanged = true;
     let reconciliationPass = 0;
     
@@ -3288,7 +3288,7 @@ function triggerTsunamiAnimation(blob) {
             });
             
             if (maxNeighborPush > group.pushAmount) {
-                console.log(`  Reconciliation: Group push ${group.pushAmount} -> ${maxNeighborPush}`);
+                Logger.debug(`  Reconciliation: Group push ${group.pushAmount} -> ${maxNeighborPush}`);
                 group.pushAmount = maxNeighborPush;
                 
                 // Update pushAmountAt for this group's blocks
@@ -3302,7 +3302,7 @@ function triggerTsunamiAnimation(blob) {
     }
     
     if (reconciliationPass > 1) {
-        console.log(`  Reconciliation completed in ${reconciliationPass} passes`);
+        Logger.debug(`  Reconciliation completed in ${reconciliationPass} passes`);
     }
     
     // Now push all blocks from all groups
@@ -3318,8 +3318,8 @@ function triggerTsunamiAnimation(blob) {
         });
     });
     
-    console.log(`Total groups to push: ${groupsToPush.length}`);
-    console.log(`Total blocks to push: ${tsunamiPushedBlocks.length}`);
+    Logger.debug(`Total groups to push: ${groupsToPush.length}`);
+    Logger.debug(`Total blocks to push: ${tsunamiPushedBlocks.length}`);
     
     // Remove tsunami blocks from board immediately (we'll animate them)
     blob.positions.forEach(([x, y]) => {
@@ -3373,7 +3373,7 @@ function updateTsunamiAnimation() {
         tsunamiBlob.pushDistance = easeProgress * maxPush;
         
         if (Math.random() < 0.01) { // Log occasionally to avoid spam
-            console.log(`Surge: scale=${tsunamiBlob.currentScale.toFixed(2)}, pushDistance=${tsunamiBlob.pushDistance.toFixed(1)}px (${(tsunamiBlob.pushDistance/BLOCK_SIZE).toFixed(1)} blocks)`);
+            Logger.debug(`Surge: scale=${tsunamiBlob.currentScale.toFixed(2)}, pushDistance=${tsunamiBlob.pushDistance.toFixed(1)}px (${(tsunamiBlob.pushDistance/BLOCK_SIZE).toFixed(1)} blocks)`);
         }
     } else {
         // COLLAPSE PHASE: shrink downward from top to bottom (scale down from bottom anchor)
@@ -3399,12 +3399,12 @@ function updateTsunamiAnimation() {
         // During replay, skip the next board sync
         if (GameReplay.isActive()) {
             GameReplay.setSkipNextSync(true);
-            console.log('🎬 Will skip next board sync (tsunami just finished)');
+            Logger.debug('🎬 Will skip next board sync (tsunami just finished)');
         }
         
         // Put pushed blocks back on board at their original positions
         // They will then fall naturally with gravity (potentially reconnecting with other blocks)
-        console.log('=== TSUNAMI COMPLETE - PLACING BLOCKS BACK ===');
+        Logger.debug('=== TSUNAMI COMPLETE - PLACING BLOCKS BACK ===');
         let placedCount = 0;
         let skippedCount = 0;
         
@@ -3414,14 +3414,14 @@ function updateTsunamiAnimation() {
                 board[block.y][block.x] = block.color;
                 isRandomBlock[block.y][block.x] = block.isRandom || false;
                 placedCount++;
-                console.log(`  Placed block at (${block.x}, ${block.y}), color: ${block.color}`);
+                Logger.debug(`  Placed block at (${block.x}, ${block.y}), color: ${block.color}`);
             } else {
                 skippedCount++;
-                console.log(`  SKIPPED block at (${block.x}, ${block.y}) - position occupied or invalid`);
+                Logger.debug(`  SKIPPED block at (${block.x}, ${block.y}) - position occupied or invalid`);
             }
         });
         
-        console.log(`Placed ${placedCount} blocks, skipped ${skippedCount} blocks`);
+        Logger.debug(`Placed ${placedCount} blocks, skipped ${skippedCount} blocks`);
         
         // Clear tsunami data AFTER placing blocks to avoid flicker
         tsunamiPushedBlocks = [];
@@ -3579,11 +3579,11 @@ function spawnTornado() {
     // During normal play (not replay), also check for earthquake and grace period
     if (!GameReplay.isActive()) {
         if (earthquakeActive) {
-            console.log('🌪️ Tornado blocked - earthquake in progress');
+            Logger.debug('🌪️ Tornado blocked - earthquake in progress');
             return;
         }
         if (weatherEventGracePeriod > 0) {
-            console.log('🌪️ Tornado blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
+            Logger.debug('🌪️ Tornado blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
             return;
         }
     }
@@ -3641,7 +3641,7 @@ function spawnTornado() {
     }
     
     startTornadoWind(soundToggle); // Start continuous wind sound
-    console.log('🌪️ Tornado spawned!');
+    Logger.info('🌪️ Tornado spawned!');
 }
 
 // Calculate drop interval based on number of lines cleared
@@ -3701,17 +3701,17 @@ function recordPieceSpeedBonus(bonus) {
 
 // Developer mode function: Advance to next planet
 function advanceToNextPlanet() {
-    console.log('advanceToNextPlanet called, gameRunning:', gameRunning, 'paused:', paused);
+    Logger.debug('advanceToNextPlanet called, gameRunning:', gameRunning, 'paused:', paused);
     if (!gameRunning || paused) return;
     
     const planets = StarfieldSystem.getPlanets();
-    console.log('Current level:', level, 'Planets:', planets);
+    Logger.debug('Current level:', level, 'Planets:', planets);
     
     // Find the next planet level
     const currentPlanet = planets.find(p => p.level === level);
     const nextPlanet = planets.find(p => p.level > level);
     
-    console.log('Current planet:', currentPlanet, 'Next planet:', nextPlanet);
+    Logger.debug('Current planet:', currentPlanet, 'Next planet:', nextPlanet);
     
     if (nextPlanet) {
         // Advance to next planet's level
@@ -3720,9 +3720,9 @@ function advanceToNextPlanet() {
         lines = (level - 1) * 11; // Update lines to match level
         dropInterval = calculateDropInterval(lines);
         updateStats();
-        console.log(`🪐 Advanced to ${nextPlanet.name} (Level ${level})`);
+        Logger.info(`🪐 Advanced to ${nextPlanet.name} (Level ${level})`);
     } else {
-        console.log('Already at the last planet!');
+        Logger.debug('Already at the last planet!');
     }
 }
 
@@ -3733,11 +3733,11 @@ function spawnEarthquake() {
     // During normal play (not replay), also check for tornado and grace period
     if (!GameReplay.isActive()) {
         if (tornadoActive) {
-            console.log('🌍 Earthquake blocked - tornado in progress');
+            Logger.debug('🌍 Earthquake blocked - tornado in progress');
             return;
         }
         if (weatherEventGracePeriod > 0) {
-            console.log('🌍 Earthquake blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
+            Logger.debug('🌍 Earthquake blocked - grace period active:', weatherEventGracePeriod, 'lines remaining');
             return;
         }
     }
@@ -3756,11 +3756,11 @@ function spawnEarthquake() {
     
     // If tallest block is in bottom 4 rows (rows 16-19), don't trigger
     if (tallestRow >= ROWS - 4) {
-        console.log('🚫 Not enough stack height for earthquake (tallest row:', tallestRow, ')');
+        Logger.debug('🚫 Not enough stack height for earthquake (tallest row:', tallestRow, ')');
         return;
     }
     
-    console.log('🌍 Earthquake triggered! Tallest row:', tallestRow);
+    Logger.info('🌍 Earthquake triggered! Tallest row:', tallestRow);
     earthquakeActive = true;
     earthquakePhase = 'shake'; // Start with shaking, crack appears after delay
     earthquakeShakeProgress = 0;
@@ -3781,7 +3781,7 @@ function spawnEarthquake() {
         const _replayShift = GameReplay.consumeEarthquakeShiftType();
         if (_replayShift) {
             earthquakeShiftType = _replayShift;
-            console.log('🌍 Earthquake shift type from recording:', earthquakeShiftType);
+            Logger.debug('🌍 Earthquake shift type from recording:', earthquakeShiftType);
         }
     } else {
         // Not replaying - generate random shift type
@@ -3793,7 +3793,7 @@ function spawnEarthquake() {
         } else {
             earthquakeShiftType = 'right';
         }
-        console.log('🌍 Pre-generated shift type:', earthquakeShiftType);
+        Logger.debug('🌍 Pre-generated shift type:', earthquakeShiftType);
         
         // Record earthquake at spawn time with all data
         if (window.GameRecorder && window.GameRecorder.isActive()) {
@@ -3885,7 +3885,7 @@ function updateTornado() {
                 startTime: Date.now(),
                 duration: 2000
             };
-            console.log(`🌪️ Touchdown Bonus #${tornadoTouchdownCount}: ₿${bonusBitcoin}.0`);
+            Logger.info(`🌪️ Touchdown Bonus #${tornadoTouchdownCount}: ₿${bonusBitcoin}.0`);
             
             canvas.classList.add('touchdown-active');
             playSoundEffect('gold', soundToggle);
@@ -3896,7 +3896,7 @@ function updateTornado() {
             // During replay, skip the next board sync
             if (GameReplay.isActive()) {
                 GameReplay.setSkipNextSync(true);
-                console.log('🎬 Will skip next board sync (tornado touchdown just finished)');
+                Logger.debug('🎬 Will skip next board sync (tornado touchdown just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
             return;
@@ -4135,7 +4135,7 @@ function updateTornado() {
             if (tornadoDropStartY >= tornadoFinalCenterY) {
                 // ALWAYS recalculate final positions at landing time
                 // This handles cases where lines were cleared during the drop animation
-                console.log('🌪️ Recalculating final positions at landing time...');
+                Logger.debug('🌪️ Recalculating final positions at landing time...');
                 
                 const maxY = Math.max(...tornadoPickedBlob.positions.map(p => p[1]));
                 const minX = Math.min(...tornadoPickedBlob.positions.map(p => p[0]));
@@ -4226,7 +4226,7 @@ function updateTornado() {
             // During replay, skip the next board sync
             if (GameReplay.isActive()) {
                 GameReplay.setSkipNextSync(true);
-                console.log('🎬 Will skip next board sync (tornado just finished)');
+                Logger.debug('🎬 Will skip next board sync (tornado just finished)');
             }
             stopTornadoWind(); // Stop the wind sound
         }
@@ -4601,7 +4601,7 @@ function updateEarthquake() {
         
         // Shift for 60 frames (doubled from 30)
         if (earthquakeShiftProgress >= 60) {
-            console.log('🌍 Earthquake shift complete, applying changes to board');
+            Logger.debug('🌍 Earthquake shift complete, applying changes to board');
             earthquakePhase = 'done';
             
             // Apply the shift to the board
@@ -4610,24 +4610,24 @@ function updateEarthquake() {
             // CRITICAL FIX: After earthquake shift, blocks may have moved into currentPiece's space
             // Push the piece up until it's no longer colliding
             if (currentPiece && collides(currentPiece)) {
-                console.log('🌍 Earthquake shifted blocks into current piece location - pushing piece up');
+                Logger.debug('🌍 Earthquake shifted blocks into current piece location - pushing piece up');
                 let safetyCounter = 0;
                 while (collides(currentPiece) && safetyCounter < 10) {
                     currentPiece.y--;
                     safetyCounter++;
                 }
                 if (safetyCounter >= 10) {
-                    console.log('🌍 Could not find safe position for piece after earthquake');
+                    Logger.warn('🌍 Could not find safe position for piece after earthquake');
                 }
             }
             
-            console.log('🌍 Earthquake complete, applying gravity');
+            Logger.debug('🌍 Earthquake complete, applying gravity');
             // Check for line clears and apply gravity
             applyGravity();
             
             earthquakeActive = false;
             weatherEventGracePeriod = WEATHER_GRACE_LINES; // Start grace period
-            console.log('🌍 Earthquake finished, earthquakeActive = false');
+            Logger.debug('🌍 Earthquake finished, earthquakeActive = false');
             
             // Check for line clears AFTER earthquake is done and gravity settled
             clearLines();
@@ -4636,7 +4636,7 @@ function updateEarthquake() {
             // before the earthquake completed in the original game
             if (GameReplay.isActive()) {
                 GameReplay.setSkipNextSync(true);
-                console.log('🎬 Will skip next board sync (earthquake just finished)');
+                Logger.debug('🎬 Will skip next board sync (earthquake just finished)');
             }
             
             // Stop controller haptic feedback
@@ -4654,7 +4654,7 @@ function generateEarthquakeCrack() {
         earthquakeCrack.forEach(pt => {
             earthquakeCrackMap.set(pt.y, pt.x);
         });
-        console.log('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
+        Logger.debug('🌍 Earthquake crack loaded from recording:', earthquakeCrack.length, 'points');
         return;
     }
     
@@ -4791,7 +4791,7 @@ function generateEarthquakeCrack() {
         earthquakeCrackMap.set(pt.y, pt.x);
     });
     
-    console.log('🌍 Earthquake crack generated:', earthquakeCrack.length, 'points from y', bottomY, 'to', topY);
+    Logger.debug('🌍 Earthquake crack generated:', earthquakeCrack.length, 'points from y', bottomY, 'to', topY);
 }
 
 function splitBlocksByCrack() {
@@ -4800,7 +4800,7 @@ function splitBlocksByCrack() {
     
     // Shift type is already set at spawn time (in spawnEarthquake)
     // Just use the pre-determined earthquakeShiftType
-    console.log('🌍 Using earthquake shift type:', earthquakeShiftType);
+    Logger.debug('🌍 Using earthquake shift type:', earthquakeShiftType);
     
     // Build a map of which column the crack is at for each row
     const crackPositions = new Map();
@@ -4834,11 +4834,11 @@ function splitBlocksByCrack() {
         }
     }
     
-    console.log('🌍 Split blocks: Left:', earthquakeLeftBlocks.length, 'Right:', earthquakeRightBlocks.length);
+    Logger.debug('🌍 Split blocks: Left:', earthquakeLeftBlocks.length, 'Right:', earthquakeRightBlocks.length);
 }
 
 function applyEarthquakeShift() {
-    console.log('🌍 Applying earthquake shift... Type:', earthquakeShiftType);
+    Logger.debug('🌍 Applying earthquake shift... Type:', earthquakeShiftType);
     
     // Save the isRandomBlock state for blocks that will be moved
     const blockStates = new Map();
@@ -4895,7 +4895,7 @@ function applyEarthquakeShift() {
         // If newX >= COLS, block falls off the edge
     });
     
-    console.log('🌍 Earthquake shift applied!');
+    Logger.debug('🌍 Earthquake shift applied!');
 }
 
 
@@ -5239,7 +5239,7 @@ function areInterlocked(blob1, blob2) {
     // Check if blob1 and blob2 share any column where their Y ranges overlap
     // This indicates physical dependency that requires moving together
     
-    console.log(`      🔍 Checking interlocking: ${blob1.color} (${blob1.positions.length} blocks) vs ${blob2.color} (${blob2.positions.length} blocks)`);
+    Logger.debug(`      🔍 Checking interlocking: ${blob1.color} (${blob1.positions.length} blocks) vs ${blob2.color} (${blob2.positions.length} blocks)`);
     
     // Get column spans for each blob
     const cols1 = new Set(blob1.positions.map(p => p[0]));
@@ -5249,11 +5249,11 @@ function areInterlocked(blob1, blob2) {
     const sharedCols = [...cols1].filter(c => cols2.has(c));
     
     if (sharedCols.length === 0) {
-        console.log(`      ❌ No shared columns - cannot be interlocked`);
+        Logger.debug(`      ❌ No shared columns - cannot be interlocked`);
         return false; // No overlap in columns
     }
     
-    console.log(`      ✓ Shared columns: [${sharedCols.join(', ')}]`);
+    Logger.debug(`      ✓ Shared columns: [${sharedCols.join(', ')}]`);
     
     for (const col of sharedCols) {
         // Get Y positions for each blob in this column
@@ -5266,20 +5266,20 @@ function areInterlocked(blob1, blob2) {
             const min2 = ys2[0];
             const max2 = ys2[ys2.length - 1];
             
-            console.log(`      📊 Column ${col}: blob1 Y-range [${min1}-${max1}], blob2 Y-range [${min2}-${max2}]`);
+            Logger.debug(`      📊 Column ${col}: blob1 Y-range [${min1}-${max1}], blob2 Y-range [${min2}-${max2}]`);
             
             // Check if Y ranges overlap OR are adjacent (touching)
             // overlap = -1 means adjacent, >= 0 means overlapping
             const overlap = Math.min(max1, max2) - Math.max(min1, min2);
             if (overlap >= -1) {
                 const relationship = overlap >= 0 ? 'overlap' : 'are adjacent';
-                console.log(`    🔗 Interlocked: Y ranges ${relationship} (overlap=${overlap}) in column ${col}`);
+                Logger.debug(`    🔗 Interlocked: Y ranges ${relationship} (overlap=${overlap}) in column ${col}`);
                 return true;
             }
         }
     }
     
-    console.log(`      ❌ Shared columns but not adjacent or overlapping - not interlocked`);
+    Logger.debug(`      ❌ Shared columns but not adjacent or overlapping - not interlocked`);
     return false;
 }
 
@@ -5310,7 +5310,7 @@ function mergeInterlockedBlobs(blobs) {
                 combinedBlob.colors.push(blobs[j].color);
                 combinedBlob.isCompound = true;
                 used.add(j);
-                console.log(`  🔀 Merging interlocked blobs: ${combinedBlob.colors.join(' + ')}`);
+                Logger.debug(`  🔀 Merging interlocked blobs: ${combinedBlob.colors.join(' + ')}`);
             }
         }
         
@@ -5609,7 +5609,7 @@ function createPiece() {
         }
         // Sequence exhausted - this game survived longer than any before!
         // Fall through to generate random piece, which will be added to sequence below
-        console.log(`🔧 TUNING: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} exceeded sequence (${aiTuningPieceSequence.length} pieces) - extending...`);
+        Logger.debug(`🔧 TUNING: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} exceeded sequence (${aiTuningPieceSequence.length} pieces) - extending...`);
     }
     
     // Normal random piece generation
@@ -5717,7 +5717,7 @@ function updateFadingBlocks() {
 function adjustBrightness(color, factor) {
     // Handle non-hex colors (like rgb() strings) by returning them unchanged
     if (!color || !color.startsWith('#')) {
-        console.warn('adjustBrightness received non-hex color:', color);
+        Logger.warn('adjustBrightness received non-hex color:', color);
         return color || '#808080'; // Return gray as fallback
     }
     
@@ -5729,7 +5729,7 @@ function adjustBrightness(color, factor) {
     
     // Validate parsed values
     if (isNaN(r) || isNaN(g) || isNaN(b)) {
-        console.warn('adjustBrightness failed to parse color:', color);
+        Logger.warn('adjustBrightness failed to parse color:', color);
         return '#808080'; // Return gray as fallback
     }
     
@@ -5746,7 +5746,7 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     if (positions.length === 0) return;
     
     if (useGold) {
-        console.log(`✨ Drawing blob with GOLD edges! positions=${positions.length}, color=${color}`);
+        Logger.debug(`✨ Drawing blob with GOLD edges! positions=${positions.length}, color=${color}`);
     }
     // Silver edges for gremlin-placed blocks
 
@@ -6351,7 +6351,7 @@ function drawBoard() {
         const spansWidth = (minX === 0 && maxX === COLS - 1) && skillLevel !== 'breeze';
         
         if (spansWidth) {
-            console.log(`🌊 TSUNAMI BLOB DETECTED! minX=${minX}, maxX=${maxX}, COLS=${COLS}, color=${blob.color}, size=${validPositions.length}`);
+            Logger.info(`🌊 TSUNAMI BLOB DETECTED! minX=${minX}, maxX=${maxX}, COLS=${COLS}, color=${blob.color}, size=${validPositions.length}`);
         }
         
         // Note: Gold border is drawn for spanning blobs, but actual tsunami
@@ -6632,7 +6632,7 @@ function drawBoard() {
 
     // Draw lightning effects
     if (lightningEffects.length > 0) {
-        console.log(`🌩️ Drawing ${lightningEffects.length} lightning effects`);
+        Logger.debug(`🌩️ Drawing ${lightningEffects.length} lightning effects`);
     }
     lightningEffects = lightningEffects.filter(lightning => {
         const elapsed = Date.now() - lightning.startTime;
@@ -6640,7 +6640,7 @@ function drawBoard() {
         
         if (progress >= 1) return false;
         
-        console.log(`⚡ Rendering lightning at x=${lightning.x}, segments=${lightning.segments.length}, progress=${progress.toFixed(2)}`);
+        Logger.debug(`⚡ Rendering lightning at x=${lightning.x}, segments=${lightning.segments.length}, progress=${progress.toFixed(2)}`);
         
         const baseAlpha = 1 - progress;
         
@@ -6791,7 +6791,7 @@ function triggerLightning(targetY, playSound = true) {
     // Lightning should reach at least to the stack top, or the provided targetY, whichever is lower on screen
     const effectiveTargetY = Math.max(stackTopY, Math.min(targetY, ROWS * BLOCK_SIZE));
     
-    console.log(`⚡🌩️ triggerLightning called! targetY=${targetY}, stackTopY=${stackTopY}, effectiveTargetY=${effectiveTargetY}`);
+    Logger.debug(`⚡🌩️ triggerLightning called! targetY=${targetY}, stackTopY=${stackTopY}, effectiveTargetY=${effectiveTargetY}`);
     
     // Single lightning strike (used for Strike bonus and as part of Tsunami)
     const centerX = canvas.width / 2 + (Math.random() - 0.5) * 150; // More horizontal spread
@@ -6847,7 +6847,7 @@ function triggerLightning(targetY, playSound = true) {
     };
     
     lightningEffects.push(lightningObj);
-    console.log(`⚡ Lightning object created and added to array. Array length: ${lightningEffects.length}, segments: ${segments.length}, branches: ${branches.length}`);
+    Logger.debug(`⚡ Lightning object created and added to array. Array length: ${lightningEffects.length}, segments: ${segments.length}, branches: ${branches.length}`);
     
     // Play dramatic thunder crack (optional - disabled for tsunami visual-only lightning)
     if (playSound) {
@@ -7040,7 +7040,7 @@ function showCascadeBonus(multiplier) {
         startTime: Date.now(),
         duration: 1500
     };
-    console.log(`🔥 Cascade Bonus x${multiplier}!`);
+    Logger.info(`🔥 Cascade Bonus x${multiplier}!`);
     
     // Play LineClear sound effect 'multiplier' times in succession
     // Start with a small delay, then space them out for clear distinction
@@ -7062,7 +7062,7 @@ function showSuperEventBonus(type) {
         startTime: Date.now(),
         duration: 2000
     };
-    console.log(`🔥 ${text}!`);
+    Logger.info(`🔥 ${text}!`);
     
     // Play two LineClear sounds for the x2
     playSoundEffect('line', soundToggle);
@@ -7188,7 +7188,7 @@ function mergePiece() {
         // First check if this placement would trigger special events
         // If so, don't bounce regardless of color touching
         if (wouldTriggerSpecialEvent(currentPiece)) {
-            console.log('🎯 Special event detected - piece will stick (no bounce)');
+            Logger.debug('🎯 Special event detected - piece will stick (no bounce)');
             // Fall through to normal merge
         } else {
             // Check if piece touches any same-colored blob ("glue")
@@ -7305,7 +7305,7 @@ function wouldTriggerSpecialEvent(piece) {
     // Check for completed lines
     for (let y = 0; y < ROWS; y++) {
         if (testBoard[y] && testBoard[y].every(cell => cell !== null)) {
-            console.log('🚫 Bounce prevented: Would complete line at row ' + y);
+            Logger.debug('🚫 Bounce prevented: Would complete line at row ' + y);
             return true; // Would complete a line
         }
     }
@@ -7316,7 +7316,7 @@ function wouldTriggerSpecialEvent(piece) {
         const xPositions = blob.positions.map(p => p[0]);
         const uniqueX = [...new Set(xPositions)];
         if (uniqueX.length === COLS) {
-            console.log('🚫 Bounce prevented: Would trigger tsunami');
+            Logger.debug('🚫 Bounce prevented: Would trigger tsunami');
             return true; // Would trigger tsunami
         }
     }
@@ -7324,7 +7324,7 @@ function wouldTriggerSpecialEvent(piece) {
     // Check for black holes (one blob enveloping another)
     const blackHoles = detectBlackHoles(blobs);
     if (blackHoles.length > 0) {
-        console.log('🚫 Bounce prevented: Would trigger black hole');
+        Logger.debug('🚫 Bounce prevented: Would trigger black hole');
         return true; // Would trigger black hole
     }
     
@@ -7467,7 +7467,7 @@ function checkForSpecialFormations() {
         volcanoIsSuper = isSuperVolcano;
         if (isSuperVolcano) {
             superVolcanoCount++;
-            console.log('🌋🌊 SUPERVOLCANO! Tsunami also detected - points will be doubled!');
+            Logger.info('🌋🌊 SUPERVOLCANO! Tsunami also detected - points will be doubled!');
         }
         
         // Start the volcano warming phase
@@ -7499,7 +7499,7 @@ function checkForSpecialFormations() {
             
             if (isSupermassiveBlackHole) {
                 supermassiveBlackHoleCount++;
-                console.log('🕳️🌊 SUPERMASSIVE BLACK HOLE! Tsunami also detected - points doubled!');
+                Logger.info('🕳️🌊 SUPERMASSIVE BLACK HOLE! Tsunami also detected - points doubled!');
             }
             
             // Record event for AI analysis
@@ -7525,7 +7525,7 @@ function checkForSpecialFormations() {
             if (isSupermassiveBlackHole) {
                 blackHolePoints *= 2;
                 showSuperEventBonus('supermassiveBlackHole');
-                console.log(`🕳️🌊 SUPERMASSIVE BLACK HOLE x2! Points doubled!`);
+                Logger.info(`🕳️🌊 SUPERMASSIVE BLACK HOLE x2! Points doubled!`);
             }
             
             // Apply CASCADE BONUS if this black hole was triggered by gravity from another special event
@@ -7534,7 +7534,7 @@ function checkForSpecialFormations() {
                 cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
                 blackHolePoints *= cascadeMultiplier;
                 showCascadeBonus(cascadeMultiplier);
-                console.log(`🕳️ BLACK HOLE CASCADE BONUS! x${cascadeMultiplier}`);
+                Logger.info(`🕳️ BLACK HOLE CASCADE BONUS! x${cascadeMultiplier}`);
             }
             
             const finalBlackHoleScore = applyScoreModifiers(blackHolePoints * level);
@@ -7581,7 +7581,7 @@ function checkForSpecialFormations() {
                 cascadeMultiplier = cascadeLevel + 1;  // cascade 1 = 2x, cascade 2 = 3x, etc.
                 tsunamiPoints *= cascadeMultiplier;
                 showCascadeBonus(cascadeMultiplier);
-                console.log(`🌊 TSUNAMI CASCADE BONUS! x${cascadeMultiplier}`);
+                Logger.info(`🌊 TSUNAMI CASCADE BONUS! x${cascadeMultiplier}`);
             }
             
             const finalTsunamiScore = applyScoreModifiers(tsunamiPoints * level);
@@ -7612,7 +7612,7 @@ function checkForSpecialFormations() {
  * STEP 1: Create a complete copy of the board
  */
 function createPhantomBoard(sourceBoard, sourceIsRandom, sourceIsLattice) {
-    console.log('📋 STEP 1: Creating phantom board...');
+    Logger.debug('📋 STEP 1: Creating phantom board...');
     
     const phantom = {
         board: sourceBoard.map(row => [...row]),
@@ -7628,7 +7628,7 @@ function createPhantomBoard(sourceBoard, sourceIsRandom, sourceIsLattice) {
         }
     }
     
-    console.log(`  ✓ Phantom board created with ${blockCount} blocks`);
+    Logger.debug(`  ✓ Phantom board created with ${blockCount} blocks`);
     return phantom;
 }
 
@@ -7637,7 +7637,7 @@ function createPhantomBoard(sourceBoard, sourceIsRandom, sourceIsLattice) {
  * Returns array of blob objects with unique IDs
  */
 function identifyAllBlobs(phantom) {
-    console.log('\n📋 STEP 2: Identifying all blobs...');
+    Logger.debug('\n📋 STEP 2: Identifying all blobs...');
     
     const visited = Array(ROWS).fill(null).map(() => Array(COLS).fill(false));
     const blobs = [];
@@ -7706,14 +7706,14 @@ function identifyAllBlobs(phantom) {
                         const posStr = positions.length > 5 
                             ? positions.slice(0,3).map(p=>`(${p.x},${p.y})`).join(',')+'...' 
                             : positions.map(p=>`(${p.x},${p.y})`).join(',');
-                        console.log(`  Blob ${blobId}: ${nonRandomPositions.length} blocks, color=${color}, positions=${posStr}`);
+                        Logger.debug(`  Blob ${blobId}: ${nonRandomPositions.length} blocks, color=${color}, positions=${posStr}`);
                     }
                 }
             }
         }
     }
     
-    console.log(`  ✓ Found ${blobs.length} unique blobs`);
+    Logger.debug(`  ✓ Found ${blobs.length} unique blobs`);
     return blobs;
 }
 
@@ -7725,7 +7725,7 @@ function identifyAllBlobs(phantom) {
  * This prevents blobs from falling through each other during multi-pass gravity
  */
 function detectInterlocking(blobs) {
-    console.log('\n📋 STEP 3: Detecting interlocking blobs...');
+    Logger.debug('\n📋 STEP 3: Detecting interlocking blobs...');
     
     // Use Union-Find for transitive closure
     const parent = new Map();
@@ -7760,7 +7760,7 @@ function detectInterlocking(blobs) {
         
         // Debug: show all columns each blob occupies
         const colList = [...columns.keys()].sort((a,b) => a-b);
-        console.log(`  📍 ${blob.id} (${blob.color.substring(0,7)}): cols [${colList.join(',')}]`);
+        Logger.debug(`  📍 ${blob.id} (${blob.color.substring(0,7)}): cols [${colList.join(',')}]`);
     });
     
     // Check all pairs of blobs for interlocking
@@ -7781,7 +7781,7 @@ function detectInterlocking(blobs) {
                 if (!rowsB || rowsB.length === 0) continue;
                 
                 // Found a shared column - log it
-                console.log(`  🔍 ${blobA.id} vs ${blobB.id} share col ${colX}: A=[${rowsA.sort((a,b)=>a-b).join(',')}] B=[${rowsB.sort((a,b)=>a-b).join(',')}]`);
+                Logger.debug(`  🔍 ${blobA.id} vs ${blobB.id} share col ${colX}: A=[${rowsA.sort((a,b)=>a-b).join(',')}] B=[${rowsB.sort((a,b)=>a-b).join(',')}]`);
                 
                 const minYA = Math.min(...rowsA);
                 const maxYA = Math.max(...rowsA);
@@ -7808,7 +7808,7 @@ function detectInterlocking(blobs) {
                 // They're ADJACENT if one ends where the other begins (e.g., rows 8-9 and 10-11)
                 // overlap = -1 means adjacent, >= 0 means overlapping
                 const overlap = Math.min(maxYA, maxYB) - Math.max(minYA, minYB);
-                console.log(`      overlap = min(${maxYA},${maxYB}) - max(${minYA},${minYB}) = ${overlap}`);
+                Logger.debug(`      overlap = min(${maxYA},${maxYB}) - max(${minYA},${minYB}) = ${overlap}`);
                 if (overlap >= -1) {
                     // They share at least one row OR are directly adjacent in this column
                     isInterlocked = true;
@@ -7820,7 +7820,7 @@ function detectInterlocking(blobs) {
             
             if (isInterlocked) {
                 union(blobA.id, blobB.id);
-                console.log(`  🔗 Interlocking detected: ${reason}`);
+                Logger.debug(`  🔗 Interlocking detected: ${reason}`);
             }
         }
     }
@@ -7843,11 +7843,11 @@ function detectInterlocking(blobs) {
             });
             
             compoundGroups.push(groupBlobs);
-            console.log(`  ✓ Compound group created: ${groupBlobs.map(b => b.id).join(' + ')}`);
+            Logger.debug(`  ✓ Compound group created: ${groupBlobs.map(b => b.id).join(' + ')}`);
         }
     });
     
-    console.log(`  ✓ Found ${compoundGroups.length} compound blob groups`);
+    Logger.debug(`  ✓ Found ${compoundGroups.length} compound blob groups`);
     return compoundGroups;
 }
 
@@ -7920,7 +7920,7 @@ function moveBlob(blob, fallDistance, phantom) {
  * STEP 4: Phase 1 - Move compound blobs together
  */
 function runPhase1(blobs, compoundGroups, phantom) {
-    console.log('\n📋 STEP 4: PHASE 1 - Moving compound blobs together...');
+    Logger.debug('\n📋 STEP 4: PHASE 1 - Moving compound blobs together...');
     
     let pass = 0;
     let somethingMoved = true;
@@ -7929,7 +7929,7 @@ function runPhase1(blobs, compoundGroups, phantom) {
         pass++;
         somethingMoved = false;
         
-        console.log(`\n  🔄 Phase 1 Pass ${pass}:`);
+        Logger.debug(`\n  🔄 Phase 1 Pass ${pass}:`);
         
         // Sort blobs from bottom to top
         const sortedBlobs = [...blobs].sort((a, b) => {
@@ -7963,7 +7963,7 @@ function runPhase1(blobs, compoundGroups, phantom) {
                 if (fall > 0) {
                     somethingMoved = true;
                     const blobIds = compoundBlobs.map(b => b.id).join('+');
-                    console.log(`    Compound (${blobIds}): Falling ${fall} rows together (${allPositions.length} blocks)`);
+                    Logger.debug(`    Compound (${blobIds}): Falling ${fall} rows together (${allPositions.length} blocks)`);
                     
                     // CRITICAL: Move compound blobs in two phases to prevent phantom corruption
                     // Phase A: Remove ALL blobs from old positions first
@@ -7993,21 +7993,21 @@ function runPhase1(blobs, compoundGroups, phantom) {
                 
                 if (fall > 0) {
                     somethingMoved = true;
-                    console.log(`    Blob ${blob.id}: Falling ${fall} rows (${blob.positions.length} blocks)`);
+                    Logger.debug(`    Blob ${blob.id}: Falling ${fall} rows (${blob.positions.length} blocks)`);
                     moveBlob(blob, fall, phantom);
                 }
             }
         });
     }
     
-    console.log(`  ✓ Phase 1 complete after ${pass} passes`);
+    Logger.debug(`  ✓ Phase 1 complete after ${pass} passes`);
 }
 
 /**
  * STEP 5: Phase 2 - Move individual blobs independently
  */
 function runPhase2(blobs, phantom) {
-    console.log('\n📋 STEP 5: PHASE 2 - Moving individual blobs independently...');
+    Logger.debug('\n📋 STEP 5: PHASE 2 - Moving individual blobs independently...');
     
     let pass = 0;
     let somethingMoved = true;
@@ -8016,7 +8016,7 @@ function runPhase2(blobs, phantom) {
         pass++;
         somethingMoved = false;
         
-        console.log(`\n  🔄 Phase 2 Pass ${pass}:`);
+        Logger.debug(`\n  🔄 Phase 2 Pass ${pass}:`);
         
         // Sort blobs from bottom to top
         const sortedBlobs = [...blobs].sort((a, b) => {
@@ -8032,37 +8032,37 @@ function runPhase2(blobs, phantom) {
             
             if (fall > 0) {
                 somethingMoved = true;
-                console.log(`    Blob ${blob.id}: Falling ${fall} more rows (${blob.positions.length} blocks)`);
+                Logger.debug(`    Blob ${blob.id}: Falling ${fall} more rows (${blob.positions.length} blocks)`);
                 moveBlob(blob, fall, phantom);
             }
         });
     }
     
-    console.log(`  ✓ Phase 2 complete after ${pass} passes`);
+    Logger.debug(`  ✓ Phase 2 complete after ${pass} passes`);
 }
 
 /**
  * STEP 6: Record journey destinations
  */
 function recordJourneys(blobs) {
-    console.log('\n📋 STEP 6: Recording journey destinations...');
+    Logger.debug('\n📋 STEP 6: Recording journey destinations...');
     
     blobs.forEach(blob => {
         const startY = Math.min(...blob.startPositions.map(p => p.y));
         const endY = Math.min(...blob.positions.map(p => p.y));
         const distance = endY - startY;
         
-        console.log(`  Journey ${blob.id}: Start Y=${startY}, End Y=${endY}, Distance=${distance} rows`);
+        Logger.debug(`  Journey ${blob.id}: Start Y=${startY}, End Y=${endY}, Distance=${distance} rows`);
     });
     
-    console.log(`  ✓ Recorded ${blobs.length} journey destinations`);
+    Logger.debug(`  ✓ Recorded ${blobs.length} journey destinations`);
 }
 
 /**
  * STEP 7: Create animation data
  */
 function createAnimations(blobs) {
-    console.log('\n📋 STEP 7: Creating animation data...');
+    Logger.debug('\n📋 STEP 7: Creating animation data...');
     
     const animations = [];
     
@@ -8083,7 +8083,7 @@ function createAnimations(blobs) {
         }
     });
     
-    console.log(`  ✓ Created ${animations.length} animations`);
+    Logger.debug(`  ✓ Created ${animations.length} animations`);
     return animations;
 }
 
@@ -8091,7 +8091,7 @@ function createAnimations(blobs) {
  * Start the gravity animation
  */
 function startGravityAnimation(animations) {
-    console.log('🎬 Starting gravity animation...');
+    Logger.debug('🎬 Starting gravity animation...');
     
     // Save amnesia timestamps before clearing source positions
     // (stored temporarily on animation objects, transferred to fallingBlocks below)
@@ -8147,7 +8147,7 @@ function startGravityAnimation(animations) {
         });
     }
     
-    console.log(`  ✓ Animation started with ${fallingBlocks.length} falling blocks`);
+    Logger.debug(`  ✓ Animation started with ${fallingBlocks.length} falling blocks`);
 }
 
 /**
@@ -8156,14 +8156,14 @@ function startGravityAnimation(animations) {
 function runTwoPhaseGravity() {
     // CRITICAL: Prevent concurrent gravity operations
     if (gravityAnimating) {
-        console.log('⚠️ runTwoPhaseGravity called while gravity already animating - aborting');
+        Logger.debug('⚠️ runTwoPhaseGravity called while gravity already animating - aborting');
         return;
     }
     
-    console.log('\n');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('🚀 GRAVITY SYSTEM V2 - COMPLETE REWRITE');
-    console.log('═══════════════════════════════════════════════════════════');
+    Logger.debug('\n');
+    Logger.debug('═══════════════════════════════════════════════════════════');
+    Logger.debug('🚀 GRAVITY SYSTEM V2 - COMPLETE REWRITE');
+    Logger.debug('═══════════════════════════════════════════════════════════');
     
     fallingBlocks = [];
     gravityAnimating = false; // Will be set to true if there are animations
@@ -8175,8 +8175,8 @@ function runTwoPhaseGravity() {
     const blobs = identifyAllBlobs(phantom);
     
     if (blobs.length === 0) {
-        console.log('✓ No blobs to move - gravity complete');
-        console.log('═══════════════════════════════════════════════════════════\n');
+        Logger.debug('✓ No blobs to move - gravity complete');
+        Logger.debug('═══════════════════════════════════════════════════════════\n');
         
         // Update liquid pools even if no gravity
         StormEffects.updateLiquidPoolsAfterGravity();
@@ -8204,12 +8204,12 @@ function runTwoPhaseGravity() {
     // STEP 7: Create animations
     const animations = createAnimations(blobs);
     
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log(`✓ GRAVITY SIMULATION COMPLETE`);
-    console.log(`  Total blobs: ${blobs.length}`);
-    console.log(`  Compound groups: ${compoundGroups.length}`);
-    console.log(`  Animations: ${animations.length}`);
-    console.log('═══════════════════════════════════════════════════════════\n');
+    Logger.debug('\n═══════════════════════════════════════════════════════════');
+    Logger.debug(`✓ GRAVITY SIMULATION COMPLETE`);
+    Logger.debug(`  Total blobs: ${blobs.length}`);
+    Logger.debug(`  Compound groups: ${compoundGroups.length}`);
+    Logger.debug(`  Animations: ${animations.length}`);
+    Logger.debug('═══════════════════════════════════════════════════════════\n');
     
     // Start the animation
     if (animations.length > 0) {
@@ -8239,11 +8239,11 @@ function applyGravity() {
     // Multiple systems can call applyGravity (tsunamis, black holes, tornadoes, gremlins, etc.)
     // If gravity is already running, defer this call until it completes
     if (gravityAnimating) {
-        console.log('⏸️ applyGravity deferred - gravity already animating');
+        Logger.debug('⏸️ applyGravity deferred - gravity already animating');
         // Schedule a retry after current gravity completes
         setTimeout(() => {
             if (!gravityAnimating && !animatingLines) {
-                console.log('🔄 Running deferred applyGravity');
+                Logger.debug('🔄 Running deferred applyGravity');
                 runTwoPhaseGravity();
             }
         }, 100);
@@ -8251,7 +8251,7 @@ function applyGravity() {
     }
     
     if (animatingLines) {
-        console.log('⏸️ applyGravity deferred - lines animating');
+        Logger.debug('⏸️ applyGravity deferred - lines animating');
         // Don't schedule retry - clearLines will call gravity when it completes
         return;
     }
@@ -8283,7 +8283,7 @@ function updateFallingBlocks() {
     
     // Debug logging
     if (fallingBlocks.length > 0 && fallingBlocks[0].velocity < 1) {
-        console.log(`Falling: blocks=${fallingBlocks.length}, gravity=${gravity.toFixed(2)} (${gravityMultiplier}x Earth), velocity=${fallingBlocks[0].velocity.toFixed(2)}, currentY=${fallingBlocks[0].currentY.toFixed(1)}, targetY=${fallingBlocks[0].targetYPixels}`);
+        Logger.debug(`Falling: blocks=${fallingBlocks.length}, gravity=${gravity.toFixed(2)} (${gravityMultiplier}x Earth), velocity=${fallingBlocks[0].velocity.toFixed(2)}, currentY=${fallingBlocks[0].currentY.toFixed(1)}, targetY=${fallingBlocks[0].targetYPixels}`);
     }
     
     fallingBlocks.forEach(block => {
@@ -8334,14 +8334,14 @@ function updateFallingBlocks() {
         // CRITICAL FIX: After gravity, blocks may have fallen into currentPiece's space
         // Push the piece up until it's no longer colliding
         if (currentPiece && collides(currentPiece)) {
-            console.log('🎬 Gravity moved blocks into current piece location - pushing piece up');
+            Logger.debug('🎬 Gravity moved blocks into current piece location - pushing piece up');
             let safetyCounter = 0;
             while (collides(currentPiece) && safetyCounter < 10) {
                 currentPiece.y--;
                 safetyCounter++;
             }
             if (safetyCounter >= 10) {
-                console.log('🎬 Could not find safe position for piece after gravity');
+                Logger.warn('🎬 Could not find safe position for piece after gravity');
             }
         }
         
@@ -8423,7 +8423,7 @@ function detectAndFixFloatingBlocks() {
         return false; // No pathological floating detected
     }
     
-    console.log(`🚨 GRAVITY BUG DETECTED: Empty row ${emptyRowWithBlocksAbove} with blocks above! Re-running gravity...`);
+    Logger.error(`🚨 GRAVITY BUG DETECTED: Empty row ${emptyRowWithBlocksAbove} with blocks above! Re-running gravity...`);
     
     // Don't try to fix it ourselves - just re-run the proper gravity system
     // This ensures blob-based physics are respected
@@ -8530,13 +8530,13 @@ function clearLines() {
     // The multi-pass simulation already calculated everything, so we must
     // wait for all blocks to land before checking for new clears
     if (gravityAnimating) {
-        console.log('⏸️ Skipping clearLines - blocks still falling');
+        Logger.debug('⏸️ Skipping clearLines - blocks still falling');
         return;
     }
     
     // Don't clear lines during earthquake - let the earthquake finish first
     if (earthquakeActive) {
-        console.log('⏸️ Skipping clearLines - earthquake in progress');
+        Logger.debug('⏸️ Skipping clearLines - earthquake in progress');
         return;
     }
     
@@ -8544,7 +8544,7 @@ function clearLines() {
     // This prevents race conditions when tornado drops pieces during line clears
     // Set a flag to check again after the current animation completes
     if (animatingLines) {
-        console.log('⏸️ Deferring clearLines - line animation in progress');
+        Logger.debug('⏸️ Deferring clearLines - line animation in progress');
         pendingLineCheck = true;
         return;
     }
@@ -8773,7 +8773,7 @@ function clearLines() {
         if (lavaSegmentCount > 0) {
             const lavaMultiplier = Math.pow(2, lavaSegmentCount);
             pointsEarned *= lavaMultiplier;
-            console.log(`🌋 Lava multiplier: ${lavaSegmentCount} segments = ${lavaMultiplier}x points!`);
+            Logger.info(`🌋 Lava multiplier: ${lavaSegmentCount} segments = ${lavaMultiplier}x points!`);
         }
         
         // Apply strike bonus
@@ -8803,7 +8803,7 @@ function clearLines() {
         if (weatherEventGracePeriod > 0) {
             weatherEventGracePeriod = Math.max(0, weatherEventGracePeriod - completedRows.length);
             if (weatherEventGracePeriod === 0) {
-                console.log('🌤️ Weather event grace period ended');
+                Logger.debug('🌤️ Weather event grace period ended');
             }
         }
         
@@ -8856,7 +8856,7 @@ function clearLines() {
         
         // Spinal Tap tribute - this one goes to 11!
         if (oldLevel < 11 && level >= 11) {
-            console.log("🎸 This one goes to 11! 🎸");
+            Logger.info("🎸 This one goes to 11! 🎸");
         }
         
         updateStats();
@@ -8949,7 +8949,7 @@ function clearLines() {
         setTimeout(() => {
             const sortedRows = completedRows.sort((a, b) => b - a);
             
-            console.log(`🎯 Clearing ${sortedRows.length} rows`);
+            Logger.debug(`🎯 Clearing ${sortedRows.length} rows`);
             
             // FIRST: Clear the completed row blocks
             sortedRows.forEach(row => {
@@ -8976,7 +8976,7 @@ function clearLines() {
             // completion handler will call clearLines() and catch it
             if (pendingLineCheck && !gravityAnimating) {
                 pendingLineCheck = false;
-                console.log('🔄 Processing deferred line check');
+                Logger.debug('🔄 Processing deferred line check');
                 clearLines();
                 return; // Don't spawn weather events if we're doing another clear
             }
@@ -9401,7 +9401,7 @@ function updateHardDrop() {
     // This prevents race conditions at high speeds in normal gameplay
     // During replay, let the hard drop continue - board will sync at next piece
     if (!GameReplay.isActive() && (gravityAnimating || animatingLines)) {
-        console.log('⚠️ Hard drop interrupted - gravity/line animation in progress');
+        Logger.debug('⚠️ Hard drop interrupted - gravity/line animation in progress');
         hardDropping = false;
         hardDropVelocity = 0;
         hardDropPixelY = 0;
@@ -9550,7 +9550,7 @@ function toggleUIElements(show) {
 async function gameOver() {
     // During replay, just show completion - don't submit scores or record
     if (GameReplay.isActive()) {
-        console.log('🎬 Game over during replay - showing completion');
+        Logger.info('🎬 Game over during replay - showing completion');
         gameRunning = false;
         GameReplay.showComplete();
         return;
@@ -9584,7 +9584,7 @@ async function gameOver() {
     if (aiModeEnabled && typeof AIPlayer !== 'undefined' && AIPlayer.isRecording && AIPlayer.isRecording()) {
         const aiPlayerRecording = await AIPlayer.stopRecording(board, 'game_over');
         if (aiPlayerRecording && aiPlayerRecording.decisions && aiPlayerRecording.decisions.length > 0) {
-            console.log(`🎬 AIPlayer Recording complete: ${aiPlayerRecording.decisions.length} decisions recorded`);
+            Logger.info(`🎬 AIPlayer Recording complete: ${aiPlayerRecording.decisions.length} decisions recorded`);
         }
     }
     
@@ -9624,7 +9624,7 @@ async function gameOver() {
             const playerTypeLabel = aiModeEnabled ? 'AI' : 'Human';
             const shadowInfo = recording.finalStats?.humanVsAI ? 
                 ` (${recording.finalStats.humanVsAI.matchRate} AI match)` : '';
-            console.log(`📹 ${playerTypeLabel} Recording complete: ${recording.pieceData.length} pieces${shadowInfo}`);
+            Logger.info(`📹 ${playerTypeLabel} Recording complete: ${recording.pieceData.length} pieces${shadowInfo}`);
             
             if (aiModeEnabled) {
                 // Store recording data for tuning mode or normal submission
@@ -9660,7 +9660,7 @@ async function gameOver() {
                 // In tuning mode, don't submit yet - wait to check leaderboard
                 if (!aiTuningMode) {
                     GameRecorder.submitRecording(recording, tuningRecordingData.gameData);
-                    console.log('📤 AI Recording submitted to server');
+                    Logger.info('📤 AI Recording submitted to server');
                 }
             } else {
                 // Human games: Store recording data for submission after name entry
@@ -9768,7 +9768,7 @@ async function gameOver() {
     
     
     // Check if score makes top 20 (but not in AI mode)
-    console.log('Checking if score makes top 20...');
+    Logger.debug('Checking if score makes top 20...');
     
     // AI Mode: Handle differently based on tuning mode
     if (aiModeEnabled && window.leaderboard) {
@@ -9777,7 +9777,7 @@ async function gameOver() {
         
         // TUNING MODE: Special handling
         if (aiTuningMode) {
-            console.log(`🔧 TUNING MODE: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} complete - Score: ${score}, Lines: ${lines}`);
+            Logger.info(`🔧 TUNING MODE: Set #${aiTuningSetNumber} Game #${aiTuningGameInSet} complete - Score: ${score}, Lines: ${lines}`);
             
             // Always download the recording for analysis
             if (tuningRecordingData) {
@@ -9793,13 +9793,13 @@ async function gameOver() {
             // Check if makes leaderboard - only submit if it does (but skip email notification)
             const makesLeaderboard = await window.leaderboard.checkIfTopTen(gameMode, score, aiMode, skillLevel);
             if (makesLeaderboard && tuningRecordingData) {
-                console.log('🔧 TUNING: Score makes leaderboard! Submitting (no email)...');
+                Logger.info('🔧 TUNING: Score makes leaderboard! Submitting (no email)...');
                 scoreData.skipNotification = true;
                 await window.leaderboard.submitAIScore(scoreData);
                 tuningRecordingData.gameData.skipNotification = true;
                 GameRecorder.submitRecording(tuningRecordingData.recording, tuningRecordingData.gameData);
             } else {
-                console.log('🔧 TUNING: Score does not make leaderboard, skipping submission');
+                Logger.debug('🔧 TUNING: Score does not make leaderboard, skipping submission');
             }
             
             // Brief pause then auto-restart with new config (no game over screen)
@@ -9813,7 +9813,7 @@ async function gameOver() {
         }
         
         // Normal AI mode (not tuning)
-        console.log(`AI Mode: Auto-submitting score as "🤖 Claude" (mode: ${aiMode})`);
+        Logger.info(`AI Mode: Auto-submitting score as "🤖 Claude" (mode: ${aiMode})`);
         await window.leaderboard.submitAIScore(scoreData);
         showGameOverScreen();
         await window.leaderboard.displayLeaderboard(gameMode, score, aiMode, skillLevel);
@@ -9824,12 +9824,12 @@ async function gameOver() {
     }
     
     const isTopTen = !aiModeEnabled && window.leaderboard ? await window.leaderboard.checkIfTopTen(gameMode, score, scoreData.mode, skillLevel) : false;
-    console.log('Is top twenty:', isTopTen);
+    Logger.debug('Is top twenty:', isTopTen);
     
     if (isTopTen && window.leaderboard) {
         // DON'T show game over div yet - go to name prompt first
         // Credits and music will start after score submission via onScoreSubmitted callback
-        console.log('Score is top 20! Showing name entry prompt...');
+        Logger.info('Score is top 20! Showing name entry prompt...');
         gameOverDiv.style.display = 'none';
         
         // Pass callback if leaderboard supports it, also set up fallback detection
@@ -9839,7 +9839,7 @@ async function gameOver() {
         startLeaderboardCloseDetection();
     } else {
         // Score didn't make top 20, show game over div, credits, and music immediately
-        console.log('Score did not make top 20, displaying game over and leaderboard');
+        Logger.debug('Score did not make top 20, displaying game over and leaderboard');
         showGameOverScreen();
         if (window.leaderboard) {
             await window.leaderboard.displayLeaderboard(gameMode, score, scoreData.mode, skillLevel);
@@ -9859,15 +9859,15 @@ let scoreSubmittedHandled = false;
 
 function onScoreSubmitted() {
     if (scoreSubmittedHandled) {
-        console.log('onScoreSubmitted already handled, skipping');
+        Logger.debug('onScoreSubmitted already handled, skipping');
         return;
     }
     scoreSubmittedHandled = true;
     
-    console.log('=== onScoreSubmitted called ===');
+    Logger.debug('=== onScoreSubmitted called ===');
     stopLeaderboardCloseDetection();
     showGameOverScreen();
-    console.log('=== onScoreSubmitted complete ===');
+    Logger.debug('=== onScoreSubmitted complete ===');
 }
 
 // Expose globally so leaderboard.js can call it
@@ -9878,7 +9878,7 @@ window.submitPendingRecording = function(username) {
     if (window.pendingGameRecording && typeof GameRecorder !== 'undefined') {
         const pending = window.pendingGameRecording;
         pending.gameData.username = username || 'Anonymous';
-        console.log(`📤 Submitting recording with username: ${pending.gameData.username}`);
+        Logger.info(`📤 Submitting recording with username: ${pending.gameData.username}`);
         GameRecorder.submitRecording(pending.recording, pending.gameData);
         window.pendingGameRecording = null;
     }
@@ -9896,17 +9896,17 @@ function startLeaderboardCloseDetection() {
     // Method 1: Timeout fallback - show game over after 2 minutes no matter what
     // This is a safety net for edge cases; normally onScoreSubmitted is called after name entry
     leaderboardTimeoutId = setTimeout(() => {
-        console.log('Leaderboard timeout reached');
-        console.log('gameOverDiv.style.display:', gameOverDiv.style.display);
-        console.log('gameRunning:', gameRunning);
+        Logger.debug('Leaderboard timeout reached');
+        Logger.debug('gameOverDiv.style.display:', gameOverDiv.style.display);
+        Logger.debug('gameRunning:', gameRunning);
         
         // Always call onScoreSubmitted on timeout - even if game over is showing,
         // we need to start the credits animation
         if (!gameRunning) {
-            console.log('Calling onScoreSubmitted from timeout');
+            Logger.debug('Calling onScoreSubmitted from timeout');
             onScoreSubmitted();
         } else {
-            console.log('Game is running, skipping onScoreSubmitted');
+            Logger.debug('Game is running, skipping onScoreSubmitted');
         }
     }, 120000); // 2 minute timeout - gives user time to enter name
     
@@ -9919,7 +9919,7 @@ function startLeaderboardCloseDetection() {
         if (!leaderboardOverlay && !namePrompt && gameOverDiv.style.display !== 'block') {
             // Check if we're not in a game (gameRunning would be true if we started a new game)
             if (!gameRunning && !modeMenu.classList.contains('hidden') === false) {
-                console.log('Leaderboard popup closed (detected via polling)');
+                Logger.debug('Leaderboard popup closed (detected via polling)');
                 onScoreSubmitted();
             }
         }
@@ -9936,7 +9936,7 @@ function startLeaderboardCloseDetection() {
                         node.classList.contains('name-prompt')
                     );
                     if (isLeaderboardPopup && gameOverDiv.style.display !== 'block') {
-                        console.log('Leaderboard popup closed (detected via MutationObserver)');
+                        Logger.debug('Leaderboard popup closed (detected via MutationObserver)');
                         onScoreSubmitted();
                         return;
                     }
@@ -9965,8 +9965,8 @@ function stopLeaderboardCloseDetection() {
 
 // Show game over popup, start credits animation, and play end credits music
 function showGameOverScreen() {
-    console.log('showGameOverScreen called');
-    console.log('gameOverDiv:', gameOverDiv);
+    Logger.debug('showGameOverScreen called');
+    Logger.debug('gameOverDiv:', gameOverDiv);
     
     // Show leaderboard rank if available
     if (window.lastLeaderboardRank && !finalStatsDisplay.querySelector('.rank-display')) {
@@ -9980,13 +9980,13 @@ function showGameOverScreen() {
     gameOverDiv.style.display = 'block';
     updateShareLinks();
     
-    console.log('About to call startCreditsAnimation');
+    Logger.debug('About to call startCreditsAnimation');
     startCreditsAnimation();
-    console.log('startCreditsAnimation returned');
+    Logger.debug('startCreditsAnimation returned');
     
     // Delay music start by 3 seconds after credits begin
     creditsMusicTimeoutId = setTimeout(() => {
-        console.log('Starting credits music after 3 second delay');
+        Logger.debug('Starting credits music after 3 second delay');
         // Stop any existing menu music and restart with end credits
         stopMenuMusic();
         startMenuMusic(musicSelect); // This will play End Credits version since hasPlayedGame is true
@@ -10016,7 +10016,7 @@ function randomizeAIChallenges() {
     // 30% normal, 40% single challenge, 30% combo (2-4 challenges)
     const roll = Math.random();
     if (roll < 0.30) {
-        console.log('🤖 AI Challenge: Normal (no challenges)');
+        Logger.info('🤖 AI Challenge: Normal (no challenges)');
         return;
     }
     
@@ -10054,18 +10054,18 @@ function randomizeAIChallenges() {
         if (el) el.checked = true;
     });
     
-    console.log(`🤖 AI Challenge: ${selected.length > 1 ? 'Combo' : 'Single'} - ${selected.join(', ')}`);
+    Logger.info(`🤖 AI Challenge: ${selected.length > 1 ? 'Combo' : 'Single'} - ${selected.join(', ')}`);
 }
 
 function startAIAutoRestartTimer() {
     // Clear any existing timer
     cancelAIAutoRestartTimer();
     
-    console.log('🤖 AI Auto-restart: Starting 10 second countdown...');
+    Logger.info('🤖 AI Auto-restart: Starting 10 second countdown...');
     
     aiAutoRestartTimerId = setTimeout(() => {
         if (!aiModeEnabled) {
-            console.log('🤖 AI Auto-restart: AI mode disabled, cancelling');
+            Logger.debug('🤖 AI Auto-restart: AI mode disabled, cancelling');
             return;
         }
         
@@ -10086,11 +10086,11 @@ function startAIAutoRestartTimer() {
             if (allPaletteIds.length > 0) {
                 const randomPalette = allPaletteIds[Math.floor(Math.random() * allPaletteIds.length)];
                 selectPalette(randomPalette);
-                console.log(`🤖 AI Auto-restart: Palette → ${randomPalette}`);
+                Logger.debug(`🤖 AI Auto-restart: Palette → ${randomPalette}`);
             }
         }
         
-        console.log(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
+        Logger.info(`🤖 AI Auto-restart: Starting new game with ${randomDifficulty} / ${randomSkill}`);
         
         // Set the skill level globally (both local var and window for AI player)
         skillLevel = randomSkill;
@@ -10126,7 +10126,7 @@ function cancelAIAutoRestartTimer() {
     if (aiAutoRestartTimerId) {
         clearTimeout(aiAutoRestartTimerId);
         aiAutoRestartTimerId = null;
-        console.log('🤖 AI Auto-restart: Timer cancelled');
+        Logger.debug('🤖 AI Auto-restart: Timer cancelled');
     }
 }
 
@@ -10241,9 +10241,9 @@ function startAITuningMode(difficulty, skill) {
     aiTuningSetNumber = 1;
     aiTuningGameInSet = 0;
     
-    console.log(`🔧 AI TUNING MODE STARTED - ${difficulty} / ${skill}`);
-    console.log(`🔧 Each set runs ${TUNING_GAMES_PER_SET} games with the same piece sequence.`);
-    console.log('🔧 Click STOP indicator to end tuning session.');
+    Logger.info(`🔧 AI TUNING MODE STARTED - ${difficulty} / ${skill}`);
+    Logger.info(`🔧 Each set runs ${TUNING_GAMES_PER_SET} games with the same piece sequence.`);
+    Logger.info('🔧 Click STOP indicator to end tuning session.');
     
     // Show tuning mode indicator
     showTuningModeIndicator();
@@ -10263,7 +10263,7 @@ function stopAITuningMode() {
     aiTuningSetNumber = 1;
     aiTuningGameInSet = 0;
     
-    console.log(`🔧 AI TUNING MODE STOPPED after ${aiTuningGamesPlayed} games`);
+    Logger.info(`🔧 AI TUNING MODE STOPPED after ${aiTuningGamesPlayed} games`);
     
     // Hide tuning mode indicator
     hideTuningModeIndicator();
@@ -10285,22 +10285,22 @@ function startTuningGame() {
         aiTuningSetNumber++;
         aiTuningGameInSet = 1;
         aiTuningPieceSequence = null; // Clear to capture new sequence
-        console.log(`🔧 STARTING NEW SET #${aiTuningSetNumber} - will capture new piece sequence`);
+        Logger.info(`🔧 STARTING NEW SET #${aiTuningSetNumber} - will capture new piece sequence`);
     }
     
     // Game 1 of each set: Initialize empty sequence to capture pieces
     // Game 2+ of set: Keep existing sequence for replay
     if (aiTuningGameInSet === 1) {
         aiTuningPieceSequence = []; // Will be populated as pieces are created
-        console.log(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Capturing piece sequence...`);
+        Logger.debug(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Capturing piece sequence...`);
     } else {
-        console.log(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Using captured sequence (${aiTuningPieceSequence.length} pieces)`);
+        Logger.debug(`🔧 SET #${aiTuningSetNumber} GAME #${aiTuningGameInSet}: Using captured sequence (${aiTuningPieceSequence.length} pieces)`);
     }
     
     // Generate new random config
     aiTuningConfig = generateRandomTuningConfig();
     
-    console.log(`🔧 Config:`, aiTuningConfig);
+    Logger.debug(`🔧 Config:`, aiTuningConfig);
     
     // Send config to AI worker
     if (typeof AIPlayer !== 'undefined' && AIPlayer.setConfig) {
@@ -10397,7 +10397,7 @@ function downloadRecordingJSON(recording, filename) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log(`📥 Downloaded: ${filename}`);
+    Logger.debug(`📥 Downloaded: ${filename}`);
 }
 
 function update(time = 0) {
@@ -10770,7 +10770,7 @@ function startGame(mode) {
         
         // TUNING MODE: Apply config AFTER reset/init (otherwise it gets wiped)
         if (aiTuningMode && aiTuningConfig && AIPlayer.setConfig) {
-            console.log('🔧 Applying tuning config after init');
+            Logger.debug('🔧 Applying tuning config after init');
             AIPlayer.setConfig(aiTuningConfig);
         }
         
@@ -10819,9 +10819,9 @@ function startGame(mode) {
     if (developerMode && musicSelect.value !== 'none') {
         musicSelect.value = 'none';
         musicSelect.dispatchEvent(new Event('change'));
-        console.log('🔇 Developer Mode: Music disabled');
+        Logger.debug('🔇 Developer Mode: Music disabled');
     }
-    
+
     // Clean up any active canvas classes
     canvas.classList.remove('nervous-active', 'tsunami-active', 'blackhole-active', 'touchdown-active');
     if (window.ChallengeEffects && ChallengeEffects.Vertigo) ChallengeEffects.Vertigo.stop();
@@ -10879,13 +10879,13 @@ function startGame(mode) {
     } else {
         challengeMode = 'combo';
     }
-    console.log('🎮 Challenge state from checkboxes:', challengeMode, Array.from(activeChallenges));
+    Logger.debug('🎮 Challenge state from checkboxes:', challengeMode, Array.from(activeChallenges));
     applyChallengeMode(challengeMode);
     
     // CRITICAL: Clear any keyboard state from previous game
-    console.log('⌨️  Clearing keyboard state');
-    console.log('  Keys pressed before clear:', Array.from(customKeyRepeat.keys.keys()));
-    console.log('  hardDropping before clear:', hardDropping);
+    Logger.debug('⌨️  Clearing keyboard state');
+    Logger.debug('  Keys pressed before clear:', Array.from(customKeyRepeat.keys.keys()));
+    Logger.debug('  hardDropping before clear:', hardDropping);
     
     // Clear hard drop state
     hardDropping = false;
@@ -10910,11 +10910,11 @@ function startGame(mode) {
     });
     touchRepeat.timers.clear();
     
-    console.log('  Keys pressed after clear:', Array.from(customKeyRepeat.keys.keys()));
-    
-    console.log('🎮 After reset:');
-    console.log('  challengeMode:', challengeMode);
-    console.log('  activeChallenges:', Array.from(activeChallenges));
+    Logger.debug('  Keys pressed after clear:', Array.from(customKeyRepeat.keys.keys()));
+
+    Logger.debug('🎮 After reset:');
+    Logger.debug('  challengeMode:', challengeMode);
+    Logger.debug('  activeChallenges:', Array.from(activeChallenges));
     
     initBoard();
     
@@ -10935,7 +10935,7 @@ function startGame(mode) {
             if (board[y][x] !== null) blockCount++;
         }
     }
-    console.log('🧹 Board cleared - block count:', blockCount);
+    Logger.debug('🧹 Board cleared - block count:', blockCount);
     
     score = 0;
     lines = 0;
@@ -11490,7 +11490,7 @@ modeButtons.forEach(button => {
         
         // SHIFT+click in AI mode = start Tuning Mode
         if (event.shiftKey && aiModeEnabled) {
-            console.log('🔧 SHIFT+click detected - starting AI Tuning Mode');
+            Logger.info('🔧 SHIFT+click detected - starting AI Tuning Mode');
             startAITuningMode(mode, skillLevel);
             return;
         }
@@ -11931,7 +11931,7 @@ if (aiModeToggle) {
         AIPlayer.setEnabled(aiModeEnabled);
     }
     if (aiModeEnabled) {
-        console.log('🤖 AI Mode: ENABLED (restored from settings)');
+        Logger.info('🤖 AI Mode: ENABLED (restored from settings)');
     }
     
     // Show AI mode overlay on menu if enabled
@@ -11961,7 +11961,7 @@ if (aiModeToggle) {
         if (aiSpeedOption) {
             aiSpeedOption.style.display = e.target.checked ? 'block' : 'none';
         }
-        console.log('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
+        Logger.info('🤖 AI Mode:', aiModeEnabled ? 'ENABLED' : 'DISABLED');
         
         // Refresh leaderboard to show AI or normal leaderboard
         const leaderboardContent = document.getElementById('leaderboardContent');
@@ -11982,7 +11982,7 @@ if (aiSpeedSlider) {
         if (typeof AIPlayer !== 'undefined') {
             AIPlayer.setSpeed(speed);
         }
-        console.log('🤖 AI Speed:', speed);
+        Logger.debug('🤖 AI Speed:', speed);
     });
 }
 
@@ -12289,7 +12289,7 @@ comboApplyBtn.addEventListener('click', () => {
         window.leaderboard.displayLeaderboard(selectedMode, null, getLeaderboardMode(), skillLevel);
     }
     
-    console.log('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
+    Logger.info('🎯 Challenges applied:', challengeMode, Array.from(activeChallenges));
 });
 
 comboCancelBtn.addEventListener('click', () => {
@@ -12496,65 +12496,65 @@ function applyChallengeMode(mode) {
     if (mode === 'stranger' || activeChallenges.has('stranger')) {
         document.documentElement.classList.add('stranger-mode');
         StarfieldSystem.setStrangerMode(true);
-        console.log('🙃 STRANGER MODE: Upside-down activated!');
+        Logger.info('🙃 STRANGER MODE: Upside-down activated!');
     }
     
     if (mode === 'phantom' || activeChallenges.has('phantom')) {
         if (window.ChallengeEffects && ChallengeEffects.Phantom) ChallengeEffects.Phantom.triggerFade();
-        console.log('👻 PHANTOM MODE: Invisible stack activated!');
+        Logger.info('👻 PHANTOM MODE: Invisible stack activated!');
     }
     
     if (mode === 'rubber' || activeChallenges.has('rubber')) {
-        console.log('🏀 RUBBER & GLUE MODE: Bouncing activated!');
+        Logger.info('🏀 RUBBER & GLUE MODE: Bouncing activated!');
     }
     
     if (mode === 'oz' || activeChallenges.has('oz')) {
-        console.log('🌈 OZ MODE: Grayscale until landing activated!');
+        Logger.info('🌈 OZ MODE: Grayscale until landing activated!');
     }
     
     if (mode === 'thinner' || activeChallenges.has('thinner')) {
         canvas.classList.add('thinner-mode');
-        console.log('📏 THINNER MODE: Skinny well activated!');
+        Logger.info('📏 THINNER MODE: Skinny well activated!');
     }
     
     if (mode === 'thicker' || activeChallenges.has('thicker')) {
         canvas.classList.add('thicker-mode');
-        console.log('📐 THICKER MODE: Wide well activated!');
+        Logger.info('📐 THICKER MODE: Wide well activated!');
         // updateCanvasSize will be called at the end of this function
     }
     
     if (mode === 'nervous' || activeChallenges.has('nervous')) {
-        console.log('😰 NERVOUS MODE: Vibrating well activated!');
+        Logger.info('😰 NERVOUS MODE: Vibrating well activated!');
     }
     
     if (mode === 'sixseven' || activeChallenges.has('sixseven')) {
-        console.log('6️⃣7️⃣ SIX SEVEN MODE: Giant pieces activated!');
+        Logger.info('6️⃣7️⃣ SIX SEVEN MODE: Giant pieces activated!');
     }
     
     if (mode === 'gremlins' || activeChallenges.has('gremlins')) {
-        console.log('👹 GREMLINS MODE: Random disappearing activated!');
+        Logger.info('👹 GREMLINS MODE: Random disappearing activated!');
     }
     
     if (mode === 'lattice' || activeChallenges.has('lattice')) {
-        console.log('🔲 LATTICE MODE: Pre-filled blocks activated!');
+        Logger.info('🔲 LATTICE MODE: Pre-filled blocks activated!');
     }
     
     if (mode === 'longago' || activeChallenges.has('longago')) {
         canvas.classList.add('longago-mode');
-        console.log('⭐ LONG AGO MODE: Star Wars perspective activated!');
+        Logger.info('⭐ LONG AGO MODE: Star Wars perspective activated!');
         // Need to update after transform is applied
         setTimeout(() => updateCanvasSize(), 0);
     }
     
     if (mode === 'comingsoon' || activeChallenges.has('comingsoon')) {
         canvas.classList.add('comingsoon-mode');
-        console.log('🔮 COMING SOON MODE: Reverse perspective activated!');
+        Logger.info('🔮 COMING SOON MODE: Reverse perspective activated!');
         // Need to update after transform is applied
         setTimeout(() => updateCanvasSize(), 0);
     }
     
     if (mode === 'amnesia' || activeChallenges.has('amnesia')) {
-        if (window.ChallengeEffects && ChallengeEffects.Amnesia) ChallengeEffects.Amnesia.init(ROWS, COLS);        console.log('🧠 AMNESIA MODE: Color memory fade activated!');
+        if (window.ChallengeEffects && ChallengeEffects.Amnesia) ChallengeEffects.Amnesia.init(ROWS, COLS);        Logger.info('🧠 AMNESIA MODE: Color memory fade activated!');
     }
     
     if (mode === 'vertigo' || activeChallenges.has('vertigo')) {
@@ -12564,7 +12564,7 @@ function applyChallengeMode(mode) {
     }
     
     if (mode === 'normal') {
-        console.log('✅ NORMAL MODE: All challenges disabled');
+        Logger.info('✅ NORMAL MODE: All challenges disabled');
     }
     
     // Update canvas size after all challenge modes are applied
@@ -12609,15 +12609,15 @@ if (dontPanicText) {
             developerMode = !developerMode;
             // Visual feedback
             dontPanicText.style.color = developerMode ? '#FFD700' : '';
-            console.log(developerMode ? 
-                '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' : 
+            Logger.info(developerMode ?
+                '🛠️ Developer Mode ACTIVATED - Music will be disabled when starting games' :
                 '👤 Developer Mode DEACTIVATED');
             
             // Immediately turn off music if developer mode is activated
             if (developerMode && musicSelect.value !== 'none') {
                 musicSelect.value = 'none';
                 musicSelect.dispatchEvent(new Event('change'));
-                console.log('🔇 Developer Mode: Music disabled');
+                Logger.debug('🔇 Developer Mode: Music disabled');
             }
         }
     });
@@ -12804,7 +12804,7 @@ if (startOverlay) {
         updateSpecialEventsDisplay(level);
         // Update menu button
         if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
-        console.log('🎮 Skill level set to:', level);
+        Logger.info('🎮 Skill level set to:', level);
     }
     window.setSkillLevel = setSkillLevel;
     
@@ -12946,12 +12946,12 @@ if (startOverlay) {
                 e.preventDefault();
                 if (typeof RenderUtils !== 'undefined' && RenderUtils._dbg) {
                     RenderUtils._dbg();
-                    console.log('🔓 Development mode enabled');
+                    Logger.info('🔓 Development mode enabled');
                 }
             } else {
                 e.preventDefault();
                 HintSystem.reset();
-                console.log('🔄 First-time hints reset');
+                Logger.debug('🔄 First-time hints reset');
             }
         });
     }
@@ -12982,9 +12982,9 @@ document.addEventListener('keydown', (e) => {
 }, { once: true });
 
 // Initialize high score system
-console.log(`🏆 ${window.GAME_TITLE || 'BLOCKCHaiNSTORM'} High Score System Initialized`);
-console.log('💡 To test high score prompt in console, type: testHighScore(1000000)');
-console.log('📊 Leaderboard uses server if available, falls back to local storage');
+Logger.info(`🏆 ${window.GAME_TITLE || 'BLOCKCHaiNSTORM'} High Score System Initialized`);
+Logger.debug('💡 To test high score prompt in console, type: testHighScore(1000000)');
+Logger.debug('📊 Leaderboard uses server if available, falls back to local storage');
 
 // Tap anywhere to unpause (for tablet mode)
 let unpauseHandled = false;
@@ -13019,4 +13019,4 @@ const handleUnpauseTap = (e) => {
 
 document.addEventListener('click', handleUnpauseTap);
 document.addEventListener('touchend', handleUnpauseTap);
-console.log('🎬 Replay system initialized');// Replay system extracted to replay.js (window.GameReplay)
+Logger.info('🎬 Replay system initialized');// Replay system extracted to replay.js (window.GameReplay)

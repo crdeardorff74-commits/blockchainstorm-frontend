@@ -58,7 +58,7 @@
                 });
             }
 
-            console.log('⚠️ LATTICE MODE ACTIVE - Filled bottom half with blocks!');
+            Logger.info('⚠️ LATTICE MODE ACTIVE - Filled bottom half with blocks!');
         }
 
         /**

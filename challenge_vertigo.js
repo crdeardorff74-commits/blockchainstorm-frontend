@@ -86,14 +86,14 @@
             if (active) return;
             wrapper = document.getElementById('vertigoWrapper');
             if (!wrapper) {
-                console.warn('Vertigo: #vertigoWrapper not found');
+                Logger.warn('Vertigo: #vertigoWrapper not found');
                 return;
             }
             active = true;
             startTime = Date.now();
             wrapper.style.transformOrigin = 'center center';
             wrapper.style.willChange = 'transform';
-            console.log('Vertigo: oscillating tilt activated');
+            Logger.info('Vertigo: oscillating tilt activated');
             animFrameId = requestAnimationFrame(animate);
         }
 

@@ -39,7 +39,7 @@ const StormEffects = (() => {
         // Create pre-rendered snowflake bitmaps
         createSnowflakeBitmaps();
         
-        console.log('🌧️ Storm Effects module initialized');
+        Logger.info('🌧️ Storm Effects module initialized');
     }
     
     /**
