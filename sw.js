@@ -1,6 +1,6 @@
 // TaNTЯiS Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '3.31';
+const APP_VERSION = '3.33';
 const CACHE_NAME = `tantris-v${APP_VERSION}`;
 
 // Core files to cache for offline play
@@ -74,6 +74,9 @@ self.addEventListener('fetch', (event) => {
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
+
+    // Skip non-http(s) schemes (e.g. chrome-extension://) — Cache API only supports http/https
+    if (!url.protocol.startsWith('http')) return;
 
     // API calls and analytics: network only, don't cache
     if (url.hostname.includes('onrender.com') ||
