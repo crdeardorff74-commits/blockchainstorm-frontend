@@ -5,16 +5,22 @@
 
 // Check for token in URL (passed from main site) and store it
 (function() {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    // Support hash fragment (#token=...) — preferred, keeps token out of server logs
+    let token = null;
+    const hash = window.location.hash;
+    if (hash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        token = hashParams.get('token');
+    }
+    // Fallback: also check query params (?token=...) for backwards compatibility
+    if (!token) {
+        const params = new URLSearchParams(window.location.search);
+        token = params.get('token');
+    }
     if (token) {
-        localStorage.setItem('oi_token', token);
+        sessionStorage.setItem('oi_token', token);
         // Clean URL (remove token from address bar)
-        params.delete('token');
-        const newUrl = params.toString() 
-            ? `${window.location.pathname}?${params}` 
-            : window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+        window.history.replaceState({}, '', window.location.pathname);
         console.log('⚙️ Token received from main site');
     }
 })();
@@ -34,14 +40,14 @@ const SettingsSync = {
      * Check if user is logged in
      */
     isLoggedIn() {
-        return !!localStorage.getItem('oi_token');
+        return !!sessionStorage.getItem('oi_token');
     },
     
     /**
      * Get auth headers
      */
     getAuthHeaders() {
-        const token = localStorage.getItem('oi_token');
+        const token = sessionStorage.getItem('oi_token');
         return {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -380,7 +386,7 @@ const SettingsSync = {
      */
     async init() {
         console.log('⚙️ Initializing Settings Sync');
-        const token = localStorage.getItem('oi_token');
+        const token = sessionStorage.getItem('oi_token');
         console.log('⚙️ Token exists:', !!token);
         console.log('⚙️ Logged in:', this.isLoggedIn());
         

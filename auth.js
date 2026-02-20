@@ -8,13 +8,23 @@ const AUTH_API_URL = 'https://official-intelligence-api.onrender.com';
 let authCurrentUser = null;
 let isRegisterMode = false;
 
-// Check for OAuth callback token
+// Check for OAuth callback token (delivered via hash fragment to avoid server logs/referrer leaks)
 function handleOAuthCallback() {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    
+    // Support hash fragment (#token=...) — preferred, keeps token out of server logs
+    const hash = window.location.hash;
+    let token = null;
+    if (hash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        token = hashParams.get('token');
+    }
+    // Fallback: also check query params (?token=...) for backwards compatibility
+    if (!token) {
+        const params = new URLSearchParams(window.location.search);
+        token = params.get('token');
+    }
+
     if (token) {
-        localStorage.setItem('oi_token', token);
+        sessionStorage.setItem('oi_token', token);
         window.history.replaceState({}, document.title, window.location.pathname);
         checkAuth();
     }
@@ -22,21 +32,21 @@ function handleOAuthCallback() {
 
 // Check auth status
 async function checkAuth() {
-    const token = localStorage.getItem('oi_token');
+    const token = sessionStorage.getItem('oi_token');
     if (!token) return;
-    
+
     try {
         const res = await fetch(`${AUTH_API_URL}/auth/me`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (res.ok) {
             const data = await res.json();
             authCurrentUser = data.user;
             updateUserMenu();
             updateIntroLoginButton();
         } else {
-            localStorage.removeItem('oi_token');
+            sessionStorage.removeItem('oi_token');
         }
     } catch (err) {
         console.error('Auth check failed:', err);
@@ -60,13 +70,13 @@ function updateUserMenu() {
 function updateIntroLoginButton() {
     const introLoginBtn = document.getElementById('introLoginBtn');
     if (introLoginBtn) {
-        const isLoggedIn = !!localStorage.getItem('oi_token');
+        const isLoggedIn = !!sessionStorage.getItem('oi_token');
         introLoginBtn.classList.toggle('hidden', isLoggedIn);
     }
 }
 
 function logout() {
-    localStorage.removeItem('oi_token');
+    sessionStorage.removeItem('oi_token');
     authCurrentUser = null;
     const menu = document.getElementById('userMenu');
     if (menu) {
@@ -154,7 +164,7 @@ async function handleLogin(e) {
         const data = await res.json();
         
         if (res.ok && data.token) {
-            localStorage.setItem('oi_token', data.token);
+            sessionStorage.setItem('oi_token', data.token);
             authCurrentUser = data.user;
             hideLoginModal();
             updateUserMenu();

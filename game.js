@@ -320,7 +320,7 @@ function copyLogsToClipboard() {
 // Submit bug report to server
 async function submitBugReport(debugLog, bugDescription, silent = false) {
     try {
-        const token = localStorage.getItem('oi_token');
+        const token = sessionStorage.getItem('oi_token');
         const headers = { 'Content-Type': 'application/json' };
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -12826,7 +12826,7 @@ if (startOverlay) {
     // Check login status and show/hide login button
     const checkIntroLoginStatus = function() {
         // Check if user is logged in via oi_token (from auth.js)
-        const isLoggedIn = !!localStorage.getItem('oi_token');
+        const isLoggedIn = !!sessionStorage.getItem('oi_token');
         const btn = document.getElementById('introLoginBtn');
         if (btn) {
             btn.classList.toggle('hidden', isLoggedIn);
