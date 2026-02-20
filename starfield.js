@@ -1549,10 +1549,11 @@ const StarfieldSystem = (function() {
     // ============================================
     
     function animateStarfield() {
+      try {
         // Normal black background for all modes
         starfieldCtx.fillStyle = '#000';
         starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
-        
+
         // In Stranger mode, draw ash particles instead of stars
         if (strangerMode) {
             drawAshParticles();
@@ -1792,7 +1793,12 @@ const StarfieldSystem = (function() {
         
         // Draw UFO
         drawUFO();
-        
+
+      } catch (err) {
+        Logger.error('🛡️ Error in starfield loop:', err);
+        try { starfieldCtx.restore(); } catch (_) {}
+      }
+
         requestAnimationFrame(animateStarfield);
     }
     
