@@ -81,11 +81,11 @@ const GITHUB_MUSIC_URL = AppConfig.GITHUB_RELEASES + '/Music/';
 const PROXY_MUSIC_URL = AppConfig.GAME_API + '/music/Music/';
 const MUSIC_BASE_URL = _isIOSAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
 
-// MP3 sound effects (hosted on GitHub Releases)
-// iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
-const GITHUB_SFX_URL = AppConfig.GITHUB_RELEASES + '/SFX/';
-const PROXY_SFX_URL = AppConfig.GAME_API + '/music/SFX/';
-const SFX_BASE_URL = _isIOSAudio ? PROXY_SFX_URL : GITHUB_SFX_URL;
+// MP3 sound effects — always use proxy because:
+// 1. GitHub doesn't set CORS headers, so fetch() for AudioBuffer decoding fails
+// 2. iPad Safari can't follow GitHub's 302 redirects in Audio elements
+// SFX files are small (~few KB each, only 4 files) so proxy load is negligible
+const SFX_BASE_URL = AppConfig.GAME_API + '/music/SFX/';
 
 // Sound effect MP3s
 const soundEffectFiles = {
@@ -3006,13 +3006,8 @@ function toggleSfxMute() {
 }
 
 function applySfxVolume() {
-    // Apply to preloaded sound effects
-    Object.keys(soundEffectElements).forEach(id => {
-        const audio = soundEffectElements[id];
-        if (audio) {
-            audio.volume = sfxMuted ? 0 : (soundEffectVolumes[id] || 0.7) * sfxVolume;
-        }
-    });
+    // SFX volume is applied at play time via gainNode, so nothing to update here.
+    // This function exists so callers don't need to know the implementation.
 }
 
 // Get effective SFX volume for a specific effect (used when playing)
