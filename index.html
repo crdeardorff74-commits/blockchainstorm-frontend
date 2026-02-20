@@ -1263,13 +1263,13 @@
 	// Populate music dropdowns from audio.js song lists
 	(function() {
 	    function populateMusicDropdowns() {
-	        if (!window.AudioSystem || !window.AudioSystem.getAllSongLists) {
+	        if (typeof AudioSystem === 'undefined' || !AudioSystem.getAllSongLists) {
 	            console.warn('AudioSystem not ready, retrying...');
 	            setTimeout(populateMusicDropdowns, 100);
 	            return;
 	        }
-	        
-	        const songLists = window.AudioSystem.getAllSongLists();
+
+	        const songLists = AudioSystem.getAllSongLists();
 	        const dropdowns = ['introMusicSelect', 'musicSelect'];
 	        
 	        dropdowns.forEach(dropdownId => {
