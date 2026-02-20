@@ -320,12 +320,6 @@ function copyLogsToClipboard() {
 // Submit bug report to server
 async function submitBugReport(debugLog, bugDescription, silent = false) {
     try {
-        const token = sessionStorage.getItem('oi_token');
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
         const payload = {
             debugLog: debugLog,
             bugDescription: bugDescription || null,
@@ -339,10 +333,11 @@ async function submitBugReport(debugLog, bugDescription, silent = false) {
             playerType: aiModeEnabled ? 'ai' : 'human',
             timestamp: new Date().toISOString()
         };
-        
-        const response = await fetch(`${AppConfig.GAME_API}/bug-report`, {
+
+        const response = await apiFetch(`${AppConfig.GAME_API}/bug-report`, {
             method: 'POST',
-            headers: headers,
+            headers: { 'Content-Type': 'application/json' },
+            auth: true,
             body: JSON.stringify(payload)
         });
         
@@ -9569,9 +9564,9 @@ async function gameOver() {
     // Record that visitor finished a game (once per visit)
     if (window._visitId && !window._visitFinishRecorded) {
         window._visitFinishRecorded = true;
-        fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/finished`, {
-            method: 'PATCH'
-        }).catch(() => {});
+        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/finished`, {
+            method: 'PATCH', silent: true, timeout: 5000
+        });
     }
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
@@ -11649,11 +11644,12 @@ function updateShareLinks() {
 
 function trackShareClick(platform) {
     if (window._visitId) {
-        fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/shared`, {
+        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/shared`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform: platform })
-        }).catch(() => {});
+            body: JSON.stringify({ platform: platform }),
+            silent: true, timeout: 5000
+        });
     }
 }
 
@@ -12653,9 +12649,10 @@ if (startOverlay) {
             document.removeEventListener(evt, _recordVisit)
         );
         try {
-            const res = await fetch(`${AppConfig.GAME_API}/visit`, {
+            const res = await apiFetch(`${AppConfig.GAME_API}/visit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                timeout: 8000,
                 body: JSON.stringify({
                     referrer: document.referrer || null,
                     userAgent: navigator.userAgent || null,
@@ -12860,9 +12857,10 @@ if (startOverlay) {
         const sendStarted = () => {
             if (_visitId) {
                 const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
-                fetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
+                apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
+                    silent: true, timeout: 5000,
                     body: JSON.stringify({
                         difficulty: mode,
                         skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
@@ -12870,7 +12868,7 @@ if (startOverlay) {
                         challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : [],
                         gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
                     })
-                }).catch(() => {});
+                });
             }
         };
         if (_visitId) {

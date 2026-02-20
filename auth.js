@@ -32,13 +32,10 @@ function handleOAuthCallback() {
 
 // Check auth status
 async function checkAuth() {
-    const token = sessionStorage.getItem('oi_token');
-    if (!token) return;
+    if (!sessionStorage.getItem('oi_token')) return;
 
     try {
-        const res = await fetch(`${AUTH_API_URL}/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`${AUTH_API_URL}/auth/me`, { auth: true });
 
         if (res.ok) {
             const data = await res.json();
@@ -155,7 +152,7 @@ async function handleLogin(e) {
         : { email, password };
     
     try {
-        const res = await fetch(`${AUTH_API_URL}${endpoint}`, {
+        const res = await apiFetch(`${AUTH_API_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)

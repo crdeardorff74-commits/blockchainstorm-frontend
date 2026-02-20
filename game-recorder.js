@@ -459,12 +459,11 @@ const GameRecorder = (() => {
             console.log('📹 Payload size:', JSON.stringify(payload).length, 'bytes');
             console.log('📹 Recording has', recordingData.pieceData?.length || 0, 'pieces');
             
-            const response = await fetch(`${API_URL}/recording`, {
+            const response = await apiFetch(`${API_URL}/recording`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
+                timeout: 15000,
                 body: JSON.stringify(payload)
             });
             

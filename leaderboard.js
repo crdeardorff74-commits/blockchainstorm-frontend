@@ -85,22 +85,14 @@ async function fetchLeaderboard(difficulty, mode = 'normal', skillLevel = 'tempe
     try {
         console.log(`Fetching leaderboard for ${difficulty} (${mode}) skill:${skillLevel} from ${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`);
         
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-        
-        const response = await fetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`, {
+        const response = await apiFetch(`${API_URL}/leaderboard/blockchainstorm/${difficulty}/${mode}?skill_level=${skillLevel}`, {
             method: 'GET',
             mode: 'cors',
-            cache: 'no-store', // Don't use cached responses
-            headers: {
-                'Accept': 'application/json'
-            },
-            signal: controller.signal
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' },
+            timeout: 8000
         });
-        
-        clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -401,7 +393,7 @@ async function startReplay(recordingId) {
     try {
         console.log(`🎬 Fetching recording ${recordingId}...`);
         
-        const response = await fetch(`${API_URL}/recording/${recordingId}`);
+        const response = await apiFetch(`${API_URL}/recording/${recordingId}`, { timeout: 15000 });
         if (!response.ok) {
             throw new Error(`Failed to fetch recording: ${response.status}`);
         }
@@ -973,20 +965,12 @@ function promptForName(scoreData) {
                 };
                 
                 try {
-                    // Create abort controller for timeout
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                    
-                    const response = await fetch(`${API_URL}/scores/submit`, {
+                    const response = await apiFetch(`${API_URL}/scores/submit`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(dataToSubmit),
-                        signal: controller.signal
+                        timeout: 15000
                     });
-                    
-                    clearTimeout(timeoutId);
 
                     if (response.ok) {
                         const result = await response.json();
@@ -1109,7 +1093,7 @@ document.addEventListener('keydown', (e) => {
 // Check if user is logged in
 async function checkAuth() {
     try {
-        const response = await fetch(`${API_URL}/auth/me`, {
+        const response = await apiFetch(`${API_URL}/auth/me`, {
             credentials: 'include'
         });
         if (response.ok) {
@@ -1154,11 +1138,9 @@ async function submitScore(gameData) {
     };
     
     try {
-        const response = await fetch(`${API_URL}/scores/submit`, {
+        const response = await apiFetch(`${API_URL}/scores/submit`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(scoreData)
         });
@@ -1283,21 +1265,14 @@ async function notifyGameCompletion(scoreData) {
             os: typeof detectOS === 'function' ? detectOS() : 'unknown'
         };
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
         // Use the same submit endpoint - backend will check notifyOnly flag
-        const response = await fetch(`${API_URL}/scores/submit`, {
+        const response = await apiFetch(`${API_URL}/scores/submit`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dataToSubmit),
-            signal: controller.signal
+            timeout: 10000
         });
-        
-        clearTimeout(timeoutId);
-        
+
         if (response.ok) {
             console.log('Game completion notification sent');
             return true;
@@ -1333,20 +1308,13 @@ async function submitAIScore(scoreData) {
     };
     
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const response = await fetch(`${API_URL}/scores/submit`, {
+        const response = await apiFetch(`${API_URL}/scores/submit`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dataToSubmit),
-            signal: controller.signal
+            timeout: 15000
         });
-        
-        clearTimeout(timeoutId);
-        
+
         if (response.ok) {
             const result = await response.json();
             console.log('AI score submitted successfully:', result);

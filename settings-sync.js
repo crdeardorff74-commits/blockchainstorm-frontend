@@ -293,9 +293,9 @@ const SettingsSync = {
         console.log('⚙️ Loading settings from:', url);
         
         try {
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: 'GET',
-                headers: this.getAuthHeaders()
+                auth: true
             });
             
             console.log('⚙️ Settings response status:', response.status);
@@ -356,9 +356,10 @@ const SettingsSync = {
         const url = `${this.API_URL}/settings/${this.GAME_NAME}`;
         
         try {
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: 'PUT',
-                headers: this.getAuthHeaders(),
+                auth: true,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ settings, merge: false })
             });
             

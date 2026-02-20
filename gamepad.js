@@ -96,9 +96,9 @@ const GamepadController = {
         
         // Flag gamepad usage on the visit record
         if (window._visitId) {
-            fetch(`${AppConfig.GAME_API}/visit/${window._visitId}/gamepad`, {
-                method: 'PATCH'
-            }).catch(() => {});
+            apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/gamepad`, {
+                method: 'PATCH', silent: true, timeout: 5000
+            });
         }
         
         // Show notification to player
