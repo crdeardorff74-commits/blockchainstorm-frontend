@@ -1314,20 +1314,41 @@ if ('serviceWorker' in navigator) {
         }
     }
 
-    // Primary: listen for explicit SW_UPDATED message (sent after activate + claim)
+    // Listen for explicit SW_UPDATED message (sent after activate + claim)
     navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'SW_UPDATED') {
+            console.log('📦 PWA: Received SW_UPDATED message for v' + event.data.version);
             handleUpdate(event.data.version);
         }
     });
 
-    // Fallback: detect when a new SW takes control of this page
+    // Detect when a new SW takes control of this page
     navigator.serviceWorker.addEventListener('controllerchange', function() {
+        console.log('📦 PWA: Controller changed');
         handleUpdate();
     });
 
     navigator.serviceWorker.register('/sw.js')
-        .then(function(reg) { console.log('📦 PWA: Service worker registered'); })
+        .then(function(reg) {
+            console.log('📦 PWA: Service worker registered (active: ' +
+                (reg.active ? 'yes' : 'no') + ', waiting: ' +
+                (reg.waiting ? 'yes' : 'no') + ')');
+
+            // Detect when a new SW is found and track its lifecycle
+            reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                console.log('📦 PWA: Update found, new worker installing...');
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', function() {
+                        console.log('📦 PWA: New worker state: ' + newWorker.state);
+                        if (newWorker.state === 'activated') {
+                            console.log('📦 PWA: New worker activated, triggering update');
+                            handleUpdate();
+                        }
+                    });
+                }
+            });
+        })
         .catch(function(err) { console.log('PWA: SW registration failed:', err); });
 }
 </script>
