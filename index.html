@@ -1314,11 +1314,20 @@ if ('serviceWorker' in navigator) {
         }
     }
 
-    // Listen for explicit SW_UPDATED message (sent after activate + claim)
+    // The version this page was built/cached with (must match sw.js APP_VERSION at deploy time)
+    var PAGE_VERSION = '3.41';
+
+    // Listen for messages from SW (update notifications + version responses)
     navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'SW_UPDATED') {
             console.log('📦 PWA: Received SW_UPDATED message for v' + event.data.version);
             handleUpdate(event.data.version);
+        }
+        if (event.data && event.data.type === 'SW_VERSION') {
+            console.log('📦 PWA: SW reports v' + event.data.version + ', page is v' + PAGE_VERSION);
+            if (event.data.version !== PAGE_VERSION) {
+                handleUpdate(event.data.version);
+            }
         }
     });
 
@@ -1332,7 +1341,7 @@ if ('serviceWorker' in navigator) {
         .then(function(reg) {
             console.log('📦 PWA: Service worker registered (active: ' +
                 (reg.active ? 'yes' : 'no') + ', waiting: ' +
-                (reg.waiting ? 'yes' : 'no') + ')');
+                (reg.waiting ? 'yes' : 'no') + ', page v' + PAGE_VERSION + ')');
 
             // Detect when a new SW is found and track its lifecycle
             reg.addEventListener('updatefound', function() {
@@ -1342,12 +1351,17 @@ if ('serviceWorker' in navigator) {
                     newWorker.addEventListener('statechange', function() {
                         console.log('📦 PWA: New worker state: ' + newWorker.state);
                         if (newWorker.state === 'activated') {
-                            console.log('📦 PWA: New worker activated, triggering update');
                             handleUpdate();
                         }
                     });
                 }
             });
+
+            // If a SW is already active, ask it for its version.
+            // Catches the case where the SW updated before the page's listeners were ready.
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' });
+            }
         })
         .catch(function(err) { console.log('PWA: SW registration failed:', err); });
 }

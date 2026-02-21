@@ -1,6 +1,6 @@
 // TaNTЯiS Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '3.40';
+const APP_VERSION = '3.41';
 const CACHE_NAME = `tantris-v${APP_VERSION}`;
 
 // Core files to cache for offline play
@@ -66,6 +66,13 @@ self.addEventListener('activate', (event) => {
             });
         })
     );
+});
+
+// Respond to version queries from the page
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'GET_VERSION') {
+        event.source.postMessage({ type: 'SW_VERSION', version: APP_VERSION });
+    }
 });
 
 // Fetch: network-first for API calls, cache-first for assets
