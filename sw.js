@@ -84,10 +84,18 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Redirect old tantris domain to new tantro domain (navigation requests only)
+    // Old domain: unregister SW and redirect to new domain
     if (url.hostname === 'tantris.official-intelligence.art' && event.request.mode === 'navigate') {
         const newUrl = 'https://tantro.official-intelligence.art' + url.pathname + url.search + url.hash;
-        event.respondWith(Response.redirect(newUrl, 301));
+        const html = '<!DOCTYPE html><html><head><title>Redirecting...</title></head><body>' +
+            '<script>navigator.serviceWorker.getRegistrations().then(function(regs){' +
+            'Promise.all(regs.map(function(r){return r.unregister()})).then(function(){' +
+            'window.location.replace("' + newUrl + '")})});<\/script>' +
+            '<noscript><meta http-equiv="refresh" content="0;url=' + newUrl + '"></noscript>' +
+            'Redirecting to <a href="' + newUrl + '">TANTЯO</a>...</body></html>';
+        event.respondWith(new Response(html, {
+            headers: { 'Content-Type': 'text/html' }
+        }));
         return;
     }
 
