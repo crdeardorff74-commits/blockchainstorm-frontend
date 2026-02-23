@@ -1,6 +1,6 @@
 // TANTЯO Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '3.41';
+const APP_VERSION = '3.42';
 const CACHE_NAME = `tantro-v${APP_VERSION}`;
 
 // Core files to cache for offline play
@@ -78,6 +78,13 @@ self.addEventListener('message', (event) => {
 // Fetch: network-first for API calls, cache-first for assets
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    // Redirect old tantris domain to new tantro domain
+    if (url.hostname === 'tantris.official-intelligence.art') {
+        const newUrl = 'https://tantro.official-intelligence.art' + url.pathname + url.search + url.hash;
+        event.respondWith(Response.redirect(newUrl, 301));
+        return;
+    }
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
