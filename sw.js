@@ -1,6 +1,6 @@
 // TANTЯO Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '3.42';
+const APP_VERSION = '3.43';
 const CACHE_NAME = `tantro-v${APP_VERSION}`;
 
 // Core files to cache for offline play
@@ -28,8 +28,13 @@ const CORE_ASSETS = [
     '/favicon.ico'
 ];
 
-// Install: cache core assets
+// Install: cache core assets (skip on old domain — assets redirect cross-origin and break caching)
 self.addEventListener('install', (event) => {
+    if (self.location.hostname === 'tantris.official-intelligence.art') {
+        console.log('📦 PWA: Old domain detected, skipping cache — will redirect');
+        self.skipWaiting();
+        return;
+    }
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('📦 PWA: Caching core assets for v' + APP_VERSION);
