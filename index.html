@@ -59,6 +59,17 @@
         </div>
     </div>
     <script>
+        // Redirect old domain to new domain (runs before service worker)
+        if (location.hostname === 'tantris.official-intelligence.art') {
+            // Unregister old service workers so they stop serving cached content
+            if (navigator.serviceWorker) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    regs.forEach(function(r) { r.unregister(); });
+                });
+            }
+            location.replace('https://tantro.official-intelligence.art' + location.pathname + location.search + location.hash);
+        }
+
         // Migrate localStorage keys from tantris_* to tantro_* (one-time)
         if (!localStorage.getItem('tantro_migrated')) {
             var keys = [];
