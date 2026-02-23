@@ -1,7 +1,7 @@
 /**
  * Official Intelligence - Auth Module
  * Shared authentication functions for all pages
- * Modified for TaNTЯiS game integration
+ * Modified for TANTЯO game integration
  */
 
 const AUTH_API_URL = AppConfig.AUTH_API;

@@ -1,0 +1,2 @@
+# Redirect old tantris subdomain to new tantro subdomain
+https://tantris.official-intelligence.art/* https://tantro.official-intelligence.art/:splat 301!

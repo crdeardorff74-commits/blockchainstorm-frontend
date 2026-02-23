@@ -1,5 +1,5 @@
 /**
- * TaNTЯiS - Internationalization Module
+ * TANTЯO - Internationalization Module
  * Handles language detection, translation lookups, and DOM translation
  */
 
@@ -245,7 +245,7 @@ const I18n = (() => {
             
             // Share Popup
             'share.title': 'ENJOYING THE GAME?',
-            'share.subtitle': 'TaNTЯiS is completely free to play! All I ask<br>is that you share it with your friends:',
+            'share.subtitle': 'TANTЯO is completely free to play! All I ask<br>is that you share it with your friends:',
             'share.copyLink': 'Copy Link',
             'share.copied': 'Copied!',
             'share.dontShowAgain': "Don't show this again",
@@ -254,7 +254,7 @@ const I18n = (() => {
             'share.reddit': 'Reddit',
             'share.whatsapp': 'WhatsApp',
             'share.telegram': 'Telegram',
-            'share.text': 'Check out TaNTЯiS - a wild twist on classic falling blocks with tsunamis, black holes, and cosmic disasters!',
+            'share.text': 'Check out TANTЯO - a wild twist on classic falling blocks with tsunamis, black holes, and cosmic disasters!',
             
             // Rotate Device
             'rotate.message': 'Rotate your device to landscape mode',
@@ -470,11 +470,11 @@ const I18n = (() => {
             'login.loginLink': 'Iniciar Sesión',
             'login.logout': 'CERRAR SESIÓN',
             'share.title': '¿TE GUSTA EL JUEGO?',
-            'share.subtitle': '¡TaNTЯiS es completamente gratis! Solo te pido<br>que lo compartas con tus amigos:',
+            'share.subtitle': '¡TANTЯO es completamente gratis! Solo te pido<br>que lo compartas con tus amigos:',
             'share.copyLink': 'Copiar Enlace',
             'share.copied': '¡Copiado!',
             'share.dontShowAgain': 'No mostrar de nuevo',
-            'share.text': '¡Prueba TaNTЯiS, un giro salvaje al clásico de bloques con tsunamis, agujeros negros y desastres cósmicos!',
+            'share.text': '¡Prueba TANTЯO, un giro salvaje al clásico de bloques con tsunamis, agujeros negros y desastres cósmicos!',
             'rotate.message': 'Gira tu dispositivo a modo horizontal',
             'ai.modeOverlay': '🤖 MODO IA',
             'misc.paused': 'PAUSADO', 'misc.speedBonusLabel': 'Bonif. Velocidad', 'misc.cascadeBonus': 'Bonus Cascada x{multiplier}', 'misc.supermassiveBlackHole': 'Agujero Negro Supermasivo x2', 'misc.superVolcano': 'Supervolcán x2', 'misc.touchdownBonus': 'Bonus Aterrizaje ₿{bonus}.0',
@@ -668,11 +668,11 @@ const I18n = (() => {
             'login.loginLink': 'Connexion',
             'login.logout': 'DÉCONNEXION',
             'share.title': 'VOUS AIMEZ LE JEU ?',
-            'share.subtitle': 'TaNTЯiS est entièrement gratuit ! Tout ce que je demande,<br>c\'est de le partager avec vos amis :',
+            'share.subtitle': 'TANTЯO est entièrement gratuit ! Tout ce que je demande,<br>c\'est de le partager avec vos amis :',
             'share.copyLink': 'Copier le Lien',
             'share.copied': 'Copié !',
             'share.dontShowAgain': 'Ne plus afficher',
-            'share.text': 'Découvrez TaNTЯiS, un twist dingue sur le classique des blocs avec tsunamis, trous noirs et catastrophes cosmiques !',
+            'share.text': 'Découvrez TANTЯO, un twist dingue sur le classique des blocs avec tsunamis, trous noirs et catastrophes cosmiques !',
             'rotate.message': 'Tournez votre appareil en mode paysage',
             'ai.modeOverlay': '🤖 MODE IA',
             'misc.paused': 'PAUSE', 'misc.speedBonusLabel': 'Bonus Vitesse', 'misc.cascadeBonus': 'Bonus Cascade x{multiplier}', 'misc.supermassiveBlackHole': 'Trou Noir Supermassif x2', 'misc.superVolcano': 'Supervolcan x2', 'misc.touchdownBonus': 'Bonus Atterrissage ₿{bonus}.0',
@@ -866,11 +866,11 @@ const I18n = (() => {
             'login.loginLink': 'Anmelden',
             'login.logout': 'ABMELDEN',
             'share.title': 'GEFÄLLT DIR DAS SPIEL?',
-            'share.subtitle': 'TaNTЯiS ist völlig kostenlos! Alles, worum ich bitte,<br>ist es mit deinen Freunden zu teilen:',
+            'share.subtitle': 'TANTЯO ist völlig kostenlos! Alles, worum ich bitte,<br>ist es mit deinen Freunden zu teilen:',
             'share.copyLink': 'Link Kopieren',
             'share.copied': 'Kopiert!',
             'share.dontShowAgain': 'Nicht mehr anzeigen',
-            'share.text': 'Probier TaNTЯiS - ein irrer Twist auf den Blockklassiker mit Tsunamis, Schwarzen Löchern und kosmischen Katastrophen!',
+            'share.text': 'Probier TANTЯO - ein irrer Twist auf den Blockklassiker mit Tsunamis, Schwarzen Löchern und kosmischen Katastrophen!',
             'rotate.message': 'Gerät ins Querformat drehen',
             'ai.modeOverlay': '🤖 KI-MODUS',
             'misc.paused': 'PAUSE', 'misc.speedBonusLabel': 'Geschw.-Bonus', 'misc.cascadeBonus': 'Kaskaden-Bonus x{multiplier}', 'misc.supermassiveBlackHole': 'Supermassives Schwarzes Loch x2', 'misc.superVolcano': 'Supervulkan x2', 'misc.touchdownBonus': 'Touchdown-Bonus ₿{bonus}.0',
@@ -960,9 +960,9 @@ const I18n = (() => {
             'login.title': 'ENTRAR', 'login.register': 'REGISTRAR', 'login.username': 'USUÁRIO', 'login.email': 'E-MAIL', 'login.password': 'SENHA',
             'login.forgotPassword': 'Esqueceu a senha?', 'login.enter': 'ENTRAR', 'login.createAccount': 'CRIAR CONTA', 'login.or': 'OU',
             'login.continueGoogle': 'Continuar com Google', 'login.noAccount': 'Sem conta?', 'login.signUp': 'Cadastrar', 'login.alreadyHaveAccount': 'Já tem conta?', 'login.loginLink': 'Entrar', 'login.logout': 'SAIR',
-            'share.title': 'CURTINDO O JOGO?', 'share.subtitle': 'TaNTЯiS é totalmente gratuito! Tudo que peço<br>é que você compartilhe com seus amigos:',
+            'share.title': 'CURTINDO O JOGO?', 'share.subtitle': 'TANTЯO é totalmente gratuito! Tudo que peço<br>é que você compartilhe com seus amigos:',
             'share.copyLink': 'Copiar Link', 'share.copied': 'Copiado!', 'share.dontShowAgain': 'Não mostrar novamente',
-            'share.text': 'Confira TaNTЯiS, uma versão maluca do clássico de blocos com tsunamis, buracos negros e desastres cósmicos!',
+            'share.text': 'Confira TANTЯO, uma versão maluca do clássico de blocos com tsunamis, buracos negros e desastres cósmicos!',
             'rotate.message': 'Gire o dispositivo para o modo paisagem', 'ai.modeOverlay': '🤖 MODO IA',
             'misc.paused': 'PAUSADO', 'misc.speedBonusLabel': 'Bônus Velocidade', 'misc.cascadeBonus': 'Bônus Cascata x{multiplier}', 'misc.supermassiveBlackHole': 'Buraco Negro Supermassivo x2', 'misc.superVolcano': 'Supervulcão x2', 'misc.touchdownBonus': 'Bônus Touchdown ₿{bonus}.0', 'planet.gravity': 'Gravidade:', 'planet.day': 'Dia:', 'planet.temperature': 'Temperatura:', 'planet.year': 'Ano:', 'planet.moons': 'Luas:', 'planet.to': 'a', 'planet.earth': 'Terra',
             'misc.bugReportSuccess': '✅ Relatório enviado!', 'misc.bugReportFail': '❌ Falha no envio',
@@ -1043,9 +1043,9 @@ const I18n = (() => {
             'login.title': 'ログイン', 'login.register': '新規登録', 'login.username': 'ユーザー名', 'login.email': 'メール', 'login.password': 'パスワード',
             'login.forgotPassword': 'パスワードを忘れた？', 'login.enter': '入る', 'login.createAccount': 'アカウント作成', 'login.or': 'または',
             'login.continueGoogle': 'Googleで続ける', 'login.noAccount': 'アカウントがない？', 'login.signUp': '登録', 'login.alreadyHaveAccount': 'アカウントをお持ちの方', 'login.loginLink': 'ログイン', 'login.logout': 'ログアウト',
-            'share.title': 'ゲームを楽しんでいますか？', 'share.subtitle': 'TaNTЯiSは完全無料です！お願いは<br>友達にシェアしていただくことだけです：',
+            'share.title': 'ゲームを楽しんでいますか？', 'share.subtitle': 'TANTЯOは完全無料です！お願いは<br>友達にシェアしていただくことだけです：',
             'share.copyLink': 'リンクをコピー', 'share.copied': 'コピーしました！', 'share.dontShowAgain': '今後表示しない',
-            'share.text': 'TaNTЯiSをチェック！津波、ブラックホール、宇宙の災害が加わった斬新なブロックパズル！',
+            'share.text': 'TANTЯOをチェック！津波、ブラックホール、宇宙の災害が加わった斬新なブロックパズル！',
             'rotate.message': '横向きにしてください', 'ai.modeOverlay': '🤖 AIモード',
             'misc.paused': '一時停止', 'misc.speedBonusLabel': '速度ボーナス', 'misc.cascadeBonus': 'カスケードボーナス x{multiplier}', 'misc.supermassiveBlackHole': '超大質量ブラックホール x2', 'misc.superVolcano': 'スーパーボルケーノ x2', 'misc.touchdownBonus': 'タッチダウンボーナス ₿{bonus}.0', 'planet.gravity': '重力:', 'planet.day': '自転:', 'planet.temperature': '温度:', 'planet.year': '公転:', 'planet.moons': '衛星:', 'planet.to': '〜',
             'misc.bugReportSuccess': '✅ レポート送信完了！', 'misc.bugReportFail': '❌ 送信失敗',
@@ -1115,9 +1115,9 @@ const I18n = (() => {
             'login.title': '로그인', 'login.register': '회원가입', 'login.username': '사용자명', 'login.email': '이메일', 'login.password': '비밀번호',
             'login.forgotPassword': '비밀번호를 잊으셨나요?', 'login.enter': '입장', 'login.createAccount': '계정 만들기', 'login.or': '또는',
             'login.continueGoogle': 'Google로 계속', 'login.noAccount': '계정이 없으신가요?', 'login.signUp': '가입', 'login.alreadyHaveAccount': '이미 계정이 있나요?', 'login.loginLink': '로그인', 'login.logout': '로그아웃',
-            'share.title': '게임이 재미있나요?', 'share.subtitle': 'TaNTЯiS는 완전 무료입니다! 부탁드리는 건<br>친구들과 공유해 주시는 것뿐입니다:',
+            'share.title': '게임이 재미있나요?', 'share.subtitle': 'TANTЯO는 완전 무료입니다! 부탁드리는 건<br>친구들과 공유해 주시는 것뿐입니다:',
             'share.copyLink': '링크 복사', 'share.copied': '복사됨!', 'share.dontShowAgain': '다시 표시하지 않기',
-            'share.text': 'TaNTЯiS를 확인하세요! 쓰나미, 블랙홀, 우주 재해가 가미된 블록 퍼즐!',
+            'share.text': 'TANTЯO를 확인하세요! 쓰나미, 블랙홀, 우주 재해가 가미된 블록 퍼즐!',
             'rotate.message': '기기를 가로 모드로 회전하세요', 'ai.modeOverlay': '🤖 AI 모드',
             'misc.paused': '일시정지', 'misc.speedBonusLabel': '속도 보너스', 'misc.cascadeBonus': '연쇄 보너스 x{multiplier}', 'misc.supermassiveBlackHole': '초대질량 블랙홀 x2', 'misc.superVolcano': '슈퍼화산 x2', 'misc.touchdownBonus': '터치다운 보너스 ₿{bonus}.0', 'planet.gravity': '중력:', 'planet.day': '하루:', 'planet.temperature': '온도:', 'planet.year': '공전:', 'planet.moons': '위성:', 'planet.to': '~',
             'misc.bugReportSuccess': '✅ 보고서 전송 완료!', 'misc.bugReportFail': '❌ 전송 실패',
@@ -1187,9 +1187,9 @@ const I18n = (() => {
             'login.title': '登录', 'login.register': '注册', 'login.username': '用户名', 'login.email': '邮箱', 'login.password': '密码',
             'login.forgotPassword': '忘记密码？', 'login.enter': '进入', 'login.createAccount': '创建账户', 'login.or': '或',
             'login.continueGoogle': '使用Google继续', 'login.noAccount': '没有账户？', 'login.signUp': '注册', 'login.alreadyHaveAccount': '已有账户？', 'login.loginLink': '登录', 'login.logout': '退出',
-            'share.title': '喜欢这个游戏吗？', 'share.subtitle': 'TaNTЯiS完全免费！我只希望<br>您能分享给朋友们：',
+            'share.title': '喜欢这个游戏吗？', 'share.subtitle': 'TANTЯO完全免费！我只希望<br>您能分享给朋友们：',
             'share.copyLink': '复制链接', 'share.copied': '已复制！', 'share.dontShowAgain': '不再显示',
-            'share.text': '试试TaNTЯiS，带有海啸、黑洞和宇宙灾害的疯狂方块游戏！',
+            'share.text': '试试TANTЯO，带有海啸、黑洞和宇宙灾害的疯狂方块游戏！',
             'rotate.message': '请将设备旋转至横屏', 'ai.modeOverlay': '🤖 AI模式',
             'misc.paused': '已暂停', 'misc.speedBonusLabel': '速度奖励', 'misc.cascadeBonus': '连锁奖励 x{multiplier}', 'misc.supermassiveBlackHole': '超大质量黑洞 x2', 'misc.superVolcano': '超级火山 x2', 'misc.touchdownBonus': '触地奖励 ₿{bonus}.0', 'planet.gravity': '重力:', 'planet.day': '一天:', 'planet.temperature': '温度:', 'planet.year': '一年:', 'planet.moons': '卫星:', 'planet.to': '至',
             'misc.bugReportSuccess': '✅ 报告已提交！', 'misc.bugReportFail': '❌ 提交失败',
@@ -1268,9 +1268,9 @@ const I18n = (() => {
             'login.title': 'ВХОД', 'login.register': 'РЕГИСТРАЦИЯ', 'login.username': 'ИМЯ', 'login.email': 'ПОЧТА', 'login.password': 'ПАРОЛЬ',
             'login.forgotPassword': 'Забыли пароль?', 'login.enter': 'ВОЙТИ', 'login.createAccount': 'СОЗДАТЬ АККАУНТ', 'login.or': 'ИЛИ',
             'login.continueGoogle': 'Войти через Google', 'login.noAccount': 'Нет аккаунта?', 'login.signUp': 'Регистрация', 'login.alreadyHaveAccount': 'Уже есть аккаунт?', 'login.loginLink': 'Войти', 'login.logout': 'ВЫЙТИ',
-            'share.title': 'НРАВИТСЯ ИГРА?', 'share.subtitle': 'TaNTЯiS полностью бесплатна! Всё, о чём прошу —<br>поделитесь игрой с друзьями:',
+            'share.title': 'НРАВИТСЯ ИГРА?', 'share.subtitle': 'TANTЯO полностью бесплатна! Всё, о чём прошу —<br>поделитесь игрой с друзьями:',
             'share.copyLink': 'Копировать', 'share.copied': 'Скопировано!', 'share.dontShowAgain': 'Больше не показывать',
-            'share.text': 'Попробуй TaNTЯiS — безумный блочный пазл с цунами, чёрными дырами и космическими катастрофами!',
+            'share.text': 'Попробуй TANTЯO — безумный блочный пазл с цунами, чёрными дырами и космическими катастрофами!',
             'rotate.message': 'Поверните устройство горизонтально', 'ai.modeOverlay': '🤖 РЕЖИМ ИИ',
             'misc.paused': 'ПАУЗА', 'misc.speedBonusLabel': 'Бонус Скорости', 'misc.cascadeBonus': 'Каскадный бонус x{multiplier}', 'misc.supermassiveBlackHole': 'Сверхмассивная Чёрная Дыра x2', 'misc.superVolcano': 'Супервулкан x2', 'misc.touchdownBonus': 'Бонус Тачдаун ₿{bonus}.0', 'planet.gravity': 'Гравитация:', 'planet.day': 'День:', 'planet.temperature': 'Температура:', 'planet.year': 'Год:', 'planet.moons': 'Спутники:', 'planet.to': 'до',
             'misc.bugReportSuccess': '✅ Отчёт отправлен!', 'misc.bugReportFail': '❌ Ошибка отправки',
@@ -1326,9 +1326,9 @@ const I18n = (() => {
             'login.title': 'ACCEDI', 'login.register': 'REGISTRATI', 'login.username': 'UTENTE', 'login.email': 'E-MAIL', 'login.password': 'PASSWORD',
             'login.forgotPassword': 'Password dimenticata?', 'login.enter': 'ENTRA', 'login.createAccount': 'CREA ACCOUNT', 'login.or': 'O',
             'login.continueGoogle': 'Continua con Google', 'login.noAccount': 'Non hai un account?', 'login.signUp': 'Registrati', 'login.alreadyHaveAccount': 'Hai già un account?', 'login.loginLink': 'Accedi', 'login.logout': 'ESCI',
-            'share.title': 'TI PIACE IL GIOCO?', 'share.subtitle': 'TaNTЯiS è completamente gratuito! Tutto ciò che chiedo<br>è di condividerlo con i tuoi amici:',
+            'share.title': 'TI PIACE IL GIOCO?', 'share.subtitle': 'TANTЯO è completamente gratuito! Tutto ciò che chiedo<br>è di condividerlo con i tuoi amici:',
             'share.copyLink': 'Copia Link', 'share.copied': 'Copiato!', 'share.dontShowAgain': 'Non mostrare più',
-            'share.text': 'Prova TaNTЯiS, una versione pazzesca del classico dei blocchi con tsunami, buchi neri e disastri cosmici!',
+            'share.text': 'Prova TANTЯO, una versione pazzesca del classico dei blocchi con tsunami, buchi neri e disastri cosmici!',
             'rotate.message': 'Ruota il dispositivo in orizzontale', 'ai.modeOverlay': '🤖 MODALITÀ IA',
             'misc.paused': 'PAUSA', 'misc.speedBonusLabel': 'Bonus Velocità', 'misc.cascadeBonus': 'Bonus Cascata x{multiplier}', 'misc.supermassiveBlackHole': 'Buco Nero Supermassiccio x2', 'misc.superVolcano': 'Supervulcano x2', 'misc.touchdownBonus': 'Bonus Touchdown ₿{bonus}.0',
             'planet.gravity': 'Gravità:', 'planet.day': 'Giorno:', 'planet.temperature': 'Temperatura:', 'planet.type': 'Tipo:', 'planet.radius': 'Raggio:', 'planet.year': 'Anno:', 'planet.moons': 'Lune:', 'planet.to': 'a', 'planet.earth': 'Terra', 'planet.gTypeStar': 'Stella di tipo G',
@@ -1351,7 +1351,7 @@ const I18n = (() => {
             'gameOver.title': 'GAME OVER', 'gameOver.finalScore': 'Eindscore: {score}', 'gameOver.lines': 'Rijen: {lines} | Level: {level}', 'gameOver.playAgain': 'Opnieuw',
             'settings.title': '⚙️ Instellingen', 'settings.language': 'Taal', 'settings.close': 'Sluiten',
             'controls.move': 'Bewegen', 'controls.moveLeft': 'Links', 'controls.moveRight': 'Rechts', 'controls.keyboard': '⌨️ Toetsenbord', 'controls.resetDefaults': 'Herstellen', 'controls.softDrop': 'Zacht Vallen', 'controls.hardDrop': 'Snel Vallen', 'controls.pause': 'Pauze', 'controls.title': '🎮 Besturing',
-            'share.title': 'LEUK SPEL?', 'share.subtitle': 'TaNTЯiS is helemaal gratis! Het enige wat ik vraag<br>is dat je het deelt met je vrienden:',
+            'share.title': 'LEUK SPEL?', 'share.subtitle': 'TANTЯO is helemaal gratis! Het enige wat ik vraag<br>is dat je het deelt met je vrienden:',
             'share.copyLink': 'Kopieer Link', 'share.copied': 'Gekopieerd!', 'share.dontShowAgain': 'Niet meer tonen',
             'misc.paused': 'GEPAUZEERD', 'misc.speedBonusLabel': 'Snelheidsbonus', 'misc.cascadeBonus': 'Cascade Bonus x{multiplier}', 'misc.supermassiveBlackHole': 'Supermassief Zwart Gat x2', 'misc.superVolcano': 'Supervulkaan x2', 'misc.touchdownBonus': 'Touchdown Bonus ₿{bonus}.0', 'planet.gravity': 'Zwaartekracht:', 'planet.day': 'Dag:', 'planet.temperature': 'Temperatuur:', 'planet.year': 'Jaar:', 'planet.moons': 'Manen:', 'planet.to': 'tot',
             'rotate.message': 'Draai je apparaat naar liggende modus',
@@ -1373,7 +1373,7 @@ const I18n = (() => {
             'gameOver.title': 'KONIEC GRY', 'gameOver.finalScore': 'Wynik Końcowy: {score}', 'gameOver.lines': 'Linie: {lines} | Poziom: {level}', 'gameOver.playAgain': 'Zagraj Ponownie',
             'settings.title': '⚙️ Ustawienia', 'settings.language': 'Język', 'settings.close': 'Zamknij',
             'controls.move': 'Ruch', 'controls.moveLeft': 'Lewo', 'controls.moveRight': 'Prawo', 'controls.keyboard': '⌨️ Klawiatura', 'controls.resetDefaults': 'Resetuj', 'controls.softDrop': 'Wolny Spadek', 'controls.hardDrop': 'Szybki Spadek', 'controls.pause': 'Pauza', 'controls.title': '🎮 Sterowanie',
-            'share.title': 'PODOBA CI SIĘ GRA?', 'share.subtitle': 'TaNTЯiS jest całkowicie darmowy! Proszę tylko<br>o podzielenie się z przyjaciółmi:',
+            'share.title': 'PODOBA CI SIĘ GRA?', 'share.subtitle': 'TANTЯO jest całkowicie darmowy! Proszę tylko<br>o podzielenie się z przyjaciółmi:',
             'share.copyLink': 'Kopiuj Link', 'share.copied': 'Skopiowano!', 'share.dontShowAgain': 'Nie pokazuj ponownie',
             'misc.paused': 'PAUZA', 'misc.speedBonusLabel': 'Bonus Prędkości', 'misc.cascadeBonus': 'Bonus Kaskadowy x{multiplier}', 'misc.supermassiveBlackHole': 'Supermasywna Czarna Dziura x2', 'misc.superVolcano': 'Superwulkan x2', 'misc.touchdownBonus': 'Bonus Touchdown ₿{bonus}.0', 'planet.gravity': 'Grawitacja:', 'planet.day': 'Dzień:', 'planet.temperature': 'Temperatura:', 'planet.year': 'Rok:', 'planet.moons': 'Księżyce:', 'planet.to': 'do',
             'rotate.message': 'Obróć urządzenie do trybu poziomego',
@@ -1395,7 +1395,7 @@ const I18n = (() => {
             'gameOver.title': 'OYUN BİTTİ', 'gameOver.finalScore': 'Son Puan: {score}', 'gameOver.lines': 'Satır: {lines} | Seviye: {level}', 'gameOver.playAgain': 'Tekrar Oyna',
             'settings.title': '⚙️ Ayarlar', 'settings.language': 'Dil', 'settings.close': 'Kapat',
             'controls.move': 'Hareket', 'controls.moveLeft': 'Sola', 'controls.moveRight': 'Sağa', 'controls.keyboard': '⌨️ Klavye', 'controls.resetDefaults': 'Sıfırla', 'controls.softDrop': 'Yavaş Düşüş', 'controls.hardDrop': 'Hızlı Düşüş', 'controls.pause': 'Duraklat', 'controls.title': '🎮 Kontroller',
-            'share.title': 'OYUNU BEĞENDİN Mİ?', 'share.subtitle': 'TaNTЯiS tamamen ücretsiz! Tek istediğim<br>arkadaşlarınızla paylaşmanız:',
+            'share.title': 'OYUNU BEĞENDİN Mİ?', 'share.subtitle': 'TANTЯO tamamen ücretsiz! Tek istediğim<br>arkadaşlarınızla paylaşmanız:',
             'share.copyLink': 'Linki Kopyala', 'share.copied': 'Kopyalandı!', 'share.dontShowAgain': 'Bir daha gösterme',
             'misc.paused': 'DURAKLATILDI', 'misc.speedBonusLabel': 'Hız Bonusu', 'misc.cascadeBonus': 'Kaskad Bonusu x{multiplier}', 'misc.supermassiveBlackHole': 'Süper Kütleli Kara Delik x2', 'misc.superVolcano': 'Süper Yanardağ x2', 'misc.touchdownBonus': 'Touchdown Bonusu ₿{bonus}.0', 'planet.gravity': 'Yerçekimi:', 'planet.day': 'Gün:', 'planet.temperature': 'Sıcaklık:', 'planet.year': 'Yıl:', 'planet.moons': 'Uydular:', 'planet.to': '-',
             'rotate.message': 'Cihazınızı yatay moda çevirin',
@@ -1417,7 +1417,7 @@ const I18n = (() => {
             'gameOver.title': 'انتهت اللعبة', 'gameOver.finalScore': 'النتيجة النهائية: {score}', 'gameOver.lines': 'الخطوط: {lines} | المستوى: {level}', 'gameOver.playAgain': 'العب مرة أخرى',
             'settings.title': '⚙️ الإعدادات', 'settings.language': 'اللغة', 'settings.close': 'إغلاق',
             'controls.move': 'تحريك', 'controls.moveLeft': 'يسار', 'controls.moveRight': 'يمين', 'controls.keyboard': '⌨️ لوحة المفاتيح', 'controls.resetDefaults': 'إعادة تعيين', 'controls.softDrop': 'إسقاط بطيء', 'controls.hardDrop': 'إسقاط سريع', 'controls.pause': 'إيقاف', 'controls.title': '🎮 التحكم',
-            'share.title': 'أعجبتك اللعبة؟', 'share.subtitle': 'TaNTЯiS مجانية تماماً! كل ما أطلبه<br>هو مشاركتها مع أصدقائك:',
+            'share.title': 'أعجبتك اللعبة؟', 'share.subtitle': 'TANTЯO مجانية تماماً! كل ما أطلبه<br>هو مشاركتها مع أصدقائك:',
             'share.copyLink': 'نسخ الرابط', 'share.copied': 'تم النسخ!', 'share.dontShowAgain': 'لا تظهر مرة أخرى',
             'misc.paused': 'إيقاف مؤقت', 'misc.speedBonusLabel': 'مكافأة السرعة', 'misc.cascadeBonus': 'مكافأة التتابع x{multiplier}', 'misc.supermassiveBlackHole': 'ثقب أسود فائق الكتلة x2', 'misc.superVolcano': 'بركان خارق x2', 'misc.touchdownBonus': 'مكافأة الهبوط ₿{bonus}.0', 'planet.gravity': 'الجاذبية:', 'planet.day': 'اليوم:', 'planet.temperature': 'الحرارة:', 'planet.year': 'السنة:', 'planet.moons': 'الأقمار:', 'planet.to': 'إلى',
             'rotate.message': 'أدر جهازك إلى الوضع الأفقي',
@@ -1439,7 +1439,7 @@ const I18n = (() => {
             'gameOver.title': 'खेल खत्म', 'gameOver.finalScore': 'अंतिम स्कोर: {score}', 'gameOver.lines': 'पंक्तियाँ: {lines} | स्तर: {level}', 'gameOver.playAgain': 'फिर से खेलें',
             'settings.title': '⚙️ सेटिंग्स', 'settings.language': 'भाषा', 'settings.close': 'बंद करें',
             'controls.move': 'चलाएं', 'controls.moveLeft': 'बाएं', 'controls.moveRight': 'दाएं', 'controls.keyboard': '⌨️ कीबोर्ड', 'controls.resetDefaults': 'रीसेट', 'controls.softDrop': 'धीमी गिरावट', 'controls.hardDrop': 'तेज़ गिरावट', 'controls.pause': 'रोकें', 'controls.title': '🎮 नियंत्रण',
-            'share.title': 'खेल पसंद आया?', 'share.subtitle': 'TaNTЯiS पूरी तरह से मुफ़्त है! बस इतना चाहता हूँ<br>कि आप इसे अपने दोस्तों के साथ साझा करें:',
+            'share.title': 'खेल पसंद आया?', 'share.subtitle': 'TANTЯO पूरी तरह से मुफ़्त है! बस इतना चाहता हूँ<br>कि आप इसे अपने दोस्तों के साथ साझा करें:',
             'share.copyLink': 'लिंक कॉपी', 'share.copied': 'कॉपी हो गया!', 'share.dontShowAgain': 'दोबारा न दिखाएं',
             'misc.paused': 'रुका हुआ', 'misc.speedBonusLabel': 'गति बोनस', 'misc.cascadeBonus': 'कैस्केड बोनस x{multiplier}', 'misc.supermassiveBlackHole': 'महाविशाल ब्लैक होल x2', 'misc.superVolcano': 'महाज्वालामुखी x2', 'misc.touchdownBonus': 'टचडाउन बोनस ₿{bonus}.0', 'planet.gravity': 'गुरुत्वाकर्षण:', 'planet.day': 'दिन:', 'planet.temperature': 'तापमान:', 'planet.year': 'वर्ष:', 'planet.moons': 'चंद्रमा:', 'planet.to': 'से',
             'rotate.message': 'अपने डिवाइस को लैंडस्केप मोड में घुमाएं',
@@ -1455,7 +1455,7 @@ const I18n = (() => {
     
     function detectLanguage() {
         // Priority: localStorage override > navigator.language > 'en'
-        const saved = localStorage.getItem('tantris_language');
+        const saved = localStorage.getItem('tantro_language');
         if (saved && SUPPORTED_LANGUAGES[saved]) {
             return saved;
         }
@@ -1536,7 +1536,7 @@ const I18n = (() => {
     function setLanguage(lang) {
         if (!SUPPORTED_LANGUAGES[lang]) return;
         currentLang = lang;
-        localStorage.setItem('tantris_language', lang);
+        localStorage.setItem('tantro_language', lang);
         applyTranslations();
         Logger.info(`🌐 Language changed to: ${lang} (${SUPPORTED_LANGUAGES[lang]})`);
     }

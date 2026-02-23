@@ -107,7 +107,7 @@ let cameraReversed = false;
 // FIRST-TIME PLAYER HINT SYSTEM
 // ============================================
 const HintSystem = (() => {
-    const STORAGE_KEY = 'tantris_hints_shown';
+    const STORAGE_KEY = 'tantro_hints_shown';
     let hintStep = 0; // 0 = pending blob hint, 1 = waiting for 10 pieces, 2 = waiting for 20 pieces, 3 = done
     let currentHint = null;
     let pieceCount = 0;
@@ -1439,23 +1439,23 @@ function updateSongInfoDisplay(songInfo) {
     if (!songInfo) {
         songInfoElement.style.display = 'none';
         // Reset browser tab title when no song playing
-        document.title = 'TaNTЯiS';
+        document.title = 'TANTЯO';
         return;
     }
-    
+
     songInfoElement.style.display = 'flex';
-    
+
     const songNameEl = document.getElementById('songName');
     const songDurationEl = document.getElementById('songDuration');
     const prevBtn = document.getElementById('songPrevBtn');
     const pauseBtn = document.getElementById('songPauseBtn');
-    
+
     if (songNameEl) {
         songNameEl.textContent = songInfo.name;
     }
-    
+
     // Update browser tab title with current song
-    const gameTitle = 'TaNTЯiS';
+    const gameTitle = 'TANTЯO';
     document.title = `${gameTitle} - ${songInfo.name}`;
     
     if (songDurationEl && songInfo.duration > 0) {
@@ -1837,7 +1837,7 @@ const BLIZZARD_SHAPES = {
 };
 
 // Current palette ID - stored in localStorage
-let currentPaletteId = localStorage.getItem('tantris_palette') || 'classic';
+let currentPaletteId = localStorage.getItem('tantro_palette') || 'classic';
 
 // Dynamic COLORS and COLOR_SETS based on selected palette
 let COLORS = [];
@@ -1864,7 +1864,7 @@ function initColorsFromPalette(paletteId) {
     
     // Save to localStorage (skip during AI mode to preserve user preference)
     if (!aiModeEnabled) {
-        localStorage.setItem('tantris_palette', paletteId);
+        localStorage.setItem('tantro_palette', paletteId);
     }
     
     // Update currentColorSet based on current game mode
@@ -7591,7 +7591,7 @@ function checkForSpecialFormations() {
 }
 
 // ============================================================================
-// TaNTЯiS - COMPLETE GRAVITY SYSTEM (V2 - REWRITE)
+// TANTЯO - COMPLETE GRAVITY SYSTEM (V2 - REWRITE)
 // ============================================================================
 // Algorithm:
 // 1. Create phantom board
@@ -9627,7 +9627,7 @@ async function gameOver() {
                     recording: recording,
                     gameData: {
                         username: '🤖 Claude',
-                        game: 'tantris',
+                        game: 'tantro',
                         playerType: 'ai',
                         difficulty: gameMode,
                         skillLevel: skillLevel,
@@ -9662,7 +9662,7 @@ async function gameOver() {
                 pendingRecording = {
                     recording: recording,
                     gameData: {
-                        game: 'tantris',
+                        game: 'tantro',
                         playerType: 'human',
                         difficulty: gameMode,
                         skillLevel: skillLevel,
@@ -9741,8 +9741,8 @@ async function gameOver() {
     
     // Prepare score data for submission
     const scoreData = {
-        game: 'tantris',
-        gameTitle: 'TaNTЯiS',
+        game: 'tantro',
+        gameTitle: 'TANTЯO',
         difficulty: gameMode,
         mode: isChallenge ? 'challenge' : 'normal',
         skillLevel: skillLevel,
@@ -9843,7 +9843,7 @@ async function gameOver() {
         }
         // Submit pending recording with stored username or Anonymous
         if (typeof window.submitPendingRecording === 'function') {
-            const storedUsername = localStorage.getItem('tantris_username') || 'Anonymous';
+            const storedUsername = localStorage.getItem('tantro_username') || 'Anonymous';
             window.submitPendingRecording(storedUsername);
         }
     }
@@ -10753,7 +10753,7 @@ function startGame(mode) {
     }
     
     // Save selected difficulty to localStorage for persistence
-    localStorage.setItem('tantris_difficulty', mode);
+    localStorage.setItem('tantro_difficulty', mode);
     
     // Clear the highlighted score from previous game
     if (window.leaderboard && window.leaderboard.clearLastPlayerScore) {
@@ -11516,7 +11516,7 @@ modeButtons.forEach(button => {
 
 // Keyboard navigation setup for mode menu
 // Load saved difficulty preference from localStorage
-const savedDifficulty = localStorage.getItem('tantris_difficulty');
+const savedDifficulty = localStorage.getItem('tantro_difficulty');
 let selectedModeIndex = 0;
 const modeButtonsArray = Array.from(modeButtons);
 
@@ -11620,7 +11620,7 @@ if (rulesPanelViewSelect) {
 let sessionPlayAgainCount = 0;
 
 function getShareURL() {
-    return 'https://tantris.official-intelligence.art/';
+    return 'https://tantro.official-intelligence.art/';
 }
 
 function getShareText() {
@@ -11669,7 +11669,7 @@ function trackShareClick(platform) {
 }
 
 function showSharePopup() {
-    if (localStorage.getItem('tantris_share_dismissed') === 'true') return false;
+    if (localStorage.getItem('tantro_share_dismissed') === 'true') return false;
     
     const overlay = document.getElementById('shareOverlay');
     if (!overlay) return false;
@@ -11695,7 +11695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (shareDismissBtn) {
         shareDismissBtn.addEventListener('click', () => {
-            localStorage.setItem('tantris_share_dismissed', 'true');
+            localStorage.setItem('tantro_share_dismissed', 'true');
             hideSharePopup();
         });
     }
@@ -11966,7 +11966,7 @@ if (aiModeToggle) {
                 stopAITuningMode();
             }
             // Restore user's saved palette
-            const savedPalette = localStorage.getItem('tantris_palette') || 'classic';
+            const savedPalette = localStorage.getItem('tantro_palette') || 'classic';
             if (savedPalette !== currentPaletteId) {
                 selectPalette(savedPalette);
             }
@@ -12427,7 +12427,7 @@ if (difficultyModalOverlay) {
                     selectedModeIndex = idx;
                     updateSelectedMode();
                 }
-                localStorage.setItem('tantris_difficulty', mode);
+                localStorage.setItem('tantro_difficulty', mode);
                 updateDifficultyButton();
                 difficultyModalOverlay.style.display = 'none';
             }
@@ -13004,7 +13004,7 @@ document.addEventListener('keydown', (e) => {
 }, { once: true });
 
 // Initialize high score system
-Logger.info('🏆 TaNTЯiS High Score System Initialized');
+Logger.info('🏆 TANTЯO High Score System Initialized');
 Logger.debug('💡 To test high score prompt in console, type: testHighScore(1000000)');
 Logger.debug('📊 Leaderboard uses server if available, falls back to local storage');
 

@@ -1,5 +1,5 @@
 /**
- * Controls Configuration Module for TaNTЯiS
+ * Controls Configuration Module for TANTЯO
  * Allows players to customize keyboard and gamepad controls
  */
 

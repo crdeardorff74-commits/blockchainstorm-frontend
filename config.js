@@ -1,5 +1,5 @@
 /**
- * Centralized configuration for TaNTЯiS
+ * Centralized configuration for TANTЯO
  * All API endpoints, shared utilities, and external URLs in one place.
  * This file must be loaded before all other scripts.
  */

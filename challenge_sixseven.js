@@ -1,5 +1,5 @@
 /**
- * challenge_sixseven.js - Six Seven challenge for TaNTЯiS
+ * challenge_sixseven.js - Six Seven challenge for TANTЯO
  * 
  * After every 6 or 7 lines cleared, a giant hexomino (6-block) or
  * heptomino (7-block) piece is injected into the next-piece queue.

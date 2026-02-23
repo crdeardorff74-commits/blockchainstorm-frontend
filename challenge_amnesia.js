@@ -1,5 +1,5 @@
 /**
- * challenge_amnesia.js - Amnesia challenge for TaNTЯiS
+ * challenge_amnesia.js - Amnesia challenge for TANTЯO
  * 
  * Block colors slowly fade to white after placement, hiding their true color.
  * The underlying board color is never modified — blobs, scoring, and special

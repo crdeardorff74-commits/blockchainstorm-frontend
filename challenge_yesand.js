@@ -1,5 +1,5 @@
 /**
- * challenge_yesand.js - Yes, And... challenge for TaNTЯiS
+ * challenge_yesand.js - Yes, And... challenge for TANTЯO
  * 
  * After each piece lands, a random extra block ("limb") spawns adjacent
  * to the blob the piece joined, extending it in a random direction.

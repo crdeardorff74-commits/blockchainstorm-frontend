@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>TaNTЯiS</title>
+    <title>TANTЯO</title>
 
 	
-	<meta name="description" content="Play TaNTЯiS, a revolutionary twist on classic Tetris. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
+	<meta name="description" content="Play TANTЯO, a revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
 	<meta name="keywords" content="Tetris, block puzzle game, falling blocks, free online game, browser game, puzzle game, AI game, space game">
 	<meta name="robots" content="index, follow">
 	<link rel="canonical" href="https://blockchainstorm.official-intelligence.art/">
 
 	<!-- Open Graph -->
 	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://tantris.official-intelligence.art/">
-	<meta property="og:title" content="TaNTЯiS - Free Online Falling Blocks Game">
+	<meta property="og:url" content="https://tantro.official-intelligence.art/">
+	<meta property="og:title" content="TANTЯO - Free Online Falling Blocks Game">
 	<meta property="og:description" content="A revolutionary twist on classic Tetris. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.">
 	<meta property="og:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
 
 	<!-- Twitter -->
 	<meta name="twitter:card" content="summary_large_image">
-	<meta name="twitter:title" content="TaNTЯiS - Free Online Falling Blocks Game">
+	<meta name="twitter:title" content="TANTЯO - Free Online Falling Blocks Game">
 	<meta name="twitter:description" content="A revolutionary twist on classic Tetris. Journey through the solar system and compete on global leaderboards.">
 	<meta name="twitter:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
     
     <!-- iOS Standalone Mode (Add to Home Screen) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="TaNTЯiS">
+    <meta name="apple-mobile-web-app-title" content="TANTЯO">
     
     <!-- Android/Chrome PWA -->
     <meta name="mobile-web-app-capable" content="yes">
@@ -59,23 +59,38 @@
         </div>
     </div>
     <script>
-        // Game title — always TaNTЯiS
-        document.title = 'TaNTЯiS';
-        window.GAME_TITLE = 'TaNTЯiS';
+        // Migrate localStorage keys from tantris_* to tantro_* (one-time)
+        if (!localStorage.getItem('tantro_migrated')) {
+            var keys = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                keys.push(localStorage.key(i));
+            }
+            keys.forEach(function(key) {
+                if (key.indexOf('tantris_') === 0) {
+                    var newKey = 'tantro_' + key.slice(8);
+                    if (!localStorage.getItem(newKey)) {
+                        localStorage.setItem(newKey, localStorage.getItem(key));
+                    }
+                }
+            });
+            localStorage.setItem('tantro_migrated', '1');
+        }
 
-        // Show tantris titles (they have inline display:none for flash prevention)
+        // Game title — always TANTЯO
+        document.title = 'TANTЯO';
+        window.GAME_TITLE = 'TANTЯO';
+
+        // Show tantro titles (they have inline display:none for flash prevention)
         document.addEventListener('DOMContentLoaded', function() {
-            var t = document.getElementById('title-tantris');
+            var t = document.getElementById('title-tantro');
             if (t) t.style.display = '';
-            var ti = document.getElementById('title-tantris-intro');
+            var ti = document.getElementById('title-tantro-intro');
             if (ti) ti.style.display = '';
         });
     </script>
     <div class="start-overlay" id="startOverlay">
         <!-- button class="login-btn" id="introLoginBtn">🔑 Login</button -->
-        <div class="intro-title well-title" id="title-tantris-intro" style="display: none;">
-                    T<span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">a</span>NT<span style="-webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">Я</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">i</span>S
-        </div>
+        <div class="intro-title well-title" id="title-tantro-intro" style="display: none;">TANTЯO</div>
         <div class="intro-controls" id="introControls">
             <!-- Skill Level + Difficulty row (side-by-side on phones) -->
             <div class="intro-dropdowns-row">
@@ -204,9 +219,7 @@
             <canvas id="gameCanvas" width="350" height="700"></canvas>
             </div>
             <div class="mode-menu" id="modeMenu">
-                <div class="well-title" id="title-tantris" style="display: none;">
-                    T<span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">a</span>NT<span style="-webkit-text-fill-color: #FFA500; color: #FFA500; background: none;">Я</span><span style="-webkit-text-fill-color: #FFE87C; color: #FFE87C; background: none; filter: drop-shadow(0 0 0.3vh rgba(255, 232, 124, 0.8));">i</span>S
-                </div>
+                <div class="well-title" id="title-tantro" style="display: none;">TANTЯO</div>
                 
                 <div class="menu-dropdown-group">
                     <!-- Skill Level dropdown button -->
@@ -274,7 +287,7 @@
                     <button class="share-close" id="shareCloseBtn">&times;</button>
                     <div class="share-emoji">🚀</div>
                     <div class="share-title" data-i18n="share.title">ENJOYING THE GAME?</div>
-                    <div class="share-subtitle" data-i18n-html="share.subtitle">Share TaNTЯiS with your friends and<br>see who can top the leaderboard!</div>
+                    <div class="share-subtitle" data-i18n-html="share.subtitle">Share TANTЯO with your friends and<br>see who can top the leaderboard!</div>
                     <div class="share-grid">
                         <a class="share-btn x-twitter" id="shareTwitter" href="#" target="_blank" rel="noopener" title="Share on X">
                             <svg viewBox="0 0 24 24" fill="#c0c8d8"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -377,7 +390,7 @@
                         
                         <div class="soundtrack-section">
                             <div class="soundtrack-heading">Soundtrack Available On</div>
-                            <div class="soundtrack-title">Music from the Motion Blocks Game TaNTЯiS</div>
+                            <div class="soundtrack-title">Music from the Motion Blocks Game TANTЯO</div>
                             <div class="soundtrack-links">
                                 <a href="https://open.spotify.com/album/2bOWsC0XXpXBzeJ09MzQmz" target="_blank" class="soundtrack-link">
                                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
@@ -1188,7 +1201,7 @@
 	            separator.textContent = '──────────';
 	            select.appendChild(separator);
 	            
-	            // Add menu song (TaNTЯiS)
+	            // Add menu song (TANTЯO)
 	            songLists.menu.forEach(song => {
 	                const option = document.createElement('option');
 	                option.value = song.id;

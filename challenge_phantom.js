@@ -1,5 +1,5 @@
 /**
- * challenge_phantom.js - Phantom challenge for TaNTЯiS
+ * challenge_phantom.js - Phantom challenge for TANTЯO
  * 
  * The board stack is invisible most of the time. When a piece is placed,
  * the stack flashes fully visible then quickly fades back to invisible.

@@ -1,6 +1,6 @@
 /**
  * touch-controls.js - Device Detection, Swipe Gestures, Touch Controls & Tablet Mode
- *                     for TaNTЯiS
+ *                     for TANTЯO
  *
  * Handles:
  *   - DeviceDetection: phone/tablet/desktop identification

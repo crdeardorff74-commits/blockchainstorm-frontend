@@ -1,5 +1,5 @@
 /**
- * challenge_oz.js - Oz challenge for TaNTЯiS
+ * challenge_oz.js - Oz challenge for TANTЯO
  *
  * Falling pieces are rendered in grayscale, hiding their true color
  * until they land. The board retains real colors — only the active

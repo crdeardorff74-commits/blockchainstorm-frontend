@@ -1,5 +1,5 @@
 /**
- * challenge_gremlins.js - Gremlins challenge for TaNTЯiS
+ * challenge_gremlins.js - Gremlins challenge for TANTЯO
  * 
  * After every 1-3 lines cleared, a gremlin either adds a random block
  * above the stack or removes one from it (50/50 chance). Removed blocks

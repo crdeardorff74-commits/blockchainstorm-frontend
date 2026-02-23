@@ -1,5 +1,5 @@
 /**
- * challenge_mercurial.js - Mercurial challenge for TaNTЯiS
+ * challenge_mercurial.js - Mercurial challenge for TANTЯO
  * 
  * The falling piece randomly changes color every 2-4 seconds while active.
  * A subtle sound plays on each color shift. Timer resets on each new piece.

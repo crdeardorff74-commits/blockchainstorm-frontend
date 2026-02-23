@@ -1,5 +1,5 @@
 /**
- * Settings Sync for TaNTЯiS
+ * Settings Sync for TANTЯO
  * Saves and restores game settings locally and syncs to server for logged-in users
  */
 
@@ -27,8 +27,8 @@
 
 const SettingsSync = {
     API_URL: AppConfig.AUTH_API,
-    GAME_NAME: 'tantris',
-    LOCAL_STORAGE_KEY: 'tantris_settings',
+    GAME_NAME: 'tantro',
+    LOCAL_STORAGE_KEY: 'tantro_settings',
     
     // Debounce timer for saving
     saveTimeout: null,
@@ -145,8 +145,8 @@ const SettingsSync = {
         });
         
         // Audio mute states from localStorage (managed by audio.js)
-        settings.musicMuted = localStorage.getItem('tantris_musicMuted') === 'true';
-        settings.sfxMuted = localStorage.getItem('tantris_sfxMuted') === 'true';
+        settings.musicMuted = localStorage.getItem('tantro_musicMuted') === 'true';
+        settings.sfxMuted = localStorage.getItem('tantro_sfxMuted') === 'true';
         
         // Controls configuration
         if (typeof ControlsConfig !== 'undefined' && ControlsConfig.getBindings) {
@@ -226,13 +226,13 @@ const SettingsSync = {
         // Apply volume settings via audio.js localStorage keys
         // These will be picked up when volume controls are created
         if (settings.musicVolumeSlider !== undefined) {
-            localStorage.setItem('tantris_musicVolume', (settings.musicVolumeSlider / 100).toString());
+            localStorage.setItem('tantro_musicVolume', (settings.musicVolumeSlider / 100).toString());
         }
         if (settings.sfxVolumeSlider !== undefined) {
-            localStorage.setItem('tantris_sfxVolume', (settings.sfxVolumeSlider / 100).toString());
+            localStorage.setItem('tantro_sfxVolume', (settings.sfxVolumeSlider / 100).toString());
         }
         if (settings.musicMuted !== undefined) {
-            localStorage.setItem('tantris_musicMuted', settings.musicMuted.toString());
+            localStorage.setItem('tantro_musicMuted', settings.musicMuted.toString());
             // Also update audio system state if available
             if (typeof AudioSystem !== 'undefined' && AudioSystem.setMusicMuted) {
                 AudioSystem.setMusicMuted(settings.musicMuted);
@@ -245,7 +245,7 @@ const SettingsSync = {
             }
         }
         if (settings.sfxMuted !== undefined) {
-            localStorage.setItem('tantris_sfxMuted', settings.sfxMuted.toString());
+            localStorage.setItem('tantro_sfxMuted', settings.sfxMuted.toString());
             // Also update audio system state if available
             if (typeof AudioSystem !== 'undefined' && AudioSystem.setSfxMuted) {
                 AudioSystem.setSfxMuted(settings.sfxMuted);

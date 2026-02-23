@@ -1,4 +1,4 @@
-// Storm Particle System Module for TaNTЯiS
+// Storm Particle System Module for TANTЯO
 // Handles all weather visual effects: rain, hail, snow, hurricane winds, and challenge liquids
 // This is purely cosmetic - can be toggled off without affecting gameplay
 

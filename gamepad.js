@@ -1,5 +1,5 @@
 /**
- * gamepad.js - Gamepad Controller System for TaNTЯiS
+ * gamepad.js - Gamepad Controller System for TANTЯO
  *
  * Handles gamepad connection/disconnection, input polling, button mapping,
  * menu navigation, haptic feedback (vibration patterns for game events),

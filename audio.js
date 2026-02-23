@@ -1,4 +1,4 @@
-// Audio System Module for TaNTЯiS
+// Audio System Module for TANTЯO
 // Handles all sound effects, music, and audio context management
 
 const AudioSystem = (function() {
@@ -70,10 +70,10 @@ let gameInProgress = false; // Track if a game is currently running
 let fullSongPlayedOnMenu = false; // Track if a full song has completed on main menu
 
 // Music volume controls
-let musicVolume = parseFloat(localStorage.getItem('tantris_musicVolume')) || 0.5;
-let musicMuted = localStorage.getItem('tantris_musicMuted') === 'true';
-let sfxVolume = parseFloat(localStorage.getItem('tantris_sfxVolume')) || 0.7;
-let sfxMuted = localStorage.getItem('tantris_sfxMuted') === 'true';
+let musicVolume = parseFloat(localStorage.getItem('tantro_musicVolume')) || 0.5;
+let musicMuted = localStorage.getItem('tantro_musicMuted') === 'true';
+let sfxVolume = parseFloat(localStorage.getItem('tantro_sfxVolume')) || 0.7;
+let sfxMuted = localStorage.getItem('tantro_sfxMuted') === 'true';
 
 // MP3 gameplay music - multiple tracks
 // iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
@@ -323,45 +323,45 @@ const gameplaySongs = [
     { id: 'stilted_erosion', name: 'Stilted Erosion', file: MUSIC_BASE_URL + 'Stilted.Erosion.mp3' },
     { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck.on.the.Grid.mp3' },
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic.Fog.mp3' },
-    // T - TaNTЯiS Fever variants
-    { id: 'tantris_fever_70s_rock', name: "TaNTЯiS Fever ('70s Rock)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.70s.Rock.mp3' },
-    { id: 'tantris_fever_80s_eurobeat', name: "TaNTЯiS Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.mp3' },
-    { id: 'tantris_fever_80s_eurobeat_redux', name: "TaNTЯiS Fever ('80s Eurobeat Redux)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.Redux.mp3' },
-    { id: 'tantris_fever_80s_hair_band', name: "TaNTЯiS Fever ('80s Hair Band)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Hair.Band.mp3' },
-    { id: 'tantris_fever_80s_pop', name: "TaNTЯiS Fever ('80s Pop)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Pop.mp3' },
-    { id: 'tantris_fever_90s_alternative', name: "TaNTЯiS Fever ('90s Alternative)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.90s.Alternative.mp3' },
-    { id: 'tantris_fever_a_capella', name: 'TaNTЯiS Fever (A Capella)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.mp3' },
-    { id: 'tantris_fever_a_capella_redux', name: 'TaNTЯiS Fever (A Capella Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.mp3' },
-    { id: 'tantris_fever_a_capella_redux_redux', name: 'TaNTЯiS Fever (A Capella Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.Redux.mp3' },
-    { id: 'tantris_fever_barbershop', name: 'TaNTЯiS Fever (Barbershop Quartet)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Barbershop.Quartet.mp3' },
-    { id: 'tantris_fever_blues', name: 'TaNTЯiS Fever (Blues)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Blues.mp3' },
-    { id: 'tantris_fever_boy_band', name: 'TaNTЯiS Fever (Boy Band)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.mp3' },
-    { id: 'tantris_fever_boy_band_redux', name: 'TaNTЯiS Fever (Boy Band Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.Redux.mp3' },
-    { id: 'tantris_fever_country', name: 'TaNTЯiS Fever (Country)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Country.mp3' },
-    { id: 'tantris_fever_disco', name: 'TaNTЯiS Fever (Disco)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Disco.mp3' },
-    { id: 'tantris_fever_gospel', name: 'TaNTЯiS Fever (Gospel)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Gospel.mp3' },
-    { id: 'tantris_fever_heavy_metal', name: 'TaNTЯiS Fever (Heavy Metal)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Heavy.Metal.mp3' },
-    { id: 'tantris_fever_instrumental_rap', name: 'TaNTЯiS Fever (Instrumental Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.mp3' },
-    { id: 'tantris_fever_instrumental_rap_redux', name: 'TaNTЯiS Fever (Instrumental Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.mp3' },
-    { id: 'tantris_fever_instrumental_rap_redux_redux', name: 'TaNTЯiS Fever (Instrumental Rap Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.Redux.mp3' },
-    { id: 'tantris_fever_k_pop', name: 'TaNTЯiS Fever (K-pop)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-pop.mp3' },
-    { id: 'tantris_fever_k_pop_redux', name: 'TaNTЯiS Fever (K-Pop Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.mp3' },
-    { id: 'tantris_fever_k_pop_redux_redux', name: 'TaNTЯiS Fever (K-Pop Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.Redux.mp3' },
-    { id: 'tantris_fever', name: 'TaNTЯiS Fever', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.mp3' },
-    { id: 'tantris_fever_piano', name: 'TaNTЯiS Fever (Piano)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.mp3' },
-    { id: 'tantris_fever_piano_redux', name: 'TaNTЯiS Fever (Piano Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.mp3' },
-    { id: 'tantris_fever_piano_redux_redux', name: 'TaNTЯiS Fever (Piano Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.Redux.mp3' },
-    { id: 'tantris_fever_rap', name: 'TaNTЯiS Fever (Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.mp3' },
-    { id: 'tantris_fever_rap_redux', name: 'TaNTЯiS Fever (Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.Redux.mp3' },
-    { id: 'tantris_fever_redux', name: 'TaNTЯiS Fever Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.mp3' },
-    { id: 'tantris_fever_redux_redux', name: 'TaNTЯiS Fever Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.mp3' },
-    { id: 'tantris_fever_redux_redux_redux', name: 'TaNTЯiS Fever Redux Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.Redux.mp3' },
-    { id: 'tantris_fever_regae', name: 'TaNTЯiS Fever (Regae)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.mp3' },
-    { id: 'tantris_fever_regae_redux', name: 'TaNTЯiS Fever (Regae Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.mp3' },
-    { id: 'tantris_fever_regae_redux_redux', name: 'TaNTЯiS Fever (Regae Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.Redux.mp3' },
-    // T - TaNTЯiS other
-    { id: 'tantris_on_my_hands', name: 'TaNTЯiS on My Hands', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.mp3' },
-    { id: 'tantris_on_my_hands_redux', name: 'TaNTЯiS on My Hands Redux', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.Redux.mp3' },
+    // T - TANTЯO Fever variants
+    { id: 'tantro_fever_70s_rock', name: "TANTЯO Fever ('70s Rock)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.70s.Rock.mp3' },
+    { id: 'tantro_fever_80s_eurobeat', name: "TANTЯO Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.mp3' },
+    { id: 'tantro_fever_80s_eurobeat_redux', name: "TANTЯO Fever ('80s Eurobeat Redux)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.Redux.mp3' },
+    { id: 'tantro_fever_80s_hair_band', name: "TANTЯO Fever ('80s Hair Band)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Hair.Band.mp3' },
+    { id: 'tantro_fever_80s_pop', name: "TANTЯO Fever ('80s Pop)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Pop.mp3' },
+    { id: 'tantro_fever_90s_alternative', name: "TANTЯO Fever ('90s Alternative)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.90s.Alternative.mp3' },
+    { id: 'tantro_fever_a_capella', name: 'TANTЯO Fever (A Capella)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.mp3' },
+    { id: 'tantro_fever_a_capella_redux', name: 'TANTЯO Fever (A Capella Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.mp3' },
+    { id: 'tantro_fever_a_capella_redux_redux', name: 'TANTЯO Fever (A Capella Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.A.Capella.Redux.Redux.mp3' },
+    { id: 'tantro_fever_barbershop', name: 'TANTЯO Fever (Barbershop Quartet)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Barbershop.Quartet.mp3' },
+    { id: 'tantro_fever_blues', name: 'TANTЯO Fever (Blues)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Blues.mp3' },
+    { id: 'tantro_fever_boy_band', name: 'TANTЯO Fever (Boy Band)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.mp3' },
+    { id: 'tantro_fever_boy_band_redux', name: 'TANTЯO Fever (Boy Band Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Boy.Band.Redux.mp3' },
+    { id: 'tantro_fever_country', name: 'TANTЯO Fever (Country)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Country.mp3' },
+    { id: 'tantro_fever_disco', name: 'TANTЯO Fever (Disco)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Disco.mp3' },
+    { id: 'tantro_fever_gospel', name: 'TANTЯO Fever (Gospel)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Gospel.mp3' },
+    { id: 'tantro_fever_heavy_metal', name: 'TANTЯO Fever (Heavy Metal)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Heavy.Metal.mp3' },
+    { id: 'tantro_fever_instrumental_rap', name: 'TANTЯO Fever (Instrumental Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.mp3' },
+    { id: 'tantro_fever_instrumental_rap_redux', name: 'TANTЯO Fever (Instrumental Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.mp3' },
+    { id: 'tantro_fever_instrumental_rap_redux_redux', name: 'TANTЯO Fever (Instrumental Rap Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Instrumental.Rap.Redux.Redux.mp3' },
+    { id: 'tantro_fever_k_pop', name: 'TANTЯO Fever (K-pop)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-pop.mp3' },
+    { id: 'tantro_fever_k_pop_redux', name: 'TANTЯO Fever (K-Pop Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.mp3' },
+    { id: 'tantro_fever_k_pop_redux_redux', name: 'TANTЯO Fever (K-Pop Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.K-Pop.Redux.Redux.mp3' },
+    { id: 'tantro_fever', name: 'TANTЯO Fever', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.mp3' },
+    { id: 'tantro_fever_piano', name: 'TANTЯO Fever (Piano)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.mp3' },
+    { id: 'tantro_fever_piano_redux', name: 'TANTЯO Fever (Piano Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.mp3' },
+    { id: 'tantro_fever_piano_redux_redux', name: 'TANTЯO Fever (Piano Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Piano.Redux.Redux.mp3' },
+    { id: 'tantro_fever_rap', name: 'TANTЯO Fever (Rap)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.mp3' },
+    { id: 'tantro_fever_rap_redux', name: 'TANTЯO Fever (Rap Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Rap.Redux.mp3' },
+    { id: 'tantro_fever_redux', name: 'TANTЯO Fever Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.mp3' },
+    { id: 'tantro_fever_redux_redux', name: 'TANTЯO Fever Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.mp3' },
+    { id: 'tantro_fever_redux_redux_redux', name: 'TANTЯO Fever Redux Redux Redux', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Redux.Redux.Redux.mp3' },
+    { id: 'tantro_fever_regae', name: 'TANTЯO Fever (Regae)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.mp3' },
+    { id: 'tantro_fever_regae_redux', name: 'TANTЯO Fever (Regae Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.mp3' },
+    { id: 'tantro_fever_regae_redux_redux', name: 'TANTЯO Fever (Regae Redux Redux)', file: MUSIC_BASE_URL + 'TaNT.iS.Fever.Regae.Redux.Redux.mp3' },
+    // T - TANTЯO other
+    { id: 'tantro_on_my_hands', name: 'TANTЯO on My Hands', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.mp3' },
+    { id: 'tantro_on_my_hands_redux', name: 'TANTЯO on My Hands Redux', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.Redux.mp3' },
     { id: 'tantrizz', name: 'TaNTЯiZZ', file: MUSIC_BASE_URL + 'TaNT.iZZ.mp3' },
     // T - Teeeerry
     { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' },
@@ -370,7 +370,7 @@ const gameplaySongs = [
     { id: 'teeeerry_redux_redux_redux', name: 'Teeeerry Redux Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.Redux.mp3' },
     // T - Other
     { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes.Pentominoes.mp3' },
-    { id: 'the_call_of_tantris', name: 'The Call of TaNTЯiS', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' },
+    { id: 'the_call_of_tantro', name: 'The Call of TANTЯO', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' },
     { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
     { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The.Longer.Game.mp3' },
@@ -402,7 +402,7 @@ const creditsSongs = [
 
 // Intro music only (not in any shuffle)
 const menuOnlySongs = [
-    { id: 'cascade_void_intro', name: 'TaNTЯiS (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' }
+    { id: 'cascade_void_intro', name: 'TANTЯO (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' }
 ];
 
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
@@ -436,9 +436,9 @@ let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
 // localStorage keys for queue persistence
-const GAMEPLAY_QUEUE_KEY = 'tantris_gameplayQueue';
-const FWORD_QUEUE_KEY = 'tantris_fwordQueue';
-const PURGED_SONGS_KEY = 'tantris_purgedSongs';
+const GAMEPLAY_QUEUE_KEY = 'tantro_gameplayQueue';
+const FWORD_QUEUE_KEY = 'tantro_fwordQueue';
+const PURGED_SONGS_KEY = 'tantro_purgedSongs';
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -824,7 +824,7 @@ function updateMediaSessionMetadata() {
     if (songInfo) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: songInfo.name,
-            artist: 'TaNTЯiS',
+            artist: 'TANTЯO',
             album: 'Game Soundtrack'
         });
     }
@@ -2978,7 +2978,7 @@ function playSmallExplosion(soundToggle) {
 
 function setMusicVolume(volume) {
     musicVolume = Math.max(0, Math.min(1, volume));
-    localStorage.setItem('tantris_musicVolume', musicVolume.toString());
+    localStorage.setItem('tantro_musicVolume', musicVolume.toString());
     applyMusicVolume();
 }
 
@@ -2988,7 +2988,7 @@ function getMusicVolume() {
 
 function setMusicMuted(muted) {
     musicMuted = muted;
-    localStorage.setItem('tantris_musicMuted', muted.toString());
+    localStorage.setItem('tantro_musicMuted', muted.toString());
     applyMusicVolume();
 }
 
@@ -3019,7 +3019,7 @@ function applyMusicVolume() {
 
 function setSfxVolume(volume) {
     sfxVolume = Math.max(0, Math.min(1, volume));
-    localStorage.setItem('tantris_sfxVolume', sfxVolume.toString());
+    localStorage.setItem('tantro_sfxVolume', sfxVolume.toString());
     applySfxVolume();
 }
 
@@ -3029,7 +3029,7 @@ function getSfxVolume() {
 
 function setSfxMuted(muted) {
     sfxMuted = muted;
-    localStorage.setItem('tantris_sfxMuted', muted.toString());
+    localStorage.setItem('tantro_sfxMuted', muted.toString());
 }
 
 function isSfxMuted() {

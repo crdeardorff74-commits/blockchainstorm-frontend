@@ -1,5 +1,5 @@
 /**
- * AI Player Module for TaNTЯiS
+ * AI Player Module for TANTЯO
  * Plays the game automatically using heuristic-based evaluation
  * Uses Web Worker for computation to avoid UI freezes
  */

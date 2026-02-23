@@ -1,5 +1,5 @@
 /**
- * challenge_rubber.js - Rubber & Glue challenge for TaNTЯiS
+ * challenge_rubber.js - Rubber & Glue challenge for TANTЯO
  *
  * Pieces that land without touching the same color bounce off instead
  * of sticking. Bounce physics include vertical/horizontal velocity

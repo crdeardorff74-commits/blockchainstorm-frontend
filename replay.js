@@ -1,5 +1,5 @@
 /**
- * replay.js - Deterministic Replay System for TaNTЯiS
+ * replay.js - Deterministic Replay System for TANTЯO
  *
  * Replays recorded games by running an actual game with recorded pieces
  * and inputs injected at timestamps. Supports board snapshot syncing,
