@@ -79,8 +79,8 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Redirect old tantris domain to new tantro domain
-    if (url.hostname === 'tantris.official-intelligence.art') {
+    // Redirect old tantris domain to new tantro domain (navigation requests only)
+    if (url.hostname === 'tantris.official-intelligence.art' && event.request.mode === 'navigate') {
         const newUrl = 'https://tantro.official-intelligence.art' + url.pathname + url.search + url.hash;
         event.respondWith(Response.redirect(newUrl, 301));
         return;
