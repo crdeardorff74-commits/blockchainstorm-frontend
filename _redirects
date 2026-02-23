@@ -1,2 +1,7 @@
-# Redirect old tantris subdomain to new tantro subdomain
+# Serve sw.js directly on old domain so the updated SW can install and handle redirects
+# (The old cached SW intercepts requests before Netlify's redirect fires,
+#  so we need the new sw.js to actually be served, not redirected)
+https://tantris.official-intelligence.art/sw.js /sw.js 200!
+
+# Redirect everything else from old tantris subdomain to new tantro subdomain
 https://tantris.official-intelligence.art/* https://tantro.official-intelligence.art/:splat 301!
