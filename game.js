@@ -12943,6 +12943,8 @@ if (startOverlay) {
         // ghost taps that iOS generates after touchend (~300ms delay).
         startOverlay.style.opacity = '0';
         startOverlay.style.transition = 'opacity 0.15s';
+        // Clear SW refresh guard so future updates can auto-refresh
+        try { sessionStorage.removeItem('tantro_sw_refreshed'); } catch(e) {}
         // Start game immediately
         const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
         startGame(mode);
