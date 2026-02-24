@@ -9489,7 +9489,8 @@ function toggleUIElements(show) {
                 if (savedView === 'leaderboard-challenge') lbMode = 'challenge';
                 else if (savedView === 'leaderboard-ai') lbMode = 'ai';
                 else if (savedView === 'leaderboard-ai-challenge') lbMode = 'ai-challenge';
-                window.leaderboard.displayLeaderboard(gameMode || 'drizzle', null, lbMode, skillLevel);
+                const currentDifficulty = gameMode || modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'drizzle';
+                window.leaderboard.displayLeaderboard(currentDifficulty, null, lbMode, skillLevel);
             }
         } else {
             // Show instructions (default)
