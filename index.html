@@ -1296,6 +1296,7 @@ if ('serviceWorker' in navigator) {
             var refreshKey = 'tantro_sw_refreshed';
             if (sessionStorage.getItem(refreshKey)) {
                 console.log('📦 PWA: On intro screen but already refreshed this session, skipping');
+                return;
             } else {
                 console.log('📦 PWA: On intro screen, auto-refreshing in 1s');
                 sessionStorage.setItem(refreshKey, '1');
@@ -1347,7 +1348,7 @@ if ('serviceWorker' in navigator) {
     }
 
     // The version this page was built/cached with (must match sw.js APP_VERSION at deploy time)
-    var PAGE_VERSION = '3.44';
+    var PAGE_VERSION = '3.45';
 
     // Listen for messages from SW (update notifications + version responses)
     navigator.serviceWorker.addEventListener('message', function(event) {
