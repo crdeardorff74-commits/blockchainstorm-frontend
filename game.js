@@ -657,7 +657,7 @@ function startCreditsAnimation() {
     // Set the game title in credits
     const gameTitleDiv = document.getElementById('gameTitle');
     if (gameTitleDiv) {
-        gameTitleDiv.innerHTML = 'T<span class="credits-ai">a</span>NTЯ<span class="credits-ai">i</span>S';
+        gameTitleDiv.textContent = 'TANTЯO';
     }
     
     // Hide settings button during end credits
