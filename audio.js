@@ -373,7 +373,8 @@ const gameplaySongs = [
     // T - TANTЯO other
     // { id: 'tantro_on_my_hands', name: 'TANTЯO on My Hands', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.mp3' },
     // { id: 'tantro_on_my_hands_redux', name: 'TANTЯO on My Hands Redux', file: MUSIC_BASE_URL + 'TaNT.iS.on.My.Hands.Redux.mp3' },
-    // { id: 'tantrizz', name: 'TaNTЯiZZ', file: MUSIC_BASE_URL + 'TaNT.iZZ.mp3' },
+    // { id: 'tantrizz', name: 'TaNTЯiZZ', file: MUSIC_BASE_URL + 'TaNT.iZZ.mp3' }, // old recording
+    { id: 'tantrizz', name: 'TANT\u042fIZZ', file: MUSIC_BASE_URL + 'TANT.IZZ.mp3' },
     // T - Teeeerry
     { id: 'teeeerry', name: 'Teeeerry', file: MUSIC_BASE_URL + 'Teeeerry.mp3' },
     { id: 'teeeerry_redux', name: 'Teeeerry Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.mp3' },
@@ -436,6 +437,22 @@ let nextSongOverride = null;
 // All songs combined for audio element initialization
 const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordSongs];
 
+// Album playlist order for first-time players - songs play in this exact order
+// Once exhausted, normal shuffle takes over
+const ALBUM_PLAYLIST_ORDER = [
+    'meet_cute', 'tantro_fever', 'a_game_of_falling_blocks',
+    'cascade_void', 'stacked_like_dolly', 'tantro_fever_boy_band',
+    'the_far_side_of_the_moooon', 'the_call_of_tantro', 'falling_blocks',
+    'cascade_void_dance', 'gravitational', 'hold_it',
+    'tantro_fever_country', 'teeeerry', 'meet_cuter',
+    'stacked_like_pam', 'tantro_fever_piano', 'blobs_get_me_high',
+    'symphonic_fog', 'tantro_on_my_hands', 'tantro_fever_80s_eurobeat',
+    'cascade_void_eurobeat', 'block_on_fire', 'tantro_fever_instrumental_rap',
+    'cascade_void_acappella', 'meet_cutest', 'natural_selection',
+    'cascade_void_intense', 'tantrizz', 'clearing_skies',
+    'gremlins_arcade'
+];
+
 let gameplayMusicElements = {};
 let currentPlayingTrack = null;
 let blessedGameplayAudio = null; // Reusable Audio element "blessed" by user gesture (iPad Safari)
@@ -444,6 +461,7 @@ let blessedGameplayAudio = null; // Reusable Audio element "blessed" by user ges
 let gameplayShuffleQueue = [];
 let creditsShuffleQueue = [];
 let fWordShuffleQueue = [];
+let albumPlaylist = []; // Ordered album playlist for first-time players
 let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
@@ -451,6 +469,7 @@ let lastPlayedCreditsSong = null;
 const GAMEPLAY_QUEUE_KEY = 'tantro_gameplayQueue';
 const FWORD_QUEUE_KEY = 'tantro_fwordQueue';
 const PURGED_SONGS_KEY = 'tantro_purgedSongs';
+const ALBUM_QUEUE_KEY = 'tantro_albumPlaylist';
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -903,16 +922,28 @@ function initShuffleQueues() {
             gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
         }
     } else {
+        // First-ever player: set up album playlist for ordered first listen
         gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
-        // First-ever player: put Meet Cute last (queue pops from end, so last = first played)
-        const mcIdx = gameplayShuffleQueue.indexOf('meet_cute');
-        if (mcIdx >= 0 && mcIdx < gameplayShuffleQueue.length - 1) {
-            gameplayShuffleQueue.splice(mcIdx, 1);
-            gameplayShuffleQueue.push('meet_cute');
-        }
-        Logger.debug('🎵 Created new gameplay shuffle queue (first time - Meet Cute first)');
+        albumPlaylist = [...ALBUM_PLAYLIST_ORDER];
+        Logger.debug('🎵 Created new gameplay shuffle queue + album playlist for first-time player (' + albumPlaylist.length + ' songs)');
     }
-    
+
+    // Try to load album playlist from localStorage (returning player mid-album)
+    const savedAlbumPlaylist = localStorage.getItem(ALBUM_QUEUE_KEY);
+    if (savedAlbumPlaylist) {
+        try {
+            albumPlaylist = JSON.parse(savedAlbumPlaylist);
+            // Validate that saved IDs are still valid songs
+            albumPlaylist = albumPlaylist.filter(id => allSongs.some(s => s.id === id));
+            if (albumPlaylist.length > 0) {
+                Logger.debug('🎵 Loaded album playlist from storage:', albumPlaylist.length, 'songs remaining');
+            }
+        } catch (e) {
+            Logger.warn('🎵 Failed to parse saved album playlist, clearing');
+            albumPlaylist = [];
+        }
+    }
+
     // Try to load F Word queue from localStorage
     const savedFWordQueue = localStorage.getItem(FWORD_QUEUE_KEY);
     if (savedFWordQueue) {
@@ -947,6 +978,7 @@ function saveQueuesToStorage() {
     try {
         localStorage.setItem(GAMEPLAY_QUEUE_KEY, JSON.stringify(gameplayShuffleQueue));
         localStorage.setItem(FWORD_QUEUE_KEY, JSON.stringify(fWordShuffleQueue));
+        localStorage.setItem(ALBUM_QUEUE_KEY, JSON.stringify(albumPlaylist));
     } catch (e) {
         Logger.warn('🎵 Failed to save queues to storage:', e);
     }
@@ -1139,6 +1171,28 @@ function getNextReplayTrack() {
     replayTrackIndex++;
     Logger.debug('🎵 Replay track', replayTrackIndex, 'of', replayTrackList.length, ':', track.trackName || track.trackId);
     return track.trackId;
+}
+
+// Get next song from the album playlist (first-time player ordered listen)
+// Returns null when album is exhausted, so caller falls through to normal shuffle
+function getNextAlbumSong() {
+    while (albumPlaylist.length > 0) {
+        const songId = albumPlaylist.shift();
+        // Skip purged songs
+        if (isSongPurged(songId)) {
+            Logger.debug('🎵 Album: skipping purged song:', songId);
+            continue;
+        }
+        // Verify song still exists
+        if (!allSongs.some(s => s.id === songId)) {
+            Logger.debug('🎵 Album: skipping unknown song:', songId);
+            continue;
+        }
+        saveQueuesToStorage();
+        return songId;
+    }
+    // Album exhausted
+    return null;
 }
 
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
@@ -1463,10 +1517,17 @@ function startMusic(gameMode, musicSelect) {
             song = allSongs.find(s => s.id === trackId);
         }
     } else if (selection === 'shuffle') {
-        // Shuffle mode: use persistent queue (no repeats until all played)
-        trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
-        song = allSongs.find(s => s.id === trackId);
-        Logger.debug('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
+        // Album playlist for first-time players (ordered listen, then normal shuffle)
+        trackId = getNextAlbumSong();
+        if (trackId) {
+            song = allSongs.find(s => s.id === trackId);
+            Logger.debug('🎵 Playing from album:', trackId, '| Album remaining:', albumPlaylist.length);
+        } else {
+            // Normal shuffle mode: use persistent queue (no repeats until all played)
+            trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+            song = allSongs.find(s => s.id === trackId);
+            Logger.debug('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
+        }
     } else {
         // Use the specifically selected track
         trackId = selection;
