@@ -247,6 +247,7 @@ const gameplaySongs = [
     { id: 'a_river_skips_through_it', name: 'A River Skips Through It', file: MUSIC_BASE_URL + 'A.River.Skips.Through.It.mp3' },
     // B
     { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide.Your.Time.mp3' },
+    { id: 'blobs_get_me_high', name: 'Blobs (Get Me High)', file: MUSIC_BASE_URL + 'Blobs.Get.Me.High.mp3' },
     { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block.on.Fire.mp3' },
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood.Rains.Down.mp3' },
     { id: 'buzz_light_beer', name: 'Buzz Light Beer', file: MUSIC_BASE_URL + 'Buzz.Light.Beer.mp3' },
@@ -302,10 +303,9 @@ const gameplaySongs = [
     { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor.Shower.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
     { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight.Mogwai.mp3' },
-    // TEMPORARILY DISABLED - lyrics still say "Tantris", pending re-recording
-    // { id: 'meet_cute', name: 'Meet Cute (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cute.When.Claude.Met.Suno.mp3' },
-    // { id: 'meet_cuter', name: 'Meet Cuter (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cuter.When.Claude.Met.Suno.mp3' },
-    // { id: 'meet_cutest', name: 'Meet Cutest (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cutest.When.Claude.Met.Suno.mp3' },
+    { id: 'meet_cute', name: 'Meet Cute (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cute.When.Claude.Met.Suno.mp3' },
+    { id: 'meet_cuter', name: 'Meet Cuter (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cuter.When.Claude.Met.Suno.mp3' },
+    { id: 'meet_cutest', name: 'Meet Cutest (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cutest.When.Claude.Met.Suno.mp3' },
     // N
     { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural.Disasters.mp3' },
     { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural.Selection.mp3' },
@@ -324,8 +324,17 @@ const gameplaySongs = [
     { id: 'stilted_erosion', name: 'Stilted Erosion', file: MUSIC_BASE_URL + 'Stilted.Erosion.mp3' },
     { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck.on.the.Grid.mp3' },
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic.Fog.mp3' },
-    // TEMPORARILY DISABLED - lyrics still say "Tantris", pending re-recording
-    // T - TANTЯO Fever variants
+    // T - TANTЯO Fever variants (re-recorded)
+    { id: 'tantro_fever', name: 'TANT\u042fO Fever', file: MUSIC_BASE_URL + 'TANT.O.Fever.mp3' },
+    { id: 'tantro_fever_80s_eurobeat', name: "TANT\u042fO Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TANT.O.Fever.80s.Eurobeat.mp3' },
+    { id: 'tantro_fever_boy_band', name: 'TANT\u042fO Fever (Boy Band)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Boy.Band.mp3' },
+    { id: 'tantro_fever_country', name: 'TANT\u042fO Fever (Country)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Country.mp3' },
+    { id: 'tantro_fever_instrumental_rap', name: 'TANT\u042fO Fever (Instrumental Rap)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Instrumental.Rap.mp3' },
+    { id: 'tantro_fever_piano', name: 'TANT\u042fO Fever (Piano)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Piano.mp3' },
+    // T - TANTЯO other (re-recorded)
+    { id: 'tantro_on_my_hands', name: 'TANT\u042fO on My Hands', file: MUSIC_BASE_URL + 'TANT.O.on.My.Hands.mp3' },
+    // DISABLED - old recordings with "Tantris" lyrics
+    // T - TANTЯO Fever variants (old)
     // { id: 'tantro_fever_70s_rock', name: "TANTЯO Fever ('70s Rock)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.70s.Rock.mp3' },
     // { id: 'tantro_fever_80s_eurobeat', name: "TANTЯO Fever ('80s Eurobeat)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.mp3' },
     // { id: 'tantro_fever_80s_eurobeat_redux', name: "TANTЯO Fever ('80s Eurobeat Redux)", file: MUSIC_BASE_URL + 'TaNT.iS.Fever.80s.Eurobeat.Redux.mp3' },
@@ -372,7 +381,8 @@ const gameplaySongs = [
     { id: 'teeeerry_redux_redux_redux', name: 'Teeeerry Redux Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.Redux.mp3' },
     // T - Other
     { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes.Pentominoes.mp3' },
-    // { id: 'the_call_of_tantro', name: 'The Call of TANTЯO', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' }, // TEMPORARILY DISABLED - lyrics still say "Tantris"
+    // { id: 'the_call_of_tantro', name: 'The Call of TANTЯO', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' }, // old recording
+    { id: 'the_call_of_tantro', name: 'The Call of TANT\u042fO', file: MUSIC_BASE_URL + 'The.Call.of.TANT.O.mp3' },
     { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
     { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The.Longer.Game.mp3' },
@@ -404,7 +414,7 @@ const creditsSongs = [
 
 // Intro music only (not in any shuffle)
 const menuOnlySongs = [
-    { id: 'cascade_void_intro', name: 'TANTЯO (Intro)', file: MUSIC_BASE_URL + 'TaNT.iS.mp3' }
+    { id: 'cascade_void_intro', name: 'TANTЯO (Intro)', file: MUSIC_BASE_URL + 'TANT.O.mp3' }
 ];
 
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
