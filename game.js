@@ -9217,17 +9217,28 @@ function dropPiece() {
         }
         
         // Check if piece at current position still overlaps with existing blocks
-        // This triggers game over if the piece couldn't escape the spawn collision
+        // This triggers game over if the piece couldn't escape the spawn collision.
+        // Only apply near the top of the board — external events (volcano lava,
+        // tornado drops) can place blocks at the piece's position deeper in the
+        // board, which should NOT trigger game over. The piece will just merge
+        // normally, overwriting the conflicting blocks.
         if (collides(currentPiece)) {
-            // During replay, check if we should resync instead of ending
-            if (GameReplay.tryResyncOnGameOver()) {
-                return; // Resync successful, continue replay
+            const highestPieceBlock = currentPiece.shape.reduce((minY, row, dy) => {
+                return row.some(v => v) ? Math.min(minY, currentPiece.y + dy) : minY;
+            }, ROWS);
+            if (highestPieceBlock <= 4) {
+                // Near spawn area — genuine game over
+                // During replay, check if we should resync instead of ending
+                if (GameReplay.tryResyncOnGameOver()) {
+                    return; // Resync successful, continue replay
+                }
+                // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
+                mergePiece();
+                currentPiece = null;
+                gameOver();
+                return;
             }
-            // Merge the piece so it's visible in final state (may overlap, but better than disappearing)
-            mergePiece();
-            currentPiece = null;
-            gameOver();
-            return;
+            // Deeper in the board — external event caused overlap, merge normally
         }
         
         playSoundEffect('drop', soundToggle);
