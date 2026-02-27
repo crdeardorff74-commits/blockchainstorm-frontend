@@ -10830,11 +10830,30 @@ function startGame(mode) {
         });
     }
     
+    // Update visit tracking with current game settings (challenges, mode, etc.)
+    // dismissIntro() sends initial visit data, but challenges are selected AFTER intro dismissal,
+    // so we re-send here on every game start to capture the actual settings
+    if (_visitId) {
+        apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            silent: true, timeout: 5000,
+            body: JSON.stringify({
+                difficulty: mode,
+                skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
+                mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
+                challenges: challengeMode === 'combo' ? Array.from(activeChallenges) :
+                            challengeMode !== 'normal' ? [challengeMode] : [],
+                gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
+            })
+        });
+    }
+
     // Hide leaderboard if it was shown
     if (window.leaderboard && window.leaderboard.hideLeaderboard) {
         window.leaderboard.hideLeaderboard();
     }
-    
+
 			gameStartTime = Date.now(); 
     gameMode = mode;
     lastPlayedMode = mode; // Remember this mode for next time
