@@ -864,10 +864,18 @@
         }
         
         .credits-title {
-            font-size: 28px;
+            font-size: 36px;
             font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            letter-spacing: 0.3vh;
+            filter: drop-shadow(0 0.2vh 0.4vh rgba(255, 215, 0, 0.5))
+                    drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.7));
             margin-bottom: 60px;
-            color: #FFD700;
         }
 		
 		.credits-ai {
