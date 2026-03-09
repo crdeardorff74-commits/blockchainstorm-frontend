@@ -9205,15 +9205,36 @@ function dropPiece() {
         });
         
         if (extendsAboveTop) {
-            // During replay, check if we should resync instead of ending
-            if (GameReplay.tryResyncOnGameOver()) {
-                return; // Resync successful, continue replay
+            // Before declaring game over, check if placing the piece would
+            // complete any lines. Line clears should be processed first —
+            // they may bring the stack back below the brink.
+            const testBoard = board.map(row => [...row]);
+            currentPiece.shape.forEach((row, dy) => {
+                row.forEach((value, dx) => {
+                    if (value) {
+                        const by = currentPiece.y + dy;
+                        const bx = currentPiece.x + dx;
+                        if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
+                            testBoard[by][bx] = currentPiece.color;
+                        }
+                    }
+                });
+            });
+            const wouldClearLines = testBoard.some(row =>
+                row && row.every(cell => cell !== null)
+            );
+
+            if (!wouldClearLines) {
+                // No lines to clear — genuine game over
+                if (GameReplay.tryResyncOnGameOver()) {
+                    return; // Resync successful, continue replay
+                }
+                mergePiece();
+                currentPiece = null;
+                gameOver();
+                return;
             }
-            // Merge visible parts of the piece to the board so they remain visible
-            mergePiece();
-            currentPiece = null;
-            gameOver();
-            return;
+            // Lines would be cleared — fall through to normal merge + clear flow
         }
         
         // Check if piece at current position still overlaps with existing blocks
@@ -11651,7 +11672,7 @@ if (rulesPanelViewSelect) {
 let sessionPlayAgainCount = 0;
 
 function getShareURL() {
-    return 'https://tantro.official-intelligence.art/';
+    return 'https://digeratist.itch.io/tantro';
 }
 
 function getShareText() {
