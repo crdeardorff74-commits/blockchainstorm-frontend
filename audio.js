@@ -435,20 +435,23 @@ let nextSongOverride = null;
 // All songs combined for audio element initialization
 const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordSongs];
 
-// Album playlist order for first-time players - songs play in this exact order
-// Once exhausted, normal shuffle takes over
+// Album playlist order for first-time players - these songs play first in this exact order,
+// followed by all remaining gameplay songs in random order
 const ALBUM_PLAYLIST_ORDER = [
-    'meet_cute', 'tantro_fever', 'a_game_of_falling_blocks',
-    'cascade_void', 'stacked_like_dolly', 'tantro_fever_boy_band',
-    'the_far_side_of_the_moooon', 'the_call_of_tantro', 'falling_blocks',
-    'cascade_void_dance', 'gravitational', 'hold_it',
-    'tantro_fever_country', 'teeeerry', 'meet_cuter',
-    'stacked_like_pam', 'tantro_fever_piano', 'blobs_get_me_high',
-    'symphonic_fog', 'tantro_on_my_hands', 'tantro_fever_80s_eurobeat',
-    'cascade_void_eurobeat', 'block_on_fire', 'tantro_fever_instrumental_rap',
-    'cascade_void_acappella', 'meet_cutest', 'natural_selection',
-    'cascade_void_intense', 'tantrizz', 'clearing_skies',
-    'gremlins_arcade'
+    'meet_cute', 
+	'tantro_fever_instrumental_rap', 
+	'event_horizon',
+	'tantro_on_my_hands', 
+	'plummet',
+	'tantro_fever_heavy_metal', 
+	'orbituary',
+	'tantro_fever_k_pop', 
+	'tantro_on_my_hands',
+	'tantro_fever_80s_eurobeat',
+	'blobs_get_me_high',
+	'tantro_fever_boy_band',
+	'tantrum',
+	'tantro_fever_country'
 ];
 
 let gameplayMusicElements = {};
@@ -920,10 +923,12 @@ function initShuffleQueues() {
             gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
         }
     } else {
-        // First-ever player: set up album playlist for ordered first listen
+        // First-ever player: build full playlist with album order first, then remaining songs shuffled
+        const albumOrderSet = new Set(ALBUM_PLAYLIST_ORDER);
+        const remainingSongs = shuffleArray(gameplaySongs.map(s => s.id).filter(id => !albumOrderSet.has(id)));
+        albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
         gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
-        albumPlaylist = [...ALBUM_PLAYLIST_ORDER];
-        Logger.debug('🎵 Created new gameplay shuffle queue + album playlist for first-time player (' + albumPlaylist.length + ' songs)');
+        Logger.debug('🎵 Created full album playlist for first-time player (' + ALBUM_PLAYLIST_ORDER.length + ' ordered + ' + remainingSongs.length + ' shuffled = ' + albumPlaylist.length + ' total)');
     }
 
     // Try to load album playlist from localStorage (returning player mid-album)
