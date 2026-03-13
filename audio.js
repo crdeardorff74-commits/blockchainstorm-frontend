@@ -438,15 +438,14 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 // Album playlist order for first-time players - these songs play first in this exact order,
 // followed by all remaining gameplay songs in random order
 const ALBUM_PLAYLIST_ORDER = [
-    'meet_cute', 
 	'tantro_fever_instrumental_rap', 
 	'event_horizon',
 	'tantro_on_my_hands', 
 	'plummet',
+    'meet_cute', 
 	'tantro_fever_heavy_metal', 
 	'orbituary',
 	'tantro_fever_k_pop', 
-	'tantro_on_my_hands',
 	'tantro_fever_80s_eurobeat',
 	'blobs_get_me_high',
 	'tantro_fever_boy_band',
