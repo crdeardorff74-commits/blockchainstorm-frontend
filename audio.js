@@ -252,6 +252,11 @@ const gameplaySongs = [
     { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block.on.Fire.mp3' },
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood.Rains.Down.mp3' },
     { id: 'breakin_down', name: "Breakin' Down", file: MUSIC_BASE_URL + 'Breakin.Down.mp3' },
+    { id: 'buried_alive', name: 'Buried Alive', file: MUSIC_BASE_URL + 'Buried.Alive.mp3' },
+    { id: 'buried_alive_redux', name: 'Buried Alive Redux', file: MUSIC_BASE_URL + 'Buried.Alive.Redux.mp3' },
+    { id: 'buried_alive_redux_redux', name: 'Buried Alive Redux Redux', file: MUSIC_BASE_URL + 'Buried.Alive.Redux.Redux.mp3' },
+    { id: 'buried_alive_redux_redux_redux', name: 'Buried Alive Redux Redux Redux', file: MUSIC_BASE_URL + 'Buried.Alive.Redux.Redux.Redux.mp3' },
+    { id: 'buried_alive_redux_redux_redux_redux', name: 'Buried Alive Redux Redux Redux Redux', file: MUSIC_BASE_URL + 'Buried.Alive.Redux.Redux.Redux.Redux.mp3' },
     { id: 'buzz_light_beer', name: 'Buzz Light Beer', file: MUSIC_BASE_URL + 'Buzz.Light.Beer.mp3' },
     // C
     { id: 'calm_state_of_mind', name: 'Calm State of Mind', file: MUSIC_BASE_URL + 'Calm.State.of.Mind.mp3' },
@@ -318,6 +323,7 @@ const gameplaySongs = [
     // P
     { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect.Storm.mp3' },
     { id: 'pity_puddles', name: 'Pity Puddles', file: MUSIC_BASE_URL + 'Pity.Puddles.mp3' },
+    { id: 'perineum_sunning', name: 'Perineum Sunning', file: MUSIC_BASE_URL + 'Perineum.Sunning.mp3' },
     { id: 'plummet', name: 'Plummet', file: MUSIC_BASE_URL + 'Plummet.mp3' },
     // R
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber.Glue.mp3' },
@@ -396,7 +402,13 @@ const gameplaySongs = [
     { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling.Dewdrops.mp3' },
     { id: 'wind_fire', name: 'Wind & Fire', file: MUSIC_BASE_URL + 'Wind.Fire.mp3' },
     { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind.Fire.Soot.mp3' },
-    { id: 'wormholio', name: 'Wormholio', file: MUSIC_BASE_URL + 'Wormholio.mp3' }
+    { id: 'wormholio', name: 'Wormholio', file: MUSIC_BASE_URL + 'Wormholio.mp3' },
+    // Y
+    { id: 'yes_and', name: 'Yes, And...', file: MUSIC_BASE_URL + 'Yes.And.mp3' },
+    { id: 'yes_and_polka', name: 'Yes, And... (Polka)', file: MUSIC_BASE_URL + 'Yes.And.Polka.mp3' },
+    { id: 'yes_and_reggae', name: 'Yes, And... (Reggae)', file: MUSIC_BASE_URL + 'Yes.And.Reggae.mp3' },
+    { id: 'yes_and_redux', name: 'Yes, And... Redux', file: MUSIC_BASE_URL + 'Yes.And.Redux.mp3' },
+    { id: 'yes_and_techno', name: 'Yes, And... (Techno)', file: MUSIC_BASE_URL + 'Yes.And.Techno.mp3' }
 ];
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
@@ -438,6 +450,7 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 // Album playlist order for first-time players - these songs play first in this exact order,
 // followed by all remaining gameplay songs in random order
 const ALBUM_PLAYLIST_ORDER = [
+	'solar_reverb',
 	'tantro_fever', 
 	'event_horizon',
 	'tantro_on_my_hands', 
