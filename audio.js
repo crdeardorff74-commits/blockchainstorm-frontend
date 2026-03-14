@@ -476,6 +476,7 @@ let gameplayShuffleQueue = [];
 let creditsShuffleQueue = [];
 let fWordShuffleQueue = [];
 let albumPlaylist = []; // Ordered album playlist for first-time players
+let yesAndIntroSong = null; // Mandatory first song for first 3 visits ("Yes, And..." variants)
 let lastPlayedGameplaySong = null;
 let lastPlayedCreditsSong = null;
 
@@ -484,6 +485,13 @@ const GAMEPLAY_QUEUE_KEY = 'tantro_gameplayQueue';
 const FWORD_QUEUE_KEY = 'tantro_fwordQueue';
 const PURGED_SONGS_KEY = 'tantro_purgedSongs';
 const ALBUM_QUEUE_KEY = 'tantro_albumPlaylist';
+const VISIT_COUNT_KEY = 'tantro_visitCount'; // Tracks how many times the player has visited (for intro songs)
+
+// "Yes, And..." intro songs — mandatory first song for the player's first 3 visits
+const YES_AND_INTRO_SONGS = ['yes_and', 'yes_and_polka', 'yes_and_techno'];
+
+// All "Yes, And..." song IDs — excluded from shuffle queues (only appear as intro songs)
+const YES_AND_FAMILY = ['yes_and', 'yes_and_polka', 'yes_and_reggae', 'yes_and_redux', 'yes_and_techno'];
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -919,28 +927,46 @@ function shuffleArray(array) {
     return shuffled;
 }
 
+// Helper: get gameplay song IDs excluding "Yes, And..." family (they only appear as intro songs)
+function getShuffleableGameplaySongIds() {
+    const yesAndSet = new Set(YES_AND_FAMILY);
+    return gameplaySongs.map(s => s.id).filter(id => !yesAndSet.has(id));
+}
+
 // Initialize shuffle queues at load time - load from localStorage or create new
 function initShuffleQueues() {
+    // Determine mandatory "Yes, And..." intro song based on visit count
+    const visitCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+    if (visitCount < YES_AND_INTRO_SONGS.length) {
+        const introId = YES_AND_INTRO_SONGS[visitCount];
+        if (!isSongPurged(introId) && allSongs.some(s => s.id === introId)) {
+            yesAndIntroSong = introId;
+            Logger.debug('🎵 Visit #' + (visitCount + 1) + ': mandatory intro song "' + introId + '"');
+        }
+    }
+
     // Try to load gameplay queue from localStorage
     const savedGameplayQueue = localStorage.getItem(GAMEPLAY_QUEUE_KEY);
     if (savedGameplayQueue) {
         try {
             gameplayShuffleQueue = JSON.parse(savedGameplayQueue);
-            // Validate that saved IDs are still valid songs
-            gameplayShuffleQueue = gameplayShuffleQueue.filter(id => 
-                gameplaySongs.some(s => s.id === id)
+            // Validate that saved IDs are still valid songs and exclude Yes, And... family
+            const yesAndSet = new Set(YES_AND_FAMILY);
+            gameplayShuffleQueue = gameplayShuffleQueue.filter(id =>
+                gameplaySongs.some(s => s.id === id) && !yesAndSet.has(id)
             );
             Logger.debug('🎵 Loaded gameplay queue from storage:', gameplayShuffleQueue.length, 'songs remaining');
         } catch (e) {
             Logger.warn('🎵 Failed to parse saved gameplay queue, creating new');
-            gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+            gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
         }
     } else {
         // First-ever player: build full playlist with album order first, then remaining songs shuffled
-        const albumOrderSet = new Set(ALBUM_PLAYLIST_ORDER);
-        const remainingSongs = shuffleArray(gameplaySongs.map(s => s.id).filter(id => !albumOrderSet.has(id)));
+        // (Yes, And... songs excluded — they appear only as mandatory intro songs)
+        const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER, ...YES_AND_FAMILY]);
+        const remainingSongs = shuffleArray(getShuffleableGameplaySongIds().filter(id => !excludeFromAlbum.has(id)));
         albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
-        gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+        gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
         Logger.debug('🎵 Created full album playlist for first-time player (' + ALBUM_PLAYLIST_ORDER.length + ' ordered + ' + remainingSongs.length + ' shuffled = ' + albumPlaylist.length + ' total)');
     }
 
@@ -1154,7 +1180,7 @@ function skipToNextSongWithPurge(purgeType = 'none') {
 
 // Reset shuffle queue (for replay consistency)
 function resetShuffleQueue() {
-    gameplayShuffleQueue = shuffleArray(gameplaySongs.map(s => s.id));
+    gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
     lastPlayedGameplaySong = null;
     saveQueuesToStorage();
     Logger.debug('🎵 Reset gameplay shuffle queue for replay');
@@ -1229,9 +1255,14 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     }
     
     if (queue.length === 0) {
-        // Refill and reshuffle, excluding purged songs
-        let newQueue = shuffleArray(songList.map(s => s.id));
-        
+        // Refill and reshuffle, excluding purged songs and Yes, And... family (gameplay only)
+        const yesAndSet = new Set(YES_AND_FAMILY);
+        let newQueue = shuffleArray(
+            queueName === 'gameplay'
+                ? songList.map(s => s.id).filter(id => !yesAndSet.has(id))
+                : songList.map(s => s.id)
+        );
+
         // Filter out purged songs when refilling (gameplay only)
         if (queueName === 'gameplay') {
             newQueue = newQueue.filter(id => !isSongPurged(id));
@@ -1239,7 +1270,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
                 // All songs are purged! Clear purges and try again
                 Logger.warn('🎵 All songs purged! Clearing purge list.');
                 clearAllPurgedSongs();
-                newQueue = shuffleArray(songList.map(s => s.id));
+                newQueue = shuffleArray(songList.map(s => s.id).filter(id => !yesAndSet.has(id)));
             }
         }
         
@@ -1533,12 +1564,22 @@ function startMusic(gameMode, musicSelect) {
             song = allSongs.find(s => s.id === trackId);
         }
     } else if (selection === 'shuffle') {
+        // Mandatory "Yes, And..." intro song for the first 3 visits (plays before album playlist)
+        if (yesAndIntroSong) {
+            trackId = yesAndIntroSong;
+            song = allSongs.find(s => s.id === trackId);
+            // Consume the intro song and increment visit count so it won't repeat this session
+            const currentVisit = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+            localStorage.setItem(VISIT_COUNT_KEY, String(currentVisit + 1));
+            Logger.debug('🎵 Playing mandatory intro song: "' + trackId + '" (visit #' + (currentVisit + 1) + ')');
+            yesAndIntroSong = null; // Only play once per session
+        }
         // Album playlist for first-time players (ordered listen, then normal shuffle)
-        trackId = getNextAlbumSong();
-        if (trackId) {
+        if (!trackId) trackId = getNextAlbumSong();
+        if (trackId && !song) {
             song = allSongs.find(s => s.id === trackId);
             Logger.debug('🎵 Playing from album:', trackId, '| Album remaining:', albumPlaylist.length);
-        } else {
+        } else if (!trackId) {
             // Normal shuffle mode: use persistent queue (no repeats until all played)
             trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
             song = allSongs.find(s => s.id === trackId);
