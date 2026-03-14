@@ -1089,18 +1089,22 @@ function promptForName(scoreData) {
             Logger.error('Error during score submission:', error);
         }
         
-        // Always show the game-over div so user can click Play Again
+        // Show the game-over div so user can click Play Again
+        // But only if the user hasn't already returned to the menu (e.g. via Play Again or new game)
         const gameOverDiv = document.getElementById('gameOver');
-        if (gameOverDiv) {
+        const modeMenu = document.getElementById('modeMenu');
+        const userReturnedToMenu = modeMenu && !modeMenu.classList.contains('hidden');
+        if (gameOverDiv && !window.gameRunning && !userReturnedToMenu) {
             gameOverDiv.style.display = 'block';
         }
-        
+
         // Reset submission flag for next game
         isSubmittingScore = false;
         Logger.debug('=== handleSubmit END ===');
-        
+
         // Notify game.js that score submission is complete (triggers credits animation)
-        if (typeof window.onScoreSubmitted === 'function') {
+        // Skip if user already navigated away (started new game or returned to menu)
+        if (typeof window.onScoreSubmitted === 'function' && !window.gameRunning && !userReturnedToMenu) {
             Logger.debug('Calling window.onScoreSubmitted()');
             window.onScoreSubmitted();
         }
@@ -1112,6 +1116,7 @@ function promptForName(scoreData) {
     newInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation(); // Prevent bubbling to game-over Enter→Play Again handler
             handleSubmit();
         }
     });

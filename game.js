@@ -9576,6 +9576,13 @@ function toggleUIElements(show) {
 }
 
 async function gameOver() {
+    // Prevent re-entrant calls (multiple game-over checks can fire in quick succession)
+    if (gameOverInProgress) {
+        Logger.debug('gameOver() already in progress, skipping duplicate call');
+        return;
+    }
+    gameOverInProgress = true;
+
     // During replay, just show completion - don't submit scores or record
     if (GameReplay.isActive()) {
         Logger.info('🎬 Game over during replay - showing completion');
@@ -9583,7 +9590,7 @@ async function gameOver() {
         GameReplay.showComplete();
         return;
     }
-    
+
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
@@ -9884,6 +9891,7 @@ async function gameOver() {
 
 // Called after high score submission is complete
 let scoreSubmittedHandled = false;
+let gameOverInProgress = false; // Re-entrancy guard for gameOver()
 
 function onScoreSubmitted() {
     if (scoreSubmittedHandled) {
@@ -9993,6 +10001,11 @@ function stopLeaderboardCloseDetection() {
 
 // Show game over popup, start credits animation, and play end credits music
 function showGameOverScreen() {
+    // Don't show if user already started a new game
+    if (gameRunning) {
+        Logger.debug('showGameOverScreen: game is running, skipping');
+        return;
+    }
     Logger.debug('showGameOverScreen called');
     Logger.debug('gameOverDiv:', gameOverDiv);
 
@@ -10801,6 +10814,7 @@ function startGame(mode) {
     stopLeaderboardCloseDetection();
     cancelAIAutoRestartTimer(); // Cancel any pending AI auto-restart
     scoreSubmittedHandled = false; // Reset for new game
+    gameOverInProgress = false; // Reset re-entrancy guard for new game
     
     // If tuning mode was active but this isn't a tuning restart, stop tuning mode
     // (This handles cases where user manually starts a game while tuning was running)
@@ -12699,7 +12713,10 @@ if (dontPanicText) {
 if (startOverlay) {
     // Track page visit — requires human interaction to filter bots
     // Skip tracking if ?track=false is in the URL or navigator.webdriver is set (headless browsers)
-    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !navigator.webdriver;
+    // Also check parent frame URL (for itch.io iframe embeds where the param is on the parent)
+    let _parentTrackFalse = false;
+    try { _parentTrackFalse = window.parent !== window && new URL(document.referrer).searchParams.get('track') === 'false'; } catch(e) {}
+    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !_parentTrackFalse && !navigator.webdriver;
     let _visitId = null;
     window._visitId = null;
     const _visitLoadTime = Date.now();
