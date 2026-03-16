@@ -965,6 +965,7 @@
                 <div class="challenge-description" data-i18n="challenge.nervous.desc">The entire well vibrates up and down constantly</div>
             </div>
             
+            <!-- Six Seven challenge temporarily disabled
             <div class="combo-checkbox-option">
                 <label>
                     <div class="toggle-switch">
@@ -975,6 +976,7 @@
                 </label>
                 <div class="challenge-description" data-i18n="challenge.sixseven.desc">???</div>
             </div>
+            -->
             
             <div class="combo-checkbox-option">
                 <label>
@@ -1165,7 +1167,7 @@
 	<script src="challenge_oz.js"></script>
 	<script src="challenge_rubber.js"></script>
 	<script src="challenge_phantom.js"></script>
-	<script src="challenge_sixseven.js"></script>
+	<!-- <script src="challenge_sixseven.js"></script> -->
 	<script src="challenge_vertigo.js"></script>
 	<script src="challenge_yesand.js"></script>
 	<script src="histogram.js"></script>
@@ -1344,7 +1346,7 @@ if ('serviceWorker' in navigator) {
     }
 
     // The version this page was built/cached with (must match sw.js APP_VERSION at deploy time)
-    var PAGE_VERSION = '3.60';
+    var PAGE_VERSION = '3.61';
 
     // Listen for messages from SW (update notifications + version responses)
     navigator.serviceWorker.addEventListener('message', function(event) {

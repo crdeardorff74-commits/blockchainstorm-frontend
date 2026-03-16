@@ -5402,7 +5402,7 @@ function getChallengeModeMultiplier() {
         'oz': 0.05,           // 5%
         'lattice': 0.05,      // 5%
         'yesand': 0.05,       // 5%
-        'sixseven': 0.04,     // 4%
+        // 'sixseven': 0.04,     // 4% -- temporarily disabled
         'longago': 0.04,      // 4%
         'comingsoon': 0.04,   // 4%
         'thinner': 0.04,      // 4%
@@ -10054,7 +10054,7 @@ const AI_SKILL_OPTIONS = ['breeze', 'tempest', 'maelstrom'];
 // All challenge types for AI random selection
 const AI_CHALLENGE_POOL = [
     'stranger', 'dyslexic', 'phantom', 'rubber', 'oz', 'thinner',
-    'nervous', 'sixseven', 'gremlins', 'lattice', 'yesand', 'mercurial',
+    'nervous', /* 'sixseven', */ 'gremlins', 'lattice', 'yesand', 'mercurial',
     'shadowless', 'amnesia', 'vertigo', 'carrie', 'nokings',
     'longago', 'comingsoon'
 ];
@@ -10097,7 +10097,7 @@ function randomizeAIChallenges() {
         'rubber': 'comboRubber', 'oz': 'comboOz', 'thinner': 'comboThinner',
         'thicker': 'comboThicker', 'nervous': 'comboNervous', 'carrie': 'comboCarrie',
         'nokings': 'comboNokings', 'longago': 'comboLongAgo', 'comingsoon': 'comboComingSoon',
-        'sixseven': 'comboSixSeven', 'gremlins': 'comboGremlins', 'lattice': 'comboLattice',
+        /* 'sixseven': 'comboSixSeven', */ 'gremlins': 'comboGremlins', 'lattice': 'comboLattice',
         'yesand': 'comboYesAnd', 'mercurial': 'comboMercurial', 'shadowless': 'comboShadowless',
         'amnesia': 'comboAmnesia', 'vertigo': 'comboVertigo'
     };
@@ -12104,7 +12104,7 @@ const comboCarrie = document.getElementById('comboCarrie');
 const comboNokings = document.getElementById('comboNokings');
 const comboLongAgo = document.getElementById('comboLongAgo');
 const comboComingSoon = document.getElementById('comboComingSoon');
-const comboSixSeven = document.getElementById('comboSixSeven');
+const comboSixSeven = document.getElementById('comboSixSeven'); // null when Six Seven is disabled
 const comboGremlins = document.getElementById('comboGremlins');
 const comboLattice = document.getElementById('comboLattice');
 const comboYesAnd = document.getElementById('comboYesAnd');
@@ -12127,7 +12127,7 @@ function updateComboBonusDisplay() {
         'lattice': 5,      // Pre-filled blocks
         'yesand': 5,       // Random extra blocks
         'mercurial': 4,    // Color-shifting pieces
-        'sixseven': 4,     // Occasional giant pieces
+        // 'sixseven': 4,     // Occasional giant pieces -- temporarily disabled
         'longago': 4,      // Perspective distortion
         'comingsoon': 4,   // Reverse perspective
         'thinner': 4,      // Visual compression
@@ -12154,7 +12154,7 @@ function updateComboBonusDisplay() {
         { checkbox: comboLongAgo, type: 'longago' },
         { checkbox: comboComingSoon, type: 'comingsoon' },
         { checkbox: comboNervous, type: 'nervous' },
-        { checkbox: comboSixSeven, type: 'sixseven' },
+        // { checkbox: comboSixSeven, type: 'sixseven' },
         { checkbox: comboGremlins, type: 'gremlins' },
         { checkbox: comboLattice, type: 'lattice' },
         { checkbox: comboYesAnd, type: 'yesand' },
@@ -12235,7 +12235,7 @@ function populateComboModal() {
     comboNokings.checked = activeChallenges.has('nokings');
     comboLongAgo.checked = activeChallenges.has('longago');
     comboComingSoon.checked = activeChallenges.has('comingsoon');
-    comboSixSeven.checked = activeChallenges.has('sixseven');
+    if (comboSixSeven) comboSixSeven.checked = activeChallenges.has('sixseven');
     comboGremlins.checked = activeChallenges.has('gremlins');
     comboLattice.checked = activeChallenges.has('lattice');
     comboYesAnd.checked = activeChallenges.has('yesand');
@@ -12341,7 +12341,7 @@ comboApplyBtn.addEventListener('click', () => {
     if (comboNokings.checked) activeChallenges.add('nokings');
     if (comboLongAgo.checked) activeChallenges.add('longago');
     if (comboComingSoon.checked) activeChallenges.add('comingsoon');
-    if (comboSixSeven.checked) activeChallenges.add('sixseven');
+    if (comboSixSeven && comboSixSeven.checked) activeChallenges.add('sixseven');
     if (comboGremlins.checked) activeChallenges.add('gremlins');
     if (comboLattice.checked) activeChallenges.add('lattice');
     if (comboYesAnd.checked) activeChallenges.add('yesand');
