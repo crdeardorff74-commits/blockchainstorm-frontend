@@ -269,8 +269,8 @@ const gameplaySongs = [
     { id: 'cascade_void_nervous', name: 'Cascade into the Void (Nervous Mix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Nervous.Mix.mp3' },
     { id: 'cascade', name: 'Cascade of Colored Bricks', file: MUSIC_BASE_URL + 'Cascade.of.Colored.Bricks.mp3' },
     { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing.Skies.mp3' },
-    { id: 'cosmic_reggae', name: 'Cosmic Regae', file: MUSIC_BASE_URL + 'Cosmic.Regae.mp3' },
-    { id: 'cosmic_reggae_reverb', name: 'Cosmic Regae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Regae.Reverb.mp3' },
+    { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic.Reggae.mp3' },
+    { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Reggae.Reverb.mp3' },
     { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic.Sneeze.mp3' },
     // D
     { id: 'delayed_gravitation', name: 'Delayed Gravitation', file: MUSIC_BASE_URL + 'Delayed.Gravitation.mp3' },
@@ -366,9 +366,9 @@ const gameplaySongs = [
     { id: 'tantro_fever_piano_redux_redux', name: 'TANT\u042fO Fever (Piano Redux Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Piano.Redux.Redux.mp3' },
     { id: 'tantro_fever_rap', name: 'TANT\u042fO Fever (Rap)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Rap.mp3' },
     { id: 'tantro_fever_rap_redux', name: 'TANT\u042fO Fever (Rap Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Rap.Redux.mp3' },
-    { id: 'tantro_fever_regae', name: 'TANT\u042fO Fever (Regae)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Regae.mp3' },
-    { id: 'tantro_fever_regae_redux', name: 'TANT\u042fO Fever (Regae Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Regae.Redux.mp3' },
-    { id: 'tantro_fever_regae_redux_redux', name: 'TANT\u042fO Fever (Regae Redux Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Regae.Redux.Redux.mp3' },
+    { id: 'tantro_fever_reggae', name: 'TANT\u042fO Fever (Reggae)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Reggae.mp3' },
+    { id: 'tantro_fever_reggae_redux', name: 'TANT\u042fO Fever (Reggae Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Reggae.Redux.mp3' },
+    { id: 'tantro_fever_reggae_redux_redux', name: 'TANT\u042fO Fever (Reggae Redux Redux)', file: MUSIC_BASE_URL + 'TANT.O.Fever.Reggae.Redux.Redux.mp3' },
     { id: 'tantro_fever_redux', name: 'TANT\u042fO Fever Redux', file: MUSIC_BASE_URL + 'TANT.O.Fever.Redux.mp3' },
     { id: 'tantro_fever_redux_redux', name: 'TANT\u042fO Fever Redux Redux', file: MUSIC_BASE_URL + 'TANT.O.Fever.Redux.Redux.mp3' },
     { id: 'tantro_fever_redux_redux_redux', name: 'TANT\u042fO Fever Redux Redux Redux', file: MUSIC_BASE_URL + 'TANT.O.Fever.Redux.Redux.Redux.mp3' },
@@ -488,10 +488,10 @@ const ALBUM_QUEUE_KEY = 'tantro_albumPlaylist';
 const VISIT_COUNT_KEY = 'tantro_visitCount'; // Tracks how many times the player has visited (for intro songs)
 
 // "Yes, And..." intro songs — mandatory first song for the player's first 3 visits
-const YES_AND_INTRO_SONGS = ['yes_and', 'yes_and_polka', 'yes_and_techno'];
+// const YES_AND_INTRO_SONGS = ['yes_and', 'yes_and_polka', 'yes_and_techno'];
 
 // All "Yes, And..." song IDs — excluded from shuffle queues (only appear as intro songs)
-const YES_AND_FAMILY = ['yes_and', 'yes_and_polka', 'yes_and_reggae', 'yes_and_redux', 'yes_and_techno'];
+// const YES_AND_FAMILY = ['yes_and', 'yes_and_polka', 'yes_and_reggae', 'yes_and_redux', 'yes_and_techno'];
 
 // Replay mode - play specific tracks in order instead of shuffle
 let replayModeActive = false;
@@ -927,33 +927,38 @@ function shuffleArray(array) {
     return shuffled;
 }
 
-// Helper: get gameplay song IDs excluding "Yes, And..." family (they only appear as intro songs)
+// Helper: get gameplay song IDs for shuffle queues
 function getShuffleableGameplaySongIds() {
-    const yesAndSet = new Set(YES_AND_FAMILY);
-    return gameplaySongs.map(s => s.id).filter(id => !yesAndSet.has(id));
+    // const yesAndSet = new Set(YES_AND_FAMILY);
+    // return gameplaySongs.map(s => s.id).filter(id => !yesAndSet.has(id));
+    return gameplaySongs.map(s => s.id);
 }
 
 // Initialize shuffle queues at load time - load from localStorage or create new
 function initShuffleQueues() {
     // Determine mandatory "Yes, And..." intro song based on visit count
-    const visitCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
-    if (visitCount < YES_AND_INTRO_SONGS.length) {
-        const introId = YES_AND_INTRO_SONGS[visitCount];
-        if (!isSongPurged(introId) && allSongs.some(s => s.id === introId)) {
-            yesAndIntroSong = introId;
-            Logger.debug('🎵 Visit #' + (visitCount + 1) + ': mandatory intro song "' + introId + '"');
-        }
-    }
+    // const visitCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+    // if (visitCount < YES_AND_INTRO_SONGS.length) {
+    //     const introId = YES_AND_INTRO_SONGS[visitCount];
+    //     if (!isSongPurged(introId) && allSongs.some(s => s.id === introId)) {
+    //         yesAndIntroSong = introId;
+    //         Logger.debug('🎵 Visit #' + (visitCount + 1) + ': mandatory intro song "' + introId + '"');
+    //     }
+    // }
 
     // Try to load gameplay queue from localStorage
     const savedGameplayQueue = localStorage.getItem(GAMEPLAY_QUEUE_KEY);
-    if (savedGameplayQueue) {
+    if (savedGameplayQueue && savedGameplayQueue.includes('regae') || savedGameplayQueue && savedGameplayQueue.includes('Regae')) {
+        // v3.62: song IDs were renamed to fix "regae" → "reggae" typo; invalidate stale queues
+        Logger.debug('🎵 Detected stale song IDs (regae typo), regenerating playlist');
+        gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
+    } else if (savedGameplayQueue) {
         try {
             gameplayShuffleQueue = JSON.parse(savedGameplayQueue);
-            // Validate that saved IDs are still valid songs and exclude Yes, And... family
-            const yesAndSet = new Set(YES_AND_FAMILY);
+            // Validate that saved IDs are still valid songs
+            // const yesAndSet = new Set(YES_AND_FAMILY);
             gameplayShuffleQueue = gameplayShuffleQueue.filter(id =>
-                gameplaySongs.some(s => s.id === id) && !yesAndSet.has(id)
+                gameplaySongs.some(s => s.id === id)
             );
             Logger.debug('🎵 Loaded gameplay queue from storage:', gameplayShuffleQueue.length, 'songs remaining');
         } catch (e) {
@@ -962,8 +967,7 @@ function initShuffleQueues() {
         }
     } else {
         // First-ever player: build full playlist with album order first, then remaining songs shuffled
-        // (Yes, And... songs excluded — they appear only as mandatory intro songs)
-        const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER, ...YES_AND_FAMILY]);
+        const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER]);
         const remainingSongs = shuffleArray(getShuffleableGameplaySongIds().filter(id => !excludeFromAlbum.has(id)));
         albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
         gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
@@ -1255,12 +1259,10 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     }
     
     if (queue.length === 0) {
-        // Refill and reshuffle, excluding purged songs and Yes, And... family (gameplay only)
-        const yesAndSet = new Set(YES_AND_FAMILY);
+        // Refill and reshuffle, excluding purged songs (gameplay only)
+        // const yesAndSet = new Set(YES_AND_FAMILY);
         let newQueue = shuffleArray(
-            queueName === 'gameplay'
-                ? songList.map(s => s.id).filter(id => !yesAndSet.has(id))
-                : songList.map(s => s.id)
+            songList.map(s => s.id)
         );
 
         // Filter out purged songs when refilling (gameplay only)
