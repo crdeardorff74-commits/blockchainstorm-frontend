@@ -1150,6 +1150,7 @@
         </div>
     </div>
 	
+	<script>var PAGE_VERSION = '3.63';</script>
 	<script src="config.js"></script>
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>
@@ -1345,8 +1346,7 @@ if ('serviceWorker' in navigator) {
         }
     }
 
-    // The version this page was built/cached with (must match sw.js APP_VERSION at deploy time)
-    var PAGE_VERSION = '3.63';
+    // PAGE_VERSION is declared at the top of the script section (before game.js loads)
 
     // Listen for messages from SW (update notifications + version responses)
     navigator.serviceWorker.addEventListener('message', function(event) {
