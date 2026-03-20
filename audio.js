@@ -271,14 +271,11 @@ const gameplaySongs = [
     { id: 'clearing_skies', name: 'Clearing Skies', file: MUSIC_BASE_URL + 'Clearing.Skies.mp3' },
     { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic.Reggae.mp3' },
     { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Reggae.Reverb.mp3' },
-    { id: 'cosmic_sneeze', name: 'Cosmic Sneeze', file: MUSIC_BASE_URL + 'Cosmic.Sneeze.mp3' },
     // D
-    { id: 'delayed_gravitation', name: 'Delayed Gravitation', file: MUSIC_BASE_URL + 'Delayed.Gravitation.mp3' },
     { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do.You.Want.a.Score.mp3' },
     { id: 'drizzling_echoes', name: 'Drizzling Echoes', file: MUSIC_BASE_URL + 'Drizzling.Echoes.mp3' },
     // E
     { id: 'electric_wind_gusts', name: 'Electric Wind Gusts', file: MUSIC_BASE_URL + 'Electric.Wind.Gusts.mp3' },
-    { id: 'elemental_flow', name: 'Elemental Flow', file: MUSIC_BASE_URL + 'Elemental.Flow.mp3' },
     { id: 'event_horizon', name: 'Event Horizon', file: MUSIC_BASE_URL + 'Event.Horizon.mp3' },
     // F
     { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin.Down.mp3' },
@@ -290,9 +287,7 @@ const gameplaySongs = [
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle.Puddles.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood.Me.mp3' },
     { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast.Calls.for.Blocks.mp3' },
-    { id: 'frolicking_among_the_ruins', name: 'Frolicking Among the Ruins', file: MUSIC_BASE_URL + 'Frolicking.Among.the.Ruins.mp3' },
     // G
-    { id: 'get_some_tonight', name: 'Get Some Tonight', file: MUSIC_BASE_URL + 'Get.Some.Tonight.mp3' },
     { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin.Tectonic.mp3' },
     { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' },
     { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin.Swell.mp3' },
@@ -336,7 +331,6 @@ const gameplaySongs = [
     { id: 'stacked_like_pam', name: 'Stacked (Like Pam)', file: MUSIC_BASE_URL + 'Stacked.Like.Pam.mp3' },
     { id: 'stacked_like_sofia', name: 'Stacked (Like Sofia)', file: MUSIC_BASE_URL + 'Stacked.Like.Sofia.mp3' },
     { id: 'stilted_erosion', name: 'Stilted Erosion', file: MUSIC_BASE_URL + 'Stilted.Erosion.mp3' },
-    { id: 'stuck_on_the_grid', name: 'Stuck on the Grid', file: MUSIC_BASE_URL + 'Stuck.on.the.Grid.mp3' },
     { id: 'symphonic_fog', name: 'Symphonic Fog', file: MUSIC_BASE_URL + 'Symphonic.Fog.mp3' },
     // T - TANTЯO Fever variants
     { id: 'tantro_fever', name: 'TANT\u042fO Fever', file: MUSIC_BASE_URL + 'TANT.O.Fever.mp3' },
@@ -390,10 +384,11 @@ const gameplaySongs = [
     { id: 'the_call_of_tantro', name: 'The Call of TANT\u042fO', file: MUSIC_BASE_URL + 'The.Call.of.TANT.O.mp3' },
     { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
-    { id: 'the_longer_game', name: 'The Longer Game', file: MUSIC_BASE_URL + 'The.Longer.Game.mp3' },
     { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The.Pit.Banjo.Mix.mp3' },
     { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The.Pit.Horny.Mix.mp3' },
     { id: 'the_pit_house', name: 'The Pit (House Mix)', file: MUSIC_BASE_URL + 'The.Pit.House.Mix.mp3' },
+    { id: 'the_pit_country', name: 'The Pit (Country)', file: MUSIC_BASE_URL + 'The.Pit.Country.mp3' },
+    { id: 'the_pit_heavy_metal', name: 'The Pit (Heavy Metal)', file: MUSIC_BASE_URL + 'The.Pit.Heavy.Metal.mp3' },
     { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The.Pit.Techno.Mix.mp3' },
     { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three.Ring.Gravity.mp3' },
     { id: 'trapeze_breeze', name: 'Trapeze Breeze', file: MUSIC_BASE_URL + 'Trapeze.Breeze.mp3' },
