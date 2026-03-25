@@ -247,10 +247,12 @@ const gameplaySongs = [
     { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A.Game.of.Falling.Blocks.mp3' },
     { id: 'a_river_skips_through_it', name: 'A River Skips Through It', file: MUSIC_BASE_URL + 'A.River.Skips.Through.It.mp3' },
     // B
-    { id: 'bide_your_time', name: 'Bide Your Time', file: MUSIC_BASE_URL + 'Bide.Your.Time.mp3' },
     { id: 'blobs_get_me_high', name: 'Blobs (Get Me High)', file: MUSIC_BASE_URL + 'Blobs.Get.Me.High.mp3' },
     { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block.on.Fire.mp3' },
     { id: 'blood_rains_down', name: 'Blood Rains Down', file: MUSIC_BASE_URL + 'Blood.Rains.Down.mp3' },
+    { id: 'bumblefunk', name: 'Bumblefunk', file: MUSIC_BASE_URL + 'Bumblefunk.mp3' },
+    { id: 'bumblestep', name: 'Bumblestep', file: MUSIC_BASE_URL + 'Bumblestep.mp3' },
+    { id: 'bumblestepfunk', name: 'Bumblestepfunk', file: MUSIC_BASE_URL + 'Bumblestepfunk.mp3' },
     { id: 'breakin_down', name: "Breakin' Down", file: MUSIC_BASE_URL + 'Breakin.Down.mp3' },
     { id: 'buried_alive', name: 'Buried Alive', file: MUSIC_BASE_URL + 'Buried.Alive.mp3' },
     { id: 'buried_alive_redux', name: 'Buried Alive Redux', file: MUSIC_BASE_URL + 'Buried.Alive.Redux.mp3' },
@@ -323,7 +325,6 @@ const gameplaySongs = [
     // R
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber.Glue.mp3' },
     // S
-    { id: 'slow_burn', name: 'Slow Burn', file: MUSIC_BASE_URL + 'Slow.Burn.mp3' },
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar.Echoes.mp3' },
     { id: 'solar_reverb', name: 'Solar Reverb', file: MUSIC_BASE_URL + 'Solar.Reverb.mp3' },
     { id: 'stacked_like_dolly', name: 'Stacked (Like Dolly)', file: MUSIC_BASE_URL + 'Stacked.Like.Dolly.mp3' },
