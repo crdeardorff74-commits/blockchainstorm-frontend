@@ -394,7 +394,7 @@ const gameplaySongs = [
     { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three.Ring.Gravity.mp3' },
     { id: 'trapeze_breeze', name: 'Trapeze Breeze', file: MUSIC_BASE_URL + 'Trapeze.Breeze.mp3' },
     // W
-    { id: 'what_the_flock', name: 'What the Flock', file: MUSIC_BASE_URL + 'What.the.Flock.mp3' },
+    { id: 'what_the_flock', name: 'What The Flock', file: MUSIC_BASE_URL + 'What.The.Flock.mp3' },
     { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling.Dewdrops.mp3' },
     { id: 'wind_fire', name: 'Wind & Fire', file: MUSIC_BASE_URL + 'Wind.Fire.mp3' },
     { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind.Fire.Soot.mp3' },
