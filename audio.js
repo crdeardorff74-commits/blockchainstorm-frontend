@@ -246,6 +246,9 @@ const gameplaySongs = [
     { id: 'a_game_of_disasters', name: 'A Game of Disasters', file: MUSIC_BASE_URL + 'A.Game.of.Disasters.mp3' },
     { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A.Game.of.Falling.Blocks.mp3' },
     { id: 'a_river_skips_through_it', name: 'A River Skips Through It', file: MUSIC_BASE_URL + 'A.River.Skips.Through.It.mp3' },
+    { id: 'as_above_so_below', name: 'As Above So Below', file: MUSIC_BASE_URL + 'As.Above.So.Below.mp3' },
+    { id: 'astronomically_horny', name: 'Astronomically Horny', file: MUSIC_BASE_URL + 'Astronomically.Horny.mp3' },
+    { id: 'astronomically_horny_redux', name: 'Astronomically Horny Redux', file: MUSIC_BASE_URL + 'Astronomically.Horny.Redux.mp3' },
     // B
     { id: 'blobs_get_me_high', name: 'Blobs (Get Me High)', file: MUSIC_BASE_URL + 'Blobs.Get.Me.High.mp3' },
     { id: 'block_on_fire', name: 'Block on Fire', file: MUSIC_BASE_URL + 'Block.on.Fire.mp3' },
@@ -274,6 +277,8 @@ const gameplaySongs = [
     { id: 'cosmic_reggae', name: 'Cosmic Reggae', file: MUSIC_BASE_URL + 'Cosmic.Reggae.mp3' },
     { id: 'cosmic_reggae_reverb', name: 'Cosmic Reggae Reverb', file: MUSIC_BASE_URL + 'Cosmic.Reggae.Reverb.mp3' },
     // D
+    { id: 'dark_and_stormy_night', name: 'Dark and Stormy Night', file: MUSIC_BASE_URL + 'Dark.and.Stormy.Night.mp3' },
+    { id: 'dark_and_stormy_night_redux', name: 'Dark and Stormy Night Redux', file: MUSIC_BASE_URL + 'Dark.and.Stormy.Night.Redux.mp3' },
     { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do.You.Want.a.Score.mp3' },
     { id: 'drizzling_echoes', name: 'Drizzling Echoes', file: MUSIC_BASE_URL + 'Drizzling.Echoes.mp3' },
     // E
@@ -291,14 +296,20 @@ const gameplaySongs = [
     { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast.Calls.for.Blocks.mp3' },
     // G
     { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin.Tectonic.mp3' },
+    { id: 'glitchy_in_the_brain', name: 'Glitchy in the Brain', file: MUSIC_BASE_URL + 'Glitchy.in.the.Brain.mp3' },
     { id: 'gravitational', name: 'Gravitational', file: MUSIC_BASE_URL + 'Gravitational.mp3' },
     { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin.Swell.mp3' },
     { id: 'gremlins_arcade', name: 'Gremlins Arcade', file: MUSIC_BASE_URL + 'Gremlins.Arcade.mp3' },
     // H
     { id: 'haunted_hailstones', name: 'Haunted Hailstones', file: MUSIC_BASE_URL + 'Haunted.Hailstones.mp3' },
+    { id: 'high_score', name: 'High Score', file: MUSIC_BASE_URL + 'High.Score.mp3' },
     { id: 'hold_it_in', name: 'Hold It In', file: MUSIC_BASE_URL + 'Hold.It.In.mp3' },
     { id: 'hold_it', name: 'Hold It', file: MUSIC_BASE_URL + 'Hold.It.mp3' },
     { id: 'hold_off_for_me', name: 'Hold Off for Me', file: MUSIC_BASE_URL + 'Hold.Off.for.Me.mp3' },
+    // I
+    { id: 'i_love_that_for_me', name: 'I Love That for Me', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.mp3' },
+    { id: 'i_love_that_for_me_funk', name: 'I Love That for Me (Funk)', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Funk.mp3' },
+    { id: 'i_love_that_for_me_redux', name: 'I Love That for Me Redux', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Redux.mp3' },
     // J
     { id: 'joyful_odie', name: 'Joyful Odie', file: MUSIC_BASE_URL + 'Joyful.Odie.mp3' },
     { id: 'just_a_game', name: 'Just a Game', file: MUSIC_BASE_URL + 'Just.a.Game.mp3' },
@@ -316,6 +327,7 @@ const gameplaySongs = [
     { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural.Disasters.mp3' },
     { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural.Selection.mp3' },
     // O
+    { id: 'on_tilt', name: 'On Tilt', file: MUSIC_BASE_URL + 'On.Tilt.mp3' },
     { id: 'orbituary', name: 'Orbituary', file: MUSIC_BASE_URL + 'Orbituary.mp3' },
     // P
     { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect.Storm.mp3' },
@@ -327,6 +339,10 @@ const gameplaySongs = [
     // S
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar.Echoes.mp3' },
     { id: 'solar_reverb', name: 'Solar Reverb', file: MUSIC_BASE_URL + 'Solar.Reverb.mp3' },
+    { id: 'some_type_of_way', name: 'Some Type of Way', file: MUSIC_BASE_URL + 'Some.Type.of.Way.mp3' },
+    { id: 'some_type_of_way_show_tune', name: 'Some Type of Way (Show Tune)', file: MUSIC_BASE_URL + 'Some.Type.of.Way.Show.Tune.mp3' },
+    { id: 'some_type_of_way_show_tune_redux', name: 'Some Type of Way (Show Tune Redux)', file: MUSIC_BASE_URL + 'Some.Type.of.Way.Show.Tune.Redux.mp3' },
+    { id: 'some_type_of_way_show_tune_redux_redux', name: 'Some Type of Way (Show Tune Redux Redux)', file: MUSIC_BASE_URL + 'Some.Type.of.Way.Show.Tune.Redux.Redux.mp3' },
     { id: 'stacked_like_dolly', name: 'Stacked (Like Dolly)', file: MUSIC_BASE_URL + 'Stacked.Like.Dolly.mp3' },
     { id: 'stacked_like_loni', name: 'Stacked (Like Loni)', file: MUSIC_BASE_URL + 'Stacked.Like.Loni.mp3' },
     { id: 'stacked_like_pam', name: 'Stacked (Like Pam)', file: MUSIC_BASE_URL + 'Stacked.Like.Pam.mp3' },
