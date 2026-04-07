@@ -284,6 +284,7 @@ const gameplaySongs = [
     // E
     { id: 'electric_wind_gusts', name: 'Electric Wind Gusts', file: MUSIC_BASE_URL + 'Electric.Wind.Gusts.mp3' },
     { id: 'event_horizon', name: 'Event Horizon', file: MUSIC_BASE_URL + 'Event.Horizon.mp3' },
+    { id: 'everybody_poops', name: 'Everybody Poops', file: MUSIC_BASE_URL + 'Everybody.Poops.mp3' },
     // F
     { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin.Down.mp3' },
     { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling.Blocks.Reactor.mp3' },
@@ -333,6 +334,7 @@ const gameplaySongs = [
     { id: 'perfect_storm', name: 'Perfect Storm', file: MUSIC_BASE_URL + 'Perfect.Storm.mp3' },
     { id: 'pity_puddles', name: 'Pity Puddles', file: MUSIC_BASE_URL + 'Pity.Puddles.mp3' },
     { id: 'perineum_sunning', name: 'Perineum Sunning', file: MUSIC_BASE_URL + 'Perineum.Sunning.mp3' },
+    { id: 'perineum_sunning_edm', name: 'Perineum Sunning (EDM)', file: MUSIC_BASE_URL + 'Perineum.Sunning.EDM.mp3' },
     { id: 'plummet', name: 'Plummet', file: MUSIC_BASE_URL + 'Plummet.mp3' },
     // R
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber.Glue.mp3' },
@@ -396,6 +398,7 @@ const gameplaySongs = [
     { id: 'teeeerry_redux_redux', name: 'Teeeerry Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.mp3' },
     { id: 'teeeerry_redux_redux_redux', name: 'Teeeerry Redux Redux Redux', file: MUSIC_BASE_URL + 'Teeeerry.Redux.Redux.Redux.mp3' },
     // T - Other
+    { id: 'tell_your_dog_i_said_hi', name: 'Tell Your Dog I Said Hi', file: MUSIC_BASE_URL + 'Tell.Your.Dog.I.Said.Hi.mp3' },
     { id: 'tetrominoes_pentominoes', name: 'Tetrominoes & Pentominoes', file: MUSIC_BASE_URL + 'Tetrominoes.Pentominoes.mp3' },
     // { id: 'the_call_of_tantro', name: 'The Call of TANTЯO', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' }, // old recording
     { id: 'the_call_of_tantro', name: 'The Call of TANT\u042fO', file: MUSIC_BASE_URL + 'The.Call.of.TANT.O.mp3' },
@@ -409,6 +412,10 @@ const gameplaySongs = [
     { id: 'the_pit_techno', name: 'The Pit (Techno Mix)', file: MUSIC_BASE_URL + 'The.Pit.Techno.Mix.mp3' },
     { id: 'three_ring_gravity', name: 'Three Ring Gravity', file: MUSIC_BASE_URL + 'Three.Ring.Gravity.mp3' },
     { id: 'trapeze_breeze', name: 'Trapeze Breeze', file: MUSIC_BASE_URL + 'Trapeze.Breeze.mp3' },
+    // V
+    { id: 'vibe_code', name: 'Vibe Code', file: MUSIC_BASE_URL + 'Vibe.Code.mp3' },
+    { id: 'vibe_code_edm', name: 'Vibe Code (EDM)', file: MUSIC_BASE_URL + 'Vibe.Code.EDM.mp3' },
+    { id: 'vibe_code_edm_redux', name: 'Vibe Code (EDM Redux)', file: MUSIC_BASE_URL + 'Vibe.Code.EDM.Redux.mp3' },
     // W
     { id: 'what_the_flock', name: 'What The Flock', file: MUSIC_BASE_URL + 'What.The.Flock.mp3' },
     { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling.Dewdrops.mp3' },
