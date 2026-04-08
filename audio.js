@@ -477,13 +477,18 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 // Album playlist order for first-time players - these songs play first in this exact order,
 // followed by all remaining gameplay songs in random order
 const ALBUM_PLAYLIST_ORDER = [
+	'disclosure',
+	'ragstep',
+	'i_love_that_for_me',
 	'solar_reverb',
 	'tantro_fever', 
+	'vibe_code',
 	'event_horizon',
 	'tantro_on_my_hands', 
 	'tantro_fever_instrumental_rap', 
 	'plummet',
     'meet_cute', 
+	'final_score',
 	'tantro_fever_heavy_metal', 
 	'orbituary',
 	'tantro_fever_k_pop', 
