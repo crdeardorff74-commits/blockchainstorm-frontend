@@ -279,6 +279,11 @@ const gameplaySongs = [
     // D
     { id: 'dark_and_stormy_night', name: 'Dark and Stormy Night', file: MUSIC_BASE_URL + 'Dark.and.Stormy.Night.mp3' },
     { id: 'dark_and_stormy_night_redux', name: 'Dark and Stormy Night Redux', file: MUSIC_BASE_URL + 'Dark.and.Stormy.Night.Redux.mp3' },
+    { id: 'disclosure', name: 'Disclosure', file: MUSIC_BASE_URL + 'Disclosure.mp3' },
+    { id: 'disclosure_edm', name: 'Disclosure (EDM)', file: MUSIC_BASE_URL + 'Disclosure.EDM.mp3' },
+    { id: 'disclosure_rock', name: 'Disclosure (Rock)', file: MUSIC_BASE_URL + 'Disclosure.Rock.mp3' },
+    { id: 'disclosure_redux', name: 'Disclosure Redux', file: MUSIC_BASE_URL + 'Disclosure.Redux.mp3' },
+    { id: 'disclosure_redux_redux', name: 'Disclosure Redux Redux', file: MUSIC_BASE_URL + 'Disclosure.Redux.Redux.mp3' },
     { id: 'do_you_want_a_score', name: 'Do You Want a Score', file: MUSIC_BASE_URL + 'Do.You.Want.a.Score.mp3' },
     { id: 'drizzling_echoes', name: 'Drizzling Echoes', file: MUSIC_BASE_URL + 'Drizzling.Echoes.mp3' },
     // E
@@ -293,6 +298,8 @@ const gameplaySongs = [
     { id: 'falling_skies', name: 'Falling Skies', file: MUSIC_BASE_URL + 'Falling.Skies.mp3' },
     { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling.Tide.mp3' },
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle.Puddles.mp3' },
+    { id: 'final_score', name: 'Final Score', file: MUSIC_BASE_URL + 'Final.Score.mp3' },
+    { id: 'final_score_redux', name: 'Final Score Redux', file: MUSIC_BASE_URL + 'Final.Score.Redux.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood.Me.mp3' },
     { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast.Calls.for.Blocks.mp3' },
     // G
@@ -337,6 +344,7 @@ const gameplaySongs = [
     { id: 'perineum_sunning_edm', name: 'Perineum Sunning (EDM)', file: MUSIC_BASE_URL + 'Perineum.Sunning.EDM.mp3' },
     { id: 'plummet', name: 'Plummet', file: MUSIC_BASE_URL + 'Plummet.mp3' },
     // R
+    { id: 'ragstep', name: 'Ragstep', file: MUSIC_BASE_URL + 'Ragstep.mp3' },
     { id: 'rubber_and_glue', name: 'Rubber & Glue', file: MUSIC_BASE_URL + 'Rubber.Glue.mp3' },
     // S
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar.Echoes.mp3' },
