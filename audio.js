@@ -298,6 +298,9 @@ const gameplaySongs = [
     { id: 'falling_skies', name: 'Falling Skies', file: MUSIC_BASE_URL + 'Falling.Skies.mp3' },
     { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling.Tide.mp3' },
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle.Puddles.mp3' },
+    { id: 'final_destination', name: 'Final Destination', file: MUSIC_BASE_URL + 'Final.Destination.mp3' },
+    { id: 'final_destination_2', name: 'Final Destination 2', file: MUSIC_BASE_URL + 'Final.Destination.2.mp3' },
+    { id: 'final_destination_3', name: 'Final Destination 3', file: MUSIC_BASE_URL + 'Final.Destination.3.mp3' },
     { id: 'final_score', name: 'Final Score', file: MUSIC_BASE_URL + 'Final.Score.mp3' },
     { id: 'final_score_redux', name: 'Final Score Redux', file: MUSIC_BASE_URL + 'Final.Score.Redux.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood.Me.mp3' },
@@ -411,6 +414,7 @@ const gameplaySongs = [
     // { id: 'the_call_of_tantro', name: 'The Call of TANTЯO', file: MUSIC_BASE_URL + 'The.Call.of.TaNT.iS.mp3' }, // old recording
     { id: 'the_call_of_tantro', name: 'The Call of TANT\u042fO', file: MUSIC_BASE_URL + 'The.Call.of.TANT.O.mp3' },
     { id: 'the_far_side_of_the_moooon', name: 'The Far Side (of the Moooon)', file: MUSIC_BASE_URL + 'The.Far.Side.of.the.Moooon.mp3' },
+    { id: 'the_final_destination', name: 'The Final Destination', file: MUSIC_BASE_URL + 'The.Final.Destination.mp3' },
     { id: 'the_long_game', name: 'The Long Game', file: MUSIC_BASE_URL + 'The.Long.Game.mp3' },
     { id: 'the_pit_banjo', name: 'The Pit (Banjo Mix)', file: MUSIC_BASE_URL + 'The.Pit.Banjo.Mix.mp3' },
     { id: 'the_pit_horny', name: 'The Pit (Horny Mix)', file: MUSIC_BASE_URL + 'The.Pit.Horny.Mix.mp3' },
