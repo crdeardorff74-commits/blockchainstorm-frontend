@@ -320,6 +320,7 @@ const gameplaySongs = [
     // I
     { id: 'i_love_that_for_me', name: 'I Love That for Me', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.mp3' },
     { id: 'i_love_that_for_me_funk', name: 'I Love That for Me (Funk)', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Funk.mp3' },
+    { id: 'i_love_that_for_me_country', name: 'I Love That for Me (Country)', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Country.mp3' },
     { id: 'i_love_that_for_me_redux', name: 'I Love That for Me Redux', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Redux.mp3' },
     // J
     { id: 'joyful_odie', name: 'Joyful Odie', file: MUSIC_BASE_URL + 'Joyful.Odie.mp3' },
@@ -427,7 +428,7 @@ const gameplaySongs = [
     // V
     { id: 'vibe_code', name: 'Vibe Code', file: MUSIC_BASE_URL + 'Vibe.Code.mp3' },
     { id: 'vibe_code_edm', name: 'Vibe Code (EDM)', file: MUSIC_BASE_URL + 'Vibe.Code.EDM.mp3' },
-    { id: 'vibe_code_edm_redux', name: 'Vibe Code (EDM Redux)', file: MUSIC_BASE_URL + 'Vibe.Code.EDM.Redux.mp3' },
+    { id: 'vibe_code_psytrance', name: 'Vibe Code (Psytrance)', file: MUSIC_BASE_URL + 'Vibe.Code.Psytrance.mp3' },
     // W
     { id: 'what_the_flock', name: 'What The Flock', file: MUSIC_BASE_URL + 'What.The.Flock.mp3' },
     { id: 'whistling_dewdrops', name: 'Whistling Dewdrops', file: MUSIC_BASE_URL + 'Whistling.Dewdrops.mp3' },
@@ -499,7 +500,9 @@ const ALBUM_PLAYLIST_ORDER = [
 	'vibe_code',
 	'event_horizon',
 	'tantro_on_my_hands', 
+	'some_type_of_way',
 	'tantro_fever_instrumental_rap', 
+	'you_say_tornado',
 	'plummet',
     'meet_cute', 
 	'final_score',
