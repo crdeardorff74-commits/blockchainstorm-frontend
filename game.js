@@ -11822,6 +11822,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Track Suno link clicks in credits
+    ['creditsSuno1', 'creditsSuno2', 'creditsSuno3'].forEach(id => {
+        const link = document.getElementById(id);
+        if (link) link.addEventListener('click', () => trackShareClick('suno'));
+    });
+
     // Close on overlay background click
     if (shareOverlay) {
         shareOverlay.addEventListener('click', (e) => {
