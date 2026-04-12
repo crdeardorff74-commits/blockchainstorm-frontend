@@ -504,6 +504,7 @@ const ALBUM_PLAYLIST_ORDER = [
 	'tantro_fever_instrumental_rap', 
 	'you_say_tornado',
 	'plummet',
+	'glitchy_in_the_brain',
     'meet_cute', 
 	'final_score',
 	'tantro_fever_heavy_metal', 

@@ -11734,6 +11734,17 @@ function trackShareClick(platform) {
     }
 }
 
+function trackSunoClick(link) {
+    if (window._visitId) {
+        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/suno-clicked`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link }),
+            silent: true, timeout: 5000
+        });
+    }
+}
+
 function showSharePopup() {
     if (localStorage.getItem('tantro_share_dismissed') === 'true') return false;
     
@@ -11823,9 +11834,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Track Suno link clicks in credits
-    ['creditsSuno1', 'creditsSuno2', 'creditsSuno3'].forEach(id => {
-        const link = document.getElementById(id);
-        if (link) link.addEventListener('click', () => trackShareClick('suno'));
+    const sunoLinks = {
+        'creditsSuno1': 'artist',
+        'creditsSuno2': 'song1',
+        'creditsSuno3': 'song2'
+    };
+    Object.entries(sunoLinks).forEach(([id, link]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => trackSunoClick(link));
     });
 
     // Close on overlay background click
