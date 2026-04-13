@@ -243,7 +243,6 @@ initSoundEffects();
 const gameplaySongs = [
     // A
     { id: 'a_bent_horizon', name: 'A Bent Horizon', file: MUSIC_BASE_URL + 'A.Bent.Horizon.mp3' },
-    { id: 'a_game_of_disasters', name: 'A Game of Disasters', file: MUSIC_BASE_URL + 'A.Game.of.Disasters.mp3' },
     { id: 'a_game_of_falling_blocks', name: 'A Game of Falling Blocks', file: MUSIC_BASE_URL + 'A.Game.of.Falling.Blocks.mp3' },
     { id: 'a_river_skips_through_it', name: 'A River Skips Through It', file: MUSIC_BASE_URL + 'A.River.Skips.Through.It.mp3' },
     { id: 'as_above_so_below', name: 'As Above So Below', file: MUSIC_BASE_URL + 'As.Above.So.Below.mp3' },
@@ -291,12 +290,16 @@ const gameplaySongs = [
     { id: 'event_horizon', name: 'Event Horizon', file: MUSIC_BASE_URL + 'Event.Horizon.mp3' },
     { id: 'everybody_poops', name: 'Everybody Poops', file: MUSIC_BASE_URL + 'Everybody.Poops.mp3' },
     // F
+    { id: 'fallin_apart', name: "Fallin' Apart", file: MUSIC_BASE_URL + 'Fallin.Apart.mp3' },
     { id: 'fallin_down', name: "Fallin' Down", file: MUSIC_BASE_URL + 'Fallin.Down.mp3' },
     { id: 'falling_blocks', name: 'Falling Blocks Reactor', file: MUSIC_BASE_URL + 'Falling.Blocks.Reactor.mp3' },
     { id: 'falling_for_you', name: 'Falling for You', file: MUSIC_BASE_URL + 'Falling.for.You.mp3' },
     { id: 'falling_forever', name: 'Falling Forever', file: MUSIC_BASE_URL + 'Falling.Forever.mp3' },
     { id: 'falling_skies', name: 'Falling Skies', file: MUSIC_BASE_URL + 'Falling.Skies.mp3' },
     { id: 'falling_tide', name: 'Falling Tide', file: MUSIC_BASE_URL + 'Falling.Tide.mp3' },
+    { id: 'feedback_loop', name: 'Feedback Loop', file: MUSIC_BASE_URL + 'Feedback.Loop.mp3' },
+    { id: 'feedback_loop_loop', name: 'Feedback Loop Loop', file: MUSIC_BASE_URL + 'Feedback.Loop.Loop.mp3' },
+    { id: 'feedback_loop_loop_loop', name: 'Feedback Loop Loop Loop', file: MUSIC_BASE_URL + 'Feedback.Loop.Loop.Loop.mp3' },
     { id: 'fiddle_puddles', name: 'Fiddle Puddles', file: MUSIC_BASE_URL + 'Fiddle.Puddles.mp3' },
     { id: 'final_destination', name: 'Final Destination', file: MUSIC_BASE_URL + 'Final.Destination.mp3' },
     { id: 'final_destination_2', name: 'Final Destination 2', file: MUSIC_BASE_URL + 'Final.Destination.2.mp3' },
@@ -353,6 +356,7 @@ const gameplaySongs = [
     // S
     { id: 'solar_echoes', name: 'Solar Echoes', file: MUSIC_BASE_URL + 'Solar.Echoes.mp3' },
     { id: 'solar_reverb', name: 'Solar Reverb', file: MUSIC_BASE_URL + 'Solar.Reverb.mp3' },
+    { id: 'spontaneous_human_consumption', name: 'Spontaneous Human Consumption', file: MUSIC_BASE_URL + 'Spontaneous.Human.Consumption.mp3' },
     { id: 'some_type_of_way', name: 'Some Type of Way', file: MUSIC_BASE_URL + 'Some.Type.of.Way.mp3' },
     { id: 'some_type_of_way_show_tune', name: 'Some Type of Way (Show Tune)', file: MUSIC_BASE_URL + 'Some.Type.of.Way.Show.Tune.mp3' },
     { id: 'some_type_of_way_show_tune_redux', name: 'Some Type of Way (Show Tune Redux)', file: MUSIC_BASE_URL + 'Some.Type.of.Way.Show.Tune.Redux.mp3' },
@@ -436,6 +440,7 @@ const gameplaySongs = [
     { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind.Fire.Soot.mp3' },
     { id: 'wormholio', name: 'Wormholio', file: MUSIC_BASE_URL + 'Wormholio.mp3' },
     // Y
+    { id: 'yes_and_base_reality', name: 'Yes, And... (Base Reality)', file: MUSIC_BASE_URL + 'Yes.And.Base.Reality.mp3' },
     { id: 'you_say_tornado', name: 'You Say Tornado', file: MUSIC_BASE_URL + 'You.Say.Tornado.mp3' },
     { id: 'you_say_tornado_a_cappella', name: 'You Say Tornado (A Cappella)', file: MUSIC_BASE_URL + 'You.Say.Tornado.A.Cappella.mp3' },
     { id: 'you_say_tornado_country', name: 'You Say Tornado (Country)', file: MUSIC_BASE_URL + 'You.Say.Tornado.Country.mp3' },
@@ -460,9 +465,11 @@ const creditsSongs = [
     { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Bork.Bork.Bork.mp3' },
     { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Dance.mp3' },
     { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.mp3' },
+    { id: 'cascade_void_eurobeat_remix', name: 'Cascade into the Void (Eurobeat Remix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.Remix.mp3' },
     { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Folk.mp3' },
     { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Intense.mp3' },
-    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' }
+    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' },
+    { id: 'cascade_void_psytrance', name: 'Cascade into the Void (Psytrance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Psytrance.mp3' }
 ];
 
 // Intro music only (not in any shuffle)
