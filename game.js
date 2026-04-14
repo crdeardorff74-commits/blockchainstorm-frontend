@@ -11838,7 +11838,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'creditsSuno1': 'artist',
         'creditsSuno2': 'song1',
         'creditsSuno3': 'song2',
-        'creditsSuno4': 'song3'
+        'creditsSuno4': 'song3',
+        'creditsSuno5': 'song4'
     };
     Object.entries(sunoLinks).forEach(([id, link]) => {
         const el = document.getElementById(id);
