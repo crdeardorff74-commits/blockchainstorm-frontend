@@ -194,6 +194,10 @@ const SettingsSync = {
             const elem = document.getElementById(id);
             if (elem && settings[id] !== undefined) {
                 elem.value = settings[id];
+                // If the saved value didn't match any option, fall back to game_playlist
+                if (elem.value !== settings[id]) {
+                    elem.value = 'game_playlist';
+                }
                 // Trigger change event so game code responds
                 elem.dispatchEvent(new Event('change'));
             }
