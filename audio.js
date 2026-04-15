@@ -467,7 +467,18 @@ const creditsSongs = [
     { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Folk.mp3' },
     { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Intense.mp3' },
     { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' },
-    { id: 'cascade_void_psytrance', name: 'Cascade into the Void (Psytrance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Psytrance.mp3' }
+    { id: 'cascade_void_psytrance', name: 'Cascade into the Void (Psytrance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Psytrance.mp3' },
+    { id: 'dead_weight', name: 'Dead Weight in the Machine', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.mp3' },
+    { id: 'dead_weight_acappella', name: 'Dead Weight in the Machine (A Cappella)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.mp3' },
+    { id: 'dead_weight_acappella_redux', name: 'Dead Weight in the Machine (A Cappella Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.Redux.mp3' },
+    { id: 'dead_weight_darkwave', name: 'Dead Weight in the Machine (Darkwave)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Darkwave.mp3' },
+    { id: 'dead_weight_jpop', name: 'Dead Weight in the Machine (J-pop)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.J-pop.mp3' },
+    { id: 'dead_weight_neurofunk', name: 'Dead Weight in the Machine (Neurofunk)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Neurofunk.mp3' },
+    { id: 'dead_weight_progressive_rock', name: 'Dead Weight in the Machine (Progressive Rock)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Progressive.Rock.mp3' },
+    { id: 'dead_weight_show_tune', name: 'Dead Weight in the Machine (Show Tune)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Show.Tune.mp3' },
+    { id: 'dead_weight_synthwave', name: 'Dead Weight in the Machine (Synthwave)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.mp3' },
+    { id: 'dead_weight_synthwave_redux', name: 'Dead Weight in the Machine (Synthwave Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.Redux.mp3' },
+    { id: 'dead_weight_synthwave_redux_redux', name: 'Dead Weight in the Machine (Synthwave Redux Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.Redux.Redux.mp3' }
 ];
 
 // Intro music only (not in any shuffle)
@@ -530,6 +541,7 @@ let blessedGameplayAudio = null; // Reusable Audio element "blessed" by user ges
 // Persistent shuffle queues - saved to localStorage, persist across sessions
 let gameplayShuffleQueue = [];
 let creditsShuffleQueue = [];
+let combinedShuffleQueue = [];
 let fWordShuffleQueue = [];
 let albumPlaylist = []; // Ordered album playlist for first-time players
 let yesAndIntroSong = null; // Mandatory first song for first 3 visits ("Yes, And..." variants)
@@ -665,8 +677,8 @@ function insertFWordSongById(songId) {
 }
 
 function skipToNextSong() {
-    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        Logger.info('🎵 Skip next: Not in shuffle mode or not playing');
+    if (!musicPlaying || !isPlaylistMode()) {
+        Logger.info('🎵 Skip next: Not in playlist mode or not playing');
         return false;
     }
 
@@ -728,8 +740,8 @@ function skipToNextSong() {
 
 // Skip to previous song (only works in shuffle mode)
 function skipToPreviousSong() {
-    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        Logger.info('🎵 Skip prev: Not in shuffle mode or not playing');
+    if (!musicPlaying || !isPlaylistMode()) {
+        Logger.info('🎵 Skip prev: Not in playlist mode or not playing');
         return false;
     }
     
@@ -781,7 +793,7 @@ function skipToPreviousSong() {
 
 // Check if there's a previous song in history
 function hasPreviousSong() {
-    return songHistory.length > 0 && currentMusicSelection === 'shuffle' && musicPlaying;
+    return songHistory.length > 0 && isPlaylistMode() && musicPlaying;
 }
 
 // Track if music is paused (vs stopped)
@@ -1067,6 +1079,9 @@ function initShuffleQueues() {
     
     // Credits queue doesn't need persistence (only used during end credits)
     creditsShuffleQueue = shuffleArray(creditsSongs.map(s => s.id));
+
+    // Combined queue for "Game Playlist + End Credits" mode
+    combinedShuffleQueue = shuffleArray([...gameplaySongs, ...creditsSongs].map(s => s.id));
     
     // Save initial queues
     saveQueuesToStorage();
@@ -1199,8 +1214,8 @@ function clearAllPurgedSongs() {
 // Skip to next song with purge support
 // purgeType: 'none', 'short' (1 week), 'long' (3 days), 'indefinite'
 function skipToNextSongWithPurge(purgeType = 'none') {
-    if (!musicPlaying || currentMusicSelection !== 'shuffle') {
-        Logger.info('🎵 Skip next: Not in shuffle mode or not playing');
+    if (!musicPlaying || !isPlaylistMode()) {
+        Logger.info('🎵 Skip next: Not in playlist mode or not playing');
         return { skipped: false };
     }
     
@@ -1300,8 +1315,8 @@ function getNextAlbumSong() {
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
 // Also filters out purged songs
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
-    // First, filter out any purged songs from the queue (for gameplay queue only)
-    if (queueName === 'gameplay') {
+    // First, filter out any purged songs from the queue (for queues containing gameplay songs)
+    if (queueName === 'gameplay' || queueName === 'combined') {
         const beforeLength = queue.length;
         for (let i = queue.length - 1; i >= 0; i--) {
             if (isSongPurged(queue[i])) {
@@ -1321,8 +1336,8 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
             songList.map(s => s.id)
         );
 
-        // Filter out purged songs when refilling (gameplay only)
-        if (queueName === 'gameplay') {
+        // Filter out purged songs when refilling (queues containing gameplay songs)
+        if (queueName === 'gameplay' || queueName === 'combined') {
             newQueue = newQueue.filter(id => !isSongPurged(id));
             if (newQueue.length === 0) {
                 // All songs are purged! Clear purges and try again
@@ -1334,7 +1349,7 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
         
         // If the last played song is at the end of the new queue (will be popped first),
         // move it somewhere else to prevent immediate repeat
-        const lastPlayed = queueName === 'gameplay' ? lastPlayedGameplaySong : lastPlayedCreditsSong;
+        const lastPlayed = queueName === 'credits' ? lastPlayedCreditsSong : lastPlayedGameplaySong;
         if (lastPlayed && newQueue.length > 1 && newQueue[newQueue.length - 1] === lastPlayed) {
             // Swap it with a random position that's not the last
             const swapIndex = Math.floor(Math.random() * (newQueue.length - 1));
@@ -1390,12 +1405,12 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
     Logger.debug(`🎵 Recently played families:`, [...recentlyPlayedFamilies]);
     
     // Track what we just played
-    if (queueName === 'gameplay') {
+    if (queueName === 'credits') {
+        lastPlayedCreditsSong = song;
+    } else {
         lastPlayedGameplaySong = song;
         // Save queue state to localStorage
         saveQueuesToStorage();
-    } else {
-        lastPlayedCreditsSong = song;
     }
     
     return song;
@@ -1541,9 +1556,15 @@ function playMelodyNote(freq, duration) {
     osc.stop(audioContext.currentTime + duration);
 }
 
-// Track current music selection for shuffle mode song-end handling
-let currentMusicSelection = 'shuffle';
+// Track current music selection for playlist mode song-end handling
+let currentMusicSelection = 'game_playlist';
 let currentMusicSelectElement = null;
+
+// Check if current selection is a playlist mode (advances to next song on end)
+function isPlaylistMode(sel) {
+    sel = sel || currentMusicSelection;
+    return sel === 'game_playlist' || sel === 'credits' || sel === 'game_plus_credits';
+}
 
 // Pre-bless an Audio element during a user gesture so that later play() calls
 // (outside gesture context, e.g. after async/await) work on iPad Safari.
@@ -1587,7 +1608,7 @@ function startMusic(gameMode, musicSelect) {
     currentMusicSelectElement = musicSelect;
     
     // Get the selected value from dropdown
-    const selection = musicSelect.value || 'shuffle';
+    const selection = musicSelect.value || 'game_playlist';
     currentMusicSelection = selection;
     
     // If "none" selected, don't play music
@@ -1605,25 +1626,26 @@ function startMusic(gameMode, musicSelect) {
         song = nextSongOverride;
         nextSongOverride = null; // Clear after use
         Logger.debug('🛸 Playing UFO-delivered song:', song.name);
-    } else if (replayModeActive && selection === 'shuffle') {
+    } else if (replayModeActive && isPlaylistMode(selection)) {
         // Replay mode: use tracks from recording in order
         trackId = getNextReplayTrack();
         if (trackId) {
             song = allSongs.find(s => s.id === trackId);
             if (!song) {
-                Logger.warn('🎵 Replay track not found:', trackId, '- falling back to shuffle');
+                Logger.warn('🎵 Replay track not found:', trackId, '- falling back to playlist');
                 trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
                 song = allSongs.find(s => s.id === trackId);
             }
         } else {
-            // Replay tracks exhausted, fall back to shuffle
-            Logger.debug('🎵 Replay tracks exhausted, continuing with shuffle');
+            // Replay tracks exhausted, fall back to playlist
+            Logger.debug('🎵 Replay tracks exhausted, continuing with playlist');
             trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
             song = allSongs.find(s => s.id === trackId);
         }
-    } else if (selection === 'shuffle') {
+    } else if (isPlaylistMode(selection)) {
         // Mandatory "Yes, And..." intro song for the first 3 visits (plays before album playlist)
-        if (yesAndIntroSong) {
+        // Only for modes that include the game playlist
+        if (yesAndIntroSong && (selection === 'game_playlist' || selection === 'game_plus_credits')) {
             trackId = yesAndIntroSong;
             song = allSongs.find(s => s.id === trackId);
             // Consume the intro song and increment visit count so it won't repeat this session
@@ -1632,21 +1654,28 @@ function startMusic(gameMode, musicSelect) {
             Logger.debug('🎵 Playing mandatory intro song: "' + trackId + '" (visit #' + (currentVisit + 1) + ')');
             yesAndIntroSong = null; // Only play once per session
         }
-        // Album playlist for first-time players (ordered listen, then normal shuffle)
-        if (!trackId) trackId = getNextAlbumSong();
+        // Album playlist for first-time players (only for modes with game playlist)
+        if (!trackId && (selection === 'game_playlist' || selection === 'game_plus_credits')) {
+            trackId = getNextAlbumSong();
+        }
         if (trackId && !song) {
             song = allSongs.find(s => s.id === trackId);
             Logger.debug('🎵 Playing from album:', trackId, '| Album remaining:', albumPlaylist.length);
         } else if (!trackId) {
-            // Normal shuffle mode: use persistent queue (no repeats until all played)
-            trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+            // Pick from the appropriate queue based on selection
+            if (selection === 'game_playlist') {
+                trackId = getNextFromQueue(gameplayShuffleQueue, gameplaySongs, 'gameplay');
+            } else if (selection === 'credits') {
+                trackId = getNextFromQueue(creditsShuffleQueue, creditsSongs, 'credits');
+            } else if (selection === 'game_plus_credits') {
+                const combinedSongs = [...gameplaySongs, ...creditsSongs];
+                trackId = getNextFromQueue(combinedShuffleQueue, combinedSongs, 'combined');
+            }
             song = allSongs.find(s => s.id === trackId);
-            Logger.debug('🎵 Playing from shuffle:', trackId, '| Queue remaining:', gameplayShuffleQueue.length, '| Queue:', [...gameplayShuffleQueue]);
+            Logger.debug('🎵 Playing from', selection + ':', trackId, '| Queue remaining:',
+                selection === 'game_playlist' ? gameplayShuffleQueue.length :
+                selection === 'credits' ? creditsShuffleQueue.length : combinedShuffleQueue.length);
         }
-    } else {
-        // Use the specifically selected track
-        trackId = selection;
-        song = allSongs.find(s => s.id === trackId);
     }
     
     // Create audio element on-demand
@@ -1675,8 +1704,8 @@ function startMusic(gameMode, musicSelect) {
         
         currentPlayingTrack = trackId;
         
-        // In shuffle mode, don't loop - play next song when this one ends
-        audio.loop = (selection !== 'shuffle');
+        // In playlist modes, don't loop - play next song when this one ends
+        audio.loop = !isPlaylistMode(selection);
         
         // Set up ended listener for new elements
         if (!gameplayMusicElements[trackId]) {
@@ -1710,10 +1739,10 @@ function startMusic(gameMode, musicSelect) {
 function onSongEnded(event) {
     const audio = event.target;
     
-    // Only handle if we're still playing music and in shuffle mode
-    if (!musicPlaying || currentMusicSelection !== 'shuffle') return;
-    
-    Logger.debug('🎵 Song ended in shuffle mode, playing next track');
+    // Only handle if we're still playing music and in a playlist mode
+    if (!musicPlaying || !isPlaylistMode()) return;
+
+    Logger.debug('🎵 Song ended in playlist mode, playing next track');
     
     // Check if we should insert an F Word song (main menu only, not during game or credits)
     if (!gameInProgress && !hasPlayedGame) {

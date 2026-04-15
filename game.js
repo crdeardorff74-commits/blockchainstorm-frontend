@@ -1255,45 +1255,8 @@ function showPurgeNotification(songName, duration) {
     }, 3000);
 }
 
-// Update music dropdown to show purged songs with asterisk
-function updateMusicDropdownPurgeIndicators() {
-    const musicSelect = document.getElementById('musicSelect');
-    const introMusicSelect = document.getElementById('introMusicSelect');
-    
-    if (!musicSelect) return;
-    
-    const purgedSongs = typeof getPurgedSongs === 'function' ? getPurgedSongs() : [];
-    const purgedIds = new Set(purgedSongs.map(p => p.songId));
-    
-    // Update both dropdowns
-    [musicSelect, introMusicSelect].forEach(select => {
-        if (!select) return;
-        
-        Array.from(select.options).forEach(option => {
-            const songId = option.value;
-            // Skip special options
-            if (songId === 'shuffle' || songId === 'none' || option.disabled) return;
-            
-            // Get original text (remove any existing asterisk)
-            let text = option.getAttribute('data-original-text') || option.textContent;
-            if (!option.getAttribute('data-original-text')) {
-                option.setAttribute('data-original-text', text);
-            }
-            
-            // Add or remove asterisk
-            if (purgedIds.has(songId)) {
-                option.textContent = text + ' *';
-                option.style.color = '#888';
-            } else {
-                option.textContent = text;
-                option.style.color = '';
-            }
-        });
-    });
-    
-    // Update or create the purge info section in settings
-    updatePurgeInfoInSettings(purgedSongs.length);
-}
+// No-op: individual songs are no longer listed in dropdown (playlist categories only)
+function updateMusicDropdownPurgeIndicators() {}
 
 // Update purge info section in settings
 function updatePurgeInfoInSettings(purgeCount) {
@@ -12842,7 +12805,7 @@ if (startOverlay) {
         
         // When intro toggle changes, sync to settings
         introMusicCheckbox.addEventListener('change', () => {
-            musicSelect.value = introMusicCheckbox.checked ? 'shuffle' : 'none';
+            musicSelect.value = introMusicCheckbox.checked ? 'game_playlist' : 'none';
         });
         
         // When settings select changes, sync back to intro toggle

@@ -341,6 +341,10 @@
                                 <span class="credits-role">Game Design</span>
                                 <span class="credits-name">C. Ryan Deardorff</span>
                             </div>
+                            <div class="credits-row">
+                                <span class="credits-role"></span>
+                                <span class="credits-name">Claude AI Hallucination (Amnesia, Vertigo modes)</span>
+                            </div>
                         </div>
                         
                         <div class="credits-section">
@@ -369,6 +373,13 @@
                             <div class="credits-row">
                                 <span class="credits-role"></span>
                                 <span class="credits-name">C. Ryan Deardorff</span>
+                            </div>
+                        </div>
+                        
+                        <div class="credits-section">
+                            <div class="credits-row">
+                                <span class="credits-role">"Dead Weight in the Machine" Lyrics</span>
+                                <span class="credits-name">Claude AI</span>
                             </div>
                         </div>
                         
@@ -655,9 +666,10 @@
                 <label class="toggle-label">
                     <span class="toggle-label-text" data-i18n="settings.music">Music</span>
                     <select id="musicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-left: auto; width: 270px;">
-                        <option value="shuffle" data-i18n="music.shuffle">🎲 Shuffle</option>
                         <option value="none" data-i18n="music.none">🔇 None</option>
-                        <!-- Populated dynamically from audio.js -->
+                        <option value="game_playlist" data-i18n="music.game_playlist">🎲 Game Playlist</option>
+                        <option value="credits" data-i18n="music.credits">🎤 End Credits by Claude</option>
+                        <option value="game_plus_credits" data-i18n="music.game_plus_credits">🎲🎤 Game Playlist + End Credits</option>
                     </select>
                 </label>
             </div>
@@ -1179,7 +1191,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '3.82';</script>
+	<script>var PAGE_VERSION = '3.84';</script>
 	<script src="config.js"></script>
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>
@@ -1210,62 +1222,16 @@
 	<script src="settings-sync.js"></script>
 	
 	<script>
-	// Populate music dropdowns from audio.js song lists
+	// Migrate legacy music setting values to new playlist categories
 	(function() {
-	    function populateMusicDropdowns() {
-	        if (typeof AudioSystem === 'undefined' || !AudioSystem.getAllSongLists) {
-	            console.warn('AudioSystem not ready, retrying...');
-	            setTimeout(populateMusicDropdowns, 100);
-	            return;
+	    try {
+	        const saved = localStorage.getItem('tantro_musicSelection');
+	        if (saved && saved !== 'none' && saved !== 'game_playlist' && saved !== 'credits' && saved !== 'game_plus_credits') {
+	            // Old value: 'shuffle' or a specific song ID — map to game_playlist
+	            localStorage.setItem('tantro_musicSelection', 'game_playlist');
+	            console.log('🎵 Migrated legacy music setting "' + saved + '" → "game_playlist"');
 	        }
-
-	        const songLists = AudioSystem.getAllSongLists();
-	        const dropdowns = ['introMusicSelect', 'musicSelect'];
-	        
-	        dropdowns.forEach(dropdownId => {
-	            const select = document.getElementById(dropdownId);
-	            if (!select) return;
-	            
-	            // Add gameplay songs
-	            songLists.gameplay.forEach(song => {
-	                const option = document.createElement('option');
-	                option.value = song.id;
-	                option.textContent = song.name;
-	                select.appendChild(option);
-	            });
-	            
-	            // Add separator
-	            const separator = document.createElement('option');
-	            separator.disabled = true;
-	            separator.textContent = '──────────';
-	            select.appendChild(separator);
-	            
-	            // Add menu song (TANTЯO)
-	            songLists.menu.forEach(song => {
-	                const option = document.createElement('option');
-	                option.value = song.id;
-	                option.textContent = song.name;
-	                select.appendChild(option);
-	            });
-	            
-	            // Add credits songs (Cascade into the Void variations)
-	            songLists.credits.forEach(song => {
-	                const option = document.createElement('option');
-	                option.value = song.id;
-	                option.textContent = song.name;
-	                select.appendChild(option);
-	            });
-	        });
-	        
-	        console.log('🎵 Music dropdowns populated with', songLists.gameplay.length, 'gameplay +', songLists.credits.length, 'credits +', songLists.menu.length, 'menu songs');
-	    }
-	    
-	    // Run after DOM is ready
-	    if (document.readyState === 'loading') {
-	        document.addEventListener('DOMContentLoaded', populateMusicDropdowns);
-	    } else {
-	        populateMusicDropdowns();
-	    }
+	    } catch(e) {}
 	})();
 	</script>
 
