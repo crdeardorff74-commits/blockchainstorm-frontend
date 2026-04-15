@@ -666,8 +666,8 @@
                 <label class="toggle-label">
                     <span class="toggle-label-text" data-i18n="settings.music">Music</span>
                     <select id="musicSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-left: auto; width: 270px;">
-                        <option value="none" data-i18n="music.none">🔇 None</option>
                         <option value="game_playlist" data-i18n="music.game_playlist">🎲 Game Playlist</option>
+                        <option value="none" data-i18n="music.none">🔇 None</option>
                         <option value="credits" data-i18n="music.credits">🎤 End Credits by Claude</option>
                         <option value="game_plus_credits" data-i18n="music.game_plus_credits">🎲🎤 Game Playlist + End Credits</option>
                     </select>
@@ -1191,7 +1191,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '3.84';</script>
+	<script>var PAGE_VERSION = '3.85';</script>
 	<script src="config.js"></script>
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>
@@ -1224,12 +1224,18 @@
 	<script>
 	// Migrate legacy music setting values to new playlist categories
 	(function() {
+	    var validValues = ['none', 'game_playlist', 'credits', 'game_plus_credits'];
 	    try {
-	        const saved = localStorage.getItem('tantro_musicSelection');
-	        if (saved && saved !== 'none' && saved !== 'game_playlist' && saved !== 'credits' && saved !== 'game_plus_credits') {
-	            // Old value: 'shuffle' or a specific song ID — map to game_playlist
-	            localStorage.setItem('tantro_musicSelection', 'game_playlist');
-	            console.log('🎵 Migrated legacy music setting "' + saved + '" → "game_playlist"');
+	        // Migrate inside tantro_settings JSON blob (used by settings-sync)
+	        var raw = localStorage.getItem('tantro_settings');
+	        if (raw) {
+	            var settings = JSON.parse(raw);
+	            if (settings.musicSelect && validValues.indexOf(settings.musicSelect) === -1) {
+	                var old = settings.musicSelect;
+	                settings.musicSelect = 'game_playlist';
+	                localStorage.setItem('tantro_settings', JSON.stringify(settings));
+	                console.log('🎵 Migrated tantro_settings.musicSelect "' + old + '" → "game_playlist"');
+	            }
 	        }
 	    } catch(e) {}
 	})();
