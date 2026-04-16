@@ -9345,6 +9345,13 @@ function dropPiece() {
             currentPiece = null; // Clear piece before game over
             gameOver();
         }
+    } else {
+        // Piece dropped successfully — Mercurial color-change roll
+        const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial');
+        if (isMercurialMode && currentPiece && !GameReplay.isActive() && window.ChallengeEffects && ChallengeEffects.Mercurial) {
+            const newColor = ChallengeEffects.Mercurial.onRowDrop();
+            if (newColor) currentPiece.color = newColor;
+        }
     }
 }
 
@@ -10554,14 +10561,6 @@ function update(time = 0) {
 
     updateLineAnimations();
     if (!paused) {
-        // Mercurial mode: Change piece color every 2-4 seconds
-        // During replay, color changes are handled by recorded mercurial_color events
-        const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial');
-        if (isMercurialMode && currentPiece && !hardDropping && !GameReplay.isActive() && window.ChallengeEffects && ChallengeEffects.Mercurial) {
-            const newColor = ChallengeEffects.Mercurial.update(deltaTime);
-            if (newColor) currentPiece.color = newColor;
-        }
-        
         updateFadingBlocks();
         if (window.ChallengeEffects && ChallengeEffects.Gremlins) ChallengeEffects.Gremlins.update();
         StormEffects.updateGameState({ gameRunning, paused, board }); // Pass current state

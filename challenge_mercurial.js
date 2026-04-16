@@ -1,11 +1,15 @@
 /**
  * challenge_mercurial.js - Mercurial challenge for TANTЯO
  *
- * The falling piece randomly changes color every 2-4 seconds while active.
+ * Each time the piece drops a row, there is a chance it changes color.
+ * The base probability is ~10% per row, so at slow speeds changes are
+ * infrequent, while at high speeds (many rows/sec) they happen more often.
+ *
  * Color cycling is limited to half the available colors for the level,
  * always including the piece's original color. This prevents players from
- * exploiting rapid cycling to cherry-pick colors for Tsunamis.
- * A subtle sound plays on each color shift. Timer resets on each new piece.
+ * exploiting cycling to cherry-pick colors for Tsunamis.
+ *
+ * A subtle sound plays on each color shift. Pool resets on each new piece.
  *
  * Exports: window.ChallengeEffects.Mercurial
  */
@@ -14,9 +18,8 @@
     'use strict';
 
     const Mercurial = (() => {
-        let timer = 0;        // ms since last color change
-        let interval = 0;     // ms until next change (2000-4000)
-        let colorPool = null; // limited subset of colors for this piece
+        const CHANGE_CHANCE = 0.10; // 10% chance per row drop
+        let colorPool = null;       // limited subset of colors for this piece
 
         // Game state interface — set via init()
         let gameRef = null;
@@ -59,12 +62,10 @@
         }
 
         /**
-         * Reset timer (new game, new piece, mode change).
+         * Reset for new piece / new game / mode change.
          * pieceColor: the current piece's color so we can build the pool.
          */
         function reset(pieceColor) {
-            timer = 0;
-            interval = 2000 + Math.random() * 2000;
             if (gameRef && pieceColor) {
                 colorPool = buildColorPool(pieceColor);
             } else {
@@ -84,17 +85,15 @@
         }
 
         /**
-         * Tick the timer. Call once per frame with deltaTime in ms.
-         * Returns a new color string if a shift occurs, null otherwise.
+         * Called each time the piece drops one row.
+         * Rolls a probability check; returns a new color string on
+         * success, null otherwise.
          */
-        function update(deltaTime) {
+        function onRowDrop() {
             if (!gameRef) return null;
 
-            timer += deltaTime;
-            if (timer >= interval) {
+            if (Math.random() < CHANGE_CHANCE) {
                 const newColor = poolRandomColor();
-                interval = 2000 + Math.random() * 2000;
-                timer = 0;
                 gameRef.playRotateSound();
 
                 // Record for replay
@@ -107,10 +106,19 @@
             return null;
         }
 
+        /**
+         * Legacy update() — no longer used for timing, kept as no-op
+         * so existing call sites don't error.
+         */
+        function update() {
+            return null;
+        }
+
         return {
             init,
             reset,
-            update
+            update,
+            onRowDrop
         };
     })();
 
