@@ -11229,6 +11229,7 @@ function startGame(mode) {
     drawNextPiece();
     
     gameRunning = true; StarfieldSystem.setGameRunning(true);
+    update.lastTime = 0; // Reset so first frame gets deltaTime = 0
     setGameInProgress(true); // Notify audio system game is in progress
     gameOverPending = false; // Reset game over pending flag
     
