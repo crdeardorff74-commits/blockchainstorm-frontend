@@ -10534,8 +10534,8 @@ function update(time = 0) {
             GameRecorder.recordPieceSpawn(currentPiece, board);
         }
         
-        // Mercurial mode: Reset timer for new piece
-        if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset();
+        // Mercurial mode: Reset timer and color pool for new piece
+        if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset(currentPiece && currentPiece.color);
         
         // Check if Six Seven mode should spawn a giant piece
         const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
@@ -11145,6 +11145,7 @@ function startGame(mode) {
     if (window.ChallengeEffects && ChallengeEffects.Mercurial) {
         ChallengeEffects.Mercurial.init({
             randomColor,
+            getColorSet: () => currentColorSet,
             playRotateSound: () => playSoundEffect('rotate', soundToggle),
             recorder: {
                 isActive: () => window.GameRecorder && window.GameRecorder.isActive(),

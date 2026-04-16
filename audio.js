@@ -517,6 +517,7 @@ const ALBUM_PLAYLIST_ORDER = [
 	'vibe_code',
 	'event_horizon',
 	'tantro_on_my_hands', 
+	'flag_tom_as_spam_abuse',
 	'some_type_of_way',
 	'tantro_fever_instrumental_rap', 
 	'you_say_tornado',
