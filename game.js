@@ -9349,7 +9349,7 @@ function dropPiece() {
         // Piece dropped successfully — Mercurial color-change roll
         const isMercurialMode = challengeMode === 'mercurial' || activeChallenges.has('mercurial');
         if (isMercurialMode && currentPiece && !GameReplay.isActive() && window.ChallengeEffects && ChallengeEffects.Mercurial) {
-            const newColor = ChallengeEffects.Mercurial.onRowDrop();
+            const newColor = ChallengeEffects.Mercurial.onRowDrop(currentPiece.color);
             if (newColor) currentPiece.color = newColor;
         }
     }

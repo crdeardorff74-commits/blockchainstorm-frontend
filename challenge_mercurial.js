@@ -74,11 +74,15 @@
         }
 
         /**
-         * Pick a random color from this piece's limited pool.
+         * Pick a random color from this piece's limited pool,
+         * excluding the given color so every change is visible.
          */
-        function poolRandomColor() {
-            if (colorPool && colorPool.length > 0) {
-                return colorPool[Math.floor(Math.random() * colorPool.length)];
+        function poolRandomColor(excludeColor) {
+            let candidates = colorPool && colorPool.length > 1
+                ? colorPool.filter(c => c !== excludeColor)
+                : colorPool;
+            if (candidates && candidates.length > 0) {
+                return candidates[Math.floor(Math.random() * candidates.length)];
             }
             // Fallback to full set if pool wasn't built
             return gameRef.randomColor();
@@ -87,13 +91,14 @@
         /**
          * Called each time the piece drops one row.
          * Rolls a probability check; returns a new color string on
-         * success, null otherwise.
+         * success, null otherwise. currentColor is the piece's current
+         * color so we always pick a different one.
          */
-        function onRowDrop() {
+        function onRowDrop(currentColor) {
             if (!gameRef) return null;
 
             if (Math.random() < CHANGE_CHANCE) {
-                const newColor = poolRandomColor();
+                const newColor = poolRandomColor(currentColor);
                 gameRef.playRotateSound();
 
                 // Record for replay
