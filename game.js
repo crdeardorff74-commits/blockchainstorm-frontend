@@ -10523,7 +10523,9 @@ function update(time = 0) {
             lockDelayResets = 0; // Reset when piece leaves the stack
 
             // Accumulate sub-cell pixel offset for smooth falling
-            smoothDropOffset += (deltaTime / dropInterval) * BLOCK_SIZE;
+            // Cap deltaTime contribution to one cell to prevent jumps from frame spikes
+            const cappedDelta = Math.min(deltaTime, dropInterval);
+            smoothDropOffset += (cappedDelta / dropInterval) * BLOCK_SIZE;
 
             // When offset crosses a full cell, advance the grid position
             while (smoothDropOffset >= BLOCK_SIZE) {
@@ -10999,6 +11001,7 @@ function startGame(mode) {
     score = 0;
     lines = 0;
     level = 1;
+    smoothDropOffset = 0;
     strikeCount = 0;
     tsunamiCount = 0;
     blackHoleCount = 0;
