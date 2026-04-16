@@ -5495,6 +5495,7 @@ let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
 let dropInterval = 1000;
+let smoothDropOffset = 0; // Sub-cell pixel offset for smooth falling
 let lockDelayCounter = 0; // Time spent resting on stack
 let lockDelayActive = false; // Whether piece is currently in lock delay
 const BASE_LOCK_DELAY_TIME = 500; // Initial 500ms grace period when piece lands
@@ -9306,15 +9307,16 @@ function dropPiece() {
             
             // Record spawn time for speed bonus calculation
             pieceSpawnTime = Date.now();
-            
+            smoothDropOffset = 0;
+
             // Record piece spawn for v2.0 piece-relative timing
             if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
                 GameRecorder.recordPieceSpawn(currentPiece, board);
             }
-            
+
             // Mercurial mode: Reset timer and color pool for new piece
             if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset(currentPiece && currentPiece.color);
-            
+
             // Check if Six Seven mode should spawn a giant piece
             const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
             let sixSevenPiece = null;
@@ -9386,7 +9388,8 @@ function hardDrop() {
     hardDropping = true;
     hardDropVelocity = 0;
     hardDropStartY = currentPiece.y;
-    hardDropPixelY = currentPiece.y * BLOCK_SIZE; // Start at current position in pixels
+    hardDropPixelY = currentPiece.y * BLOCK_SIZE + smoothDropOffset; // Start at current visual position
+    smoothDropOffset = 0;
     
     playSoundEffect('move', soundToggle); // Initial sound
 }
@@ -10476,6 +10479,8 @@ function update(time = 0) {
         const isResting = collides(currentPiece, 0, 1);
         
         if (isResting) {
+            // Snap piece to grid when resting (no visual overshoot)
+            smoothDropOffset = 0;
             // Piece is resting - use lock delay system
             if (!lockDelayActive) {
                 // Just landed - start lock delay
@@ -10512,15 +10517,23 @@ function update(time = 0) {
                 }
             }
         } else {
-            // Piece is not resting - use normal drop timing
+            // Piece is not resting - use smooth drop timing
             lockDelayActive = false;
             lockDelayCounter = 0;
             lockDelayResets = 0; // Reset when piece leaves the stack
-            
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) {
+
+            // Accumulate sub-cell pixel offset for smooth falling
+            smoothDropOffset += (deltaTime / dropInterval) * BLOCK_SIZE;
+
+            // When offset crosses a full cell, advance the grid position
+            while (smoothDropOffset >= BLOCK_SIZE) {
+                smoothDropOffset -= BLOCK_SIZE;
                 dropPiece();
-                dropCounter = 0;
+                // If piece locked (hit bottom), reset offset and stop
+                if (!currentPiece || collides(currentPiece, 0, 1)) {
+                    smoothDropOffset = 0;
+                    break;
+                }
             }
         }
     }
@@ -10535,15 +10548,16 @@ function update(time = 0) {
         
         // Record spawn time for speed bonus calculation
         pieceSpawnTime = Date.now();
-        
+        smoothDropOffset = 0;
+
         // Record piece spawn for v2.0 piece-relative timing
         if (typeof GameRecorder !== 'undefined' && GameRecorder.isActive()) {
             GameRecorder.recordPieceSpawn(currentPiece, board);
         }
-        
+
         // Mercurial mode: Reset timer and color pool for new piece
         if (window.ChallengeEffects && ChallengeEffects.Mercurial) ChallengeEffects.Mercurial.reset(currentPiece && currentPiece.color);
-        
+
         // Check if Six Seven mode should spawn a giant piece
         const isSixSevenMode = challengeMode === 'sixseven' || activeChallenges.has('sixseven');
         let sixSevenPiece = null;
@@ -10638,10 +10652,12 @@ function update(time = 0) {
     if (window.ChallengeEffects && ChallengeEffects.Rubber) ChallengeEffects.Rubber.draw(); // Draw bouncing pieces (Rubber & Glue mode)
     if (currentPiece && currentPiece.shape) {
         drawShadowPiece(currentPiece);
-        // During hard drop, use smooth pixel-based rendering
+        // Use smooth pixel-based rendering for both normal falling and hard drop
         if (hardDropping) {
             const pixelOffset = hardDropPixelY - (currentPiece.y * BLOCK_SIZE);
             drawPiece(currentPiece, ctx, 0, 0, pixelOffset);
+        } else if (smoothDropOffset > 0) {
+            drawPiece(currentPiece, ctx, 0, 0, smoothDropOffset);
         } else {
             drawPiece(currentPiece);
         }
@@ -11401,6 +11417,7 @@ document.addEventListener('keydown', e => {
             'moveLeft': () => movePiece(-1),
             'moveRight': () => movePiece(1),
             'softDrop': () => {
+                smoothDropOffset = 0;
                 dropPiece();
                 // Record soft drop input for replay
                 if (window.GameRecorder && window.GameRecorder.isActive() && currentPiece) {
