@@ -461,27 +461,27 @@ const gameplaySongs = [
 
 // "Cascade into the Void" variations with lyrics - only played during end credits
 const creditsSongs = [
-    { id: 'cascade_void', name: 'Cascade into the Void', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.mp3' },
-    { id: 'cascade_void_acappella', name: 'Cascade into the Void (A Cappella)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.A.Cappella.mp3' },
-    { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Bork.Bork.Bork.mp3' },
-    { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Dance.mp3' },
-    { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.mp3' },
-    { id: 'cascade_void_eurobeat_remix', name: 'Cascade into the Void (Eurobeat Remix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.Remix.mp3' },
-    { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Folk.mp3' },
-    { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Intense.mp3' },
-    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' },
-    { id: 'cascade_void_psytrance', name: 'Cascade into the Void (Psytrance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Psytrance.mp3' },
     { id: 'dead_weight', name: 'Dead Weight in the Machine', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.mp3' },
-    { id: 'dead_weight_acappella', name: 'Dead Weight in the Machine (A Cappella)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.mp3' },
-    { id: 'dead_weight_acappella_redux', name: 'Dead Weight in the Machine (A Cappella Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.Redux.mp3' },
-    { id: 'dead_weight_darkwave', name: 'Dead Weight in the Machine (Darkwave)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Darkwave.mp3' },
-    { id: 'dead_weight_jpop', name: 'Dead Weight in the Machine (J-pop)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.J-pop.mp3' },
-    { id: 'dead_weight_neurofunk', name: 'Dead Weight in the Machine (Neurofunk)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Neurofunk.mp3' },
-    { id: 'dead_weight_progressive_rock', name: 'Dead Weight in the Machine (Progressive Rock)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Progressive.Rock.mp3' },
-    { id: 'dead_weight_show_tune', name: 'Dead Weight in the Machine (Show Tune)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Show.Tune.mp3' },
+    { id: 'cascade_void', name: 'Cascade into the Void', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.mp3' },
     { id: 'dead_weight_synthwave', name: 'Dead Weight in the Machine (Synthwave)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.mp3' },
+    { id: 'cascade_void_eurobeat_remix', name: 'Cascade into the Void (Eurobeat Remix)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.Remix.mp3' },
+    { id: 'dead_weight_jpop', name: 'Dead Weight in the Machine (J-pop)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.J-pop.mp3' },
+    { id: 'cascade_void_dance', name: 'Cascade into the Void (Dance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Dance.mp3' },
+    { id: 'dead_weight_acappella', name: 'Dead Weight in the Machine (A Cappella)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.mp3' },
+    { id: 'cascade_void_maxheadroom', name: 'Cascade into the Void (Max Headroom)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Max.Headroom.mp3' },
     { id: 'dead_weight_synthwave_redux', name: 'Dead Weight in the Machine (Synthwave Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.Redux.mp3' },
-    { id: 'dead_weight_synthwave_redux_redux', name: 'Dead Weight in the Machine (Synthwave Redux Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.Redux.Redux.mp3' }
+    { id: 'cascade_void_acappella', name: 'Cascade into the Void (A Cappella)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.A.Cappella.mp3' },
+    { id: 'dead_weight_darkwave', name: 'Dead Weight in the Machine (Darkwave)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Darkwave.mp3' },
+    { id: 'cascade_void_psytrance', name: 'Cascade into the Void (Psytrance)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Psytrance.mp3' },
+    { id: 'dead_weight_neurofunk', name: 'Dead Weight in the Machine (Neurofunk)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Neurofunk.mp3' },
+    { id: 'cascade_void_eurobeat', name: 'Cascade into the Void (Eurobeat)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Eurobeat.mp3' },
+    { id: 'dead_weight_synthwave_redux_redux', name: 'Dead Weight in the Machine (Synthwave Redux Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Synthwave.Redux.Redux.mp3' },
+    { id: 'cascade_void_intense', name: 'Cascade into the Void (Intense)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Intense.mp3' },
+    { id: 'dead_weight_show_tune', name: 'Dead Weight in the Machine (Show Tune)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Show.Tune.mp3' },
+    { id: 'cascade_void_folk', name: 'Cascade into the Void (Folk)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Folk.mp3' },
+    { id: 'dead_weight_progressive_rock', name: 'Dead Weight in the Machine (Progressive Rock)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.Progressive.Rock.mp3' },
+    { id: 'cascade_void_bork', name: 'Cascade into the Void (Bork Bork Bork)', file: MUSIC_BASE_URL + 'Cascade.into.the.Void.Bork.Bork.Bork.mp3' },
+    { id: 'dead_weight_acappella_redux', name: 'Dead Weight in the Machine (A Cappella Redux)', file: MUSIC_BASE_URL + 'Dead.Weight.in.the.Machine.A.Cappella.Redux.mp3' }
 ];
 
 // Intro music only (not in any shuffle)
@@ -512,31 +512,40 @@ const allSongs = [...gameplaySongs, ...creditsSongs, ...menuOnlySongs, ...fWordS
 // followed by all remaining gameplay songs in random order
 const ALBUM_PLAYLIST_ORDER = [
 	'disclosure',
-	'ragstep',
+	'bumblestep',
 	'i_love_that_for_me',
-	'solar_reverb',
 	'tantro_fever', 
 	'vibe_code',
-	'event_horizon',
 	'tantro_on_my_hands', 
 	'flag_tom_as_spam_abuse',
 	'some_type_of_way',
 	'tantro_fever_instrumental_rap', 
-	'you_say_tornado',
-	'plummet',
-	'glitchy_in_the_brain',
-    'meet_cute', 
-	'greatest_decade_extended_mix',
-	'final_score',
-	'tantro_fever_heavy_metal', 
-	'orbituary',
-	'tantro_fever_k_pop', 
-	'the_far_side_of_the_moooon',
-	'tantro_fever_80s_eurobeat',
 	'blobs_get_me_high',
-	'tantro_fever_boy_band',
-	'tantrum',
-	'tantro_fever_country'
+	'plummet',
+    'meet_cute', 
+	'glitchy_in_the_brain',
+	'greatest_decade_extended_mix',
+	'tantro_fever_boy_band', 
+	'you_say_tornado',
+	'event_horizon',
+	'fallin_apart',
+	'i_love_that_for_me_funk',
+	'tantro_fever_heavy_metal',
+	'feedback_loop',
+	'the_far_side_of_the_moooon',
+	'as_above_so_below',
+	'orbituary',
+	'tantro_fever_country',
+	'astronomically_horny',
+	'you_say_tornado_a_cappella',
+	'perineum_sunning',
+	'tantro_fever_80s_eurobeat',
+	'everybody_poops',
+	'a_bent_horizon',
+	'final_destination',
+	'final_score',
+	'grays_in_the_middle',
+	'tell_your_dog_i_said_hi'
 ];
 
 let gameplayMusicElements = {};
@@ -1082,8 +1091,9 @@ function initShuffleQueues() {
         Logger.debug('🛸 Created new F Word shuffle queue');
     }
     
-    // Credits queue doesn't need persistence (only used during end credits)
-    creditsShuffleQueue = shuffleArray(creditsSongs.map(s => s.id));
+    // Credits queue plays in the fixed order defined by creditsSongs
+    // (reversed here because getNextFromQueue pops from the end)
+    creditsShuffleQueue = creditsSongs.map(s => s.id).reverse();
 
     // Combined queue for "Game Playlist + End Credits" mode
     combinedShuffleQueue = shuffleArray([...gameplaySongs, ...creditsSongs].map(s => s.id));
@@ -1320,6 +1330,16 @@ function getNextAlbumSong() {
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
 // Also filters out purged songs
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
+    // Credits play in the fixed order they appear in creditsSongs — no shuffle, no family swap.
+    if (queueName === 'credits') {
+        if (queue.length === 0) {
+            queue.push(...songList.map(s => s.id).reverse());
+        }
+        const song = queue.pop();
+        lastPlayedCreditsSong = song;
+        return song;
+    }
+
     // First, filter out any purged songs from the queue (for queues containing gameplay songs)
     if (queueName === 'gameplay' || queueName === 'combined') {
         const beforeLength = queue.length;
