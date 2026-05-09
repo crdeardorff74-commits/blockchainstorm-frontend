@@ -309,6 +309,8 @@ const gameplaySongs = [
     { id: 'flag_tom_as_spam_abuse', name: 'Flag Tom as Spam/Abuse', file: MUSIC_BASE_URL + 'Flag.Tom.as.Spam_Abuse.mp3' },
     { id: 'flood_me', name: 'Flood Me', file: MUSIC_BASE_URL + 'Flood.Me.mp3' },
     { id: 'forecast_calls_for_blocks', name: 'Forecast Calls for Blocks', file: MUSIC_BASE_URL + 'Forecast.Calls.for.Blocks.mp3' },
+    { id: 'frenemy', name: 'Frenemy', file: MUSIC_BASE_URL + 'Frenemy.mp3' },
+    { id: 'fuck_spiders', name: 'Fuck Spiders', file: MUSIC_BASE_URL + 'Fuck.Spiders.mp3' },
     // G
     { id: 'gin_and_tectonic', name: 'Gin & Tectonic', file: MUSIC_BASE_URL + 'Gin.Tectonic.mp3' },
     { id: 'glitchy_in_the_brain', name: 'Glitchy in the Brain', file: MUSIC_BASE_URL + 'Glitchy.in.the.Brain.mp3' },
@@ -319,6 +321,7 @@ const gameplaySongs = [
     { id: 'gremlin_swell', name: 'Gremlin Swell', file: MUSIC_BASE_URL + 'Gremlin.Swell.mp3' },
     { id: 'gremlins_arcade', name: 'Gremlins Arcade', file: MUSIC_BASE_URL + 'Gremlins.Arcade.mp3' },
     // H
+    { id: 'harold_maude_go_to_white_castle', name: 'Harold & Maude Go to White Castle', file: MUSIC_BASE_URL + 'Harold.Maude.Go.to.White.Castle.mp3' },
     { id: 'haunted_hailstones', name: 'Haunted Hailstones', file: MUSIC_BASE_URL + 'Haunted.Hailstones.mp3' },
     { id: 'high_score', name: 'High Score', file: MUSIC_BASE_URL + 'High.Score.mp3' },
     { id: 'hold_it_in', name: 'Hold It In', file: MUSIC_BASE_URL + 'Hold.It.In.mp3' },
@@ -329,6 +332,7 @@ const gameplaySongs = [
     { id: 'i_love_that_for_me_funk', name: 'I Love That for Me (Funk)', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Funk.mp3' },
     { id: 'i_love_that_for_me_country', name: 'I Love That for Me (Country)', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Country.mp3' },
     { id: 'i_love_that_for_me_redux', name: 'I Love That for Me Redux', file: MUSIC_BASE_URL + 'I.Love.That.for.Me.Redux.mp3' },
+    { id: 'incel_by_choice', name: 'Incel By Choice', file: MUSIC_BASE_URL + 'Incel.By.Choice.mp3' },
     // J
     { id: 'joyful_odie', name: 'Joyful Odie', file: MUSIC_BASE_URL + 'Joyful.Odie.mp3' },
     { id: 'just_a_game', name: 'Just a Game', file: MUSIC_BASE_URL + 'Just.a.Game.mp3' },
@@ -545,7 +549,10 @@ const ALBUM_PLAYLIST_ORDER = [
 	'final_destination',
 	'final_score',
 	'grays_in_the_middle',
-	'tell_your_dog_i_said_hi'
+	'tell_your_dog_i_said_hi',
+	'fuck_spiders',
+	'frenemy',
+	'incel_by_choice'
 ];
 
 let gameplayMusicElements = {};
