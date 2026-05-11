@@ -448,7 +448,6 @@ const gameplaySongs = [
     { id: 'wind_fire_soot', name: 'Wind & Fire & Soot', file: MUSIC_BASE_URL + 'Wind.Fire.Soot.mp3' },
     { id: 'wormholio', name: 'Wormholio', file: MUSIC_BASE_URL + 'Wormholio.mp3' },
     // Y
-    { id: 'yes_and_base_reality', name: 'Yes, And... (Base Reality)', file: MUSIC_BASE_URL + 'Yes.And.Base.Reality.mp3' },
     { id: 'you_say_tornado', name: 'You Say Tornado', file: MUSIC_BASE_URL + 'You.Say.Tornado.mp3' },
     { id: 'you_say_tornado_a_cappella', name: 'You Say Tornado (A Cappella)', file: MUSIC_BASE_URL + 'You.Say.Tornado.A.Cappella.mp3' },
     { id: 'you_say_tornado_country', name: 'You Say Tornado (Country)', file: MUSIC_BASE_URL + 'You.Say.Tornado.Country.mp3' },
@@ -457,9 +456,11 @@ const gameplaySongs = [
     { id: 'you_say_tornado_heavy_metal', name: 'You Say Tornado (Heavy Metal)', file: MUSIC_BASE_URL + 'You.Say.Tornado.Heavy.Metal.mp3' },
     { id: 'you_say_tornado_reggae', name: 'You Say Tornado (Reggae)', file: MUSIC_BASE_URL + 'You.Say.Tornado.Reggae.mp3' },
     { id: 'yes_and', name: 'Yes, And...', file: MUSIC_BASE_URL + 'Yes.And.mp3' },
+    { id: 'yes_and_base_reality', name: 'Yes, And... (Base Reality)', file: MUSIC_BASE_URL + 'Yes.And.Base.Reality.mp3' },
     { id: 'yes_and_polka', name: 'Yes, And... (Polka)', file: MUSIC_BASE_URL + 'Yes.And.Polka.mp3' },
     { id: 'yes_and_reggae', name: 'Yes, And... (Reggae)', file: MUSIC_BASE_URL + 'Yes.And.Reggae.mp3' },
     { id: 'yes_and_redux', name: 'Yes, And... Redux', file: MUSIC_BASE_URL + 'Yes.And.Redux.mp3' },
+    { id: 'yes_and_retrowave', name: 'Yes, And... (Retrowave)', file: MUSIC_BASE_URL + 'Yes.And.Retrowave.mp3' },
     { id: 'yes_and_techno', name: 'Yes, And... (Techno)', file: MUSIC_BASE_URL + 'Yes.And.Techno.mp3' }
 ];
 
