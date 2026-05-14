@@ -340,12 +340,14 @@ const gameplaySongs = [
     { id: 'lava_bells', name: 'Lava Bells', file: MUSIC_BASE_URL + 'Lava.Bells.mp3' },
     { id: 'lullaby_bye_bye', name: 'Lullaby Bye Bye', file: MUSIC_BASE_URL + 'Lullaby.Bye.Bye.mp3' },
     // M
+    { id: 'man_crush', name: 'Man Crush', file: MUSIC_BASE_URL + 'Man.Crush.mp3' },
     { id: 'meteor_shower', name: 'Meteor Shower', file: MUSIC_BASE_URL + 'Meteor.Shower.mp3' },
     { id: 'microcosmic', name: 'Microcosmic', file: MUSIC_BASE_URL + 'Microcosmic.mp3' },
     { id: 'midnight_mogwai', name: 'Midnight Mogwai', file: MUSIC_BASE_URL + 'Midnight.Mogwai.mp3' },
     { id: 'meet_cute', name: 'Meet Cute (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cute.When.Claude.Met.Suno.mp3' },
     { id: 'meet_cuter', name: 'Meet Cuter (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cuter.When.Claude.Met.Suno.mp3' },
     { id: 'meet_cutest', name: 'Meet Cutest (When Claude Met Suno)', file: MUSIC_BASE_URL + 'Meet.Cutest.When.Claude.Met.Suno.mp3' },
+    { id: 'my_bitches', name: 'My Bitches', file: MUSIC_BASE_URL + 'My.Bitches.mp3' },
     // N
     { id: 'natural_disasters', name: 'Natural Disasters', file: MUSIC_BASE_URL + 'Natural.Disasters.mp3' },
     { id: 'natural_selection', name: 'Natural Selection', file: MUSIC_BASE_URL + 'Natural.Selection.mp3' },
@@ -553,6 +555,8 @@ const ALBUM_PLAYLIST_ORDER = [
 	'tell_your_dog_i_said_hi',
 	'fuck_spiders',
 	'frenemy',
+	'man_crush',
+	'my_bitches',
 	'incel_by_choice'
 ];
 
