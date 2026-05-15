@@ -623,6 +623,8 @@ let creditsContentHeight = 0;
 let creditsMusicTimeoutId = null;
 let creditsPaused = false;
 let creditsClickHandler = null;
+let creditsMouseMoveHandler = null;
+let creditsCursorHideTimer = null;
 let aiAutoRestartTimerId = null;
 
 // AI Tuning Mode - for automated parameter testing
@@ -671,7 +673,7 @@ function startCreditsAnimation() {
     
     // Show the overlay FIRST so we can measure content height
     creditsOverlay.style.display = 'block';
-    creditsOverlay.style.cursor = 'pointer';
+    creditsOverlay.style.cursor = 'none';
 
     // Click anywhere on the overlay toggles pause. The #gameOver div sits on
     // top of the overlay (higher z-index, separate DOM subtree), so clicks
@@ -679,6 +681,18 @@ function startCreditsAnimation() {
     creditsPaused = false;
     creditsClickHandler = () => { creditsPaused = !creditsPaused; };
     creditsOverlay.addEventListener('click', creditsClickHandler);
+
+    // Show a pointer cursor only while the mouse is moving over the credits;
+    // after ~2s of no movement, hide it again so it doesn't sit on screen.
+    creditsMouseMoveHandler = () => {
+        creditsOverlay.style.cursor = 'pointer';
+        if (creditsCursorHideTimer) clearTimeout(creditsCursorHideTimer);
+        creditsCursorHideTimer = setTimeout(() => {
+            creditsOverlay.style.cursor = 'none';
+            creditsCursorHideTimer = null;
+        }, 2000);
+    };
+    creditsOverlay.addEventListener('mousemove', creditsMouseMoveHandler);
 
     // Start off-screen initially
     creditsScrollY = screenHeight;
@@ -729,7 +743,15 @@ function stopCreditsAnimation() {
             creditsOverlay.removeEventListener('click', creditsClickHandler);
             creditsClickHandler = null;
         }
+        if (creditsMouseMoveHandler) {
+            creditsOverlay.removeEventListener('mousemove', creditsMouseMoveHandler);
+            creditsMouseMoveHandler = null;
+        }
         creditsOverlay.style.cursor = '';
+    }
+    if (creditsCursorHideTimer) {
+        clearTimeout(creditsCursorHideTimer);
+        creditsCursorHideTimer = null;
     }
     creditsPaused = false;
     // Show settings button again
