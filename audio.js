@@ -441,6 +441,14 @@ const GAMEPLAY_QUEUE_KEY = 'tantro_gameplayQueue';
 const FWORD_QUEUE_KEY = 'tantro_fwordQueue';
 const PURGED_SONGS_KEY = 'tantro_purgedSongs';
 const ALBUM_QUEUE_KEY = 'tantro_albumPlaylist';
+const ALBUM_ORDER_FINGERPRINT_KEY = 'tantro_albumPlaylistOrderFingerprint';
+
+// Tiny stable fingerprint of an ordered key list — used to detect when an
+// admin reorders the album_intro list so we can throw away the saved
+// in-progress albumPlaylist and rebuild it from the new order.
+function albumOrderFingerprint(orderArr) {
+    return (orderArr || []).join('|');
+}
 const VISIT_COUNT_KEY = 'tantro_visitCount'; // Tracks how many times the player has visited (for intro songs)
 
 // "Yes, And..." intro songs — mandatory first song for the player's first 3 visits
@@ -934,14 +942,27 @@ function initShuffleQueues() {
         Logger.debug('🎵 Created full album playlist for first-time player (' + ALBUM_PLAYLIST_ORDER.length + ' ordered + ' + remainingSongs.length + ' shuffled = ' + albumPlaylist.length + ' total)');
     }
 
-    // Try to load album playlist from localStorage (returning player mid-album)
+    // Try to load album playlist from localStorage (returning player mid-album).
+    // If the SOURCE order (ALBUM_PLAYLIST_ORDER) has changed since we last
+    // saved the playlist, throw the saved one away so the new order takes
+    // effect immediately instead of waiting for the player to finish the
+    // entire old playlist. Only applies when the library is authoritative —
+    // while running on BOOTSTRAP we can't trust the comparison.
     const savedAlbumPlaylist = localStorage.getItem(ALBUM_QUEUE_KEY);
     if (savedAlbumPlaylist) {
         try {
-            albumPlaylist = JSON.parse(savedAlbumPlaylist);
-            // Same authoritative-library guard as the gameplay queue above.
-            if (songLibraryAuthoritative) {
-                albumPlaylist = albumPlaylist.filter(id => allSongs.some(s => s.id === id));
+            const currentFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
+            const savedFingerprint = localStorage.getItem(ALBUM_ORDER_FINGERPRINT_KEY) || '';
+            if (songLibraryAuthoritative && savedFingerprint && savedFingerprint !== currentFingerprint) {
+                Logger.info('🎵 Album order changed since last visit — rebuilding album playlist');
+                const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER]);
+                const remainingSongs = shuffleArray(getShuffleableGameplaySongIds().filter(id => !excludeFromAlbum.has(id)));
+                albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
+            } else {
+                albumPlaylist = JSON.parse(savedAlbumPlaylist);
+                if (songLibraryAuthoritative) {
+                    albumPlaylist = albumPlaylist.filter(id => allSongs.some(s => s.id === id));
+                }
             }
             if (albumPlaylist.length > 0) {
                 Logger.debug('🎵 Loaded album playlist from storage:', albumPlaylist.length, 'songs remaining');
@@ -991,6 +1012,9 @@ function saveQueuesToStorage() {
         localStorage.setItem(GAMEPLAY_QUEUE_KEY, JSON.stringify(gameplayShuffleQueue));
         localStorage.setItem(FWORD_QUEUE_KEY, JSON.stringify(fWordShuffleQueue));
         localStorage.setItem(ALBUM_QUEUE_KEY, JSON.stringify(albumPlaylist));
+        // Persist the album_intro order the current albumPlaylist was built
+        // from, so on the next visit we can detect admin reorders.
+        localStorage.setItem(ALBUM_ORDER_FINGERPRINT_KEY, albumOrderFingerprint(ALBUM_PLAYLIST_ORDER));
     } catch (e) {
         Logger.warn('🎵 Failed to save queues to storage:', e);
     }
@@ -1337,21 +1361,28 @@ initShuffleQueues();
         }
         const prevGameplayCount = gameplaySongs.length;
         const prevCreditsCount = creditsSongs.length;
+        const prevAlbumFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
         loadSongsFromData(data);
         cacheSongs(data);
         songLibraryAuthoritative = true;
         rebuildAllSongs();
-        patchShuffleQueuesAfterLibraryRefresh();
+        const nextAlbumFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
+        const albumOrderChanged = prevAlbumFingerprint !== nextAlbumFingerprint;
+        patchShuffleQueuesAfterLibraryRefresh(albumOrderChanged);
         Logger.info('🎵 Background song refresh complete (gameplay '
             + prevGameplayCount + '→' + gameplaySongs.length
-            + ', credits ' + prevCreditsCount + '→' + creditsSongs.length + ')');
+            + ', credits ' + prevCreditsCount + '→' + creditsSongs.length
+            + (albumOrderChanged ? ', album order CHANGED' : '') + ')');
     }, 0);
 })();
 
 // After a fresh library lands, reconcile the running shuffle queues so the
 // currently playing track keeps playing but any *new* songs become reachable
 // and any *removed* songs stop being selected.
-function patchShuffleQueuesAfterLibraryRefresh() {
+// If albumOrderChanged is true, rebuild the album playlist from the fresh
+// ALBUM_PLAYLIST_ORDER instead of patching in place — used when the admin
+// reorders the album_intro list server-side.
+function patchShuffleQueuesAfterLibraryRefresh(albumOrderChanged) {
     const validGameplay = new Set(gameplaySongs.map(s => s.id));
     const validCredits  = new Set(creditsSongs.map(s => s.id));
     const validAll      = new Set(allSongs.map(s => s.id));
@@ -1381,10 +1412,20 @@ function patchShuffleQueuesAfterLibraryRefresh() {
         creditsShuffleQueue = [...newCredits.reverse(), ...creditsShuffleQueue];
     }
 
-    // Album playlist (first-time players): append any new gameplay songs to
-    // the tail in shuffled order. This matters when a first-time visitor
-    // booted from the small BOOTSTRAP and the full library has now arrived.
-    if (albumPlaylist.length) {
+    if (albumOrderChanged) {
+        // Admin reordered the album_intro list — rebuild the playlist from
+        // scratch using the new order, plus the rest of gameplay shuffled.
+        const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER]);
+        const remainingSongs = shuffleArray(
+            gameplaySongs.map(s => s.id).filter(id => !excludeFromAlbum.has(id))
+        );
+        albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
+        Logger.info('🎵 Rebuilt album playlist from updated order ('
+            + ALBUM_PLAYLIST_ORDER.length + ' curated + '
+            + remainingSongs.length + ' shuffled)');
+    } else if (albumPlaylist.length) {
+        // Order unchanged — just append any newly-added gameplay songs to
+        // the tail so a player booted from BOOTSTRAP still picks them up.
         const inAlbum = new Set(albumPlaylist);
         const newAlbumSongs = shuffleArray(
             gameplaySongs.map(s => s.id).filter(id => !inAlbum.has(id))
