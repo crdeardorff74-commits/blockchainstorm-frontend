@@ -621,6 +621,8 @@ let creditsAnimationId = null;
 let creditsScrollY = 0;
 let creditsContentHeight = 0;
 let creditsMusicTimeoutId = null;
+let creditsPaused = false;
+let creditsClickHandler = null;
 let aiAutoRestartTimerId = null;
 
 // AI Tuning Mode - for automated parameter testing
@@ -669,28 +671,38 @@ function startCreditsAnimation() {
     
     // Show the overlay FIRST so we can measure content height
     creditsOverlay.style.display = 'block';
-    
+    creditsOverlay.style.cursor = 'pointer';
+
+    // Click anywhere on the overlay toggles pause. The #gameOver div sits on
+    // top of the overlay (higher z-index, separate DOM subtree), so clicks
+    // inside it don't bubble here.
+    creditsPaused = false;
+    creditsClickHandler = () => { creditsPaused = !creditsPaused; };
+    creditsOverlay.addEventListener('click', creditsClickHandler);
+
     // Start off-screen initially
     creditsScrollY = screenHeight;
     creditsScroll.style.top = creditsScrollY + 'px';
-    
+
     // Use requestAnimationFrame to ensure DOM is rendered before measuring
     requestAnimationFrame(() => {
         // Now get content height (must be after display:block and render)
         const creditsContent = creditsScroll.querySelector('.credits-content');
         creditsContentHeight = creditsContent ? creditsContent.offsetHeight : 0;
         Logger.debug('Credits content height:', creditsContentHeight, 'Screen height:', screenHeight);
-        
+
         if (creditsContentHeight === 0) {
             Logger.error('Credits content height is 0! creditsContent:', creditsContent);
             return;
         }
-        
+
         // Animate the scroll
         function animateCredits() {
-            creditsScrollY -= 0.5; // Scroll speed (pixels per frame)
-            creditsScroll.style.top = creditsScrollY + 'px';
-            
+            if (!creditsPaused) {
+                creditsScrollY -= 0.5; // Scroll speed (pixels per frame)
+                creditsScroll.style.top = creditsScrollY + 'px';
+            }
+
             // Stop when all content has scrolled past the top (bottom of content reaches top of screen)
             if (creditsScrollY + creditsContentHeight > 0) {
                 creditsAnimationId = requestAnimationFrame(animateCredits);
@@ -700,7 +712,7 @@ function startCreditsAnimation() {
                 creditsAnimationId = null;
             }
         }
-        
+
         creditsAnimationId = requestAnimationFrame(animateCredits);
     });
 }
@@ -713,7 +725,13 @@ function stopCreditsAnimation() {
     const { overlay: creditsOverlay } = getCreditsElements();
     if (creditsOverlay) {
         creditsOverlay.style.display = 'none';
+        if (creditsClickHandler) {
+            creditsOverlay.removeEventListener('click', creditsClickHandler);
+            creditsClickHandler = null;
+        }
+        creditsOverlay.style.cursor = '';
     }
+    creditsPaused = false;
     // Show settings button again
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) settingsBtn.style.display = 'block';
