@@ -11769,6 +11769,16 @@ function trackSunoClick(link) {
     }
 }
 
+function trackAspcaClick() {
+    if (window._visitId) {
+        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/aspca-clicked`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            silent: true, timeout: 5000
+        });
+    }
+}
+
 function showSharePopup() {
     if (localStorage.getItem('tantro_share_dismissed') === 'true') return false;
     
@@ -11872,6 +11882,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', () => trackSunoClick(link));
     });
+
+    // Track ASPCA donation link clicks. Delegated to the stable container
+    // because the anchor lives inside a data-i18n-html string that gets
+    // re-rendered (and thus loses listeners) whenever the language changes.
+    const shareDonate = document.getElementById('shareDonate');
+    if (shareDonate) {
+        shareDonate.addEventListener('click', (e) => {
+            if (e.target.closest('a')) trackAspcaClick();
+        });
+    }
 
     // Close on overlay background click
     if (shareOverlay) {

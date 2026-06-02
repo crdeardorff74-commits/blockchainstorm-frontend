@@ -3527,6 +3527,25 @@
         }
         .share-dismiss:hover { color: #99a; }
         .share-dismiss svg { width: 1.5vh; height: 1.5vh; opacity: 0.5; }
+        .share-donate {
+            color: #8794b3;
+            font-size: 1.35vh;
+            line-height: 1.5;
+            margin-bottom: 1.6vh;
+            max-width: 30vh;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .share-donate a {
+            color: #FFD700;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.35);
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .share-donate a:hover {
+            color: #FFA500;
+            border-bottom-color: rgba(255, 165, 0, 0.7);
+        }
 
         /* Phone: make share popup fill most of the screen */
         @media (pointer: coarse) and (max-width: 1024px) {
@@ -3568,6 +3587,10 @@
             }
             .share-dismiss {
                 font-size: 2vh;
+            }
+            .share-donate {
+                font-size: 1.9vh;
+                max-width: 44vw;
             }
         }
 
