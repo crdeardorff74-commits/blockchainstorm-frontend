@@ -10835,23 +10835,39 @@ function startGame(mode) {
         });
     }
     
-    // Update visit tracking with current game settings (challenges, mode, etc.)
-    // dismissIntro() sends initial visit data, but challenges are selected AFTER intro dismissal,
-    // so we re-send here on every game start to capture the actual settings
-    if (_visitId) {
-        apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            silent: true, timeout: 5000,
-            body: JSON.stringify({
-                difficulty: mode,
-                skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
-                mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
-                challenges: challengeMode === 'combo' ? Array.from(activeChallenges) :
-                            challengeMode !== 'normal' ? [challengeMode] : [],
-                gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
-            })
-        });
+    // Record that this game started — the SOLE /started recorder. Fires
+    // once per game with the final settings (challenges are chosen after
+    // intro dismissal, so we capture them here, not at dismiss time).
+    // dismissIntroScreen() used to ALSO fire /started for the first game,
+    // which double-recorded it in the per-session play count; that fire
+    // was removed and its visit-not-ready retry moved here.
+    {
+        const startedPayload = {
+            difficulty: mode,
+            skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
+            mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
+            challenges: challengeMode === 'combo' ? Array.from(activeChallenges) :
+                        challengeMode !== 'normal' ? [challengeMode] : [],
+            gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
+        };
+        const sendStarted = () => {
+            if (!_visitId) return;
+            apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                silent: true, timeout: 5000,
+                body: JSON.stringify(startedPayload)
+            });
+        };
+        // _visitId is set by the page-load visit POST. On the very first
+        // game a fast tap can beat that response back, so defer once if it
+        // isn't ready yet (mirrors the old intro-dismiss retry). Games 2+
+        // always have it, so they fire immediately.
+        if (_visitId) {
+            sendStarted();
+        } else {
+            setTimeout(sendStarted, 1500);
+        }
     }
 
     // Hide leaderboard if it was shown
@@ -12987,29 +13003,11 @@ if (startOverlay) {
         // Pre-bless Audio elements during this gesture for iPad Safari
         blessAudio();
         
-        // Record that visitor started a game
-        const sendStarted = () => {
-            if (_visitId) {
-                const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
-                apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    silent: true, timeout: 5000,
-                    body: JSON.stringify({
-                        difficulty: mode,
-                        skillLevel: typeof skillLevel !== 'undefined' ? skillLevel : null,
-                        mode: aiModeEnabled ? 'ai' : (challengeMode && challengeMode !== 'normal' ? 'challenge' : 'normal'),
-                        challenges: typeof activeChallenges !== 'undefined' ? [...activeChallenges] : [],
-                        gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
-                    })
-                });
-            }
-        };
-        if (_visitId) {
-            sendStarted();
-        } else {
-            setTimeout(sendStarted, 1500);
-        }
+        // NOTE: the /started visit record is NOT fired here anymore. It
+        // fires exactly once from startGame(mode) below (called at the end
+        // of this handler) with the final game settings. Firing it here too
+        // double-recorded the first game in the per-session play count, so
+        // it was removed; startGame() now carries the visit-not-ready retry.
         
         // Mark that user has interacted (gates audio system)
         markUserInteraction();
