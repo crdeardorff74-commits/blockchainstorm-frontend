@@ -2129,44 +2129,6 @@ const I18n = (() => {
             'hint.colorBlobs': 'अधिकतम अंकों के लिए बड़े रंग समूह बनाएं',
             'hint.tsunami': 'एक तरफ से दूसरी तरफ रंग समूह फैलाकर TSUNAMI बोनस प्राप्त करें',
             'hint.blackHole': 'एक रंग समूह को दूसरे से पूरी तरह घेरकर BLACK HOLE बोनस प्राप्त करें',
-        }
-    };
-
-    // ─── Core Functions ───
-    
-    function detectLanguage() {
-        // Priority: localStorage override > navigator.language > 'en'
-        const saved = localStorage.getItem('tantro_language');
-        if (saved && SUPPORTED_LANGUAGES[saved]) {
-            return saved;
-        }
-        
-        const browserLang = navigator.language || navigator.userLanguage || 'en';
-        const shortLang = browserLang.slice(0, 2).toLowerCase();
-        
-        return SUPPORTED_LANGUAGES[shortLang] ? shortLang : 'en';
-    }
-    
-    function init() {
-        currentLang = detectLanguage();
-        applyTranslations();
-        Logger.info(`🌐 i18n initialized: ${currentLang} (${SUPPORTED_LANGUAGES[currentLang]})`);
-    }
-    
-    /**
-     * Get a translated string by key, with optional parameter substitution.
-     * Falls back to English if the key isn't found in the current language.
-     * @param {string} key - Dot-notated translation key
-     * @param {Object} [params] - Key-value pairs for {placeholder} substitution
-     * @returns {string}
-     */
-    function t(key, params = {}) {
-        const langDict = translations[currentLang] || translations.en;
-        let str = langDict[key] || translations.en[key] || key;
-        
-        // Substitute {placeholders}
-        for (const [k, v] of Object.entries(params)) {
-            str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
             'intro.login': '🔑 लॉगिन',
             'intro.fullscreenHint.ios': '📱 पूर्ण स्क्रीन के लिए: <strong>शेयर</strong> ⬆️ फिर <strong>"होम स्क्रीन में जोड़ें"</strong> टैप करें',
             'intro.fullscreenHint.android': '📱 पूर्ण स्क्रीन के लिए: <strong>⋮ मेन्यू</strong> फिर <strong>"होम स्क्रीन में जोड़ें"</strong> टैप करें',
@@ -2328,6 +2290,44 @@ const I18n = (() => {
             'planet.radius': 'त्रिज्या:',
             'planet.earth': 'पृथ्वी',
             'planet.gTypeStar': 'G-प्रकार का तारा',
+        }
+    };
+
+    // ─── Core Functions ───
+    
+    function detectLanguage() {
+        // Priority: localStorage override > navigator.language > 'en'
+        const saved = localStorage.getItem('tantro_language');
+        if (saved && SUPPORTED_LANGUAGES[saved]) {
+            return saved;
+        }
+        
+        const browserLang = navigator.language || navigator.userLanguage || 'en';
+        const shortLang = browserLang.slice(0, 2).toLowerCase();
+        
+        return SUPPORTED_LANGUAGES[shortLang] ? shortLang : 'en';
+    }
+    
+    function init() {
+        currentLang = detectLanguage();
+        applyTranslations();
+        Logger.info(`🌐 i18n initialized: ${currentLang} (${SUPPORTED_LANGUAGES[currentLang]})`);
+    }
+    
+    /**
+     * Get a translated string by key, with optional parameter substitution.
+     * Falls back to English if the key isn't found in the current language.
+     * @param {string} key - Dot-notated translation key
+     * @param {Object} [params] - Key-value pairs for {placeholder} substitution
+     * @returns {string}
+     */
+    function t(key, params = {}) {
+        const langDict = translations[currentLang] || translations.en;
+        let str = langDict[key] || translations.en[key] || key;
+        
+        // Substitute {placeholders}
+        for (const [k, v] of Object.entries(params)) {
+            str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
         }
         
         return str;

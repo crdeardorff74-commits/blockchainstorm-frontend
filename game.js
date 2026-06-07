@@ -363,55 +363,6 @@ function showBugReportConfirmation(success) {
     setTimeout(() => indicator.remove(), 2500);
 }
 
-// Function to capture canvas snapshot and copy to clipboard
-function captureCanvasSnapshot() {
-    try {
-        // Create a temporary canvas with black background
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        // Fill with black background
-        tempCtx.fillStyle = '#000000';
-        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        
-        // Draw the game canvas on top
-        tempCtx.drawImage(canvas, 0, 0);
-        
-        // Convert temporary canvas to blob
-        tempCanvas.toBlob((blob) => {
-            if (!blob) {
-                originalConsoleLog('❌ Failed to create canvas snapshot');
-                return;
-            }
-            
-            // Try to copy using modern Clipboard API
-            if (navigator.clipboard && navigator.clipboard.write) {
-                const item = new ClipboardItem({ 'image/png': blob });
-                navigator.clipboard.write([item]).then(() => {
-                    originalConsoleLog('📸 Canvas snapshot copied to clipboard!');
-                    
-                    // Show visual indicator
-                    const indicator = document.createElement('div');
-                    indicator.style.position = 'fixed';
-                    indicator.style.top = '50%';
-                    indicator.style.left = '50%';
-                    indicator.style.transform = 'translate(-50%, -50%)';
-                    indicator.style.padding = '20px 40px';
-                    indicator.style.background = 'rgba(0, 128, 255, 0.9)';
-                }).catch((err) => {
-                    originalConsoleLog('❌ Failed to copy canvas snapshot:', err);
-                });
-            } else {
-                originalConsoleLog('❌ Clipboard API not supported');
-            }
-        }, 'image/png');
-    } catch (err) {
-        originalConsoleLog('❌ Error capturing canvas snapshot:', err);
-    }
-}
-
 // ============================================
 // GAMEPAD CONTROLLER SYSTEM - imported from gamepad.js
 // ============================================
@@ -5512,7 +5463,6 @@ function togglePause() {
         }
     } else {
         // Pause
-        captureCanvasSnapshot();
         paused = true;
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
@@ -11369,9 +11319,6 @@ document.addEventListener('keydown', e => {
         if (e.key === 'p' || e.key === 'P' || e.key === 'Pause' || e.key === 'Break') {
             e.preventDefault();
             
-            // Capture snapshot before pausing
-            captureCanvasSnapshot();
-            
             paused = true; StarfieldSystem.setPaused(true);
             justPaused = true;
             setTimeout(() => { justPaused = false; }, 300);
@@ -11979,9 +11926,6 @@ playAgainBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', () => {
     wasPausedBeforeSettings = paused;
     if (gameRunning && !paused) {
-        // Capture snapshot before pausing
-        captureCanvasSnapshot();
-        
         paused = true; StarfieldSystem.setPaused(true);
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300);
