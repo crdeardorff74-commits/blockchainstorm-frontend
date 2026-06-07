@@ -12858,21 +12858,53 @@ if (startOverlay) {
         const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
-        if (isStandalone || isFullscreen || !isTouch) return;
-        
+        // Running inside the installed app (incl. a Play Store TWA, which
+        // launches in standalone/fullscreen mode) → nothing to suggest.
+        const isTWA = document.referrer.startsWith('android-app://');
+        if (isStandalone || isFullscreen || isTWA || !isTouch) return;
+
         const ua = navigator.userAgent;
-        const isIOS = /iphone|ipad|ipod/i.test(ua) || 
+        const isIOS = /iphone|ipad|ipod/i.test(ua) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 2);
         const isAndroid = /android/i.test(ua);
         
-        if (isIOS) {
-            hint.innerHTML = I18n.t('intro.fullscreenHint.ios');
-        } else if (isAndroid) {
-            hint.innerHTML = I18n.t('intro.fullscreenHint.android');
-        } else {
-            hint.innerHTML = I18n.t('intro.fullscreenHint.generic');
+        const t = (k) => I18n.t(k);
+        // Chrome/Edge on Android fire beforeinstallprompt (captured early in
+        // index.html) → offer a real one-tap Install button. iOS has no
+        // install API so it always gets the manual "Add to Home Screen" hint;
+        // other browsers fall back to the manual hint too.
+        function paintHint() {
+            const dp = window.__deferredInstallPrompt;
+            if (dp && !isIOS) {
+                hint.innerHTML = '';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = 'installAppBtn';
+                btn.textContent = t('intro.installApp');
+                btn.style.cssText = 'cursor:pointer;font:inherit;font-weight:bold;'
+                    + 'color:#0a0a2e;background:#FFD700;border:none;'
+                    + 'border-radius:5px;padding:6px 14px;';
+                btn.addEventListener('click', async () => {
+                    const p = window.__deferredInstallPrompt;
+                    if (!p) return;
+                    btn.disabled = true;
+                    p.prompt();
+                    try { await p.userChoice; } catch (_) {}
+                    window.__deferredInstallPrompt = null;
+                    hint.style.display = 'none';
+                });
+                hint.appendChild(btn);
+            } else {
+                hint.innerHTML = isIOS ? t('intro.fullscreenHint.ios')
+                    : isAndroid ? t('intro.fullscreenHint.android')
+                    : t('intro.fullscreenHint.generic');
+            }
+            hint.style.display = 'block';
         }
-        hint.style.display = 'block';
+        paintHint();
+        // Upgrade text → Install button if the prompt arrives after paint.
+        window.addEventListener('oi-installable', paintHint);
+        window.addEventListener('oi-installed', () => { hint.style.display = 'none'; });
         
         // Hide Music/Full Screen toggles on phones — they'll use settings instead
         if (DeviceDetection.isMobile) {
