@@ -9559,9 +9559,11 @@ async function gameOver() {
     gameOverPending = false; // Reset the pending flag
     HintSystem.onGameEnd();
     
-    // Record that visitor finished a game (once per visit)
-    if (window._visitId && !window._visitFinishRecorded) {
-        window._visitFinishRecorded = true;
+    // Record that this visitor completed a game. Fires on every game-over
+    // (the gameOverInProgress guard at the top of gameOver() ensures one
+    // call per game), so the back-end's finished_count becomes "games
+    // completed this session" for the daily summary.
+    if (window._visitId) {
         apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/finished`, {
             method: 'PATCH', silent: true, timeout: 5000
         });
@@ -12753,6 +12755,22 @@ if (startOverlay) {
     const _visitLoadTime = Date.now();
     let _visitRecorded = false;
     let _interactionDetected = false;
+    // Persistent per-browser id, stamped on the visit so the daily-summary
+    // email can recognize return players across days. Generated once and
+    // reused across reloads (localStorage). Best-effort — private mode or a
+    // thrown getItem just yields null (the visit is then treated as anonymous).
+    const _sessionId = (function () {
+        try {
+            let id = localStorage.getItem('tantro_session_id');
+            if (!id) {
+                id = (window.crypto && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                localStorage.setItem('tantro_session_id', id);
+            }
+            return id;
+        } catch (e) { return null; }
+    })();
 
     const _recordVisit = async function() {
         if (_interactionDetected || !_trackingEnabled) return;
@@ -12775,7 +12793,8 @@ if (startOverlay) {
                     screenWidth: screen.width,
                     screenHeight: screen.height,
                     deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
-                    os: detectOS()
+                    os: detectOS(),
+                    sessionId: _sessionId
                 })
             });
             if (res.ok) {
