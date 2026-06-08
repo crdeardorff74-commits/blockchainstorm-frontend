@@ -71,6 +71,15 @@ const GameReplay = (function () {
 
     function getFWordSongId() { return replayFWordSongId; }
 
+    /**
+     * Recorded-timeline elapsed time (ms) since the current piece spawned, with the
+     * playback speedup (replayInputSpeedup) divided out. The score's speed bonus uses
+     * this during replay so a replay reproduces the player's ORIGINAL placement timing
+     * instead of the (faster) wall-clock playback timing — keeping the replayed score
+     * faithful to the recorded score regardless of speedup/resync bumps.
+     */
+    function getRecordedPieceElapsed() { return replayPieceElapsedTime; }
+
     function setSkipNextSync(val) { replaySkipNextSync = !!val; }
 
     function hasPendingInputs() {
@@ -494,6 +503,10 @@ const GameReplay = (function () {
                 Logger.debug('🎬 Board synced from snapshot at piece', replayPieceIndex, '- fixed', differences, 'cells');
                 if (differences > 2) {
                     showSyncIndicator();
+                    // Speeding up playback after a desync limits future drift. This is safe
+                    // for scoring: the speed bonus uses recorded-timeline timing during replay
+                    // (see calculatePieceSpeedBonus / getRecordedPieceElapsed), not this
+                    // wall-clock speedup, so the bump no longer inflates the replayed score.
                     replayInputSpeedup *= 1.02;
                     Logger.debug('🎬 Replay speedup increased to', (replayInputSpeedup * 100).toFixed(1) + '%');
                 }
@@ -1091,6 +1104,7 @@ const GameReplay = (function () {
         isActive,
         isPaused,
         hasPendingInputs,
+        getRecordedPieceElapsed,
 
         // State setters
         setSkipNextSync,

@@ -3632,8 +3632,19 @@ function calculateMaxDropTime() {
 // Returns value between 0.0 (piece reached bottom naturally) and 2.0 (instant placement)
 function calculatePieceSpeedBonus(placementTime) {
     if (pieceSpawnTime === 0) return 1.0; // Fallback if spawn time wasn't set
-    
-    const elapsedTime = placementTime - pieceSpawnTime;
+
+    // During replay, derive elapsed from the recorded timeline rather than wall-clock.
+    // Playback runs faster than real time (replayInputSpeedup, plus resync bumps) to
+    // limit board desync, but the speed bonus must reflect the player's ORIGINAL timing
+    // or the replayed score drifts above the recorded score. getRecordedPieceElapsed()
+    // returns spawn-relative ms on the recorded clock, with the speedup divided out.
+    let elapsedTime;
+    if (GameReplay.isActive()) {
+        elapsedTime = GameReplay.getRecordedPieceElapsed();
+    } else {
+        elapsedTime = placementTime - pieceSpawnTime;
+    }
+
     const maxDropTime = calculateMaxDropTime();
     
     // Linear interpolation: 2.0 at 0 time, 0.0 at maxDropTime
