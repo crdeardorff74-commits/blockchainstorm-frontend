@@ -11693,6 +11693,30 @@ function getShareText() {
     return I18n.t('share.text');
 }
 
+// Copy text to the clipboard, returning true on success. execCommand first
+// because navigator.clipboard.writeText is blocked inside itch.io's
+// cross-origin game iframe (no clipboard-write permission) and rejects
+// silently there; execCommand works on a user gesture in iframes. Falls
+// back to the modern API for top-level pages.
+function copyToClipboard(text) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-9999px;left:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        const ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) return true;
+    } catch (e) {}
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { navigator.clipboard.writeText(text); return true; } catch (e) {}
+    }
+    return false;
+}
+
 function updateShareLinks() {
     const url = encodeURIComponent(getShareURL());
     const text = encodeURIComponent(getShareText());
@@ -11791,13 +11815,13 @@ document.addEventListener('DOMContentLoaded', () => {
         shareCopyLink.addEventListener('click', (e) => {
             e.preventDefault();
             trackShareClick('copylink');
-            navigator.clipboard.writeText(getShareURL()).then(() => {
+            if (copyToClipboard(getShareURL())) {
                 const span = shareCopyLink.querySelector('span');
                 if (span) {
                     span.textContent = I18n.t('share.copied');
                     setTimeout(() => { span.textContent = I18n.t('share.copyLink'); }, 2000);
                 }
-            });
+            }
         });
     }
     
@@ -11832,14 +11856,14 @@ document.addEventListener('DOMContentLoaded', () => {
         goShareCopyLink.addEventListener('click', (e) => {
             e.preventDefault();
             trackShareClick('copylink');
-            navigator.clipboard.writeText(getShareURL()).then(() => {
+            if (copyToClipboard(getShareURL())) {
                 const svg = goShareCopyLink.querySelector('svg');
                 if (svg) {
                     const origFill = svg.style.fill;
                     svg.style.fill = '#4CAF50';
                     setTimeout(() => { svg.style.fill = origFill; }, 1500);
                 }
-            });
+            }
         });
     }
     
