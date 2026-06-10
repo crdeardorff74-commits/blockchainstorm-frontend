@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>TANTЯO</title>
+    <title>TANTЯO (Tantro) — Free Online Falling Blocks Game</title>
 
-	<meta name="description" content="Play TANTЯO, a revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
-	<meta name="keywords" content="Tetris, block puzzle game, falling blocks, free online game, browser game, puzzle game, AI game, space game">
+	<meta name="description" content="Play TANTЯO (Tantro), a revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
+	<meta name="keywords" content="Tantro, TANTЯO, Tetris, block puzzle game, falling blocks, free online game, browser game, puzzle game, AI game, space game">
 	<meta name="robots" content="index, follow">
-	<link rel="canonical" href="https://blockchainstorm.official-intelligence.art/">
+	<link rel="canonical" href="https://tantro.official-intelligence.art/">
 
 	<!-- Open Graph -->
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="https://tantro.official-intelligence.art/">
-	<meta property="og:title" content="TANTЯO - Free Online Falling Blocks Game">
+	<meta property="og:title" content="TANTЯO (Tantro) - Free Online Falling Blocks Game">
 	<meta property="og:description" content="A revolutionary twist on classic Tetris. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.">
 	<meta property="og:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
 
 	<!-- Twitter -->
 	<meta name="twitter:card" content="summary_large_image">
-	<meta name="twitter:title" content="TANTЯO - Free Online Falling Blocks Game">
+	<meta name="twitter:title" content="TANTЯO (Tantro) - Free Online Falling Blocks Game">
 	<meta name="twitter:description" content="A revolutionary twist on classic Tetris. Journey through the solar system and compete on global leaderboards.">
 	<meta name="twitter:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
     
@@ -57,8 +57,41 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- Structured data: tells search engines TANTЯO is also spelled "Tantro"
+         (the Я is Cyrillic, so an ASCII search wouldn't otherwise match). -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "TANTЯO",
+        "alternateName": "Tantro",
+        "url": "https://tantro.official-intelligence.art/",
+        "description": "A revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.",
+        "image": "https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png",
+        "genre": ["Puzzle", "Arcade"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Web browser",
+        "gamePlatform": ["Web", "Android", "iOS"],
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "Official Intelligence",
+            "url": "https://official-intelligence.art/"
+        }
+    }
+    </script>
 </head>
 <body>
+    <!-- Semantic page heading: invisible (the visible logo is a styled div),
+         but read by screen readers and indexed by search engines. Carries the
+         ASCII spelling "Tantro" so the game is findable without the Cyrillic Я. -->
+    <h1 class="sr-only">TANTЯO (Tantro) — Free Online Falling Blocks Puzzle Game</h1>
+
     <!-- Portrait orientation overlay for mobile -->
     <div id="portraitOverlay">
         <div class="portrait-overlay-content">
@@ -96,8 +129,9 @@
             localStorage.setItem('tantro_migrated', '1');
         }
 
-        // Game title — always TANTЯO
-        document.title = 'TANTЯO';
+        // Page title carries the ASCII alias "Tantro" for search visibility
+        // (the Я is Cyrillic). GAME_TITLE stays the pure brand for in-game UI.
+        document.title = 'TANTЯO (Tantro) — Free Online Falling Blocks Game';
         window.GAME_TITLE = 'TANTЯO';
 
         // Show tantro titles (they have inline display:none for flash prevention)
@@ -1209,7 +1243,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '4.18';</script>
+	<script>var PAGE_VERSION = '4.19';</script>
 	<script src="config.js"></script>
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>
