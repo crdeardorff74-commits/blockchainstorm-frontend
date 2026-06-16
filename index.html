@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- Mobile itch.io → real-origin redirect. Loaded first so the auto-redirect
+         runs before any UI paints. Inert on desktop, in standalone PWA, and on
+         our own origin. See platform-redirect.js. -->
+    <script src="platform-redirect.js"></script>
+
     <title>TANTЯO (Tantro) — Free Online Falling Blocks Game</title>
 
 	<meta name="description" content="Play TANTЯO (Tantro), a revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
@@ -1243,7 +1249,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '4.19';</script>
+	<script>var PAGE_VERSION = '4.20';</script>
 	<script src="config.js"></script>
 	<script src="i18n.js"></script>
 	<script src="auth.js"></script>

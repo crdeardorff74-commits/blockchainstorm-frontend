@@ -28,6 +28,10 @@ const I18n = (() => {
     // ─── Translation Dictionaries ───
     const translations = {
         en: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Open the full app",
+            'redirect.body': "For the best experience — and to add the game to your home screen — open the full version.",
+            'redirect.button': "Open full version",
             // Intro / Start Screen
             'intro.dontPanic': "WARNING: These are not your parents' tetrominoes!<br>These go to 11...",
             'intro.skillLevel': 'Skill Level',
@@ -292,6 +296,10 @@ const I18n = (() => {
             'hint.blackHole': 'Completely surround one color blob with another for a BLACK HOLE bonus',
         },
         es: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Abre la app completa",
+            'redirect.body': "Para una mejor experiencia, y para añadir el juego a tu pantalla de inicio, abre la versión completa.",
+            'redirect.button': "Abrir versión completa",
             'intro.dontPanic': 'ADVERTENCIA: ¡Estos no son los tetrominós de tus padres!<br>These go to 11...',
             'intro.skillLevel': 'Nivel',
             'intro.music': 'Música',
@@ -494,6 +502,10 @@ const I18n = (() => {
             'hint.blackHole': 'Rodea completamente un grupo de color con otro para un bonus de AGUJERO NEGRO',
         },
         fr: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Ouvrir l'appli complète",
+            'redirect.body': "Pour une meilleure expérience, et pour ajouter le jeu à votre écran d'accueil, ouvrez la version complète.",
+            'redirect.button': "Ouvrir la version complète",
             'intro.dontPanic': 'ATTENTION : Ce ne sont pas les tétrominos de vos parents !<br>These go to 11...',
             'intro.skillLevel': 'Niveau',
             'intro.music': 'Musique',
@@ -696,6 +708,10 @@ const I18n = (() => {
             'hint.blackHole': 'Entourez complètement un groupe de couleur avec un autre pour un bonus TROU NOIR',
         },
         de: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Vollständige App öffnen",
+            'redirect.body': "Für das beste Erlebnis – und um das Spiel zum Startbildschirm hinzuzufügen – öffne die vollständige Version.",
+            'redirect.button': "Vollversion öffnen",
             'intro.dontPanic': 'WARNUNG: Das sind nicht die Tetrominos deiner Eltern!<br>These go to 11...',
             'intro.skillLevel': 'Schwierigkeit',
             'intro.music': 'Musik',
@@ -898,6 +914,10 @@ const I18n = (() => {
             'hint.blackHole': 'Umschließe eine Farbgruppe vollständig mit einer anderen für einen SCHWARZES-LOCH-Bonus',
         },
         pt: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Abrir o app completo",
+            'redirect.body': "Para a melhor experiência, e para adicionar o jogo à tela inicial, abra a versão completa.",
+            'redirect.button': "Abrir versão completa",
             'intro.dontPanic': 'AVISO: Estes não são os tetrominós dos seus pais!<br>These go to 11...',
             'intro.skillLevel': 'Nível',
             'intro.music': 'Música',
@@ -989,6 +1009,10 @@ const I18n = (() => {
             'hint.blackHole': 'Cerque completamente um grupo de cor com outro para um bônus de BURACO NEGRO',
         },
         ja: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "フルアプリを開く",
+            'redirect.body': "最高の体験のために、そしてゲームをホーム画面に追加するには、フルバージョンを開いてください。",
+            'redirect.button': "フルバージョンを開く",
             'intro.dontPanic': '警告：これは君の親のテトロミノではない！ <br>These go to 11...',
             'intro.skillLevel': '難易度', 'intro.music': '音楽', 'intro.fullScreen': 'フルスクリーン', 'intro.startGame': '▶ ゲーム開始', 'intro.login': '🔑 ログイン',
             'intro.fullscreenHint.ios': '📱 フルスクリーン：<strong>共有</strong> ⬆️ → <strong>「ホーム画面に追加」</strong>',
@@ -1074,6 +1098,10 @@ const I18n = (() => {
             'hint.blackHole': 'あるカラーブロブを別のブロブで完全に囲んでBLACK HOLEボーナスを獲得',
         },
         ko: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "전체 앱 열기",
+            'redirect.body': "최상의 경험을 위해, 그리고 게임을 홈 화면에 추가하려면 전체 버전을 여세요.",
+            'redirect.button': "전체 버전 열기",
             'intro.dontPanic': '경고: 이것은 부모님 시대의 테트로미노가 아닙니다!<br>These go to 11...', 'intro.skillLevel': '난이도', 'intro.music': '음악', 'intro.fullScreen': '전체 화면', 'intro.startGame': '▶ 게임 시작', 'intro.login': '🔑 로그인',
             'intro.fullscreenHint.ios': '📱 전체 화면: <strong>공유</strong> ⬆️ → <strong>"홈 화면에 추가"</strong>',
             'intro.fullscreenHint.android': '📱 전체 화면: <strong>⋮ 메뉴</strong> → <strong>"홈 화면에 추가"</strong>',
@@ -1148,6 +1176,10 @@ const I18n = (() => {
             'hint.blackHole': '하나의 색상 블롭을 다른 블롭으로 완전히 둘러싸면 BLACK HOLE 보너스를 획득합니다',
         },
         zh: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "打开完整应用",
+            'redirect.body': "为获得最佳体验，并将游戏添加到主屏幕，请打开完整版本。",
+            'redirect.button': "打开完整版本",
             'intro.dontPanic': '警告：这些可不是你爸妈玩的俄罗斯方块！ <br>These go to 11...', 'intro.skillLevel': '难度', 'intro.music': '音乐', 'intro.fullScreen': '全屏', 'intro.startGame': '▶ 开始游戏', 'intro.login': '🔑 登录',
             'intro.fullscreenHint.ios': '📱 全屏：点击<strong>分享</strong> ⬆️ 然后<strong>"添加到主屏幕"</strong>',
             'intro.fullscreenHint.android': '📱 全屏：点击<strong>⋮ 菜单</strong>然后<strong>"添加到主屏幕"</strong>',
@@ -1222,6 +1254,10 @@ const I18n = (() => {
             'hint.blackHole': '用一种颜色完全包围另一种颜色获得BLACK HOLE奖励',
         },
         ru: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Открыть полное приложение",
+            'redirect.body': "Для лучшего опыта и чтобы добавить игру на главный экран, откройте полную версию.",
+            'redirect.button': "Открыть полную версию",
             'intro.dontPanic': 'ВНИМАНИЕ: Это не тетромино ваших родителей!<br>These go to 11...', 'intro.skillLevel': 'Уровень', 'intro.music': 'Музыка', 'intro.fullScreen': 'Полный Экран', 'intro.startGame': '▶ Начать', 'intro.login': '🔑 Войти',
             'intro.fullscreenHint.ios': '📱 Полный экран: нажмите <strong>Поделиться</strong> ⬆️ → <strong>«На экран Домой»</strong>',
             'intro.fullscreenHint.android': '📱 Полный экран: нажмите <strong>⋮ Меню</strong> → <strong>«Добавить на главный экран»</strong>',
@@ -1305,6 +1341,10 @@ const I18n = (() => {
             'hint.blackHole': 'Полностью окружите одну цветную группу другой для бонуса ЧЁРНАЯ ДЫРА',
         },
         it: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Apri l'app completa",
+            'redirect.body': "Per la migliore esperienza, e per aggiungere il gioco alla schermata Home, apri la versione completa.",
+            'redirect.button': "Apri versione completa",
             'intro.dontPanic': 'ATTENZIONE: Questi non sono i tetromini dei tuoi genitori!<br>These go to 11...', 'intro.skillLevel': 'Livello', 'intro.music': 'Musica', 'intro.fullScreen': 'Schermo Intero', 'intro.startGame': '▶ Inizia', 'intro.login': '🔑 Accedi',
             'intro.fullscreenHint.ios': '📱 Schermo intero: tocca <strong>Condividi</strong> ⬆️ poi <strong>"Aggiungi a Home"</strong>',
             'intro.fullscreenHint.android': '📱 Schermo intero: tocca <strong>⋮ Menu</strong> poi <strong>"Aggiungi a Home"</strong>',
@@ -1368,6 +1408,10 @@ const I18n = (() => {
             'hint.blackHole': 'Circonda completamente un gruppo di colore con un altro per un bonus BUCO NERO',
         },
         nl: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Open de volledige app",
+            'redirect.body': "Voor de beste ervaring — en om het spel aan je beginscherm toe te voegen — open je de volledige versie.",
+            'redirect.button': "Volledige versie openen",
             'intro.installApp': '📲 App installeren',
             'intro.dontPanic': 'WAARSCHUWING: Dit zijn niet de tetromino\'s van je ouders!<br>These go to 11...', 'intro.skillLevel': 'Niveau', 'intro.music': 'Muziek', 'intro.fullScreen': 'Volledig Scherm', 'intro.startGame': '▶ Start Spel', 'intro.login': '🔑 Inloggen',
             'rules.howToPlay': '📖 Spelregels', 'rules.goalTitle': '🎮 Doel', 'rules.specialEventsTitle': '✨ Speciale Gebeurtenissen', 'rules.scoringTitle': '📊 Score',
@@ -1552,6 +1596,10 @@ const I18n = (() => {
             'planet.gTypeStar': 'G-type ster',
         },
         pl: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Otwórz pełną aplikację",
+            'redirect.body': "Aby uzyskać najlepsze wrażenia i dodać grę do ekranu głównego, otwórz pełną wersję.",
+            'redirect.button': "Otwórz pełną wersję",
             'intro.installApp': '📲 Zainstaluj aplikację',
             'intro.dontPanic': 'UWAGA: To nie są tetromina twoich rodziców!<br>These go to 11...', 'intro.skillLevel': 'Poziom', 'intro.music': 'Muzyka', 'intro.fullScreen': 'Pełny Ekran', 'intro.startGame': '▶ Rozpocznij',
             'rules.howToPlay': '📖 Jak Grać', 'rules.goalTitle': '🎮 Cel', 'rules.specialEventsTitle': '✨ Specjalne Zdarzenia', 'rules.scoringTitle': '📊 Punktacja',
@@ -1737,6 +1785,10 @@ const I18n = (() => {
             'planet.gTypeStar': 'Gwiazda typu G',
         },
         tr: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "Tam uygulamayı aç",
+            'redirect.body': "En iyi deneyim için ve oyunu ana ekranınıza eklemek için tam sürümü açın.",
+            'redirect.button': "Tam sürümü aç",
             'intro.installApp': '📲 Uygulamayı yükle',
             'intro.dontPanic': 'DİKKAT: Bunlar anne babanızın tetrominoları değil!<br>These go to 11...', 'intro.skillLevel': 'Seviye', 'intro.music': 'Müzik', 'intro.fullScreen': 'Tam Ekran', 'intro.startGame': '▶ Oyuna Başla',
             'rules.howToPlay': '📖 Nasıl Oynanır', 'rules.goalTitle': '🎮 Amaç', 'rules.specialEventsTitle': '✨ Özel Olaylar', 'rules.scoringTitle': '📊 Puanlama',
@@ -1922,6 +1974,10 @@ const I18n = (() => {
             'planet.gTypeStar': 'G tipi yıldız',
         },
         ar: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "افتح التطبيق الكامل",
+            'redirect.body': "للحصول على أفضل تجربة، ولإضافة اللعبة إلى الشاشة الرئيسية، افتح النسخة الكاملة.",
+            'redirect.button': "افتح النسخة الكاملة",
             'intro.installApp': '📲 تثبيت التطبيق',
             'intro.dontPanic': 'تحذير: هذه ليست تتروميونات والديك!<br>These go to 11...', 'intro.skillLevel': 'المستوى', 'intro.music': 'الموسيقى', 'intro.fullScreen': 'ملء الشاشة', 'intro.startGame': '▶ ابدأ اللعب',
             'rules.howToPlay': '📖 كيف تلعب', 'rules.goalTitle': '🎮 الهدف', 'rules.specialEventsTitle': '✨ أحداث خاصة', 'rules.scoringTitle': '📊 النقاط',
@@ -2107,6 +2163,10 @@ const I18n = (() => {
             'planet.gTypeStar': 'نجم من النوع G',
         },
         hi: {
+            // Home-screen redirect overlay (platform-redirect.js)
+            'redirect.title': "पूरा ऐप खोलें",
+            'redirect.body': "सर्वोत्तम अनुभव के लिए, और गेम को अपनी होम स्क्रीन पर जोड़ने के लिए, पूरा संस्करण खोलें।",
+            'redirect.button': "पूरा संस्करण खोलें",
             'intro.installApp': '📲 ऐप इंस्टॉल करें',
             'intro.dontPanic': 'चेतावनी: ये आपके माता-पिता के टेट्रोमिनो नहीं हैं!<br>These go to 11...', 'intro.skillLevel': 'स्तर', 'intro.music': 'संगीत', 'intro.fullScreen': 'पूर्ण स्क्रीन', 'intro.startGame': '▶ खेल शुरू',
             'rules.howToPlay': '📖 कैसे खेलें', 'rules.goalTitle': '🎮 लक्ष्य', 'rules.specialEventsTitle': '✨ विशेष कार्यक्रम', 'rules.scoringTitle': '📊 स्कोरिंग',
