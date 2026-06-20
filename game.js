@@ -11867,21 +11867,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Track Suno link clicks in credits
-    const sunoLinks = {
-        'creditsSuno1': 'artist',
-        'creditsSuno2': 'song1',
-        'creditsSuno3': 'song2',
-        'creditsSuno4': 'song3',
-        'creditsSuno5': 'song4',
-        'creditsSuno6': 'song5',
-        'creditsSpotify': 'spotify',
-        'creditsApple': 'apple'
-    };
-    Object.entries(sunoLinks).forEach(([id, link]) => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('click', () => trackSunoClick(link));
-    });
+    // Track soundtrack-link clicks in the credits scroll via a single
+    // delegated, capture-phase handler. Any <a data-credit-link="<label>">
+    // is tracked — to add a new tracked link, just put the attribute on the
+    // anchor in index.html; no map or per-id wiring to keep in sync here.
+    // Capture phase so it fires even if a link's own handler stops propagation.
+    document.addEventListener('click', (e) => {
+        let el = e.target;
+        while (el && el !== document.body) {
+            if (el.dataset && el.dataset.creditLink) {
+                trackSunoClick(el.dataset.creditLink);
+                return;
+            }
+            el = el.parentNode;
+        }
+    }, { capture: true });
 
     // Track ASPCA donation link clicks. Delegated to the stable container
     // because the anchor lives inside a data-i18n-html string that gets
