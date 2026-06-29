@@ -2,6 +2,11 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-06-29 — Release v4.23
+- Share links now point at `https://tantro.official-intelligence.art` instead of the itch.io page (`getShareURL()` in `game.js` ~line 11688). Feeds all 12 share buttons (popup + game-over row) and the Copy Link action.
+- Version bumped 4.22 → 4.23 (`sw.js` APP_VERSION + `index.html` PAGE_VERSION). Not browser-verified — pure constant/URL change.
+- Layout note: deployable files (`index.html`, `sw.js`, `game.js`, `NOTES.md`, etc.) had drifted into `tantro-back-end/` at a stale 3.62; user restored the canonical 4.22 set here in `tantro-front-end/` from git. This release is against the correct front-end folder. The orphaned copies in `tantro-back-end/` should be cleaned up.
+
 ## 2026-06-20 — Release v4.22
 - Ships the credits-link tracking rework: per-id `sunoLinks` map replaced with a delegated `[data-credit-link]` handler, all 8 IDs renamed to descriptive slugs, and the admin tantro panel switched to listing the raw ID. See the detailed entry below.
 - Backend (not in this zip): `suno_clicks` column widened to `VARCHAR(255)` in code; live DB still needs the manual `ALTER` + the ID-rename migration `UPDATE` before this ships meaningfully.

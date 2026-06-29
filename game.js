@@ -11686,7 +11686,7 @@ if (rulesPanelViewSelect) {
 let sessionPlayAgainCount = 0;
 
 function getShareURL() {
-    return 'https://digeratist.itch.io/tantro';
+    return 'https://tantro.official-intelligence.art';
 }
 
 function getShareText() {
