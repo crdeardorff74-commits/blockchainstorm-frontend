@@ -2,6 +2,12 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-06-30 — Release v4.24
+- Escape now pauses/unpauses a running game, added alongside P/Pause/Break in the keydown handler ([game.js:11347](game.js)). Excluded in AI mode, where Escape still exits the AI game ([game.js:11370](game.js)); menu-modal Escape handling untouched.
+- Caveat baked into a code comment: in fullscreen, the browser also exits fullscreen on Escape — unavoidable, so the game both pauses and drops out of fullscreen. P/Pause are the clean choices for pausing inside fullscreen.
+- Discovered P/P/Pause/Break already pause (no change needed there) — user's report was specifically about Escape.
+- Version bumped 4.23 → 4.24. Not browser-verified — user declined the preview server (AV concerns); change is a small, isolated conditional, statically reviewed.
+
 ## 2026-06-29 — Release v4.23
 - Share links now point at `https://tantro.official-intelligence.art` instead of the itch.io page (`getShareURL()` in `game.js` ~line 11688). Feeds all 12 share buttons (popup + game-over row) and the Copy Link action.
 - Version bumped 4.22 → 4.23 (`sw.js` APP_VERSION + `index.html` PAGE_VERSION). Not browser-verified — pure constant/URL change.

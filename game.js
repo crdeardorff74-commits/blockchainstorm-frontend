@@ -11344,8 +11344,11 @@ document.addEventListener('keydown', e => {
             return;
         }
         
-        // Handle pause with P, Pause, or Break keys
-        if (e.key === 'p' || e.key === 'P' || e.key === 'Pause' || e.key === 'Break') {
+        // Handle pause with P, Pause, Break, or Escape keys
+        // (Escape is excluded in AI mode, where it exits the AI game instead.
+        //  Note: in fullscreen the browser also exits fullscreen on Escape — unavoidable.)
+        if (e.key === 'p' || e.key === 'P' || e.key === 'Pause' || e.key === 'Break'
+            || (e.key === 'Escape' && !aiModeEnabled)) {
             e.preventDefault();
             
             paused = true; StarfieldSystem.setPaused(true);
