@@ -208,16 +208,26 @@ const Histogram = (() => {
     
     function draw() {
         if (!gameRunning || !canvas || canvas.style.display === 'none') return;
-        
+
         const dpr = window.devicePixelRatio || 1;
         const width = canvas.width / dpr;
         const height = canvas.height / dpr;
-        
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Wide, short canvas (portrait's strip below the well): thin
+        // horizontal bars with no tick annotations
+        if (width > height) {
+            drawHorizontalLayout(width, height);
+            return;
+        }
+
         // Scale factor: 1.0 at 200px+ width, proportionally smaller below
         const sf = Math.min(1, width / 200);
         scaleFactor = sf;
-        // Vertical scale: shrink further when the canvas is short (portrait's
-        // wide strip below the well); tall landscape panels keep sfV === sf
+        // Vertical scale: shrink further when the canvas is short; tall
+        // landscape panels keep sfV === sf
         const sfV = Math.min(sf, height / 300);
         const padding = Math.max(15, 40 * sf);
         const topPadding = Math.max(8, 40 * sfV);
@@ -229,24 +239,134 @@ const Histogram = (() => {
         const mainHistogramStart = speedBonusBarHeight + speedBonusGap;
 
         const graphHeight = height - topPadding - bottomPadding - mainHistogramStart;
-        
+
         // Reserve space for score histogram on the left
         const scoreBarWidth = Math.max(12, 24 * sf);
         const scoreBarPadding = Math.max(15, 40 * sf);
         const colorGraphStart = padding + scoreBarWidth + scoreBarPadding;
         const graphWidth = width - colorGraphStart - padding;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-        
+
         // ========== SPEED BONUS BAR ==========
         drawSpeedBonusBar(width, padding, speedBonusBarHeight);
-        
+
         // ========== SCORE HISTOGRAM ==========
         drawScoreHistogram(width, height, padding, bottomPadding, graphHeight, scoreBarWidth, scoreBarPadding);
-        
+
         // ========== COLOR HISTOGRAM ==========
         drawColorHistogram(width, height, padding, bottomPadding, graphHeight, colorGraphStart, graphWidth);
+    }
+
+    /**
+     * Horizontal layout for the portrait strip: speed bonus bar on top, then
+     * one thin left-to-right bar per row (score first, then each color).
+     * No tick marks or number annotations — the bars themselves are the story.
+     */
+    function drawHorizontalLayout(width, height) {
+        const sf = Math.min(1, width / 200);
+        scaleFactor = sf;
+
+        // ========== SPEED BONUS BAR ==========
+        const speedBonusBarHeight = Math.max(8, Math.min(16, Math.round(height * 0.14)));
+        const sidePadding = Math.max(8, 15 * sf);
+        drawSpeedBonusBar(width, sidePadding, speedBonusBarHeight);
+
+        // ========== BAR ROWS (score + one per color) ==========
+        const colors = Object.keys(histogramBars);
+        const speedBarY = Math.max(4, 8 * sf); // mirrors barY in drawSpeedBonusBar
+        const rowsTop = speedBarY + speedBonusBarHeight + Math.max(3, Math.round(height * 0.04));
+        const bottomPadding = Math.max(2, Math.round(height * 0.03));
+        const graphHeight = height - rowsTop - bottomPadding;
+        const rowCount = colors.length + 1;
+        if (graphHeight <= 0) return;
+
+        const rowHeight = graphHeight / rowCount;
+        const thickness = Math.max(3, Math.floor(rowHeight * 0.72));
+        const rowY = (index) => rowsTop + index * rowHeight + (rowHeight - thickness) / 2;
+
+        // Left gutter for the ₿ marker beside the score row
+        const leftPad = sidePadding + Math.max(14, 18 * sf);
+        const graphWidth = width - leftPad - sidePadding;
+        if (graphWidth <= 0) return;
+
+        // ₿ marker (gold, outlined like the vertical layout's symbol)
+        const btcFontSize = Math.max(9, Math.min(16, Math.round(thickness * 1.6)));
+        ctx.save();
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `bold ${btcFontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const btcX = sidePadding + (leftPad - sidePadding) / 2;
+        const btcY = rowY(0) + thickness / 2;
+        ctx.strokeText('₿', btcX, btcY);
+        ctx.fillText('₿', btcX, btcY);
+        ctx.restore();
+
+        // Score bar: silver face with gold edges, like the vertical layout
+        if (scoreHistogramBar > 0) {
+            const scoreLen = Math.max(thickness, (scoreHistogramBar / scoreHistogramMaxScale) * graphWidth);
+            drawHorizontalBar(leftPad, rowY(0), scoreLen, thickness, '#FFD700', '#FAFAFA', 0.8);
+        }
+
+        // Color bars: always draw at least a nub so every color stays visible
+        colors.forEach((color, index) => {
+            const len = Math.max(thickness, (histogramBars[color] / histogramMaxScale) * graphWidth);
+            drawHorizontalBar(leftPad, rowY(index + 1), len, thickness, color, color, faceOpacity);
+        });
+    }
+
+    /**
+     * One beveled horizontal bar — same edge treatment as the vertical bars,
+     * with the bevel scaled down to the thin row height
+     */
+    function drawHorizontalBar(x, y, w, h, edgeBase, faceColor, faceAlpha) {
+        const b = Math.max(2, Math.min(5, Math.round(h * 0.3)));
+
+        // Main face
+        ctx.save();
+        ctx.globalAlpha = faceAlpha;
+        ctx.fillStyle = faceColor;
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+
+        if (w <= b * 2 || h <= b * 2) return; // too small for bevels
+
+        const topColor = adjustBrightness(edgeBase, 1.3);
+        const leftColor = adjustBrightness(edgeBase, 1.15);
+        const bottomColor = adjustBrightness(edgeBase, 0.7);
+        const rightColor = adjustBrightness(edgeBase, 0.85);
+
+        // Top edge
+        const topGradient = ctx.createLinearGradient(x, y, x, y + b);
+        topGradient.addColorStop(0, topColor);
+        topGradient.addColorStop(1, adjustBrightness(topColor, 0.85));
+        ctx.fillStyle = topGradient;
+        ctx.fillRect(x, y, w, b);
+
+        // Left edge
+        const leftGradient = ctx.createLinearGradient(x, y, x + b, y);
+        leftGradient.addColorStop(0, leftColor);
+        leftGradient.addColorStop(1, adjustBrightness(leftColor, 0.85));
+        ctx.fillStyle = leftGradient;
+        ctx.fillRect(x, y, b, h);
+
+        // Bottom edge
+        const bottomGradient = ctx.createLinearGradient(x, y + h - b, x, y + h);
+        bottomGradient.addColorStop(0, adjustBrightness(bottomColor, 1.15));
+        bottomGradient.addColorStop(1, bottomColor);
+        ctx.fillStyle = bottomGradient;
+        ctx.fillRect(x, y + h - b, w, b);
+
+        // Right edge
+        const rightGradient = ctx.createLinearGradient(x + w - b, y, x + w, y);
+        rightGradient.addColorStop(0, adjustBrightness(rightColor, 1.15));
+        rightGradient.addColorStop(1, rightColor);
+        ctx.fillStyle = rightGradient;
+        ctx.fillRect(x + w - b, y, b, h);
+
+        // Corners
+        drawBarCorners(x, y, w, h, b, topColor, leftColor, bottomColor, rightColor);
     }
     
     /**

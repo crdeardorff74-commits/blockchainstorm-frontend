@@ -3405,10 +3405,10 @@
 
         /* ============================================
            PORTRAIT LAYOUT (phones held upright, narrow windows)
-           Column order: well on top, HUD row (score + next pieces),
+           Column order: HUD row (score + next pieces) on top, well,
            horizontal histogram strip at the bottom.
-           JS mirror: updateCanvasSize() budgets the well at 68% of
-           viewport height to match the 15vh HUD + 14vh histogram here.
+           JS mirror: updateCanvasSize() budgets the well at 72% of
+           viewport height to match the 11vh HUD + 14vh histogram here.
            Selectors are doubled with body.tablet-mode where earlier
            tablet/narrow rules would otherwise win on specificity.
            ============================================ */
@@ -3427,7 +3427,7 @@
                 padding: 0.5vh 1vw;
             }
             .main-area {
-                order: 1;
+                order: 2;
                 flex: 0 0 auto;
                 height: auto;
                 width: 100%;
@@ -3435,21 +3435,21 @@
             /* HUD row: scores left, special events middle, next pieces right */
             .side-panel,
             body.tablet-mode .side-panel {
-                order: 2;
+                order: 1;
                 flex: 0 0 auto;
                 display: grid;
                 grid-auto-flow: column;
                 grid-template-columns: auto auto minmax(0, 1fr);
                 grid-template-rows: repeat(3, auto);
                 column-gap: 3vw;
-                row-gap: 0.4vh;
+                row-gap: 0.3vh;
                 align-content: center;
                 width: 100%;
                 min-width: 0;
                 max-width: none;
-                height: 15vh;
+                height: 11vh;
                 min-height: 0;
-                padding: 0.8vh 2vw;
+                padding: 0 2vw;
                 border-radius: 0.8vh;
                 border-left: 1px solid rgba(255, 255, 255, 0.08);
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -3488,7 +3488,7 @@
                 min-width: 0;
             }
             .next-piece .next-canvas-wrapper {
-                margin-top: 0.5vh;
+                margin-top: 0.2vh;
                 margin-bottom: 0;
             }
             /* Keyboard hints / planet stats / gesture guide don't fit the strip */

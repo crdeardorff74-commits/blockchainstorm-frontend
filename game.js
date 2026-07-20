@@ -722,6 +722,12 @@ let BLOCK_SIZE = 35;
 let nextDisplayBaseSize = 180; // Updated by updateCanvasSize
 
 function updateCanvasSize() {
+    // Guard against being called before this script finishes loading (e.g.
+    // TabletMode.init() runs early, and the hoisted declaration is callable
+    // while the `canvas` const below is still in its temporal dead zone).
+    // window.updateCanvasSize is only assigned once everything is defined.
+    if (typeof window.updateCanvasSize !== 'function') return;
+
     // Calculate block size based on viewport height
     // At narrow viewports header is hidden, so use more vertical space
     const vw = window.innerWidth;
@@ -733,9 +739,9 @@ function updateCanvasSize() {
     const isThickerMode = challengeMode === 'thicker' || activeChallenges.has('thicker');
 
     if (isPortrait) {
-        // Portrait: well on top, HUD row (15vh) + histogram strip (14vh) stacked
-        // below it — the 0.68 height budget mirrors those CSS fractions
-        const blockFromHeight = Math.floor((vh * 0.68) / ROWS);
+        // Portrait: HUD row (11vh) on top, then the well, then the histogram
+        // strip (14vh) — the 0.72 height budget mirrors those CSS fractions
+        const blockFromHeight = Math.floor((vh * 0.72) / ROWS);
         // Thicker (1.2x CSS stretch) and perspective (1.5x transform scale)
         // modes render wider than the canvas itself, so budget width for them
         const widthStretch = isPerspective ? 1.5 : (isThickerMode ? 1.2 : 1);
