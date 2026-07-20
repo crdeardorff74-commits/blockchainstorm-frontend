@@ -3440,7 +3440,10 @@
             }
             .game-container {
                 flex-direction: column;
-                justify-content: center;
+                /* Pin HUD to the top edge and histogram strip to the bottom
+                   edge (where the fixed Now Playing toast and collapse toggle
+                   live); the well centers in whatever is left */
+                justify-content: space-between;
                 align-items: center;
                 gap: 0.8vh;
                 height: 100vh;
@@ -3453,6 +3456,7 @@
                 flex: 0 0 auto;
                 height: auto;
                 width: 100%;
+                margin: auto 0;
             }
             /* HUD row: scores left, special events middle, next pieces right */
             .side-panel,
