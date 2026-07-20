@@ -13026,10 +13026,31 @@ if (startOverlay) {
             }
             hint.style.display = 'block';
         }
-        paintHint();
-        // Upgrade text → Install button if the prompt arrives after paint.
-        window.addEventListener('oi-installable', paintHint);
-        window.addEventListener('oi-installed', () => { hint.style.display = 'none'; });
+        // Don't paint immediately: Chrome fires beforeinstallprompt shortly
+        // after load, and painting the manual add-to-home-screen text first
+        // makes it flash before the Install button replaces it. Wait briefly
+        // for the prompt; if it never comes (iOS, other browsers), the timer
+        // paints the manual hint.
+        let hintPaintTimer = null;
+        if (window.__deferredInstallPrompt) {
+            paintHint();
+        } else {
+            hintPaintTimer = setTimeout(paintHint, 2000);
+        }
+        window.addEventListener('oi-installable', () => {
+            if (hintPaintTimer) {
+                clearTimeout(hintPaintTimer);
+                hintPaintTimer = null;
+            }
+            paintHint();
+        });
+        window.addEventListener('oi-installed', () => {
+            if (hintPaintTimer) {
+                clearTimeout(hintPaintTimer);
+                hintPaintTimer = null;
+            }
+            hint.style.display = 'none';
+        });
         
         // Phones: keep the Music toggle but hide Full Screen — a fullscreen
         // toggle doesn't make sense there (iOS can't; Android users get the
