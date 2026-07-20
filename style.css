@@ -3493,7 +3493,10 @@
                 max-width: none;
                 height: 11vh;
                 min-height: 0;
-                padding: 0 2vw;
+                /* Just enough top padding to keep the Score value off the
+                   panel's top border (the next-piece column fills the full
+                   height, so the grid has no centering slack) */
+                padding: 0.5vh 2vw 0;
                 border-radius: 0.8vh;
                 border-left: 1px solid rgba(255, 255, 255, 0.08);
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
