@@ -216,15 +216,19 @@ const Histogram = (() => {
         // Scale factor: 1.0 at 200px+ width, proportionally smaller below
         const sf = Math.min(1, width / 200);
         scaleFactor = sf;
+        // Vertical scale: shrink further when the canvas is short (portrait's
+        // wide strip below the well); tall landscape panels keep sfV === sf
+        const sfV = Math.min(sf, height / 300);
         const padding = Math.max(15, 40 * sf);
-        const bottomPadding = Math.max(8, 15 * sf);
-        
+        const topPadding = Math.max(8, 40 * sfV);
+        const bottomPadding = Math.max(8, 15 * sfV);
+
         // Reserve space for speed bonus bar at top
-        const speedBonusBarHeight = Math.max(10, 16 * sf);
-        const speedBonusGap = Math.max(4, 10 * sf);
+        const speedBonusBarHeight = Math.max(10, 16 * sfV);
+        const speedBonusGap = Math.max(4, 10 * sfV);
         const mainHistogramStart = speedBonusBarHeight + speedBonusGap;
-        
-        const graphHeight = height - padding - bottomPadding - mainHistogramStart;
+
+        const graphHeight = height - topPadding - bottomPadding - mainHistogramStart;
         
         // Reserve space for score histogram on the left
         const scoreBarWidth = Math.max(12, 24 * sf);
@@ -714,6 +718,3 @@ const Histogram = (() => {
         resizeCanvas
     };
 })();
-
-// Make available globally
-window.Histogram = Histogram;

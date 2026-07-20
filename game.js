@@ -3,7 +3,7 @@
 Logger.info("🎮 Game v" + PAGE_VERSION + " loaded");
 
 // Audio System - imported from audio.js
-const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction, blessAudio } = AudioSystem;
+const { audioContext, startMusic, stopMusic, startMenuMusic, stopMenuMusic, playSoundEffect, playMP3SoundEffect, playEnhancedThunder, playThunder, playVolcanoRumble, playEarthquakeRumble, playEarthquakeCrack, playTsunamiWhoosh, startTornadoWind, stopTornadoWind, playSmallExplosion, getSongList, setHasPlayedGame, setGameInProgress, skipToNextSong, skipToPreviousSong, hasPreviousSong, resetShuffleQueue, setReplayTracks, clearReplayTracks, pauseCurrentMusic, resumeCurrentMusic, toggleMusicPause, isMusicPaused, getCurrentSongInfo, setOnSongChangeCallback, setOnPauseStateChangeCallback, insertFWordSong, insertFWordSongById, playBanjoWithMusicPause, setMusicVolume, getMusicVolume, setMusicMuted, isMusicMuted, toggleMusicMute, setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted, toggleSfxMute, setInstrumentalOnly, isInstrumentalOnly, skipToNextSongWithPurge, isSongPurged, getPurgedSongs, clearAllPurgedSongs, _dbg: _audioDbg, _getDbgLog: _getAudioDbgLog, markUserInteraction, blessAudio } = AudioSystem;
 
 // Inject CSS for side panel adjustments to fit song info
 (function injectSidePanelStyles() {
@@ -726,37 +726,50 @@ function updateCanvasSize() {
     // At narrow viewports header is hidden, so use more vertical space
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const isPortrait = vh >= vw; // Matches CSS @media (orientation: portrait)
     const isNarrow = vw <= 1100;
     const isPerspective = canvas.classList.contains('longago-mode') || canvas.classList.contains('comingsoon-mode');
     const isPhone = isNarrow && vh <= 500;
-    const heightPercent = isNarrow ? 0.99 : 0.95;
-    const targetHeight = vh * heightPercent;
-    let blockFromHeight = Math.floor(targetHeight / ROWS);
-    
-    // Also constrain by available width (viewport minus panels)
-    // At narrow viewports, panels use flex:1 regardless of tablet mode
-    const estPanelPercent = isNarrow ? 0.20 : (TabletMode.enabled ? 0.33 : 0.23);
-    const estPanelMinWidth = isNarrow ? 80 : (TabletMode.enabled ? 280 : 180);
-    const estPanelWidth = Math.max(estPanelMinWidth, vw * estPanelPercent);
-    const gapSpace = isNarrow ? (vw * 0.012) : (vw * 0.08);
-    // Perspective modes need extra margin on phones so panels don't overlap
-    const perspectiveMargin = 0;
-    const availableWidth = vw - (2 * estPanelWidth) - gapSpace - perspectiveMargin;
-    const blockFromWidth = Math.floor(availableWidth / COLS);
-    
-    BLOCK_SIZE = Math.max(10, Math.min(blockFromHeight, blockFromWidth));
-    
-    // Desktop: make the well 3% smaller for better panel balance
-    if (!isNarrow) {
-        BLOCK_SIZE = Math.floor(BLOCK_SIZE * 0.97);
+    const isThickerMode = challengeMode === 'thicker' || activeChallenges.has('thicker');
+
+    if (isPortrait) {
+        // Portrait: well on top, HUD row (15vh) + histogram strip (14vh) stacked
+        // below it — the 0.68 height budget mirrors those CSS fractions
+        const blockFromHeight = Math.floor((vh * 0.68) / ROWS);
+        // Thicker (1.2x CSS stretch) and perspective (1.5x transform scale)
+        // modes render wider than the canvas itself, so budget width for them
+        const widthStretch = isPerspective ? 1.5 : (isThickerMode ? 1.2 : 1);
+        const blockFromWidth = Math.floor((vw * 0.96) / (COLS * widthStretch));
+        BLOCK_SIZE = Math.max(10, Math.min(blockFromHeight, blockFromWidth));
+    } else {
+        const heightPercent = isNarrow ? 0.99 : 0.95;
+        const targetHeight = vh * heightPercent;
+        const blockFromHeight = Math.floor(targetHeight / ROWS);
+
+        // Also constrain by available width (viewport minus panels)
+        // At narrow viewports, panels use flex:1 regardless of tablet mode
+        const estPanelPercent = isNarrow ? 0.20 : (TabletMode.enabled ? 0.33 : 0.23);
+        const estPanelMinWidth = isNarrow ? 80 : (TabletMode.enabled ? 280 : 180);
+        const estPanelWidth = Math.max(estPanelMinWidth, vw * estPanelPercent);
+        const gapSpace = isNarrow ? (vw * 0.012) : (vw * 0.08);
+        // Perspective modes need extra margin on phones so panels don't overlap
+        const perspectiveMargin = 0;
+        const availableWidth = vw - (2 * estPanelWidth) - gapSpace - perspectiveMargin;
+        const blockFromWidth = Math.floor(availableWidth / COLS);
+
+        BLOCK_SIZE = Math.max(10, Math.min(blockFromHeight, blockFromWidth));
+
+        // Desktop: make the well 3% smaller for better panel balance
+        if (!isNarrow) {
+            BLOCK_SIZE = Math.floor(BLOCK_SIZE * 0.97);
+        }
     }
-    
+
     // Update main canvas
     canvas.width = COLS * BLOCK_SIZE;
     canvas.height = ROWS * BLOCK_SIZE;
-    
+
     // Check if Thicker mode is active and adjust CSS dimensions
-    const isThickerMode = challengeMode === 'thicker' || activeChallenges.has('thicker');
     if (isThickerMode) {
         // Set CSS dimensions to create actual layout space
         canvas.style.width = (canvas.width * 1.2) + 'px';
@@ -779,7 +792,17 @@ function updateCanvasSize() {
     // Use the side panel's actual width as reference
     const sidePanelEl = document.querySelector('.side-panel');
     const sidePanelWidth = sidePanelEl ? sidePanelEl.getBoundingClientRect().width : 220;
-    const nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
+    let nextDisplaySize;
+    if (isPortrait) {
+        // Portrait: the next-piece area is the right-hand slot of the HUD row.
+        // Keep the visible piece small enough that the receding queue
+        // (which extends ~1.5x further right) stays inside that slot.
+        const nextSection = document.getElementById('nextPieceSection');
+        const nextSectionWidth = nextSection ? nextSection.getBoundingClientRect().width : 150;
+        nextDisplaySize = Math.min(140, vh * 0.085, Math.max(60, nextSectionWidth * 0.4));
+    } else {
+        nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
+    }
     nextDisplayBaseSize = nextDisplaySize;
     const nextDisplayWidth = nextDisplaySize;
     const nextDisplayHeight = nextDisplaySize;
@@ -810,8 +833,9 @@ function updateCanvasSize() {
     
     const viewportWidth = window.innerWidth;
     
-    // At narrow viewports, let CSS flexbox handle layout instead of JS positioning
-    if (viewportWidth <= 1100) {
+    // At narrow viewports and in portrait (stacked column layout), let CSS
+    // flexbox handle layout instead of JS positioning
+    if (viewportWidth <= 1100 || isPortrait) {
         if (rulesPanel) rulesPanel.style.left = '';
         if (sidePanel) sidePanel.style.right = '';
     } else {
@@ -865,9 +889,17 @@ function updateCanvasSize() {
     
     // Update StormEffects with new BLOCK_SIZE so liquid pools reposition correctly
     StormEffects.updateGameState({ BLOCK_SIZE: BLOCK_SIZE, COLS: COLS, ROWS: ROWS });
+
+    // Keep the histogram canvas sized to its panel (the panel changes shape
+    // between landscape column and portrait strip)
+    if (typeof Histogram !== 'undefined' && Histogram.resizeCanvas) {
+        Histogram.resizeCanvas();
+    }
 }
 
 window.addEventListener('resize', updateCanvasSize);
+// Safety net for devices where rotation doesn't fire a resize event
+window.addEventListener('orientationchange', () => setTimeout(updateCanvasSize, 100));
 window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
 
 // Also update on fullscreen change (resize may not fire on all browsers)
@@ -6867,10 +6899,15 @@ function drawNextPiece() {
         
         // Calculate offset - pieces move up and to the right as they go back
         // Different right shift percentages for each piece position
-        const rightShiftPercents = [0, 0.6, 0.46, 0.32]; // #1 stays put, #2=60%, #3=46%, #4=32%
+        // Portrait: the queue lives in a short wide HUD strip, so recede with
+        // a flatter, tighter drift that stays inside the strip
+        const isPortraitNext = window.innerHeight >= window.innerWidth;
+        const rightShiftPercents = isPortraitNext
+            ? [0, 0.5, 0.38, 0.28]
+            : [0, 0.6, 0.46, 0.32]; // #1 stays put, #2=60%, #3=46%, #4=32%
         const cumulativeRightShift = rightShiftPercents.slice(0, i + 1).reduce((sum, p) => sum + p, 0);
         const offsetX = cumulativeRightShift * visibleWidth;  // Shift right
-        const offsetY = -i * visibleHeight * 0.32; // Shift up
+        const offsetY = -i * visibleHeight * (isPortraitNext ? 0.14 : 0.32); // Shift up
         
         // Calculate opacity - pieces fade as they go back
         const opacity = 1.0 - (i * 0.15); // 1.0, 0.85, 0.70, 0.55
@@ -9534,6 +9571,11 @@ function toggleUIElements(show) {
         if (skillLevelSelect) skillLevelSelect.classList.add('hidden-during-play');
         if (rulesPanelViewSelect) rulesPanelViewSelect.classList.add('hidden-during-play');
         histogramCanvas.style.display = 'block';
+        // In portrait the histogram's panel is only laid out once the canvas is
+        // visible, so re-measure now that display is set
+        if (typeof Histogram !== 'undefined' && Histogram.resizeCanvas) {
+            Histogram.resizeCanvas();
+        }
         titles.forEach(title => title.style.display = 'none');
         
         // Show tablet mode gameplay elements during game
@@ -12157,6 +12199,31 @@ musicSelect.addEventListener('change', (e) => {
         }
     }
 });
+
+// "Instrumental Only" — limits music picks to songs flagged instrumental
+// on the OI admin songs page. audio.js owns the persistence + the queue
+// rebuild; this only reflects the saved state and forwards changes.
+// The row grays out (and audio.js ignores the setting) while the music
+// selection includes End Credits — that pool is all-lyrics, so the toggle
+// would contradict the mode choice. Separate change listener on
+// musicSelect (rather than a line in its main handler) so it also fires
+// on settings-sync restores and isn't skipped by the handler's
+// _dismissingIntro early-return.
+const instrumentalOnlyToggle = document.getElementById('instrumentalOnlyToggle');
+const instrumentalOnlyRow = document.getElementById('instrumentalOnlyRow');
+function syncInstrumentalOnlyRow() {
+    const creditsMode = musicSelect.value === 'credits' || musicSelect.value === 'game_plus_credits';
+    if (instrumentalOnlyToggle) instrumentalOnlyToggle.disabled = creditsMode;
+    if (instrumentalOnlyRow) instrumentalOnlyRow.classList.toggle('disabled', creditsMode);
+}
+if (instrumentalOnlyToggle) {
+    instrumentalOnlyToggle.checked = isInstrumentalOnly();
+    instrumentalOnlyToggle.addEventListener('change', () => {
+        setInstrumentalOnly(instrumentalOnlyToggle.checked);
+    });
+    musicSelect.addEventListener('change', syncInstrumentalOnlyRow);
+    syncInstrumentalOnlyRow();
+}
 
 // Challenge mode handlers
 const challengeSelectBtn = document.getElementById('challengeSelectBtn');

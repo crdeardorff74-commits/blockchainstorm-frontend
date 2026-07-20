@@ -1438,6 +1438,14 @@
         .settings-option:last-child {
             border-bottom: none;
         }
+        /* Grayed-out settings row (e.g. Instrumental Only while a
+           credits-including music selection makes it moot). Fades the row
+           and blocks pointer input; game.js also sets the checkbox's own
+           `disabled` so keyboard activation is blocked natively. */
+        .settings-option.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
         .settings-option label {
             cursor: pointer;
             display: flex;
@@ -3383,7 +3391,7 @@
             }
         }
         
-        /* Phone-width narrow screens (portrait would need more work) */
+        /* Phone-width narrow landscape screens */
         @media (max-width: 600px) {
             .rules-panel {
                 display: none;
@@ -3394,50 +3402,128 @@
                 max-width: 28vw;
             }
         }
-        /* Portrait orientation overlay for mobile */
-        #portraitOverlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
-            z-index: 99999;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-        .portrait-overlay-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2vh;
-        }
-        .rotate-icon {
-            font-size: 15vh;
-            animation: rotatePhone 2s ease-in-out infinite;
-            display: inline-block;
-        }
-        @keyframes rotatePhone {
-            0%, 100% { transform: rotate(0deg); }
-            30%, 70% { transform: rotate(90deg); }
-        }
-        .rotate-text {
-            font-size: max(2.5vh, 18px);
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-weight: 600;
-        }
-        .rotate-subtext {
-            font-size: max(1.8vh, 14px);
-            color: #888;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        @media (orientation: portrait) and (max-width: 1024px) and (pointer: coarse) {
-            #portraitOverlay {
+
+        /* ============================================
+           PORTRAIT LAYOUT (phones held upright, narrow windows)
+           Column order: well on top, HUD row (score + next pieces),
+           horizontal histogram strip at the bottom.
+           JS mirror: updateCanvasSize() budgets the well at 68% of
+           viewport height to match the 15vh HUD + 14vh histogram here.
+           Selectors are doubled with body.tablet-mode where earlier
+           tablet/narrow rules would otherwise win on specificity.
+           ============================================ */
+        @media (orientation: portrait) {
+            .content-area {
+                padding: 0;
+            }
+            .game-container {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                gap: 0.8vh;
+                height: 100vh;
+                height: 100dvh;
+                max-height: 100dvh;
+                padding: 0.5vh 1vw;
+            }
+            .main-area {
+                order: 1;
+                flex: 0 0 auto;
+                height: auto;
+                width: 100%;
+            }
+            /* HUD row: scores left, special events middle, next pieces right */
+            .side-panel,
+            body.tablet-mode .side-panel {
+                order: 2;
+                flex: 0 0 auto;
+                display: grid;
+                grid-auto-flow: column;
+                grid-template-columns: auto auto minmax(0, 1fr);
+                grid-template-rows: repeat(3, auto);
+                column-gap: 3vw;
+                row-gap: 0.4vh;
+                align-content: center;
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+                height: 15vh;
+                min-height: 0;
+                padding: 0.8vh 2vw;
+                border-radius: 0.8vh;
+                border-left: 1px solid rgba(255, 255, 255, 0.08);
+                border-right: 1px solid rgba(255, 255, 255, 0.08);
+                overflow: visible;
+            }
+            .side-panel .score-display {
                 display: flex;
+                align-items: baseline;
+                gap: 1.5vw;
+                margin: 0;
+                font-size: 2vh;
+            }
+            .side-panel .score-label {
+                font-size: 1.1vh;
+            }
+            .special-events-grid {
+                grid-column: 2;
+                grid-row: 1 / 4;
+                align-self: center;
+                margin: 0;
+                column-gap: 2vw;
+                row-gap: 0.4vh;
+            }
+            .special-events-grid .score-display {
+                font-size: 1.5vh;
+            }
+            .special-events-grid .score-label {
+                font-size: 0.9vh;
+            }
+            .next-piece {
+                grid-column: 3;
+                grid-row: 1 / 4;
+                align-self: stretch;
+                justify-self: stretch;
+                margin: 0;
+                min-width: 0;
+            }
+            .next-piece .next-canvas-wrapper {
+                margin-top: 0.5vh;
+                margin-bottom: 0;
+            }
+            /* Keyboard hints / planet stats / gesture guide don't fit the strip */
+            .side-panel .side-panel-bottom {
+                display: none;
+            }
+            /* Histogram strip: the rules panel reduced to just the histogram
+               canvas, shown only while it is live (during gameplay) */
+            .rules-panel,
+            body.tablet-mode .rules-panel {
+                display: none;
+                order: 3;
+                flex: 0 0 auto;
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+                height: 14vh;
+                min-height: 0;
+                padding: 0.6vh 1.5vw;
+                border-radius: 0.8vh;
+                border-left: 1px solid rgba(255, 255, 255, 0.08);
+                border-right: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            .rules-panel:has(.histogram-canvas[style*="display: block"]),
+            body.tablet-mode .rules-panel:has(.histogram-canvas[style*="display: block"]) {
+                display: flex;
+                flex-direction: column;
+            }
+            .rules-panel .rules-header,
+            .rules-panel .rules-instructions,
+            #planetStatsLeft {
+                display: none !important;
+            }
+            .histogram-canvas {
+                min-height: 0;
             }
         }
 
