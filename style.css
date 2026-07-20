@@ -3526,6 +3526,18 @@
             .histogram-canvas {
                 min-height: 0;
             }
+            /* Now Playing toast: pin to the lower-right corner (over the
+               histogram strip — bars may briefly spring up behind it) instead
+               of joining the HUD grid. position:fixed pulls it out of the
+               grid flow; !important beats its inline margin-top */
+            #songInfo {
+                position: fixed;
+                right: 1.5vw;
+                bottom: 1vh;
+                margin: 0 !important;
+                max-width: 45vw;
+                z-index: 500;
+            }
             /* Compact pause button — it floats over the HUD's next-piece area */
             .pause-btn {
                 top: 0.6vh;
