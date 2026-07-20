@@ -3535,8 +3535,15 @@
                 right: 1.5vw;
                 bottom: 1vh;
                 margin: 0 !important;
-                max-width: 45vw;
+                max-width: 90vw;
                 z-index: 500;
+            }
+            /* Keep the song title on one line — the toast grows to fit,
+               ellipsizing only if a title outgrows the viewport */
+            #songInfo #songName {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             /* Compact pause button — it floats over the HUD's next-piece area */
             .pause-btn {
