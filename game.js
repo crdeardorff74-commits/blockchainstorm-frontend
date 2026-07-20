@@ -12990,10 +12990,13 @@ if (startOverlay) {
         window.addEventListener('oi-installable', paintHint);
         window.addEventListener('oi-installed', () => { hint.style.display = 'none'; });
         
-        // Hide Music/Full Screen toggles on phones — they'll use settings instead
+        // Phones: keep the Music toggle but hide Full Screen — a fullscreen
+        // toggle doesn't make sense there (iOS can't; Android users get the
+        // install-app hint instead). Fullscreen still defaults ON above so
+        // Android browsers that support it enter fullscreen at game start.
         if (DeviceDetection.isMobile) {
-            const togglesRow = document.querySelector('.intro-toggles-row');
-            if (togglesRow) togglesRow.style.display = 'none';
+            const fsToggle = document.getElementById('introFullscreenToggle');
+            if (fsToggle) fsToggle.style.display = 'none';
         }
     })();
     

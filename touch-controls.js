@@ -353,9 +353,14 @@ const TabletMode = {
             SwipeControls.disable();
         }
         
-        // Recalculate panel positions for new width
-        if (typeof updateCanvasSize === 'function') {
-            updateCanvasSize();
+        // Recalculate panel positions for new width.
+        // Use window.updateCanvasSize (assigned late in game.js) rather than
+        // the hoisted declaration: during TabletMode.init() the function
+        // already exists but the `canvas` const it reads is still in its
+        // temporal dead zone. game.js calls updateCanvasSize() itself once
+        // fully loaded, so skipping the init-time call loses nothing.
+        if (typeof window.updateCanvasSize === 'function') {
+            window.updateCanvasSize();
         }
     },
     
