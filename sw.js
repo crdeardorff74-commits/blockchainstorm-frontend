@@ -24,6 +24,7 @@ const CORE_ASSETS = [
     '/storm-effects.js',
     '/auth.js',
     '/config.js',
+    '/cg-sdk.js',
     '/platform-redirect.js',
     '/manifest.json',
     '/favicon.ico'

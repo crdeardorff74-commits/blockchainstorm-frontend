@@ -3421,6 +3421,33 @@
             }
         }
 
+        /* ----- CrazyGames-only adjustments -----
+           html.is-crazygames is set by config.js on crazygames.com origins.
+           Their QA prohibits links to playable versions elsewhere, so the
+           share surfaces and cross-promo credits lines (marked .cg-hide in
+           the HTML) all hide there, along with the custom fullscreen toggle
+           and the install-app hint (CG provides its own fullscreen; installs
+           point away from their platform). */
+        html.is-crazygames .cg-hide,
+        html.is-crazygames #gameOverShareRow,
+        html.is-crazygames #shareOverlay,
+        html.is-crazygames #introFullscreenToggle,
+        html.is-crazygames #fullscreenHint {
+            display: none !important;
+        }
+        /* Inverse of .cg-hide: content that exists ONLY on CrazyGames origins
+           (the plain-text credits URL standing in for the clickable dev-site
+           link). `revert` restores each element's UA default display. */
+        .cg-only { display: none !important; }
+        html.is-crazygames .cg-only { display: revert !important; }
+        /* The stand-in inherits the credits look but reads as plain text —
+           no link color, no pointer — because it isn't one. */
+        .credits-url {
+            font-size: 16px;
+            color: #8fa3c0;
+            margin-top: 15px;
+        }
+
         /* Histogram strip collapse toggle — portrait-only, hidden everywhere else */
         #histogramToggleBtn {
             display: none;

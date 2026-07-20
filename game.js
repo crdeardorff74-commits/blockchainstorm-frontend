@@ -1579,6 +1579,10 @@ StarfieldSystem.setSoundCallback(playSoundEffect, soundToggle);
 
 // Set up UFO swoop callback for 42 lines easter egg
 StarfieldSystem.setUFOSwoopCallback(() => {
+    // Family-strict CrazyGames origins: the F Word songs never play — keep
+    // the UFO flyby purely visual (audio.js keeps its song list empty there
+    // too, so this guard is belt-and-suspenders for the banjo + skip).
+    if (typeof IS_CRAZYGAMES !== 'undefined' && IS_CRAZYGAMES) return;
     // During replay, use the recorded F Word song; otherwise pick random and record it
     if (GameReplay.isActive() && GameReplay.getFWordSongId()) {
         insertFWordSongById(GameReplay.getFWordSongId());
@@ -5534,6 +5538,7 @@ function togglePause() {
         // Unpause
         paused = false;
         StarfieldSystem.setPaused(false);
+        if (typeof CgSdk !== 'undefined') CgSdk.overlayResume();
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
         // Show pause button again (only in tablet mode)
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
@@ -5552,6 +5557,7 @@ function togglePause() {
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
         StarfieldSystem.setPaused(true);
+        if (typeof CgSdk !== 'undefined') CgSdk.overlayPause();
         if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
         // Hide pause button while paused
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -9659,6 +9665,8 @@ async function gameOver() {
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
     HintSystem.onGameEnd();
+    // CrazyGames lifecycle (no-op if gameplayStart never fired, e.g. AI games)
+    if (typeof CgSdk !== 'undefined') CgSdk.gameplayStop();
     
     // Record that this visitor completed a game. Fires on every game-over
     // (the gameOverInProgress guard at the top of gameOver() ensures one
@@ -9928,6 +9936,9 @@ async function gameOver() {
     Logger.debug('Is top twenty:', isTopTen);
     
     if (isTopTen && window.leaderboard) {
+        // CrazyGames celebration — used sparingly per their docs: only when
+        // a run ranks on the global top-20 leaderboard
+        if (typeof CgSdk !== 'undefined') CgSdk.happytime();
         // DON'T show game over div yet - go to name prompt first
         // Credits and music will start after score submission via onScoreSubmitted callback
         Logger.info('Score is top 20! Showing name entry prompt...');
@@ -10852,9 +10863,15 @@ function update(time = 0) {
 }
 
 function startGame(mode) {
+    // CrazyGames lifecycle: human games only — the AI demo loop and replays
+    // aren't player gameplay (replays never route through startGame at all)
+    if (typeof CgSdk !== 'undefined' && !aiModeEnabled) {
+        CgSdk.gameplayStart();
+    }
     // Request fullscreen on mobile if not already fullscreen and no request is in flight
-    // (dismissIntro already requests fullscreen, so skip if that's still resolving)
-    if (!document.fullscreenElement && !document.webkitFullscreenElement && !window._fullscreenRequested) {
+    // (dismissIntro already requests fullscreen, so skip if that's still resolving).
+    // Never on CrazyGames — custom fullscreen controls are prohibited there.
+    if (!IS_CRAZYGAMES && !document.fullscreenElement && !document.webkitFullscreenElement && !window._fullscreenRequested) {
         const fsCheckbox = document.getElementById('introFullscreenCheckbox');
         if (DeviceDetection.isMobile || DeviceDetection.isTablet ||
             (fsCheckbox && fsCheckbox.checked)) {
@@ -11375,8 +11392,10 @@ function startGame(mode) {
 
 // Comprehensive keyboard handler
 document.addEventListener('keydown', e => {
-    // F11, PageUp, PageDown - Toggle fullscreen (anytime)
-    if (e.key === 'F11' || e.key === 'PageUp' || e.key === 'PageDown') {
+    // F11, PageUp, PageDown - Toggle fullscreen (anytime; never on
+    // CrazyGames, where custom fullscreen controls are prohibited — their
+    // container provides its own)
+    if (!IS_CRAZYGAMES && (e.key === 'F11' || e.key === 'PageUp' || e.key === 'PageDown')) {
         e.preventDefault();
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -11996,7 +12015,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 playAgainBtn.addEventListener('click', () => {
     sessionPlayAgainCount++;
-    if (sessionPlayAgainCount === 2) {
+    // Share surfaces are hidden on CrazyGames (no links to playable
+    // versions elsewhere) — don't pop the prompt there either
+    if (sessionPlayAgainCount === 2 && !IS_CRAZYGAMES) {
         showSharePopup();
     }
     
@@ -12983,6 +13004,9 @@ if (startOverlay) {
     
     // Show fullscreen hint for mobile users not in fullscreen/standalone mode
     (function showFullscreenHint() {
+        // Never on CrazyGames: install/add-to-home-screen prompts point away
+        // from their platform
+        if (typeof IS_CRAZYGAMES !== 'undefined' && IS_CRAZYGAMES) return;
         const hint = document.getElementById('fullscreenHint');
         if (!hint) return;
         
@@ -13238,9 +13262,10 @@ if (startOverlay) {
             _audioDbg('dismissIntro: calling startMenuMusic()');
             startMenuMusic(musicSelect);
         }
-        // FULLSCREEN LAST
-        const wantFullscreen = (introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
-            DeviceDetection.isMobile || DeviceDetection.isTablet;
+        // FULLSCREEN LAST (never on CrazyGames — their container owns fullscreen)
+        const wantFullscreen = !IS_CRAZYGAMES &&
+            ((introFullscreenCheckbox && introFullscreenCheckbox.checked) ||
+            DeviceDetection.isMobile || DeviceDetection.isTablet);
         if (wantFullscreen) {
             window._fullscreenRequested = true;
             try {

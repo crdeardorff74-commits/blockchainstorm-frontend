@@ -19,6 +19,28 @@ const AppConfig = {
     MUSIC_HOST: 'https://music.official-intelligence.art'
 };
 
+// True on any CrazyGames origin — the published-game host
+// (games.crazygames.com) or the per-game dev-portal preview subdomains
+// (e.g. tantro.game-files.crazygames.com). Per CrazyGames QA requirements,
+// several behaviors key off this:
+//   - explicit songs swap to their `_censored` twins or drop (audio.js)
+//   - F Word easter-egg songs never queue (audio.js + game.js UFO callback)
+//   - custom fullscreen controls suppressed (game.js; CG provides its own)
+//   - share surfaces + cross-promo credits links hidden (html.is-crazygames
+//     CSS in style.css; no links to playable versions elsewhere)
+//   - service worker registration skipped (index.html; PWA install is
+//     meaningless in their iframe and the SW reload could flash during QA)
+//   - CrazyGames SDK loads and reports lifecycle events (cg-sdk.js)
+// Worker-safe: `location` exists in both window and worker scopes.
+const IS_CRAZYGAMES = (typeof location !== 'undefined') &&
+    /(^|\.)crazygames\.com$/i.test(location.hostname || '');
+
+// Mirror the flag onto <html> so style.css can gate rules on it. The typeof
+// guard keeps this file safe in non-DOM scopes.
+if (IS_CRAZYGAMES && typeof document !== 'undefined') {
+    document.documentElement.classList.add('is-crazygames');
+}
+
 /**
  * Shared fetch wrapper with timeout, auth, and error handling.
  *

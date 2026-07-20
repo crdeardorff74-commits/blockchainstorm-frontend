@@ -72,6 +72,10 @@
     function isExternalEmbed() {
         var host = location.hostname || '';
         if (/official-intelligence\.art$/i.test(host)) return false; // our own origin → never
+        // CrazyGames hosts the game on its own origins (framed) — never
+        // redirect players away from their platform. Checked inline because
+        // this file loads before config.js defines IS_CRAZYGAMES.
+        if (/(^|\.)crazygames\.com$/i.test(host)) return false;
         if (/itch\.(io|zone)$/i.test(host)) return true;             // top-level on itch's CDN
         var framed;
         try { framed = window.top !== window.self; } catch (e) { framed = true; } // cross-origin access → framed

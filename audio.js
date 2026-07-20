@@ -74,6 +74,11 @@ let musicVolume = parseFloat(localStorage.getItem('tantro_musicVolume')) || 0.5;
 let musicMuted = localStorage.getItem('tantro_musicMuted') === 'true';
 let sfxVolume = parseFloat(localStorage.getItem('tantro_sfxVolume')) || 0.7;
 let sfxMuted = localStorage.getItem('tantro_sfxMuted') === 'true';
+
+// Platform-forced mute (the CrazyGames container mute button, wired from
+// cg-sdk.js). A volume-0 override that outranks the in-game toggles without
+// ever touching the player's saved settings — deliberately NOT persisted.
+let externalMuted = false;
 // "Instrumental Only" music setting (Settings popup toggle). Limits queue
 // picks to songs flagged `instrumental` on the OI admin songs page.
 // Persisted like the mute/volume prefs above; game.js wires the checkbox
@@ -138,7 +143,7 @@ function initSoundEffects() {
 // Play an MP3 sound effect via Web Audio API (works on iPad without user gesture)
 function playMP3SoundEffect(effectId, soundToggle) {
     if (!soundToggle || !soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
 
     const buffer = soundEffectBuffers[effectId];
     if (buffer) {
@@ -160,7 +165,7 @@ function playBanjoWithMusicPause(soundToggle, onComplete = null) {
         if (onComplete) onComplete();
         return;
     }
-    if (sfxMuted) {
+    if (sfxMuted || externalMuted) {
         if (onComplete) onComplete();
         return;
     }
@@ -323,16 +328,81 @@ function loadSongsFromData(data) {
         return (a.label || '').localeCompare(b.label || '');
     };
 
-    gameplaySongs = (lists.gameplay || []).slice().sort(sortByPosThenLabel).map(_rowToSong);
-    creditsSongs  = (lists.credits  || []).slice().sort(sortByPosThenLabel).map(_rowToSong);
-    menuOnlySongs = (lists.menu_only|| []).slice().sort(sortByPosThenLabel).map(_rowToSong);
+    // Family-strict platforms (CrazyGames requires PEGI 12): songs the admin
+    // flagged `explicit` don't reach any playlist — but a censored twin can
+    // stand in. Convention (same as Circuitousness): a row whose key is
+    // `<base>_censored` is the clean re-cut of the song keyed `<base>`.
+    // Twins never play as their own list entries anywhere; they exist only
+    // to substitute. Applying this here — the single funnel for cache,
+    // bootstrap, AND fresh API data — means every consumer (queues, album
+    // order) only ever sees final pools.
+    //   family-strict origin: explicit row → replaced by its twin (twin's
+    //     label/filename, ORIGINAL's position so ordering is preserved);
+    //     no twin → dropped.
+    //   other origins: explicit row plays as-is; the twin is hidden.
+    //   orphan `_censored` row (its base key isn't in any list): treated as
+    //     a normal song — the admin evidently only published the clean cut.
+    // A twin mistakenly flagged explicit itself is never substituted (that
+    // would defeat the point) — its base row just drops.
+    const familyStrict = (typeof IS_CRAZYGAMES !== 'undefined' && IS_CRAZYGAMES);
+    const CENSORED_SUFFIX = '_censored';
+    const isCensoredKey = (k) => typeof k === 'string'
+        && k.length > CENSORED_SUFFIX.length && k.endsWith(CENSORED_SUFFIX);
+    const rawGameplay = lists.gameplay  || [];
+    const rawCredits  = lists.credits   || [];
+    const rawMenuOnly = lists.menu_only || [];
+    // Twin lookup spans the UNION of the lists, so a twin attached to any
+    // one list covers its base song in all of them.
+    const allRows  = [].concat(rawGameplay, rawCredits, rawMenuOnly);
+    const baseKeys = new Set();
+    const twinByKey = {};
+    for (const r of allRows) {
+        if (!r || typeof r.key !== 'string') continue;
+        if (isCensoredKey(r.key)) twinByKey[r.key] = r;
+        else baseKeys.add(r.key);
+    }
+    const substitutedKeys = {}; // base key → twin key (for album-order remap)
+    const clean = (rows) => {
+        const out = [];
+        for (const r of rows) {
+            if (!r) continue;
+            // Twin of a published base song: never a standalone entry.
+            if (isCensoredKey(r.key)
+                && baseKeys.has(r.key.slice(0, -CENSORED_SUFFIX.length))) continue;
+            if (familyStrict && r.explicit) {
+                const twin = twinByKey[r.key + CENSORED_SUFFIX];
+                if (twin && !twin.explicit) {
+                    substitutedKeys[r.key] = twin.key;
+                    out.push({
+                        key:          twin.key,
+                        label:        twin.label,
+                        filename:     twin.filename,
+                        position:     r.position,
+                        instrumental: !!twin.instrumental
+                    });
+                }
+                continue;
+            }
+            out.push(r);
+        }
+        return out;
+    };
 
-    // Album intro: only positioned entries, sorted by position.
+    gameplaySongs = clean(rawGameplay).sort(sortByPosThenLabel).map(_rowToSong);
+    creditsSongs  = clean(rawCredits).sort(sortByPosThenLabel).map(_rowToSong);
+    menuOnlySongs = clean(rawMenuOnly).sort(sortByPosThenLabel).map(_rowToSong);
+
+    // Album intro: only positioned entries, sorted by position. On
+    // family-strict origins, remap substituted keys to their twins and drop
+    // keys whose songs were removed, so the sequence never references a
+    // missing song.
+    const gameplayKeySet = new Set(gameplaySongs.map(s => s.id));
     ALBUM_PLAYLIST_ORDER = (lists.album_intro || [])
         .filter(r => r.position !== null && r.position !== undefined)
         .slice()
         .sort((a, b) => a.position - b.position)
-        .map(r => r.key);
+        .map(r => substitutedKeys[r.key] || r.key)
+        .filter(k => !familyStrict || gameplayKeySet.has(k));
 }
 
 function loadCachedSongs() {
@@ -402,15 +472,20 @@ if (loadCachedSongs()) {
 
 
 
-// F Word songs - special easter egg songs delivered by UFO at 42 lines
+// F Word songs - special easter egg songs delivered by UFO at 42 lines.
+// Explicit by nature, so on family-strict CrazyGames origins the list stays
+// empty — the UFO/menu easter eggs then never queue one (insertFWordSong
+// no-ops on an empty list).
 const F_WORD_BASE_URL = AppConfig.MUSIC_HOST + '/Music-F-Word/';
 const fWordSongs = [];
-for (let i = 1; i <= 20; i++) {
-    fWordSongs.push({
-        id: `f_word_${i}`,
-        name: `F Word (${i})`,
-        file: F_WORD_BASE_URL + `F.Word.${i}.mp3`
-    });
+if (!(typeof IS_CRAZYGAMES !== 'undefined' && IS_CRAZYGAMES)) {
+    for (let i = 1; i <= 20; i++) {
+        fWordSongs.push({
+            id: `f_word_${i}`,
+            name: `F Word (${i})`,
+            file: F_WORD_BASE_URL + `F.Word.${i}.mp3`
+        });
+    }
 }
 
 // Override for next song (used by UFO easter egg)
@@ -545,6 +620,8 @@ function getCurrentSongInfo() {
 // Skip to next song (only works in shuffle mode)
 // Insert the next F Word song from the shuffle queue (UFO easter egg)
 function insertFWordSong() {
+    // Family-strict origins keep fWordSongs empty — nothing to queue.
+    if (fWordSongs.length === 0) return null;
     // Get next song from F Word queue (refills when empty)
     if (fWordShuffleQueue.length === 0) {
         fWordShuffleQueue = shuffleArray(fWordSongs.map(s => s.id));
@@ -603,7 +680,7 @@ function skipToNextSong() {
         
         if (!audio && song) {
             audio = new Audio();
-            audio.volume = musicMuted ? 0 : musicVolume;
+            audio.volume = (musicMuted || externalMuted) ? 0 : musicVolume;
             audio.addEventListener('ended', onSongEnded);
             gameplayMusicElements[nextSongId] = audio;
         }
@@ -670,7 +747,7 @@ function skipToPreviousSong() {
     
     if (!audio && song) {
         audio = new Audio();
-        audio.volume = musicMuted ? 0 : musicVolume;
+        audio.volume = (musicMuted || externalMuted) ? 0 : musicVolume;
         audio.addEventListener('ended', onSongEnded);
         gameplayMusicElements[prevSongId] = audio;
     }
@@ -1759,7 +1836,7 @@ function startMusic(gameMode, musicSelect) {
         } else {
             audio = new Audio();
         }
-        audio.volume = musicMuted ? 0 : musicVolume;
+        audio.volume = (musicMuted || externalMuted) ? 0 : musicVolume;
         isNewElement = true;
     }
     
@@ -2578,7 +2655,7 @@ function startMenuMusic(musicToggleOrSelect, forceCredits) {
             }
         }
 
-        menuMusicElement.volume = musicMuted ? 0 : musicVolume;
+        menuMusicElement.volume = (musicMuted || externalMuted) ? 0 : musicVolume;
         menuMusicElement.loop = !playCredits;
         menuMusicElement.addEventListener('ended', onMenuMusicEnded);
 
@@ -2657,7 +2734,7 @@ function stopMenuMusic() {
 
 // Basic sound generator
 function playSound(frequency, duration, type = 'sine') {
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -2696,7 +2773,7 @@ function playTsunamiWhoosh(soundToggle) {
 // Realistic thunder effect
 function playThunder(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     // Create realistic thunder: sharp crack followed by deep rumbling decay
     const thunder = audioContext.createBufferSource();
@@ -2776,7 +2853,7 @@ function playThunder(soundToggle) {
 // Continuous volcano rumble for warming phase (3 seconds)
 function playVolcanoRumble(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     // Create a 3.5 second continuous rumble that builds in intensity
     const rumble = audioContext.createBufferSource();
@@ -2836,7 +2913,7 @@ function playVolcanoRumble(soundToggle) {
 // Continuous earthquake rumble (shorter than volcano, more shaky)
 function playEarthquakeRumble(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     // Create a 2.5 second rumble with shaking character
     const rumble = audioContext.createBufferSource();
@@ -2896,7 +2973,7 @@ function playEarthquakeRumble(soundToggle) {
 // Similar to the rumble but with added crunchiness
 function playEarthquakeCrack(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     // Create a 2.5 second rumble with crunchy texture
     const crack = audioContext.createBufferSource();
@@ -2958,7 +3035,7 @@ function playEarthquakeCrack(soundToggle) {
 // Main sound effects dispatcher
 function playSoundEffect(effect, soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     switch(effect) {
         case 'move':
@@ -3120,7 +3197,7 @@ let tornadoWindFading = false;
 
 function startTornadoWind(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     if (tornadoWindSource) return; // Already playing
     
     tornadoWindFading = false;
@@ -3199,7 +3276,7 @@ function stopTornadoWind() {
 // Low rumble/crumble sound for tornado destroying blobs
 function playSmallExplosion(soundToggle) {
     if (!soundToggle.checked) return;
-    if (sfxMuted) return;
+    if (sfxMuted || externalMuted) return;
     
     // Create a sustained low crumbling sound
     const crumble = audioContext.createBufferSource();
@@ -3317,7 +3394,7 @@ function isInstrumentalOnly() {
 }
 
 function applyMusicVolume() {
-    const effectiveVolume = musicMuted ? 0 : musicVolume;
+    const effectiveVolume = (musicMuted || externalMuted) ? 0 : musicVolume;
     
     // Apply to menu music
     if (menuMusicElement) {
@@ -3356,6 +3433,19 @@ function toggleSfxMute() {
     return sfxMuted;
 }
 
+// CrazyGames container mute (see externalMuted above). Called from cg-sdk.js
+// with the container's muteAudio setting: a volume-0 override on every output
+// path, never persisted. Also stops the tornado-wind loop — the one
+// long-running SFX that would otherwise keep sounding through a mid-storm
+// mute (it simply doesn't restart until the next tornado).
+function setExternalMuted(muted) {
+    externalMuted = !!muted;
+    applyMusicVolume();
+    if (externalMuted && typeof stopTornadoWind === 'function') {
+        stopTornadoWind();
+    }
+}
+
 function applySfxVolume() {
     // SFX volume is applied at play time via gainNode, so nothing to update here.
     // This function exists so callers don't need to know the implementation.
@@ -3363,7 +3453,7 @@ function applySfxVolume() {
 
 // Get effective SFX volume for a specific effect (used when playing)
 function getEffectiveSfxVolume(effectId) {
-    if (sfxMuted) return 0;
+    if (sfxMuted || externalMuted) return 0;
     return (soundEffectVolumes[effectId] || 0.7) * sfxVolume;
 }
 
@@ -3417,6 +3507,7 @@ function getEffectiveSfxVolume(effectId) {
         setSfxMuted,
         isSfxMuted,
         toggleSfxMute,
+        setExternalMuted,
         getEffectiveSfxVolume,
         // "Instrumental Only" setting
         setInstrumentalOnly,
