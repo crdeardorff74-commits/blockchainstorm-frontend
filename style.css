@@ -3532,6 +3532,11 @@
                 margin: 0;
                 min-width: 0;
             }
+            /* Nudge the NEXT PIECES label off the panel's top edge (the HUD
+               has no vertical padding, so the stretched cell starts at it) */
+            .next-piece .score-label {
+                margin-top: 0.6vh;
+            }
             .next-piece .next-canvas-wrapper {
                 margin-top: 0.2vh;
                 margin-bottom: 0;
