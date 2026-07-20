@@ -805,7 +805,7 @@ function updateCanvasSize() {
         // (which extends ~1.5x further right) stays inside that slot.
         const nextSection = document.getElementById('nextPieceSection');
         const nextSectionWidth = nextSection ? nextSection.getBoundingClientRect().width : 150;
-        nextDisplaySize = Math.min(140, vh * 0.09, Math.max(60, nextSectionWidth * 0.45));
+        nextDisplaySize = Math.min(150, vh * 0.095, Math.max(60, nextSectionWidth * 0.5));
     } else {
         nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
     }
@@ -6906,10 +6906,11 @@ function drawNextPiece() {
         // Calculate offset - pieces move up and to the right as they go back
         // Different right shift percentages for each piece position
         // Portrait: the queue lives in a short wide HUD strip, so recede with
-        // a flatter, tighter drift that stays inside the strip
+        // a flatter drift — wider right steps make up the separation that the
+        // reduced up-shift no longer provides
         const isPortraitNext = window.innerHeight >= window.innerWidth;
         const rightShiftPercents = isPortraitNext
-            ? [0, 0.5, 0.38, 0.28]
+            ? [0, 0.75, 0.55, 0.4]
             : [0, 0.6, 0.46, 0.32]; // #1 stays put, #2=60%, #3=46%, #4=32%
         const cumulativeRightShift = rightShiftPercents.slice(0, i + 1).reduce((sum, p) => sum + p, 0);
         const offsetX = cumulativeRightShift * visibleWidth;  // Shift right

@@ -3526,6 +3526,15 @@
             .histogram-canvas {
                 min-height: 0;
             }
+            /* Compact pause button — it floats over the HUD's next-piece area */
+            .pause-btn {
+                top: 0.6vh;
+                right: 1.5vw;
+                padding: 0.4vh 1.2vw;
+                font-size: 1.3vh;
+                border-width: 0.15vh;
+                border-radius: 0.5vh;
+            }
             /* First-time hints anchor to the rules panel, which in portrait is
                the short histogram strip — sit lower over it, and drop the ▶
                dismiss-arrow row to keep the popup compact */
