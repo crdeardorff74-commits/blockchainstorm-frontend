@@ -1,6 +1,6 @@
 // TANTЯO Service Worker
 // Bump APP_VERSION on each deploy to bust caches and notify users
-const APP_VERSION = '4.27';
+const APP_VERSION = '4.28';
 const CACHE_NAME = `tantro-v${APP_VERSION}`;
 
 // Core files to cache for offline play

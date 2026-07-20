@@ -1588,18 +1588,25 @@ const StarfieldSystem = (function() {
                 if (currentGameLevel >= planet.level && !planetAnimations[planet.name]) {
                     showPlanetStats(planet);
                     
+                    // Spawn/exit point must clear the screen edge by the
+                    // planet's radius AT FULL 15x SCALE (its size at
+                    // progress 0 forward / progress end reversed). The old
+                    // width-proportional offset (0.65w + 200) only cleared
+                    // big planets on wide canvases — on narrow portrait
+                    // screens Jupiter popped in ~1/4 visible.
+                    const offscreenX = starfieldCanvas.width / 2 + planet.size * 15 + 100;
                     if (cameraReversed) {
                         planetAnimations[planet.name] = {
                             progress: 0,
                             startX: 0,
                             startY: 0,
-                            targetX: (index % 2 === 0 ? -1 : 1) * (starfieldCanvas.width * 0.6 + 200),
+                            targetX: (index % 2 === 0 ? -1 : 1) * offscreenX,
                             targetY: ((index % 4) - 1.5) * 100
                         };
                     } else {
                         planetAnimations[planet.name] = {
                             progress: 0,
-                            startX: (index % 2 === 0 ? -1 : 1) * (starfieldCanvas.width * 0.65 + 200),
+                            startX: (index % 2 === 0 ? -1 : 1) * offscreenX,
                             startY: ((index % 4) - 1.5) * 100
                         };
                     }
@@ -1914,7 +1921,3 @@ const StarfieldSystem = (function() {
     };
 })();
 
-// Export for use as module
-if (typeof window !== 'undefined') {
-    window.StarfieldSystem = StarfieldSystem;
-}
