@@ -8,7 +8,7 @@ const Histogram = (() => {
     
     // External state (updated via updateConfig)
     let currentColorSet = [];
-    let faceOpacity = 0.42;
+    let faceOpacity = 0.33;
     let minimalistMode = false;
     let speedBonusAverage = 1.0;
     let gameRunning = false;

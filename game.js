@@ -1713,6 +1713,45 @@ function updatePalettePreview() {
     }
 }
 
+// Remap colors already on the field when the palette changes, so the
+// existing stack and in-flight pieces recolor instantly instead of only new
+// pieces arriving in the new palette. Board cells store hex color strings,
+// and palettes are index-aligned (color N of the old palette corresponds to
+// color N of the new one), so a simple old→new lookup covers everything.
+// Special colors (gremlin gray, lava, etc.) aren't in the palette and pass
+// through unchanged.
+function remapActiveColors(oldColors, newColors) {
+    if (!Array.isArray(oldColors) || !Array.isArray(newColors)) return;
+    const colorMap = {};
+    oldColors.forEach((c, i) => {
+        if (c && newColors[i] && c !== newColors[i]) colorMap[c] = newColors[i];
+    });
+    if (Object.keys(colorMap).length === 0) return;
+    const mapColor = (c) => (c && colorMap[c]) ? colorMap[c] : c;
+
+    // Settled stack
+    if (Array.isArray(board)) {
+        for (let y = 0; y < board.length; y++) {
+            const row = board[y];
+            if (!row) continue;
+            for (let x = 0; x < row.length; x++) {
+                if (row[x]) row[x] = mapColor(row[x]);
+            }
+        }
+    }
+    // Falling piece + upcoming queue
+    if (currentPiece && currentPiece.color) currentPiece.color = mapColor(currentPiece.color);
+    if (Array.isArray(nextPieceQueue)) {
+        nextPieceQueue.forEach(p => { if (p && p.color) p.color = mapColor(p.color); });
+    }
+    // In-flight special-event blobs (guarded — not all exist at all times)
+    if (tornadoPickedBlob && tornadoPickedBlob.color) tornadoPickedBlob.color = mapColor(tornadoPickedBlob.color);
+    if (typeof tsunamiBlob !== 'undefined' && tsunamiBlob && tsunamiBlob.color) tsunamiBlob.color = mapColor(tsunamiBlob.color);
+    if (typeof blackHoleInnerBlob !== 'undefined' && blackHoleInnerBlob && blackHoleInnerBlob.color) blackHoleInnerBlob.color = mapColor(blackHoleInnerBlob.color);
+    if (typeof blackHoleOuterBlob !== 'undefined' && blackHoleOuterBlob && blackHoleOuterBlob.color) blackHoleOuterBlob.color = mapColor(blackHoleOuterBlob.color);
+    if (typeof volcanoOriginalColor !== 'undefined' && volcanoOriginalColor) volcanoOriginalColor = mapColor(volcanoOriginalColor);
+}
+
 function selectPalette(paletteId) {
     // Update selection in dropdown
     const dropdownMenu = document.getElementById('paletteDropdownMenu');
@@ -1721,9 +1760,11 @@ function selectPalette(paletteId) {
             opt.classList.toggle('selected', opt.dataset.paletteId === paletteId);
         });
     }
-    
-    // Update colors
+
+    // Update colors, then recolor everything already on the field
+    const previousColors = Array.isArray(COLORS) ? COLORS.slice() : [];
     initColorsFromPalette(paletteId);
+    remapActiveColors(previousColors, COLORS);
     
     // Update preview
     updatePalettePreview();
@@ -5568,8 +5609,8 @@ function togglePause() {
     }
 }
 
-let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
-let borderBrightness = 1.1; // Multiplier on the bevel-edge shades (100% = classic look; default 110%)
+let faceOpacity = 0.33; // Default 33% opacity
+let borderBrightness = 1.15; // Multiplier on the bevel-edge shades (100% = classic look; default 115%)
 
 // ── Brushed-metal texture on piece/stack faces ──
 // Controlled by the Texture slider in Settings: the slider's percentage
@@ -5577,7 +5618,7 @@ let borderBrightness = 1.1; // Multiplier on the bevel-edge shades (100% = class
 // disables the effect entirely. Also scaled by faceOpacity at draw time so
 // translucent faces get proportionally subtler brushing.
 const BRUSHED_METAL_MAX_STRENGTH = 0.35;
-let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH; // default 100%
+let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
 // (the well and the next-piece canvas each need their own pattern).
