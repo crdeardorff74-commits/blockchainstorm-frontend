@@ -283,31 +283,33 @@ const Histogram = (() => {
         const thickness = Math.max(3, Math.floor(rowHeight * 0.72));
         const rowY = (index) => rowsTop + index * rowHeight + (rowHeight - thickness) / 2;
 
-        // Left gutter for the ₿ marker beside the score row
-        const leftPad = sidePadding + Math.max(14, 18 * sf);
+        // One shared left edge: the Speed Bonus label (drawn at sidePadding
+        // by drawSpeedBonusBar), the ₿ marker, and every bar all start at
+        // the same x — no staggered indents
+        const leftPad = sidePadding;
         const graphWidth = width - leftPad - sidePadding;
         if (graphWidth <= 0) return;
-
-        // ₿ marker (gold, outlined like the vertical layout's symbol)
-        const btcFontSize = Math.max(9, Math.min(16, Math.round(thickness * 1.6)));
-        ctx.save();
-        ctx.fillStyle = '#FFD700';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.font = `bold ${btcFontSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const btcX = sidePadding + (leftPad - sidePadding) / 2;
-        const btcY = rowY(0) + thickness / 2;
-        ctx.strokeText('₿', btcX, btcY);
-        ctx.fillText('₿', btcX, btcY);
-        ctx.restore();
 
         // Score bar: silver face with gold edges, like the vertical layout
         if (scoreHistogramBar > 0) {
             const scoreLen = Math.max(thickness, (scoreHistogramBar / scoreHistogramMaxScale) * graphWidth);
             drawHorizontalBar(leftPad, rowY(0), scoreLen, thickness, '#FFD700', '#FAFAFA', 0.8);
         }
+
+        // ₿ marker (gold, outlined like the vertical layout's symbol) —
+        // drawn AFTER the score bar so it overlays its first pixels as a
+        // badge; the black outline keeps it legible on the silver face
+        const btcFontSize = Math.max(9, Math.min(16, Math.round(thickness * 1.6)));
+        ctx.save();
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `bold ${btcFontSize}px Arial`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText('₿', leftPad, rowY(0) + thickness / 2);
+        ctx.fillText('₿', leftPad, rowY(0) + thickness / 2);
+        ctx.restore();
 
         // Color bars: always draw at least a nub so every color stays visible
         colors.forEach((color, index) => {
