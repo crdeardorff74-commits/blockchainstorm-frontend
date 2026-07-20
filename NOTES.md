@@ -2,7 +2,10 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
-## 2026-06-30 — Release v4.24
+## 2026-07-17 — Release v4.25 (audio moved to the shared music host)
+- **All audio now loads from `https://music.official-intelligence.art`** (the new `oi-music/` Netlify project at the umbrella root — see its CLAUDE.md/NOTES.md). WHY: Render workspace bandwidth hit 23.99/25 GB; iOS music + SFX were streaming through the back-end `/api/music/` proxy. This change was made from the circuitousness session, not a TANTЯO session.
+- config.js: `GITHUB_RELEASES` replaced by `MUSIC_HOST` (it was only used for audio URLs). audio.js: `MUSIC_BASE_URL`, `SFX_BASE_URL` (→ `/SFX/tantro/`), and `F_WORD_BASE_URL` (→ `/Music-F-Word/`) all now build from `AppConfig.MUSIC_HOST` — the `_isIOSAudio` proxy-vs-GitHub ternaries are gone. `_isIOSAudio` itself stays (gesture-blessing workaround).
+- **Back-end `/api/music/` proxy left alive but idle on purpose** — old cached PWA clients keep calling it until they self-update; retire later once Render's bandwidth graph shows the traffic dead.
 - Escape now pauses/unpauses a running game, added alongside P/Pause/Break in the keydown handler ([game.js:11347](game.js)). Excluded in AI mode, where Escape still exits the AI game ([game.js:11370](game.js)); menu-modal Escape handling untouched.
 - Caveat baked into a code comment: in fullscreen, the browser also exits fullscreen on Escape — unavoidable, so the game both pauses and drops out of fullscreen. P/Pause are the clean choices for pausing inside fullscreen.
 - Discovered P/P/Pause/Break already pause (no change needed there) — user's report was specifically about Escape.

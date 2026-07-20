@@ -10,8 +10,13 @@ const AppConfig = {
     // Auth & settings API (login, register, OAuth, settings sync)
     AUTH_API: 'https://official-intelligence-api.onrender.com',
 
-    // GitHub release CDN for music and SFX (direct download, no proxy)
-    GITHUB_RELEASES: 'https://github.com/crdeardorff74-commits/blockchainstorm-frontend/releases/download'
+    // Shared static audio host for ALL Official Intelligence games (the
+    // oi-music Netlify site — see oi-music/CLAUDE.md at the umbrella root).
+    // Direct 200s + CORS + immutable caching on every platform, replacing
+    // both the GitHub-releases origin (no CORS; 302s that iOS Safari can't
+    // follow in <audio>) and the Render back-end music proxy (which was
+    // burning the Render bandwidth allowance).
+    MUSIC_HOST: 'https://music.official-intelligence.art'
 };
 
 /**

@@ -51,7 +51,7 @@ const AudioSystem = (function() {
     // in Audio elements (error code 4) or fetch (CORS). Route through proxy.
     const _isIOSAudio = navigator.userAgent.includes('iPad') || navigator.userAgent.includes('iPhone') || 
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (_isIOSAudio) _dbg('iOS detected — using music proxy');
+    if (_isIOSAudio) _dbg('iOS detected — gesture-blessing workaround active');
 
 // Music system state
 let musicPlaying = false;
@@ -74,18 +74,21 @@ let musicVolume = parseFloat(localStorage.getItem('tantro_musicVolume')) || 0.5;
 let musicMuted = localStorage.getItem('tantro_musicMuted') === 'true';
 let sfxVolume = parseFloat(localStorage.getItem('tantro_sfxVolume')) || 0.7;
 let sfxMuted = localStorage.getItem('tantro_sfxMuted') === 'true';
+// "Instrumental Only" music setting (Settings popup toggle). Limits queue
+// picks to songs flagged `instrumental` on the OI admin songs page.
+// Persisted like the mute/volume prefs above; game.js wires the checkbox
+// to setInstrumentalOnly below.
+let instrumentalOnly = localStorage.getItem('tantro_instrumentalOnly') === 'true';
 
-// MP3 gameplay music - multiple tracks
-// iPad Safari can't follow GitHub's 302 redirects, so route through game backend proxy
-const GITHUB_MUSIC_URL = AppConfig.GITHUB_RELEASES + '/Music/';
-const PROXY_MUSIC_URL = AppConfig.GAME_API + '/music/Music/';
-const MUSIC_BASE_URL = _isIOSAudio ? PROXY_MUSIC_URL : GITHUB_MUSIC_URL;
+// MP3 gameplay music - multiple tracks, served from the shared music host
+// (AppConfig.MUSIC_HOST). Direct 200s + CORS on every platform, so the old
+// iOS-only Render proxy route is no longer needed.
+const MUSIC_BASE_URL = AppConfig.MUSIC_HOST + '/Music/';
 
-// MP3 sound effects — always use proxy because:
-// 1. GitHub doesn't set CORS headers, so fetch() for AudioBuffer decoding fails
-// 2. iPad Safari can't follow GitHub's 302 redirects in Audio elements
-// SFX files are small (~few KB each, only 4 files) so proxy load is negligible
-const SFX_BASE_URL = AppConfig.GAME_API + '/music/SFX/';
+// MP3 sound effects — same host, namespaced per game under /SFX/<slug>/.
+// (The old back-end proxy existed because GitHub releases sent no CORS
+// headers for fetch()+decode and 302-redirected, which iOS couldn't follow.)
+const SFX_BASE_URL = AppConfig.MUSIC_HOST + '/SFX/tantro/';
 
 // Sound effect MP3s
 const soundEffectFiles = {
@@ -304,7 +307,8 @@ let menuOnlySongs = [];
 let ALBUM_PLAYLIST_ORDER = [];
 
 function _rowToSong(row) {
-    return { id: row.key, name: row.label, file: MUSIC_BASE_URL + row.filename };
+    return { id: row.key, name: row.label, file: MUSIC_BASE_URL + row.filename,
+             instrumental: !!row.instrumental };
 }
 
 function loadSongsFromData(data) {
@@ -399,9 +403,7 @@ if (loadCachedSongs()) {
 
 
 // F Word songs - special easter egg songs delivered by UFO at 42 lines
-const GITHUB_FWORD_URL = AppConfig.GITHUB_RELEASES + '/Music-F-Word/';
-const PROXY_FWORD_URL = AppConfig.GAME_API + '/music/Music-F-Word/';
-const F_WORD_BASE_URL = _isIOSAudio ? PROXY_FWORD_URL : GITHUB_FWORD_URL;
+const F_WORD_BASE_URL = AppConfig.MUSIC_HOST + '/Music-F-Word/';
 const fWordSongs = [];
 for (let i = 1; i <= 20; i++) {
     fWordSongs.push({
@@ -1209,9 +1211,38 @@ function getNextReplayTrack() {
     return track.trackId;
 }
 
+// --- "Instrumental Only" helpers ------------------------------------
+// Songs are flagged `instrumental` on the OI admin songs page. If a list
+// has no instrumental tracks at all, the filter is skipped entirely for
+// that list — enabling the setting can never leave a queue silent.
+function isInstrumentalSongId(songId, songList) {
+    const s = songList.find(x => x.id === songId) || allSongs.find(x => x.id === songId);
+    return !!(s && s.instrumental);
+}
+// The toggle is IGNORED outright in credits-including modes — the End
+// Credits pool is all-lyrics, so honoring it there would contradict the
+// player's explicit mode choice. game.js grays the settings row out to
+// match. The stored preference is untouched; it re-applies as soon as
+// the selection goes back to the plain Game Playlist.
+function instrumentalIgnoredByMode() {
+    return currentMusicSelection === 'credits'
+        || currentMusicSelection === 'game_plus_credits';
+}
+function instrumentalFilterActive(songList) {
+    return instrumentalOnly && !instrumentalIgnoredByMode()
+        && songList.some(s => s.instrumental);
+}
+
 // Get next song from the album playlist (first-time player ordered listen)
 // Returns null when album is exhausted, so caller falls through to normal shuffle
 function getNextAlbumSong() {
+    // Instrumental Only bypasses the album sequence outright — filtering a
+    // curated listen-through would gut its authored order. The playlist is
+    // NOT consumed while bypassed, so it resumes where it left off if the
+    // player turns the setting back off. Mode-aware: in game_plus_credits
+    // the toggle is ignored (see instrumentalIgnoredByMode), so the album
+    // plays normally there.
+    if (instrumentalOnly && !instrumentalIgnoredByMode()) return null;
     while (albumPlaylist.length > 0) {
         const songId = albumPlaylist.shift();
         // Skip purged songs
@@ -1234,7 +1265,21 @@ function getNextAlbumSong() {
 // Get next song from a shuffle queue (refills when empty, prevents immediate repeats and family clustering)
 // Also filters out purged songs
 function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
+    // Instrumental Only: cull non-instrumental songs from the live queue in
+    // place (mirrors the purge culling below). Runs for every queue name,
+    // covering queues persisted before the setting flipped on. Skipped when
+    // the source list has no instrumental tracks — never silence a queue.
+    if (instrumentalFilterActive(songList)) {
+        for (let i = queue.length - 1; i >= 0; i--) {
+            if (!isInstrumentalSongId(queue[i], songList)) {
+                queue.splice(i, 1);
+            }
+        }
+    }
+
     // Credits play in the fixed order they appear in creditsSongs — no shuffle, no family swap.
+    // (No instrumental filtering here: the 'credits' queue only runs in
+    // credits mode, where instrumentalFilterActive is false by definition.)
     if (queueName === 'credits') {
         if (queue.length === 0) {
             queue.push(...songList.map(s => s.id).reverse());
@@ -1274,6 +1319,13 @@ function getNextFromQueue(queue, songList, queueName, lastPlayedRef) {
                 clearAllPurgedSongs();
                 newQueue = shuffleArray(songList.map(s => s.id).filter(id => !yesAndSet.has(id)));
             }
+        }
+
+        // Instrumental Only: refill from the instrumental subset (same
+        // skip-when-none-flagged fallback as the in-place culling above).
+        if (instrumentalFilterActive(songList)) {
+            const filtered = newQueue.filter(id => isInstrumentalSongId(id, songList));
+            if (filtered.length > 0) newQueue = filtered;
         }
         
         // If the last played song is at the end of the new queue (will be popped first),
@@ -3236,6 +3288,34 @@ function toggleMusicMute() {
     return musicMuted;
 }
 
+function setInstrumentalOnly(v) {
+    instrumentalOnly = !!v;
+    localStorage.setItem('tantro_instrumentalOnly', instrumentalOnly.toString());
+    // Rebuild the shuffle queues so the change applies in BOTH directions
+    // from the next pick — turning the filter OFF must re-include songs
+    // that getNextFromQueue's in-place culling removed from the live
+    // queues. The album playlist is deliberately untouched: it's bypassed
+    // (not consumed) while the filter is on, so it resumes intact.
+    gameplayShuffleQueue = shuffleArray(getShuffleableGameplaySongIds());
+    combinedShuffleQueue = shuffleArray([...gameplaySongs, ...creditsSongs].map(s => s.id));
+    creditsShuffleQueue = creditsSongs.map(s => s.id).reverse();
+    saveQueuesToStorage();
+    // If a lyrics track is mid-play as the filter turns on, move to an
+    // instrumental pick right away instead of finishing the track. Skipped
+    // in credits-including modes (toggle ignored there) and during replays
+    // (their audio reproduces what the original player heard);
+    // skipToNextSong additionally no-ops when music isn't playing.
+    if (instrumentalOnly && !instrumentalIgnoredByMode() && !replayModeActive
+        && currentPlayingTrack
+        && !isInstrumentalSongId(currentPlayingTrack, allSongs)) {
+        skipToNextSong();
+    }
+}
+
+function isInstrumentalOnly() {
+    return instrumentalOnly;
+}
+
 function applyMusicVolume() {
     const effectiveVolume = musicMuted ? 0 : musicVolume;
     
@@ -3338,6 +3418,9 @@ function getEffectiveSfxVolume(effectId) {
         isSfxMuted,
         toggleSfxMute,
         getEffectiveSfxVolume,
+        // "Instrumental Only" setting
+        setInstrumentalOnly,
+        isInstrumentalOnly,
         // Purge controls
         skipToNextSongWithPurge,
         isSongPurged,
