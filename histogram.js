@@ -267,8 +267,14 @@ const Histogram = (() => {
 
         // ========== SPEED BONUS BAR ==========
         const speedBonusBarHeight = Math.max(8, Math.min(16, Math.round(height * 0.14)));
-        const sidePadding = Math.max(8, 15 * sf);
-        drawSpeedBonusBar(width, sidePadding, speedBonusBarHeight);
+        // Small inset — the canvas already sits inside the panel's own
+        // padding, so the shared left edge hugs the panel border
+        const sidePadding = Math.max(4, 7 * sf);
+        // Range 1.5 (vs the vertical layout's 2.0): the wide strip has room,
+        // so let typical bonuses (~0.7–1.5x) use most of the track — a 1.0x
+        // reading lands two-thirds of the way toward the chevron toggle
+        // instead of stopping at half. Above 1.5x the bar pins full.
+        drawSpeedBonusBar(width, sidePadding, speedBonusBarHeight, 1.5);
 
         // ========== BAR ROWS (score + one per color) ==========
         const colors = Object.keys(histogramBars);
@@ -374,7 +380,7 @@ const Histogram = (() => {
     /**
      * Draw the speed bonus bar at the top
      */
-    function drawSpeedBonusBar(width, padding, barHeight) {
+    function drawSpeedBonusBar(width, padding, barHeight, range = 2.0) {
         // Animate toward current average
         const animationSpeed = 0.05;
         speedBonusHistogramBar += (speedBonusAverage - speedBonusHistogramBar) * animationSpeed;
@@ -399,7 +405,7 @@ const Histogram = (() => {
         // Bar dimensions
         const barStartX = padding + labelWidth;
         const barMaxWidth = width - barStartX - padding - 45 * sf;
-        const barActualWidth = Math.max(0, (speedBonusHistogramBar / 2.0) * barMaxWidth);
+        const barActualWidth = Math.max(0, Math.min(1, speedBonusHistogramBar / range) * barMaxWidth);
         
         // Calculate color based on value
         let speedColor;
