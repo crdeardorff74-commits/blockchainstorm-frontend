@@ -3506,6 +3506,14 @@
                 margin: 0;
                 font-size: 2vh;
             }
+            /* Drop the Score/Lines/Level values slightly relative to their
+               labels (relative+top shifts visually without disturbing the
+               baseline layout); special-event counters are nested deeper
+               and keep their alignment */
+            .side-panel > .score-display > div:not(.score-label) {
+                position: relative;
+                top: 0.4vh;
+            }
             .side-panel .score-label {
                 font-size: 1.1vh;
             }
@@ -3532,10 +3540,11 @@
                 margin: 0;
                 min-width: 0;
             }
-            /* Nudge the NEXT PIECES label off the panel's top edge (the HUD
-               has no vertical padding, so the stretched cell starts at it) */
+            /* Nudge the NEXT PIECES label down to line up with the SCORE
+               label (the stretched cell starts at the panel's top edge; the
+               score rows are grid-centered, putting SCORE's label lower) */
             .next-piece .score-label {
-                margin-top: 0.6vh;
+                margin-top: 1.4vh;
             }
             .next-piece .next-canvas-wrapper {
                 margin-top: 0.2vh;
