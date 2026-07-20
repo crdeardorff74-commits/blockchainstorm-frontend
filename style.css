@@ -3600,10 +3600,12 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
-            /* Compact pause button — it floats over the HUD's next-piece area */
+            /* Compact pause button — lower-right corner of the HUD (the HUD
+               spans ~0.5vh to ~11.5vh, so anchor just above its bottom edge),
+               clear of the panel's right edge like the settings gear */
             .pause-btn {
-                top: 0.6vh;
-                right: 1.5vw;
+                top: 8.4vh;
+                right: 2.5vw;
                 padding: 0.4vh 1.2vw;
                 font-size: 1.3vh;
                 border-width: 0.15vh;
