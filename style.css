@@ -3448,14 +3448,16 @@
             margin-top: 15px;
         }
 
-        /* Histogram strip collapse toggle — portrait-only, hidden everywhere else */
+        /* Histogram strip collapse toggle — portrait-only, hidden everywhere
+           else. Sits in the upper-right corner of the strip (the strip's top
+           edge is ~14.5vh from the viewport bottom) */
         #histogramToggleBtn {
             display: none;
             position: fixed;
-            bottom: 1.5vh;
-            left: 3.5vw;
-            width: max(3.5vh, 28px);
-            height: max(3.5vh, 28px);
+            bottom: 11vh;
+            right: 3.5vw;
+            width: max(2.6vh, 22px);
+            height: max(2.6vh, 22px);
             padding: 0;
             align-items: center;
             justify-content: center;
@@ -3463,11 +3465,17 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 0.6vh;
             color: #aaa;
-            font-size: max(1.8vh, 14px);
+            font-size: max(1.4vh, 11px);
             line-height: 1;
             cursor: pointer;
             z-index: 500;
             touch-action: manipulation;
+        }
+        /* Strip collapsed → the button drops to the bottom-right of the
+           screen (the Now Playing toast hides with the strip, so the corner
+           is free) */
+        body.histogram-hidden #histogramToggleBtn {
+            bottom: 1.5vh;
         }
 
         /* ============================================
