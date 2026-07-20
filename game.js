@@ -740,8 +740,11 @@ function updateCanvasSize() {
 
     if (isPortrait) {
         // Portrait: HUD row (11vh) on top, then the well, then the histogram
-        // strip (14vh) — the 0.72 height budget mirrors those CSS fractions
-        const blockFromHeight = Math.floor((vh * 0.72) / ROWS);
+        // strip (14vh) — the height budget mirrors those CSS fractions, and
+        // grows by the strip's share when the player has collapsed it
+        const histogramHidden = document.body.classList.contains('histogram-hidden');
+        const heightBudget = histogramHidden ? 0.86 : 0.72;
+        const blockFromHeight = Math.floor((vh * heightBudget) / ROWS);
         // Thicker (1.2x CSS stretch) and perspective (1.5x transform scale)
         // modes render wider than the canvas itself, so budget width for them
         const widthStretch = isPerspective ? 1.5 : (isThickerMode ? 1.2 : 1);
@@ -907,6 +910,30 @@ window.addEventListener('resize', updateCanvasSize);
 // Safety net for devices where rotation doesn't fire a resize event
 window.addEventListener('orientationchange', () => setTimeout(updateCanvasSize, 100));
 window.updateCanvasSize = updateCanvasSize; // Expose for leaderboard positioning
+
+// Portrait histogram-strip collapse toggle: hides the bottom panel so the
+// well can use its space. Preference persists across sessions.
+(function initHistogramToggle() {
+    const btn = document.getElementById('histogramToggleBtn');
+    if (!btn) return;
+    let hidden = false;
+    try {
+        hidden = localStorage.getItem('tantro_setting_histogramHidden') === 'true';
+    } catch (e) { /* private mode / quota — default to shown */ }
+    const applyState = () => {
+        document.body.classList.toggle('histogram-hidden', hidden);
+        btn.textContent = hidden ? '▴' : '▾';
+        updateCanvasSize();
+    };
+    applyState();
+    btn.addEventListener('click', () => {
+        hidden = !hidden;
+        try {
+            localStorage.setItem('tantro_setting_histogramHidden', hidden ? 'true' : 'false');
+        } catch (e) { /* non-fatal */ }
+        applyState();
+    });
+})();
 
 // Also update on fullscreen change (resize may not fire on all browsers)
 document.addEventListener('fullscreenchange', () => {
