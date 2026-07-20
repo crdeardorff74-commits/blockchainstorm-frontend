@@ -1398,11 +1398,15 @@ function createVolumeControls() {
         </div>
     `;
     
-    // Insert after music select option or at the end of side panel
-    if (musicParent && musicParent.nextSibling) {
-        // Remove the divider below Music since volume controls follow it
-        musicParent.style.borderBottom = 'none';
-        musicParent.parentNode.insertBefore(volumeControls, musicParent.nextSibling);
+    // Insert after the Instrumental Only row (falling back to the music
+    // select's row) so the order reads: music type dropdown → instrumental
+    // only → volume sliders
+    const instrumentalRow = document.getElementById('instrumentalOnlyRow');
+    const insertAnchor = (instrumentalRow && instrumentalRow.parentNode) ? instrumentalRow : musicParent;
+    if (insertAnchor && insertAnchor.nextSibling) {
+        // Remove the divider below the anchor since volume controls follow it
+        insertAnchor.style.borderBottom = 'none';
+        insertAnchor.parentNode.insertBefore(volumeControls, insertAnchor.nextSibling);
     } else {
         sidePanel.appendChild(volumeControls);
     }
