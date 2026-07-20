@@ -5571,13 +5571,13 @@ function togglePause() {
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
 let borderBrightness = 1.1; // Multiplier on the bevel-edge shades (100% = classic look; default 110%)
 
-// ── Experimental: brushed-metal texture on piece/stack faces ──
-// Trial feature, deliberately NOT in Settings yet: flip this to false to
-// turn the whole effect off (the texture code below then never runs).
-const BRUSHED_METAL_FACES = true;
-// Overlay intensity, scaled by faceOpacity at draw time so translucent
-// faces get proportionally subtler brushing.
-const BRUSHED_METAL_STRENGTH = 0.35;
+// ── Brushed-metal texture on piece/stack faces ──
+// Controlled by the Texture slider in Settings: the slider's percentage
+// scales BRUSHED_METAL_MAX_STRENGTH (the overlay alpha at 100%); 0%
+// disables the effect entirely. Also scaled by faceOpacity at draw time so
+// translucent faces get proportionally subtler brushing.
+const BRUSHED_METAL_MAX_STRENGTH = 0.35;
+let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH; // default 100%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
 // (the well and the next-piece canvas each need their own pattern).
@@ -5585,7 +5585,7 @@ let _brushedTile = null;
 const _brushedPatterns = new WeakMap();
 
 function getBrushedPattern(renderCtx) {
-    if (!BRUSHED_METAL_FACES) return null;
+    if (brushedMetalStrength <= 0) return null;
     if (!_brushedTile) {
         const tile = document.createElement('canvas');
         tile.width = 64;
@@ -5905,11 +5905,11 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         // space of the context, so without it the grain stays fixed to the
         // canvas and falling pieces look like they slide over a static
         // background texture.
-        if (BRUSHED_METAL_FACES) {
+        if (brushedMetalStrength > 0) {
             const brushedPattern = getBrushedPattern(ctx);
             if (brushedPattern) {
                 ctx.save();
-                ctx.globalAlpha = currentAlpha * faceOpacity * BRUSHED_METAL_STRENGTH;
+                ctx.globalAlpha = currentAlpha * faceOpacity * brushedMetalStrength;
                 ctx.translate(px, py);
                 ctx.fillStyle = brushedPattern;
                 ctx.fillRect(0, 0, blockSize, blockSize);
@@ -12210,6 +12210,17 @@ if (borderBrightnessSlider) {
     borderBrightnessSlider.addEventListener('input', (e) => {
         borderBrightness = parseFloat(e.target.value) / 100; // 30-200 → 0.3-2.0
         const display = document.getElementById('borderBrightnessDisplay');
+        if (display) {
+            display.textContent = `${e.target.value}%`;
+        }
+    });
+}
+
+const textureSlider = document.getElementById('textureSlider');
+if (textureSlider) {
+    textureSlider.addEventListener('input', (e) => {
+        brushedMetalStrength = (parseFloat(e.target.value) / 100) * BRUSHED_METAL_MAX_STRENGTH;
+        const display = document.getElementById('textureDisplay');
         if (display) {
             display.textContent = `${e.target.value}%`;
         }

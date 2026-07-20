@@ -121,6 +121,7 @@ const SettingsSync = {
         const sliders = [
             'opacitySlider',
             'borderBrightnessSlider',
+            'textureSlider',
             'starSpeedSlider',
             'aiSpeedSlider'
         ];
@@ -216,6 +217,7 @@ const SettingsSync = {
         const sliders = [
             'opacitySlider',
             'borderBrightnessSlider',
+            'textureSlider',
             'starSpeedSlider',
             'aiSpeedSlider'
         ];
@@ -489,6 +491,7 @@ const SettingsSync = {
         const sliders = [
             'opacitySlider',
             'borderBrightnessSlider',
+            'textureSlider',
             'starSpeedSlider',
             'aiSpeedSlider'
         ];
