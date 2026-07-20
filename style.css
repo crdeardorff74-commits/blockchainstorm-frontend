@@ -1574,22 +1574,6 @@
             cursor: pointer;
             border: 2px solid #fff;
         }
-        .settings-reset-btn {
-            width: 100%;
-            padding: 8px 16px;
-            font-size: 14px;
-            background: #2a2a3a;
-            color: #ccc;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.15s;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .settings-reset-btn:hover {
-            background: #3a3a4a;
-            color: #fff;
-        }
         .settings-close-btn {
             width: 100%;
             margin-top: 1.2vh;
