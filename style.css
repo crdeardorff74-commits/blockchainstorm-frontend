@@ -3609,6 +3609,12 @@
                 border-width: 0.15vh;
                 border-radius: 0.5vh;
             }
+            /* Settings gear: upper-right corner of the HUD, clear of the
+               panel's right edge */
+            .settings-btn {
+                top: 0.8vh;
+                right: 2.5vw;
+            }
             /* First-time hints anchor to the rules panel, which in portrait is
                the short histogram strip — sit lower over it, and drop the ▶
                dismiss-arrow row to keep the popup compact */
