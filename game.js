@@ -722,11 +722,13 @@ let BLOCK_SIZE = 35;
 let nextDisplayBaseSize = 180; // Updated by updateCanvasSize
 
 function updateCanvasSize() {
-    // Guard against being called before this script finishes loading (e.g.
-    // TabletMode.init() runs early, and the hoisted declaration is callable
-    // while the `canvas` const below is still in its temporal dead zone).
-    // window.updateCanvasSize is only assigned once everything is defined.
-    if (typeof window.updateCanvasSize !== 'function') return;
+    // Guard against being called before this script finishes loading: the
+    // hoisted declaration is callable (and IS window.updateCanvasSize from
+    // the start — top-level function declarations become window properties
+    // immediately, so a typeof check can't detect readiness) while consts
+    // this function reads (`canvas`, `challengeMode`, ...) are still in
+    // their temporal dead zone. The flag is set at the end of this script.
+    if (!window.__tantroLayoutReady) return;
 
     // Calculate block size based on viewport height
     // At narrow viewports header is hidden, so use more vertical space
@@ -12825,7 +12827,9 @@ function applyChallengeMode(mode) {
     updateCanvasSize();
 }
 
-// Initialize canvas size
+// Initialize canvas size — everything updateCanvasSize reads is defined by
+// now, so lift the early-call guard (see the top of updateCanvasSize)
+window.__tantroLayoutReady = true;
 updateCanvasSize();
 drawBoard();
 // Ensure canvas has background even on menu

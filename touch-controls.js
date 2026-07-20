@@ -353,12 +353,11 @@ const TabletMode = {
             SwipeControls.disable();
         }
         
-        // Recalculate panel positions for new width.
-        // Use window.updateCanvasSize (assigned late in game.js) rather than
-        // the hoisted declaration: during TabletMode.init() the function
-        // already exists but the `canvas` const it reads is still in its
-        // temporal dead zone. game.js calls updateCanvasSize() itself once
-        // fully loaded, so skipping the init-time call loses nothing.
+        // Recalculate panel positions for new width. During TabletMode.init()
+        // game.js hasn't finished loading — updateCanvasSize no-ops until
+        // game.js sets window.__tantroLayoutReady at the end of its load,
+        // and game.js makes its own initial call right after, so skipping
+        // the init-time call loses nothing.
         if (typeof window.updateCanvasSize === 'function') {
             window.updateCanvasSize();
         }
