@@ -296,15 +296,8 @@ const Histogram = (() => {
         const graphWidth = width - leftPad - sidePadding;
         if (graphWidth <= 0) return;
 
-        // Score bar: silver face with gold edges, like the vertical layout
-        if (scoreHistogramBar > 0) {
-            const scoreLen = Math.max(thickness, (scoreHistogramBar / scoreHistogramMaxScale) * graphWidth);
-            drawHorizontalBar(leftPad, rowY(0), scoreLen, thickness, '#FFD700', '#FAFAFA', 0.8);
-        }
-
-        // ₿ marker (gold, outlined like the vertical layout's symbol) —
-        // drawn AFTER the score bar so it overlays its first pixels as a
-        // badge; the black outline keeps it legible on the silver face
+        // ₿ marker (gold, outlined like the vertical layout's symbol) at the
+        // shared left edge; the score bar starts just to its right
         const btcFontSize = Math.max(9, Math.min(16, Math.round(thickness * 1.6)));
         ctx.save();
         ctx.fillStyle = '#FFD700';
@@ -315,7 +308,16 @@ const Histogram = (() => {
         ctx.textBaseline = 'middle';
         ctx.strokeText('₿', leftPad, rowY(0) + thickness / 2);
         ctx.fillText('₿', leftPad, rowY(0) + thickness / 2);
+        const btcWidth = ctx.measureText('₿').width;
         ctx.restore();
+
+        // Score bar: silver face with gold edges, like the vertical layout
+        if (scoreHistogramBar > 0) {
+            const scoreX = leftPad + btcWidth + Math.max(3, 4 * sf);
+            const scoreMaxWidth = width - scoreX - sidePadding;
+            const scoreLen = Math.max(thickness, (scoreHistogramBar / scoreHistogramMaxScale) * scoreMaxWidth);
+            drawHorizontalBar(scoreX, rowY(0), scoreLen, thickness, '#FFD700', '#FAFAFA', 0.8);
+        }
 
         // Color bars: always draw at least a nub so every color stays visible
         colors.forEach((color, index) => {
