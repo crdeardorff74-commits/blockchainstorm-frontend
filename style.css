@@ -3401,14 +3401,32 @@
                 width: 30vw;
                 max-width: 28vw;
             }
+            /* Credits soundtrack section: the desktop sizes overflow narrow
+               screens (heading wraps, link buttons crop at the edges) */
+            .soundtrack-section {
+                padding: 20px 10px;
+            }
+            .soundtrack-heading {
+                white-space: nowrap;
+                font-size: 13px;
+                letter-spacing: 2px;
+            }
+            .soundtrack-links {
+                gap: 10px;
+            }
+            .soundtrack-link {
+                padding: 6px 10px;
+                gap: 6px;
+                font-size: 13px;
+            }
         }
 
         /* Histogram strip collapse toggle — portrait-only, hidden everywhere else */
         #histogramToggleBtn {
             display: none;
             position: fixed;
-            bottom: 1.2vh;
-            left: 1.5vw;
+            bottom: 1.5vh;
+            left: 3.5vw;
             width: max(3.5vh, 28px);
             height: max(3.5vh, 28px);
             padding: 0;
@@ -3569,8 +3587,8 @@
                grid flow; !important beats its inline margin-top */
             #songInfo {
                 position: fixed;
-                right: 1.5vw;
-                bottom: 1vh;
+                right: 3.5vw;
+                bottom: 1.5vh;
                 margin: 0 !important;
                 max-width: 90vw;
                 z-index: 500;

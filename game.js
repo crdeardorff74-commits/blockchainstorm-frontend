@@ -810,7 +810,7 @@ function updateCanvasSize() {
         // (which extends ~1.5x further right) stays inside that slot.
         const nextSection = document.getElementById('nextPieceSection');
         const nextSectionWidth = nextSection ? nextSection.getBoundingClientRect().width : 150;
-        nextDisplaySize = Math.min(150, vh * 0.095, Math.max(60, nextSectionWidth * 0.5));
+        nextDisplaySize = Math.min(160, vh * 0.10, Math.max(60, nextSectionWidth * 0.55));
     } else {
         nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
     }
@@ -6956,8 +6956,13 @@ function drawNextPiece() {
         const pieceHeight = piece.shape.length;
         
         // For giant pieces (6-7 segments), scale down to fit
+        // Portrait: size on a slightly smaller grid so typical pieces fill
+        // more of the box — the rare 5-wide piece overflows it by ~11%,
+        // which the oversized canvas absorbs
         const isGiantPiece = piece.type && piece.type.startsWith('giant');
-        const gridSize = isGiantPiece ? 7 : 5;
+        const gridSize = isGiantPiece
+            ? (isPortraitNext ? 6.5 : 7)
+            : (isPortraitNext ? 4.5 : 5);
         
         // Calculate block size based on VISIBLE area size, grid, and perspective scale
         const baseBlockSize = Math.floor(Math.min(visibleWidth, visibleHeight) / gridSize);
