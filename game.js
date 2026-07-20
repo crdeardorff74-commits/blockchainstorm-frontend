@@ -5900,14 +5900,20 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         ctx.fillStyle = color;
         ctx.fillRect(px, py, blockSize, blockSize);
         // Experimental brushed-metal grain over the face (edges draw on top
-        // afterwards, so the border zone stays clean). Pattern is anchored
-        // to the canvas, so the brushing lines up across a whole blob.
+        // afterwards, so the border zone stays clean). The translate anchors
+        // the pattern to the block itself — patterns live in the coordinate
+        // space of the context, so without it the grain stays fixed to the
+        // canvas and falling pieces look like they slide over a static
+        // background texture.
         if (BRUSHED_METAL_FACES) {
             const brushedPattern = getBrushedPattern(ctx);
             if (brushedPattern) {
+                ctx.save();
                 ctx.globalAlpha = currentAlpha * faceOpacity * BRUSHED_METAL_STRENGTH;
+                ctx.translate(px, py);
                 ctx.fillStyle = brushedPattern;
-                ctx.fillRect(px, py, blockSize, blockSize);
+                ctx.fillRect(0, 0, blockSize, blockSize);
+                ctx.restore();
             }
         }
         ctx.globalAlpha = currentAlpha; // Restore to parent's alpha
