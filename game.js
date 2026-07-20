@@ -5830,8 +5830,14 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     }
 
     positions.forEach(([x, y]) => {
-        const px = x * blockSize;
-        const py = y * blockSize;
+        // Snap each block's origin to whole pixels: fractional Y (smooth
+        // falling / block animations) puts the face and edge strips on
+        // subpixel boundaries, and the antialiasing between them shows as
+        // hairline seams across the bevels. blockSize is an integer, so
+        // snapping keeps adjacent blocks tiling exactly (round(a + n) ===
+        // round(a) + n for integer n).
+        const px = Math.round(x * blockSize);
+        const py = Math.round(y * blockSize);
 
         // Round y for adjacency checks to match posSet keys (handles fractional positions)
         const ry = Math.round(y);

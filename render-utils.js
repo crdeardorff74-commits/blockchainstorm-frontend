@@ -77,8 +77,11 @@ const RenderUtils = (() => {
         }
         
         positions.forEach(([x, y]) => {
-            const px = x * blockSize;
-            const py = y * blockSize;
+            // Snap to whole pixels — mirrors game.js's drawSolidShape (see
+            // the comment there): fractional positions otherwise leave
+            // antialiased hairline seams across the bevel strips
+            const px = Math.round(x * blockSize);
+            const py = Math.round(y * blockSize);
             const ry = Math.round(y);
             
             const T = posSet.has(`${x},${ry-1}`);
