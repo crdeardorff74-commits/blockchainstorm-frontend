@@ -3536,8 +3536,11 @@
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
             }
             /* Player-collapsed histogram strip (chevron toggle) — the well's
-               height budget in updateCanvasSize() grows to match */
-            body.histogram-hidden .rules-panel {
+               height budget in updateCanvasSize() grows to match. The Now
+               Playing toast lives over the strip, so it hides too (!important
+               beats the inline display JS sets on song changes) */
+            body.histogram-hidden .rules-panel,
+            body.histogram-hidden #songInfo {
                 display: none !important;
             }
             body.game-started #histogramToggleBtn {

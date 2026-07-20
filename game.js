@@ -1437,6 +1437,9 @@ function createVolumeControls() {
     sfxMuteBtn.addEventListener('click', () => {
         toggleSfxMute();
         updateMuteButtonIcon(sfxMuteBtn, isSfxMuted());
+        // Keep the intro-screen SFX toggle in step
+        const introSfxCheckbox = document.getElementById('introSfxCheckbox');
+        if (introSfxCheckbox) introSfxCheckbox.checked = !isSfxMuted();
     });
     
     // Set initial mute button states
@@ -13051,6 +13054,17 @@ if (startOverlay) {
         // When settings select changes, sync back to intro toggle
         musicSelect.addEventListener('change', () => {
             introMusicCheckbox.checked = musicSelect.value !== 'none';
+        });
+    }
+    // Sync intro SFX toggle with the persisted SFX mute state (audio.js)
+    const introSfxCheckbox = document.getElementById('introSfxCheckbox');
+    if (introSfxCheckbox && typeof isSfxMuted === 'function') {
+        introSfxCheckbox.checked = !isSfxMuted();
+        introSfxCheckbox.addEventListener('change', () => {
+            setSfxMuted(!introSfxCheckbox.checked);
+            // Keep the settings-panel mute button icon in step
+            const sfxMuteBtn = document.getElementById('sfxMuteBtn');
+            if (sfxMuteBtn) updateMuteButtonIcon(sfxMuteBtn, isSfxMuted());
         });
     }
     // Sync skill level selectors (intro, settings)
