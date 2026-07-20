@@ -177,6 +177,16 @@ const Histogram = (() => {
     }
     
     /**
+     * Bevel-edge shade factor scaled by the Border Brightness setting
+     * (a game.js global, read at call time) — keeps the histogram bars'
+     * edges in step with the pieces' bevels.
+     */
+    function edgeFactor(base) {
+        const bb = (typeof borderBrightness !== 'undefined') ? borderBrightness : 1.0;
+        return base * bb;
+    }
+
+    /**
      * Adjust color brightness
      */
     function adjustBrightness(color, factor) {
@@ -342,10 +352,10 @@ const Histogram = (() => {
 
         if (w <= b * 2 || h <= b * 2) return; // too small for bevels
 
-        const topColor = adjustBrightness(edgeBase, 1.3);
-        const leftColor = adjustBrightness(edgeBase, 1.15);
-        const bottomColor = adjustBrightness(edgeBase, 0.7);
-        const rightColor = adjustBrightness(edgeBase, 0.85);
+        const topColor = adjustBrightness(edgeBase, edgeFactor(1.3));
+        const leftColor = adjustBrightness(edgeBase, edgeFactor(1.15));
+        const bottomColor = adjustBrightness(edgeBase, edgeFactor(0.7));
+        const rightColor = adjustBrightness(edgeBase, edgeFactor(0.85));
 
         // Top edge
         const topGradient = ctx.createLinearGradient(x, y, x, y + b);
@@ -438,10 +448,10 @@ const Histogram = (() => {
             const hexColor = rgbMatch ? rgbToHex(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])) : '#FFD700';
             
             // Edge colors
-            const topColor = adjustBrightness(hexColor, 1.3);
-            const leftColor = adjustBrightness(hexColor, 1.15);
-            const bottomColor = adjustBrightness(hexColor, 0.7);
-            const rightColor = adjustBrightness(hexColor, 0.85);
+            const topColor = adjustBrightness(hexColor, edgeFactor(1.3));
+            const leftColor = adjustBrightness(hexColor, edgeFactor(1.15));
+            const bottomColor = adjustBrightness(hexColor, edgeFactor(0.7));
+            const rightColor = adjustBrightness(hexColor, edgeFactor(0.85));
             
             // Main face
             ctx.save();
@@ -555,10 +565,10 @@ const Histogram = (() => {
             const y = height - bottomPadding - barHeight;
             
             // Edge colors (gold)
-            const topGold = adjustBrightness(goldColor, 1.3);
-            const leftGold = adjustBrightness(goldColor, 1.15);
-            const bottomGold = adjustBrightness(goldColor, 0.7);
-            const rightGold = adjustBrightness(goldColor, 0.85);
+            const topGold = adjustBrightness(goldColor, edgeFactor(1.3));
+            const leftGold = adjustBrightness(goldColor, edgeFactor(1.15));
+            const bottomGold = adjustBrightness(goldColor, edgeFactor(0.7));
+            const rightGold = adjustBrightness(goldColor, edgeFactor(0.85));
             
             // Main face (silver with 0.8 opacity)
             ctx.save();
@@ -675,10 +685,10 @@ const Histogram = (() => {
             const y = Math.round(height - bottomPadding - barHeight);
             
             // Edge colors
-            const topColor = adjustBrightness(color, 1.3);
-            const leftColor = adjustBrightness(color, 1.15);
-            const bottomColor = adjustBrightness(color, 0.7);
-            const rightColor = adjustBrightness(color, 0.85);
+            const topColor = adjustBrightness(color, edgeFactor(1.3));
+            const leftColor = adjustBrightness(color, edgeFactor(1.15));
+            const bottomColor = adjustBrightness(color, edgeFactor(0.7));
+            const rightColor = adjustBrightness(color, edgeFactor(0.85));
             
             // Main face
             ctx.save();
