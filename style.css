@@ -3491,12 +3491,12 @@
                 width: 100%;
                 min-width: 0;
                 max-width: none;
-                height: 11vh;
+                height: 12vh;
                 min-height: 0;
-                /* Just enough top padding to keep the Score value off the
-                   panel's top border (the next-piece column fills the full
-                   height, so the grid has no centering slack) */
-                padding: 0.5vh 2vw 0;
+                /* Real breathing room top and bottom — the content needs
+                   ~10.5vh, so 12vh minus this padding just fits it without
+                   anything touching the borders */
+                padding: 0.7vh 2vw;
                 border-radius: 0.8vh;
                 border-left: 1px solid rgba(255, 255, 255, 0.08);
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -3618,12 +3618,12 @@
                 text-overflow: ellipsis;
             }
             /* Compact pause button — lower-right corner of the HUD. Anchor
-               its BOTTOM edge (the HUD's bottom border sits at 11.5vh from
+               its BOTTOM edge (the HUD's bottom border sits at 12.5vh from
                the top of the body, the button's containing block), so its
                rendered height can't push it below the panel */
             .pause-btn {
                 top: auto;
-                bottom: calc(100% - 11.3vh);
+                bottom: calc(100% - 12vh);
                 right: 2.5vw;
                 padding: 0.4vh 1.2vw;
                 font-size: 1.3vh;
