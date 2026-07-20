@@ -3465,13 +3465,14 @@
             .side-panel .score-label {
                 font-size: 1.1vh;
             }
+            /* Single vertical column so the next-pieces slot gets more width */
             .special-events-grid {
                 grid-column: 2;
                 grid-row: 1 / 4;
+                grid-template-columns: 1fr;
                 align-self: center;
                 margin: 0;
-                column-gap: 2vw;
-                row-gap: 0.4vh;
+                row-gap: 0.2vh;
             }
             .special-events-grid .score-display {
                 font-size: 1.5vh;
@@ -3524,6 +3525,16 @@
             }
             .histogram-canvas {
                 min-height: 0;
+            }
+            /* First-time hints anchor to the rules panel, which in portrait is
+               the short histogram strip — sit lower over it, and drop the ▶
+               dismiss-arrow row to keep the popup compact */
+            .hint-popup {
+                top: 55%;
+                padding: 1.5vh 3vw;
+            }
+            .hint-popup::after {
+                display: none;
             }
         }
 

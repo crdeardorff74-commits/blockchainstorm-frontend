@@ -805,7 +805,7 @@ function updateCanvasSize() {
         // (which extends ~1.5x further right) stays inside that slot.
         const nextSection = document.getElementById('nextPieceSection');
         const nextSectionWidth = nextSection ? nextSection.getBoundingClientRect().width : 150;
-        nextDisplaySize = Math.min(140, vh * 0.085, Math.max(60, nextSectionWidth * 0.4));
+        nextDisplaySize = Math.min(140, vh * 0.09, Math.max(60, nextSectionWidth * 0.45));
     } else {
         nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
     }
