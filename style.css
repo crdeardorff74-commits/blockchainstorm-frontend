@@ -3544,6 +3544,17 @@
                 position: relative;
                 top: 0.4vh;
             }
+            /* Even out the column: the grid tracks leave Score hugging the
+               panel top and Level hugging the bottom — nudge the whole rows
+               (label + value together) toward the vertical center */
+            .side-panel > .score-display:nth-child(1) {
+                position: relative;
+                top: 0.8vh;
+            }
+            .side-panel > .score-display:nth-child(3) {
+                position: relative;
+                top: -0.5vh;
+            }
             .side-panel .score-label {
                 font-size: 1.1vh;
             }
