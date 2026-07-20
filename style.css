@@ -401,19 +401,22 @@
             max-height: 6vh;
         }
         
-        /* Minimalist mode styles */
+        /* Minimalist mode styles. border-color (not border: none) so the
+           1px border keeps its layout space and nothing shifts. */
         body.minimalist-mode .rules-panel {
             background: transparent !important;
             box-shadow: none !important;
+            border-color: transparent !important;
         }
-        
+
         body.minimalist-mode .rules-instructions {
             display: none !important;
         }
-        
+
         body.minimalist-mode .side-panel {
             background: transparent !important;
             box-shadow: none !important;
+            border-color: transparent !important;
         }
         
         body.minimalist-mode .side-panel > *:not(.score-display:first-child):not(.next-piece) {

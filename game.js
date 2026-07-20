@@ -5569,7 +5569,7 @@ function togglePause() {
 }
 
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
-let borderBrightness = 1.0; // Multiplier on the bevel-edge shades (100% = classic look)
+let borderBrightness = 1.1; // Multiplier on the bevel-edge shades (100% = classic look; default 110%)
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
