@@ -1542,7 +1542,11 @@
         .label-short {
             display: none;
         }
-        .settings-option input[type="range"] {
+        /* #volumeControls holds the dynamically created Music/SFX volume
+           sliders (game.js createVolumeControls) — include it so they match
+           the static settings sliders instead of the native filled style */
+        .settings-option input[type="range"],
+        #volumeControls input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
             height: 4px;
@@ -1550,7 +1554,8 @@
             border-radius: 2px;
             outline: none;
         }
-        .settings-option input[type="range"]::-webkit-slider-thumb {
+        .settings-option input[type="range"]::-webkit-slider-thumb,
+        #volumeControls input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 16px;
@@ -1560,7 +1565,8 @@
             cursor: pointer;
             border: 2px solid #fff;
         }
-        .settings-option input[type="range"]::-moz-range-thumb {
+        .settings-option input[type="range"]::-moz-range-thumb,
+        #volumeControls input[type="range"]::-moz-range-thumb {
             width: 16px;
             height: 16px;
             background: #3d7dd4;
