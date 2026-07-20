@@ -5570,6 +5570,49 @@ function togglePause() {
 
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
 let borderBrightness = 1.1; // Multiplier on the bevel-edge shades (100% = classic look; default 110%)
+
+// ── Experimental: brushed-metal texture on piece/stack faces ──
+// Trial feature, deliberately NOT in Settings yet: flip this to false to
+// turn the whole effect off (the texture code below then never runs).
+const BRUSHED_METAL_FACES = true;
+// Overlay intensity, scaled by faceOpacity at draw time so translucent
+// faces get proportionally subtler brushing.
+const BRUSHED_METAL_STRENGTH = 0.35;
+
+// Lazily-built streak tile, plus one CanvasPattern per rendering context
+// (the well and the next-piece canvas each need their own pattern).
+let _brushedTile = null;
+const _brushedPatterns = new WeakMap();
+
+function getBrushedPattern(renderCtx) {
+    if (!BRUSHED_METAL_FACES) return null;
+    if (!_brushedTile) {
+        const tile = document.createElement('canvas');
+        tile.width = 64;
+        tile.height = 64;
+        const tc = tile.getContext('2d');
+        // Horizontal brushing: every row is a faint 1px streak, half
+        // lightening and half darkening, with brightness varying row to
+        // row (heavier weight on near-invisible streaks so the grain
+        // reads as texture, not stripes)
+        for (let row = 0; row < tile.height; row++) {
+            const v = Math.random();
+            const light = v > 0.5;
+            const a = Math.pow(Math.abs(v - 0.5) * 2, 1.5) * 0.9;
+            tc.fillStyle = light
+                ? `rgba(255,255,255,${a.toFixed(3)})`
+                : `rgba(0,0,0,${a.toFixed(3)})`;
+            tc.fillRect(0, row, tile.width, 1);
+        }
+        _brushedTile = tile;
+    }
+    let pattern = _brushedPatterns.get(renderCtx);
+    if (!pattern) {
+        pattern = renderCtx.createPattern(_brushedTile, 'repeat');
+        _brushedPatterns.set(renderCtx, pattern);
+    }
+    return pattern;
+}
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
@@ -5856,6 +5899,17 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         ctx.globalAlpha = currentAlpha * faceOpacity;
         ctx.fillStyle = color;
         ctx.fillRect(px, py, blockSize, blockSize);
+        // Experimental brushed-metal grain over the face (edges draw on top
+        // afterwards, so the border zone stays clean). Pattern is anchored
+        // to the canvas, so the brushing lines up across a whole blob.
+        if (BRUSHED_METAL_FACES) {
+            const brushedPattern = getBrushedPattern(ctx);
+            if (brushedPattern) {
+                ctx.globalAlpha = currentAlpha * faceOpacity * BRUSHED_METAL_STRENGTH;
+                ctx.fillStyle = brushedPattern;
+                ctx.fillRect(px, py, blockSize, blockSize);
+            }
+        }
         ctx.globalAlpha = currentAlpha; // Restore to parent's alpha
 
         // Draw edges with gradients for depth
