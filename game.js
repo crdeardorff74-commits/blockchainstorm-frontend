@@ -12268,6 +12268,66 @@ if (textureSlider) {
     });
 }
 
+// Reset to Defaults (sits where the Language dropdown used to be; language
+// itself is deliberately NOT reset — it keeps the player's locale). Each
+// control is set to its default and the same events a manual change would
+// fire are dispatched, so game state, displays, and settings-sync (which
+// saves on 'change') all respond through the normal paths.
+const settingsResetBtn = document.getElementById('settingsResetBtn');
+if (settingsResetBtn) {
+    settingsResetBtn.addEventListener('click', () => {
+        const setSlider = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = value;
+            el.dispatchEvent(new Event('input'));
+            el.dispatchEvent(new Event('change'));
+        };
+        const setCheckbox = (id, checked) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.checked = checked;
+            el.dispatchEvent(new Event('change'));
+        };
+        const setSelect = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = value;
+            el.dispatchEvent(new Event('change'));
+        };
+
+        setSlider('opacitySlider', 33);
+        setSlider('borderBrightnessSlider', 115);
+        setSlider('textureSlider', 33);
+        setSlider('starSpeedSlider', 1);
+        setSlider('aiSpeedSlider', 5);
+        setSlider('musicVolumeSlider', 50);
+        setSlider('sfxVolumeSlider', 70);
+
+        setCheckbox('stormEffectsToggle', true);
+        setCheckbox('cameraOrientationToggle', false);
+        setCheckbox('minimalistToggle', false);
+        setCheckbox('aiModeToggle', false);
+        setCheckbox('instrumentalOnlyToggle', false);
+        setCheckbox('introFullscreenCheckbox', DeviceDetection.isMobile);
+
+        setSelect('musicSelect', 'game_playlist');
+
+        // Unmute both channels and refresh the mute-button icons
+        if (typeof setMusicMuted === 'function') setMusicMuted(false);
+        if (typeof setSfxMuted === 'function') setSfxMuted(false);
+        const musicMuteBtn = document.getElementById('musicMuteBtn');
+        const sfxMuteBtn = document.getElementById('sfxMuteBtn');
+        if (musicMuteBtn) updateMuteButtonIcon(musicMuteBtn, false);
+        if (sfxMuteBtn) updateMuteButtonIcon(sfxMuteBtn, false);
+
+        // Back to the classic palette (recolors the live stack too)
+        selectPalette('classic');
+
+        Logger.info('⚙️ Settings reset to defaults');
+    });
+}
+
 cameraOrientationToggle.addEventListener('change', (e) => {
     cameraReversed = e.target.checked;
     StarfieldSystem.setCameraReversed(cameraReversed);

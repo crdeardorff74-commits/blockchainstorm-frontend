@@ -878,13 +878,10 @@
             
             <div class="settings-divider"></div>
             
+            <!-- Language dropdown removed (auto-detection still applies; the
+                 populate script in the page no-ops without #languageSelect) -->
             <div class="settings-option" style="border-bottom: none;">
-                <label class="toggle-label">
-                    <span class="toggle-label-text" data-i18n="settings.language">Language</span>
-                    <select id="languageSelect" style="background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-left: auto; width: 270px;">
-                        <!-- Populated by i18n.js -->
-                    </select>
-                </label>
+                <button class="settings-reset-btn" id="settingsResetBtn" data-i18n="settings.resetDefaults">Reset to Defaults</button>
             </div>
             
                 </div><!-- end settings-column-left -->
