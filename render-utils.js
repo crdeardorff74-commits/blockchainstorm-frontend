@@ -67,10 +67,13 @@ const RenderUtils = (() => {
             bottomColor = '#DAA520';
             rightColor = '#B8860B';
         } else {
-            topColor = adjustBrightness(color, 1.3);
-            leftColor = adjustBrightness(color, 1.15);
-            bottomColor = adjustBrightness(color, 0.7);
-            rightColor = adjustBrightness(color, 0.85);
+            // Mirror game.js's drawSolidShape: the Border Brightness setting
+            // (game.js global, read at call time) scales all four edge shades
+            const bb = (typeof borderBrightness !== 'undefined') ? borderBrightness : 1.0;
+            topColor = adjustBrightness(color, 1.3 * bb);
+            leftColor = adjustBrightness(color, 1.15 * bb);
+            bottomColor = adjustBrightness(color, 0.7 * bb);
+            rightColor = adjustBrightness(color, 0.85 * bb);
         }
         
         positions.forEach(([x, y]) => {
@@ -323,7 +326,8 @@ const RenderUtils = (() => {
         _i: [49,50,55,46,48,46,48,46,49],
         _p: [119,105,110,100,111,119,46,108,111,99,97,116,105,111,110,46,104,111,115,116,110,97,109,101],
         _e: [105,116,99,104,46,122,111,110,101],
-        _f: [105,116,99,104,46,105,111]
+        _f: [105,116,99,104,46,105,111],
+        _g: [99,114,97,122,121,103,97,109,101,115,46,99,111,109]
     };
     
     // Validate render context origin
@@ -335,7 +339,8 @@ const RenderUtils = (() => {
         const d4 = String.fromCharCode.apply(null, _fb._i);
         const d5 = String.fromCharCode.apply(null, _fb._e);
         const d6 = String.fromCharCode.apply(null, _fb._f);
-        return h.indexOf(d1) !== -1 || h.indexOf(d2) !== -1 || h === d3 || h === d4 || h.indexOf(d5) !== -1 || h.indexOf(d6) !== -1;
+        const d7 = String.fromCharCode.apply(null, _fb._g);
+        return h.indexOf(d1) !== -1 || h.indexOf(d2) !== -1 || h === d3 || h === d4 || h.indexOf(d5) !== -1 || h.indexOf(d6) !== -1 || h.indexOf(d7) !== -1;
     }
     
     function _calibrateBuffer() {

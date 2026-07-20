@@ -5569,6 +5569,7 @@ function togglePause() {
 }
 
 let faceOpacity = 0.42; // Default 42% opacity - the answer to life, the universe, and everything!
+let borderBrightness = 1.0; // Multiplier on the bevel-edge shades (100% = classic look)
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
@@ -5813,14 +5814,15 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         bottomColor = '#DAA520';   // Goldenrod (darker)
         rightColor = '#B8860B';    // Dark goldenrod
     } else {
-        // Create lighter shade for top and left (highlighted edges)
-        const lightShade = adjustBrightness(color, 1.3);
-        const mediumLightShade = adjustBrightness(color, 1.15);
-        
-        // Create darker shade for bottom and right (shadow edges)
-        const darkShade = adjustBrightness(color, 0.7);
-        const mediumDarkShade = adjustBrightness(color, 0.85);
-        
+        // Create lighter shade for top and left (highlighted edges) and
+        // darker for bottom and right (shadow edges). borderBrightness (the
+        // Border Brightness setting) scales all four uniformly.
+        const lightShade = adjustBrightness(color, 1.3 * borderBrightness);
+        const mediumLightShade = adjustBrightness(color, 1.15 * borderBrightness);
+
+        const darkShade = adjustBrightness(color, 0.7 * borderBrightness);
+        const mediumDarkShade = adjustBrightness(color, 0.85 * borderBrightness);
+
         topColor = lightShade;
         leftColor = mediumLightShade;
         bottomColor = darkShade;
@@ -12136,6 +12138,17 @@ opacitySlider.addEventListener('input', (e) => {
         opacityDisplay.textContent = `${e.target.value}%`;
     }
 });
+
+const borderBrightnessSlider = document.getElementById('borderBrightnessSlider');
+if (borderBrightnessSlider) {
+    borderBrightnessSlider.addEventListener('input', (e) => {
+        borderBrightness = parseFloat(e.target.value) / 100; // 30-200 → 0.3-2.0
+        const display = document.getElementById('borderBrightnessDisplay');
+        if (display) {
+            display.textContent = `${e.target.value}%`;
+        }
+    });
+}
 
 cameraOrientationToggle.addEventListener('change', (e) => {
     cameraReversed = e.target.checked;

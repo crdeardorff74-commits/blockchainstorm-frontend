@@ -768,15 +768,28 @@
                 </div>
             </div>
             
-            <div class="settings-option">
-                <label style="display: block; margin-bottom: 2px;">
-                    <span data-i18n="settings.pieceOpacity">Piece Opacity:</span> <span id="opacityDisplay" style="color: #aaa;">42%</span>
-                </label>
-                <input type="range" id="opacitySlider" min="0" max="100" step="1" value="42" 
-                       style="width: 100%; cursor: pointer;">
-                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
-                    <span data-i18n="settings.transparent">Transparent</span>
-                    <span data-i18n="settings.opaque">Opaque</span>
+            <div class="settings-option" style="display: flex; gap: 14px;">
+                <div style="flex: 1; min-width: 0;">
+                    <label style="display: block; margin-bottom: 2px;">
+                        <span data-i18n="settings.pieceOpacity">Piece Opacity:</span> <span id="opacityDisplay" style="color: #aaa;">42%</span>
+                    </label>
+                    <input type="range" id="opacitySlider" min="0" max="100" step="1" value="42"
+                           style="width: 100%; cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
+                        <span data-i18n="settings.transparent">Transparent</span>
+                        <span data-i18n="settings.opaque">Opaque</span>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <label style="display: block; margin-bottom: 2px;">
+                        <span data-i18n="settings.borderBrightness">Border Brightness:</span> <span id="borderBrightnessDisplay" style="color: #aaa;">100%</span>
+                    </label>
+                    <input type="range" id="borderBrightnessSlider" min="30" max="200" step="5" value="100"
+                           style="width: 100%; cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
+                        <span data-i18n="settings.dim">Dim</span>
+                        <span data-i18n="settings.bright">Bright</span>
+                    </div>
                 </div>
             </div>
             
