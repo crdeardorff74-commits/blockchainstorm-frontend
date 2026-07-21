@@ -2,6 +2,19 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-07-21 — Release v4.29 (portrait menu info views, first-time intro, portrait polish)
+- **Portrait How to Play / Leaderboards**: menu buttons swap the whole screen to the rules panel (`body.portrait-info-open`, + `portrait-info-rules` for the dropdown-less rules view). Leaderboard dropdown's How to Play `<option>` is PHYSICALLY removed/restored (iOS pickers ignore CSS/hidden on options); restored on back/game-start/rotate-to-landscape. Gamepad B backs out; menu Enter/Escape guarded.
+- **First-time intro** (`!localStorage tantro_hints_shown` — DELIBERATELY completion-based; mid-game reloaders stay "new"): hides Difficulty/Challenge, shows inline 3-option skill list (reuses modal i18n keys). Right-click Start = hint reset = preview it.
+- **Inline-style traps burned this session (CSS alone silently loses):** modeMenu transform (updateCanvasSize stamps `translate(-50%,-8vh)` — menu lift lives THERE), settings gear (touch-controls sets display:block → hide needs !important), songInfo/#songLabel sizes (!important over inline), Install App button (global `button{margin-top:20px}` leaked into hint box). Also source-order ties: portrait hint rules need `.rules-panel .hint-popup` prefix; `.intro-skill-list` hide needs `.intro-controls` prefix.
+- **Sticky :hover on touch**: global `button:hover` + `.controls-reset-btn:hover` now wrapped in `@media (hover:hover)` (tap left Reset red/blue). Pattern to reuse for any future hover styles.
+- **Strip now 12vh** (was 14) ↔ heightBudget **0.73** (collapsed 0.85 unchanged) — mirror convention held, comments updated both sides. Hint popups bottom-anchor to the strip w/ portrait-only keyframes (dismissHint picks by orientation); strip goes fully invisible (not display:none — hint is its CHILD) while a hint shows.
+- **Next-pieces**: bitmap slack (25%) below/left + equal CSS offset fixes big-piece clipping (canvas-internal, NOT css overflow); portrait size adds screen-room cap `(vw - slot.left - 8)/2.4` so piece #4 never lands offscreen (was device-dependent).
+- **SW first-install flash fixed**: `loadedUncontrolled` pages ignore version-less update signals (controllerchange/statechange) for their lifetime; SW_UPDATED only acts on version mismatch. Real updates still reload via the mismatch path.
+- Saturn ring pop-in: offscreen spawn offset now uses `size*1.9` for `hasRings` (rings = 1.8x radius + stroke).
+- Reset to Defaults no longer touches ANY audio settings (was restarting music).
+- Popup margins: share overlay, combo/skill/difficulty overlay, name-entry (380px min-width was edge-to-edge), settings px-floor padding. Combo modal: pinned title/bonus/buttons + scrolling grid (old sticky-bottom was dead code — sticky can't escape button-sized wrapper); 1-column in portrait.
+- Not browser-verified per rule 0 — user tested on desktop portrait windows + phone throughout.
+
 ## 2026-07-20 — Release v4.28 (portrait mode, CrazyGames prep, render settings)
 - **Portrait layout shipped**; rotate-to-landscape overlay + `rotate.*` i18n keys deleted. CSS/JS mirror convention: HUD 12vh + histogram strip 14vh ↔ `updateCanvasSize()` height budget 0.71 (0.85 with strip collapsed via the chevron toggle, persisted as `tantro_setting_histogramHidden`). Change one side → change the other.
 - **Gotcha that burned v4.26/4.27 (cache-bust bumps mid-testing):** top-level function declarations become `window` properties at hoist time, so `typeof window.updateCanvasSize` readiness guards NEVER work. Real gate: `window.__tantroLayoutReady`, set at end of game.js. Related: sw.js serves cache-first w/ background revalidate — phones run the *previous* deploy unless version-bumped or double-reloaded; that explained every "still broken" report this session.
