@@ -519,20 +519,39 @@ const controller = {
             const diffBtn = document.getElementById('introDifficultyBtn');
             const challengeBtn = document.getElementById('introChallengeBtn');
             const startBtn = document.getElementById('startGameBtn');
-            
-            if (skillBtn) items.push(skillBtn);
-            if (diffBtn) items.push(diffBtn);
-            if (challengeBtn) items.push(challengeBtn);
-            
+
+            if (document.body.classList.contains('first-time-intro')) {
+                // Simplified first-time intro: inline skill options instead of
+                // the (hidden) Skill/Difficulty/Challenge dropdowns
+                document.querySelectorAll('#introSkillList .selection-option')
+                    .forEach(o => items.push(o));
+            } else {
+                if (skillBtn) items.push(skillBtn);
+                if (diffBtn) items.push(diffBtn);
+                if (challengeBtn) items.push(challengeBtn);
+            }
+
             // Add toggle switches (Music, Fullscreen)
             const toggles = document.querySelectorAll('.intro-toggles-row .intro-toggle');
             toggles.forEach(t => items.push(t));
-            
+
             if (startBtn) items.push(startBtn);
-            
+
             return { id: 'intro', items, defaultIndex: items.length - 1 }; // Default to Start Game
         }
         
+        // Portrait full-screen info view (How to Play / Leaderboards) — only
+        // the Back button is focusable; B backs out too
+        if (document.body.classList.contains('portrait-info-open')) {
+            const backBtn = document.getElementById('rulesBackBtn');
+            if (backBtn && window.getComputedStyle(backBtn).display !== 'none') {
+                return {
+                    id: 'portraitInfo', items: [backBtn], defaultIndex: 0,
+                    onBack: () => { backBtn.click(); }
+                };
+            }
+        }
+
         const modeMenu = document.getElementById('modeMenu');
         if (modeMenu && !modeMenu.classList.contains('hidden')) {
             const items = [];
@@ -540,13 +559,19 @@ const controller = {
             const diffBtn = document.getElementById('difficultyMenuBtn');
             const challengeBtn = document.getElementById('challengeSelectBtn');
             const startBtn = document.getElementById('menuStartGameBtn');
-            
+            const howToBtn = document.getElementById('menuHowToPlayBtn');
+            const lbBtn = document.getElementById('menuLeaderboardsBtn');
+
             if (skillBtn) items.push(skillBtn);
             if (diffBtn) items.push(diffBtn);
             if (challengeBtn) items.push(challengeBtn);
             if (startBtn) items.push(startBtn);
-            
-            return { id: 'modeMenu', items, defaultIndex: items.length - 1 }; // Default to START GAME
+            // Portrait-only info buttons (display:none in landscape)
+            if (howToBtn && window.getComputedStyle(howToBtn).display !== 'none') items.push(howToBtn);
+            if (lbBtn && window.getComputedStyle(lbBtn).display !== 'none') items.push(lbBtn);
+
+            // Default to START GAME
+            return { id: 'modeMenu', items, defaultIndex: startBtn ? items.indexOf(startBtn) : items.length - 1 };
         }
         
         return null; // No menu screen active

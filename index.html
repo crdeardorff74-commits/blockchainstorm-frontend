@@ -144,6 +144,30 @@
         <!-- button class="login-btn" id="introLoginBtn">🔑 Login</button -->
         <div class="intro-title well-title" id="title-tantro-intro" style="display: none;">TANTЯO</div>
         <div class="intro-controls" id="introControls">
+            <!-- First-time players (body.first-time-intro): the dropdowns below
+                 are hidden and this inline skill picker — same options and
+                 i18n keys as the Skill Level modal — shows instead -->
+            <div class="menu-dropdown-label intro-skill-list-label" data-i18n="intro.skillLevel">Skill Level</div>
+            <div class="selection-options-list intro-skill-list" id="introSkillList">
+                <div class="selection-option" data-skill="breeze">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.breeze.full">🌥️ Breeze</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.breeze.modal"><li>Larger color blobs = bigger points</li></ul>
+                </div>
+                <div class="selection-option" data-skill="tempest">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.tempest.full">🌊 Tempest</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.tempest.modal"><li>Larger color blobs = bigger points</li><li>Tsunamis and Black Holes = huge points</li></ul>
+                </div>
+                <div class="selection-option" data-skill="maelstrom">
+                    <div class="selection-option-header">
+                        <span class="selection-option-name" data-i18n="skill.maelstrom.full">🌪️ Maelstrom</span>
+                    </div>
+                    <ul class="selection-option-bullets" data-i18n-html="skill.maelstrom.modal"><li>Larger color blobs = bigger points</li><li>Tsunamis, Black Holes and Volcanoes = huge points</li><li>Survive tornadoes and earthquakes</li></ul>
+                </div>
+            </div>
             <!-- Skill Level + Difficulty row (side-by-side on phones) -->
             <div class="intro-dropdowns-row">
                 <div class="menu-dropdown-wrapper intro-dropdown-wrapper">
@@ -197,6 +221,8 @@
                     <option value="leaderboard-ai-challenge" data-i18n="rules.leaderboardAIChallenge">🤖 AI Challenge</option>
                 </select>
             </div>
+            <!-- Portrait-only: returns from the full-screen info view to the menu -->
+            <button id="rulesBackBtn" data-i18n="rules.backToMenu">↩ Back to Menu</button>
             <div class="rules-instructions">
                 
                 <div class="rules-section">
@@ -295,6 +321,13 @@
 
                     <!-- START GAME button -->
                     <button class="menu-start-game-btn" id="menuStartGameBtn" data-i18n="intro.startGame">▶ START GAME</button>
+
+                    <!-- Portrait-only: the rules panel is hidden in portrait, so
+                         these swap the whole screen to its two views -->
+                    <div class="menu-info-btns-row">
+                        <button class="menu-info-btn" id="menuHowToPlayBtn" data-i18n="rules.howToPlay">📖 How to Play</button>
+                        <button class="menu-info-btn" id="menuLeaderboardsBtn" data-i18n="rules.leaderboards">🏆 Leaderboards</button>
+                    </div>
                 </div>
 
                 <!-- Hidden mode buttons for compatibility with existing JS -->

@@ -9722,6 +9722,9 @@ function toggleUIElements(show) {
         if (planetStats && TabletMode.enabled) planetStats.style.display = 'none';
     } else {
         // Hide instructions and controls, show histogram, hide title
+        // A game is starting — make sure a portrait info view never lingers
+        // over the board
+        document.body.classList.remove('portrait-info-open');
         rulesInstructions.style.display = 'none';
         // Also hide leaderboard when game starts
         if (leaderboardContent) leaderboardContent.style.display = 'none';
@@ -11740,6 +11743,15 @@ document.addEventListener('keydown', e => {
     // Capture menu state at start of handler (before other handlers might change it)
     const menuWasVisible = !modeMenu.classList.contains('hidden');
     if (menuWasVisible) {
+        // Portrait info view open: Escape/Enter return to the menu rather
+        // than reaching the start-game handling below
+        if (document.body.classList.contains('portrait-info-open')) {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                closePortraitInfoView();
+            }
+            return;
+        }
         if (e.key === 'Enter') {
             e.preventDefault();
             closeAllMenuPopups();
@@ -11898,6 +11910,41 @@ if (rulesPanelViewSelect) {
             if (rulesInstructions) rulesInstructions.style.display = 'block';
         }
     });
+}
+
+// ─── Portrait info views (How to Play / Leaderboards) ───
+// In portrait the rules panel is invisible on the menu, so these buttons hand
+// it the whole screen (body.portrait-info-open, styled portrait-only in CSS).
+// Reuses the view dropdown's change handler so the right content loads.
+function openPortraitInfoView(view) {
+    if (rulesPanelViewSelect) {
+        rulesPanelViewSelect.value = view;
+        rulesPanelViewSelect.dispatchEvent(new Event('change'));
+    }
+    document.body.classList.add('portrait-info-open');
+}
+function closePortraitInfoView() {
+    document.body.classList.remove('portrait-info-open');
+}
+window.closePortraitInfoView = closePortraitInfoView; // for gamepad.js B-button back
+
+const menuHowToPlayBtn = document.getElementById('menuHowToPlayBtn');
+const menuLeaderboardsBtn = document.getElementById('menuLeaderboardsBtn');
+const rulesBackBtn = document.getElementById('rulesBackBtn');
+if (menuHowToPlayBtn) {
+    menuHowToPlayBtn.addEventListener('click', () => openPortraitInfoView('rules'));
+}
+if (menuLeaderboardsBtn) {
+    menuLeaderboardsBtn.addEventListener('click', () => {
+        // Reopen the last-viewed board; the dropdown stays visible in the
+        // full-screen view for switching between the four boards
+        const saved = localStorage.getItem('rulesPanelView');
+        const view = (saved && saved.startsWith('leaderboard-')) ? saved : 'leaderboard-normal';
+        openPortraitInfoView(view);
+    });
+}
+if (rulesBackBtn) {
+    rulesBackBtn.addEventListener('click', closePortraitInfoView);
 }
 
 // ─── Share Popup Logic ───
@@ -12944,6 +12991,34 @@ if (introChallengeBtn) {
         document.getElementById('comboModalOverlay').style.display = 'flex';
     });
 }
+
+// ─── First-time intro (any device) ───
+// Until a first game has been played (tantro_hints_shown, set by HintSystem),
+// the intro drops the Difficulty/Challenge dropdowns and shows the skill
+// level as an inline option list instead of a dropdown (CSS: .first-time-intro).
+(function initFirstTimeIntro() {
+    let firstTime = false;
+    try {
+        firstTime = !localStorage.getItem('tantro_hints_shown');
+    } catch (e) { /* private mode — treat as returning player */ }
+    if (!firstTime) return;
+    document.body.classList.add('first-time-intro');
+    const list = document.getElementById('introSkillList');
+    if (!list) return;
+    const opts = list.querySelectorAll('.selection-option');
+    const syncSelected = () => {
+        opts.forEach(o => o.classList.toggle('selected', o.dataset.skill === skillLevel));
+    };
+    syncSelected();
+    opts.forEach(opt => {
+        opt.addEventListener('click', () => {
+            if (opt.dataset.skill && window.setSkillLevel) {
+                window.setSkillLevel(opt.dataset.skill);
+            }
+            syncSelected();
+        });
+    });
+})();
 
 // Initialize menu button labels
 updateSkillLevelButton();
