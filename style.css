@@ -2287,7 +2287,7 @@
             z-index: 10; /* Ensure tooltips appear above left panel */
             /* Sit the centered menu slightly above true center on every
                device/orientation */
-            transform: translateY(-4vh);
+            transform: translateY(-8vh);
         }
         .mode-menu.hidden {
             display: none;
