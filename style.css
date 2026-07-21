@@ -2285,6 +2285,9 @@
             box-sizing: border-box;
             pointer-events: none;
             z-index: 10; /* Ensure tooltips appear above left panel */
+            /* Sit the centered menu slightly above true center on every
+               device/orientation */
+            transform: translateY(-4vh);
         }
         .mode-menu.hidden {
             display: none;
@@ -3771,8 +3774,12 @@
                translateX-only transform + the *Portrait fade keyframes keep
                the bottom anchoring (the shared keyframes bake in the
                landscape -50% vertical centering); dismissHint() picks the
-               matching fade-out by orientation. */
-            .hint-popup {
+               matching fade-out by orientation.
+               .rules-panel prefix is load-bearing: the base .hint-popup rules
+               appear LATER in this file, so bare .hint-popup overrides here
+               lose the source-order tie — top:33% would survive and stretch
+               the bottom-anchored box shorter than its text. */
+            .rules-panel .hint-popup {
                 top: auto;
                 bottom: 0.5vh;
                 padding: 1.5vh 3vw;
@@ -3780,15 +3787,21 @@
                 transform: translateX(-50%);
                 animation: hintFadeInPortrait 0.4s ease-out;
             }
-            .hint-popup::after {
+            .rules-panel .hint-popup::after {
                 display: none;
             }
-            .hint-popup::before {
+            .rules-panel .hint-popup::before {
                 content: '▲';
                 display: block;
                 margin-bottom: 1vh;
                 font-size: max(1.3vh, 10px);
                 color: rgba(255, 215, 0, 0.5);
+            }
+            /* The Now Playing toast sits over the strip's lower-right corner,
+               right where the hint lands — hide it while a hint is showing
+               (!important beats the inline display JS sets on song changes) */
+            body:has(.rules-panel .hint-popup) #songInfo {
+                display: none !important;
             }
 
             /* ── Portrait info views (How to Play / Leaderboards) ──
