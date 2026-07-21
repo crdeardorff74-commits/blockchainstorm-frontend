@@ -1872,6 +1872,10 @@
             display: none;
             justify-content: center;
             align-items: center;
+            /* Breathing room so no modal (combo/skill/difficulty) can touch
+               the screen edges */
+            padding: 2vh max(4vw, 14px);
+            box-sizing: border-box;
         }
         .combo-modal {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -3891,6 +3895,12 @@
             body:has(.credits-overlay[style*="display: block"]) #gameCanvas {
                 border-color: transparent;
                 box-shadow: none;
+            }
+
+            /* Challenge combo modal: a single column reads better in a
+               narrow tall window than the two-column grid */
+            .combo-checkboxes-grid {
+                grid-template-columns: 1fr;
             }
 
             /* Main menu title: the narrow-width rules above shrink it to
