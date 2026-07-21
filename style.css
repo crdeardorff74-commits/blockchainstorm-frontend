@@ -819,8 +819,12 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover {
-            background: #4a8de4;
+        /* hover-capable devices only — on touch screens :hover sticks to the
+           last tapped button, leaving it recolored after the tap */
+        @media (hover: hover) {
+            button:hover {
+                background: #4a8de4;
+            }
         }
         .game-over {
             position: fixed;
