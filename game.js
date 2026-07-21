@@ -9747,8 +9747,9 @@ function toggleUIElements(show) {
     } else {
         // Hide instructions and controls, show histogram, hide title
         // A game is starting — make sure a portrait info view never lingers
-        // over the board
-        document.body.classList.remove('portrait-info-open');
+        // over the board (also restores the dropdown's How to Play option;
+        // the function declaration hoists, so it's callable from here)
+        closePortraitInfoView();
         rulesInstructions.style.display = 'none';
         // Also hide leaderboard when game starts
         if (leaderboardContent) leaderboardContent.style.display = 'none';
@@ -11939,9 +11940,26 @@ if (rulesPanelViewSelect) {
 // ─── Portrait info views (How to Play / Leaderboards) ───
 // In portrait the rules panel is invisible on the menu, so these buttons hand
 // it the whole screen (body.portrait-info-open, styled portrait-only in CSS).
-// Reuses the view dropdown's change handler so the right content loads.
+// The How to Play view shows the instructions directly with the view dropdown
+// hidden (body.portrait-info-rules); the Leaderboards view keeps the dropdown
+// for switching boards, minus its How to Play option — that view has its own
+// menu button. The option is physically removed (iOS pickers ignore CSS and
+// the hidden attribute on <option>) and restored when the view closes.
+let portraitRemovedRulesOption = null;
 function openPortraitInfoView(view) {
-    if (rulesPanelViewSelect) {
+    const isRules = view === 'rules';
+    document.body.classList.toggle('portrait-info-rules', isRules);
+    if (isRules) {
+        const rulesInstructions = document.querySelector('.rules-instructions');
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        if (leaderboardContent) leaderboardContent.style.display = 'none';
+        if (rulesInstructions) rulesInstructions.style.display = 'block';
+    } else if (rulesPanelViewSelect) {
+        const rulesOpt = rulesPanelViewSelect.querySelector('option[value="rules"]');
+        if (rulesOpt) {
+            portraitRemovedRulesOption = rulesOpt;
+            rulesOpt.remove();
+        }
         rulesPanelViewSelect.value = view;
         rulesPanelViewSelect.dispatchEvent(new Event('change'));
     }
@@ -11949,8 +11967,19 @@ function openPortraitInfoView(view) {
 }
 function closePortraitInfoView() {
     document.body.classList.remove('portrait-info-open');
+    document.body.classList.remove('portrait-info-rules');
+    if (portraitRemovedRulesOption && rulesPanelViewSelect) {
+        rulesPanelViewSelect.insertBefore(
+            portraitRemovedRulesOption, rulesPanelViewSelect.firstElementChild);
+        portraitRemovedRulesOption = null;
+    }
 }
 window.closePortraitInfoView = closePortraitInfoView; // for gamepad.js B-button back
+// Rotating to landscape restores the normal two-panel layout — close the view
+// properly so the dropdown gets its How to Play option back
+window.matchMedia('(orientation: portrait)').addEventListener('change', (e) => {
+    if (!e.matches) closePortraitInfoView();
+});
 
 const menuHowToPlayBtn = document.getElementById('menuHowToPlayBtn');
 const menuLeaderboardsBtn = document.getElementById('menuLeaderboardsBtn');

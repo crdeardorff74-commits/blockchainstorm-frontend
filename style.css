@@ -3988,6 +3988,12 @@
                 min-height: 0;
                 height: auto;
             }
+            /* How to Play view: no dropdown — the content needs no switcher
+               (leaderboards have their own menu button). !important beats the
+               header's inline display:flex. */
+            body.portrait-info-rules .rules-panel .rules-header {
+                display: none !important;
+            }
             /* order pins the button below #leaderboardContent, which
                leaderboard.js appends after it in the DOM */
             body.portrait-info-open .rules-panel #rulesBackBtn {
