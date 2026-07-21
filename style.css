@@ -3837,6 +3837,17 @@
                 box-shadow: none;
             }
 
+            /* Main menu title: the narrow-width rules above shrink it to
+               ~2vh — portrait has vertical room to spare, so make it big
+               again and float it a bit higher (translate moves only the
+               title, without re-centering the menu below it) */
+            .mode-menu .well-title {
+                font-size: max(4.8vh, 30px);
+                margin-top: 0;
+                margin-bottom: 2vh;
+                transform: translateY(-2.5vh);
+            }
+
             /* ── Portrait info views (How to Play / Leaderboards) ──
                The rules panel is normally invisible in portrait (it only
                appears as the histogram strip during play), so the main menu

@@ -1589,12 +1589,16 @@ const StarfieldSystem = (function() {
                     showPlanetStats(planet);
                     
                     // Spawn/exit point must clear the screen edge by the
-                    // planet's radius AT FULL 15x SCALE (its size at
+                    // planet's FULL VISUAL EXTENT AT 15x SCALE (its size at
                     // progress 0 forward / progress end reversed). The old
                     // width-proportional offset (0.65w + 200) only cleared
                     // big planets on wide canvases — on narrow portrait
-                    // screens Jupiter popped in ~1/4 visible.
-                    const offscreenX = starfieldCanvas.width / 2 + planet.size * 15 + 100;
+                    // screens Jupiter popped in ~1/4 visible. For ringed
+                    // planets the extent is the outer ring ellipse (1.8x
+                    // radius + half its stroke), not the body — Saturn's
+                    // rings otherwise popped in the same way.
+                    const extent = planet.hasRings ? planet.size * 1.9 : planet.size;
+                    const offscreenX = starfieldCanvas.width / 2 + extent * 15 + 100;
                     if (cameraReversed) {
                         planetAnimations[planet.name] = {
                             progress: 0,
