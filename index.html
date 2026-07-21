@@ -1477,11 +1477,24 @@ if ('serviceWorker' in navigator &&
 
     // PAGE_VERSION is declared at the top of the script section (before game.js loads)
 
+    // A page that loads with no controller is a first-ever visit (or cleared
+    // site data): the SW's initial install will claim it and fire
+    // controllerchange, updatefound and SW_UPDATED — but the page it just
+    // fetched IS current, and reloading for those made the intro flash on
+    // every fresh visit. On such a page all version-less update signals are
+    // ignored for its whole lifetime; a real update arriving later still
+    // reloads it via the SW_UPDATED version-mismatch path below.
+    var loadedUncontrolled = !navigator.serviceWorker.controller;
+
     // Listen for messages from SW (update notifications + version responses)
     navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'SW_UPDATED') {
             console.log('📦 PWA: Received SW_UPDATED message for v' + event.data.version);
-            handleUpdate(event.data.version);
+            // Only an update if it differs from this page's version (equal =
+            // the first install echoing the version we already have)
+            if (event.data.version !== PAGE_VERSION) {
+                handleUpdate(event.data.version);
+            }
         }
         if (event.data && event.data.type === 'SW_VERSION') {
             console.log('📦 PWA: SW reports v' + event.data.version + ', page is v' + PAGE_VERSION);
@@ -1493,6 +1506,10 @@ if ('serviceWorker' in navigator &&
 
     // Detect when a new SW takes control of this page
     navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (loadedUncontrolled) {
+            console.log('📦 PWA: First install took control — no refresh needed');
+            return;
+        }
         console.log('📦 PWA: Controller changed');
         handleUpdate();
     });
@@ -1510,7 +1527,7 @@ if ('serviceWorker' in navigator &&
                 if (newWorker) {
                     newWorker.addEventListener('statechange', function() {
                         console.log('📦 PWA: New worker state: ' + newWorker.state);
-                        if (newWorker.state === 'activated') {
+                        if (newWorker.state === 'activated' && !loadedUncontrolled) {
                             handleUpdate();
                         }
                     });
