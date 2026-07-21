@@ -724,6 +724,7 @@ function stopCreditsAnimation() {
 // Dynamic canvas sizing based on viewport
 let BLOCK_SIZE = 35;
 let nextDisplayBaseSize = 180; // Updated by updateCanvasSize
+let nextDisplaySlack = 0; // Bottom/left bitmap slack for oversized pieces, set by updateCanvasSize
 
 function updateCanvasSize() {
     // Guard against being called before this script finishes loading: the
@@ -825,18 +826,23 @@ function updateCanvasSize() {
     const nextDisplayWidth = nextDisplaySize;
     const nextDisplayHeight = nextDisplaySize;
     
-    // Make canvas larger to accommodate the piece queue extending up and right
+    // Make canvas larger to accommodate the piece queue extending up and right,
+    // plus slack below/left of the visible square: the front piece is centered
+    // there and oversized pieces (a 5-wide piece overflows it ~11%) would
+    // otherwise clip at the bitmap's bottom-left edges, where the 2.5x scale
+    // gives no room. The canvas is offset by the same slack so the visible
+    // square stays exactly where it was on screen.
     const nextCanvasScale = 2.5;
-    nextCanvas.width = nextDisplayWidth * nextCanvasScale;
-    nextCanvas.height = nextDisplayHeight * nextCanvasScale;
-    
-    // Position canvas so visible area (lower-left) aligns with original position
-    // Canvas extends up and to the right from there
-    nextCanvas.style.width = (nextDisplayWidth * nextCanvasScale) + 'px';
-    nextCanvas.style.height = (nextDisplayHeight * nextCanvasScale) + 'px';
+    nextDisplaySlack = Math.ceil(nextDisplaySize * 0.25);
+    const nextCanvasW = nextDisplayWidth * nextCanvasScale + nextDisplaySlack;
+    const nextCanvasH = nextDisplayHeight * nextCanvasScale + nextDisplaySlack;
+    nextCanvas.width = nextCanvasW;
+    nextCanvas.height = nextCanvasH;
+    nextCanvas.style.width = nextCanvasW + 'px';
+    nextCanvas.style.height = nextCanvasH + 'px';
     nextCanvas.style.position = 'absolute';
-    nextCanvas.style.bottom = '0';
-    nextCanvas.style.left = '0';
+    nextCanvas.style.bottom = -nextDisplaySlack + 'px';
+    nextCanvas.style.left = -nextDisplaySlack + 'px';
     
     // Update wrapper size to match
     const nextWrapper = document.querySelector('.next-canvas-wrapper');
@@ -7041,11 +7047,13 @@ function drawNextPiece() {
     // Fully clear the canvas first
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     
-    // The visible area is the lower-left portion (responsive size)
+    // The visible area is the lower-left portion (responsive size), inset by
+    // the bitmap slack that keeps oversized pieces from clipping (the canvas
+    // element is CSS-offset by the same amount, so on-screen nothing moves)
     const visibleWidth = nextDisplayBaseSize;
     const visibleHeight = nextDisplayBaseSize;
-    const visibleX = 0;
-    const visibleY = nextCanvas.height - visibleHeight;
+    const visibleX = nextDisplaySlack;
+    const visibleY = nextCanvas.height - visibleHeight - nextDisplaySlack;
     
     // No background fill needed - wrapper provides the background
 

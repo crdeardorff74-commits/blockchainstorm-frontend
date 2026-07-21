@@ -3552,8 +3552,8 @@
             position: fixed;
             bottom: 9vh;
             right: 3.5vw;
-            width: max(2.6vh, 22px);
-            height: max(2.6vh, 22px);
+            width: max(2.2vh, 18px);
+            height: max(2.2vh, 18px);
             padding: 0;
             align-items: center;
             justify-content: center;
@@ -3750,7 +3750,7 @@
             #songInfo {
                 position: fixed;
                 right: 3.5vw;
-                bottom: 1.5vh;
+                bottom: 0.7vh;
                 margin: 0 !important;
                 max-width: 90vw;
                 z-index: 500;
