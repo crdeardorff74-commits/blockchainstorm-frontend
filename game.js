@@ -746,10 +746,10 @@ function updateCanvasSize() {
 
     if (isPortrait) {
         // Portrait: HUD row (12vh) on top, then the well, then the histogram
-        // strip (14vh) — the height budget mirrors those CSS fractions, and
+        // strip (12vh) — the height budget mirrors those CSS fractions, and
         // grows by the strip's share when the player has collapsed it
         const histogramHidden = document.body.classList.contains('histogram-hidden');
-        const heightBudget = histogramHidden ? 0.85 : 0.71;
+        const heightBudget = histogramHidden ? 0.85 : 0.73;
         const blockFromHeight = Math.floor((vh * heightBudget) / ROWS);
         // Thicker (1.2x CSS stretch) and perspective (1.5x transform scale)
         // modes render wider than the canvas itself, so budget width for them
