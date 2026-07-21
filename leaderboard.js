@@ -1020,7 +1020,7 @@ function promptForName(scoreData) {
                     ...scoreData,
                     username: username,
                     challengeNames: challengeNames, // Include readable names for email
-                    skipNotification: new URLSearchParams(window.location.search).get('track') === 'false',
+                    skipNotification: IS_TRACKING_OPTED_OUT,
                     language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
                     deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
                     os: typeof detectOS === 'function' ? detectOS() : 'unknown'
@@ -1200,8 +1200,9 @@ async function submitScore(gameData) {
         return false;
     }
     
-    // Skip email notifications when ?track=false
-    const suppressEmail = new URLSearchParams(window.location.search).get('track') === 'false';
+    // Skip email notifications when this browser is opted out
+    // (?track=false, sticky — see IS_TRACKING_OPTED_OUT in config.js)
+    const suppressEmail = IS_TRACKING_OPTED_OUT;
     
     const scoreData = {
         game_name: 'tantro',
@@ -1372,7 +1373,7 @@ async function notifyGameCompletion(scoreData) {
             username: localStorage.getItem('tantro_username') || 'Anonymous',
             challengeNames: challengeNames,
             notifyOnly: true,  // Flag to indicate this is just a notification, not a leaderboard entry
-            skipNotification: new URLSearchParams(window.location.search).get('track') === 'false',
+            skipNotification: IS_TRACKING_OPTED_OUT,
             language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
             deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
             os: typeof detectOS === 'function' ? detectOS() : 'unknown'
@@ -1426,7 +1427,7 @@ async function submitAIScore(scoreData) {
     const dataToSubmit = {
         ...scoreData,
         username: '🤖 Claude',
-        skipNotification: scoreData.skipNotification || new URLSearchParams(window.location.search).get('track') === 'false', // Pass through notification flag
+        skipNotification: scoreData.skipNotification || IS_TRACKING_OPTED_OUT, // Pass through notification flag
         language: typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language || 'en',
         deviceType: typeof DeviceDetection !== 'undefined' ? (DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop') : 'unknown',
         os: typeof detectOS === 'function' ? detectOS() : 'unknown'

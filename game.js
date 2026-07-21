@@ -13222,11 +13222,16 @@ if (dontPanicText) {
 // Initialize start overlay
 if (startOverlay) {
     // Track page visit — requires human interaction to filter bots
-    // Skip tracking if ?track=false is in the URL or navigator.webdriver is set (headless browsers)
+    // Skip tracking if this browser is opted out (?track=false — STICKY via
+    // localStorage, cleared by ?track=true; see IS_TRACKING_OPTED_OUT in
+    // config.js) or navigator.webdriver is set (headless browsers)
     // Also check parent frame URL (for itch.io iframe embeds where the param is on the parent)
     let _parentTrackFalse = false;
     try { _parentTrackFalse = window.parent !== window && new URL(document.referrer).searchParams.get('track') === 'false'; } catch(e) {}
-    const _trackingEnabled = new URLSearchParams(window.location.search).get('track') !== 'false' && !_parentTrackFalse && !navigator.webdriver;
+    // Parent-frame opt-out persists too, so embed reloads that lose the
+    // referrer stay untracked.
+    if (_parentTrackFalse) { try { localStorage.setItem('tantro_track_optout', 'true'); } catch(e) {} }
+    const _trackingEnabled = !IS_TRACKING_OPTED_OUT && !_parentTrackFalse && !navigator.webdriver;
     let _visitId = null;
     window._visitId = null;
     const _visitLoadTime = Date.now();

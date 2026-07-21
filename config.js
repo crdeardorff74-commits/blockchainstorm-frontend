@@ -41,6 +41,27 @@ if (IS_CRAZYGAMES && typeof document !== 'undefined') {
     document.documentElement.classList.add('is-crazygames');
 }
 
+// ── Sticky tracking opt-out ──
+// Visiting once with ?track=false marks THIS BROWSER as opted out of visit
+// tracking and score-email notifications, persisted in localStorage so later
+// loads without the query (PWA launch, bookmark, typed URL) stay untracked.
+// ?track=true clears the flag and re-enables tracking. Rationale: the flag
+// used to be per-page-load only, so the owner's test loads that dropped the
+// query kept polluting the admin visit stats.
+// Worker-safe: sw.js importScripts this file; localStorage doesn't exist
+// there, so the try/catch leaves the flag false (harmless — the worker
+// never records visits). Same fallback covers private mode.
+const IS_TRACKING_OPTED_OUT = (function () {
+    try {
+        const param = new URLSearchParams(window.location.search).get('track');
+        if (param === 'false') localStorage.setItem('tantro_track_optout', 'true');
+        else if (param === 'true') localStorage.removeItem('tantro_track_optout');
+        return localStorage.getItem('tantro_track_optout') === 'true';
+    } catch (e) {
+        return false;
+    }
+})();
+
 /**
  * Shared fetch wrapper with timeout, auth, and error handling.
  *
