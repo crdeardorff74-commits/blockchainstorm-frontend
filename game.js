@@ -817,8 +817,17 @@ function updateCanvasSize() {
         // Keep the visible piece small enough that the receding queue
         // (which extends ~1.5x further right) stays inside that slot.
         const nextSection = document.getElementById('nextPieceSection');
-        const nextSectionWidth = nextSection ? nextSection.getBoundingClientRect().width : 150;
-        nextDisplaySize = Math.min(160, vh * 0.10, Math.max(60, nextSectionWidth * 0.55));
+        const nextRect = nextSection ? nextSection.getBoundingClientRect() : null;
+        const nextSectionWidth = nextRect ? nextRect.width : 150;
+        // The full 4-piece queue spans ~2.3x the visible size from the
+        // slot's left edge (cumulative right drift 1.7x + the last piece's
+        // width). Also cap against the room to the SCREEN's right edge —
+        // the slot-width cap alone left piece #4 offscreen on some
+        // width/height combos (e.g. 412x915).
+        const screenRoomCap = nextRect
+            ? Math.max(60, (vw - nextRect.left - 8) / 2.4)
+            : Infinity;
+        nextDisplaySize = Math.min(160, vh * 0.10, Math.max(60, nextSectionWidth * 0.55), screenRoomCap);
     } else {
         nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
     }
@@ -1090,7 +1099,7 @@ function createSongInfoElement() {
     `;
     
     songInfoElement.innerHTML = `
-        <div style="color: #888; font-size: max(1.2vh, 7px); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.05vh;">♪ NOW PLAYING ♪</div>
+        <div id="songLabel" style="color: #888; font-size: max(1.2vh, 7px); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.05vh;">♪ NOW PLAYING ♪</div>
         <div id="songName" style="color: #e0e0e0; font-size: max(1.5vh, 7px); word-wrap: break-word; line-height: 1.3;"></div>
         <div style="display: flex; justify-content: center; align-items: center; gap: 0.8vh; font-size: 0; line-height: 0; margin-top: 0.4vh;">
             <button id="songPrevBtn" style="background: #2a2a3a; border: 1px solid rgba(255,255,255,0.1); color: #666; padding: 0.3vh 0.8vh; border-radius: 0.4vh; cursor: default; font-size: 1.2vh; opacity: 0.5; line-height: 1;" title="Previous song (SHIFT+←)" disabled>⏮&#xFE0E;</button>

@@ -3768,8 +3768,12 @@
             #songInfo {
                 padding: 0.5vh 2vw !important;
             }
-            #songInfo > div:first-child {
-                font-size: max(1vh, 7px) !important;
+            /* Label and title read at the same size; the label is all-caps
+               (which renders visually larger), so it sits fractionally under
+               the title's size */
+            #songInfo #songLabel {
+                font-size: max(1.1vh, 8px) !important;
+                letter-spacing: 0 !important;
             }
             #songInfo #songName {
                 font-size: max(1.2vh, 8px) !important;
