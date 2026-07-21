@@ -1432,7 +1432,9 @@
         }
         .settings-popup {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            padding: 1vh 1.8vw;
+            /* px floor keeps the contents off the edge in narrow/portrait
+               windows where vw runs small (same on the overrides below) */
+            padding: 1vh max(1.8vw, 16px);
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #e0e0e0;
@@ -1679,7 +1681,7 @@
         /* Responsive adjustments for small screens */
         @media (max-height: 850px) {
             .settings-popup {
-                padding: 1vh 1.5vw;
+                padding: 1vh max(1.5vw, 14px);
             }
             .settings-title {
                 font-size: 17px;
@@ -1702,7 +1704,7 @@
         }
         @media (max-height: 700px) {
             .settings-popup {
-                padding: 0.8vh 1.5vw;
+                padding: 0.8vh max(1.5vw, 14px);
                 font-size: 12px;
             }
             .settings-title {
@@ -1730,7 +1732,7 @@
         }
         @media (max-height: 600px), (max-width: 600px) {
             .settings-popup {
-                padding: 0.6vh 1.2vw;
+                padding: 0.6vh max(1.2vw, 12px);
                 font-size: 11px;
                 min-width: 50vw;
             }
@@ -1848,10 +1850,14 @@
             transition: all 0.15s ease;
             font-family: inherit;
         }
-        .controls-reset-btn:hover {
-            background: rgba(255, 100, 100, 0.1);
-            border-color: rgba(255, 100, 100, 0.4);
-            color: #ff8080;
+        /* hover-capable devices only: on touch screens :hover sticks to the
+           last tapped element, leaving the button red after a tap */
+        @media (hover: hover) {
+            .controls-reset-btn:hover {
+                background: rgba(255, 100, 100, 0.1);
+                border-color: rgba(255, 100, 100, 0.4);
+                color: #ff8080;
+            }
         }
         
         /* Combo challenge modal */
@@ -2883,6 +2889,21 @@
                 max-width: 50vw;
             }
         }
+
+        /* Portrait: the 380px min-width renders as an edge-to-edge band on
+           narrow screens — let the popup shrink and keep margin all around */
+        @media (orientation: portrait) {
+            .name-entry-overlay {
+                padding: 2vh max(4vw, 14px) !important;
+                box-sizing: border-box !important;
+            }
+            .name-entry-popup {
+                min-width: 0;
+                width: 100%;
+                max-width: 480px;
+                padding: max(3vh, 20px) max(5vw, 20px);
+            }
+        }
         
         /* Color Palette Dropdown */
         .palette-dropdown {
@@ -3803,6 +3824,18 @@
             body:has(.rules-panel .hint-popup) #songInfo {
                 display: none !important;
             }
+            /* End credits: the overlay is 85% black, so the HUD strip, the
+               histogram strip + its toggle, and the well border all ghost
+               through it — hide them while the credits are rolling */
+            body:has(.credits-overlay[style*="display: block"]) .side-panel,
+            body:has(.credits-overlay[style*="display: block"]) .rules-panel,
+            body:has(.credits-overlay[style*="display: block"]) #histogramToggleBtn {
+                display: none !important;
+            }
+            body:has(.credits-overlay[style*="display: block"]) #gameCanvas {
+                border-color: transparent;
+                box-shadow: none;
+            }
 
             /* ── Portrait info views (How to Play / Leaderboards) ──
                The rules panel is normally invisible in portrait (it only
@@ -3838,7 +3871,8 @@
                 border-color: rgba(110, 181, 255, 0.5);
                 color: #fff;
             }
-            body.portrait-info-open .mode-menu {
+            body.portrait-info-open .mode-menu,
+            body.portrait-info-open .settings-btn {
                 display: none;
             }
             body.portrait-info-open .rules-panel,
@@ -3903,6 +3937,10 @@
             justify-content: center;
             align-items: center;
             backdrop-filter: blur(0.4vh);
+            /* Breathing room: the popup (width:100%, whatever its max-width
+               clamp resolves to) can never touch the screen edges */
+            padding: 2vh max(4vw, 14px);
+            box-sizing: border-box;
         }
         .share-overlay.active {
             display: flex;

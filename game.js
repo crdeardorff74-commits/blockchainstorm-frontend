@@ -12343,37 +12343,20 @@ if (settingsResetBtn) {
             el.checked = checked;
             el.dispatchEvent(new Event('change'));
         };
-        const setSelect = (id, value) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.value = value;
-            el.dispatchEvent(new Event('change'));
-        };
-
+        // Audio settings (playlist, volumes, mutes, instrumental-only) are
+        // deliberately left alone — resetting them would interrupt whatever
+        // is playing, and they're preferences, not tuning to "fix"
         setSlider('opacitySlider', 33);
         setSlider('borderBrightnessSlider', 115);
         setSlider('textureSlider', 33);
         setSlider('starSpeedSlider', 1);
         setSlider('aiSpeedSlider', 5);
-        setSlider('musicVolumeSlider', 50);
-        setSlider('sfxVolumeSlider', 70);
 
         setCheckbox('stormEffectsToggle', true);
         setCheckbox('cameraOrientationToggle', false);
         setCheckbox('minimalistToggle', false);
         setCheckbox('aiModeToggle', false);
-        setCheckbox('instrumentalOnlyToggle', false);
         setCheckbox('introFullscreenCheckbox', DeviceDetection.isMobile);
-
-        setSelect('musicSelect', 'game_playlist');
-
-        // Unmute both channels and refresh the mute-button icons
-        if (typeof setMusicMuted === 'function') setMusicMuted(false);
-        if (typeof setSfxMuted === 'function') setSfxMuted(false);
-        const musicMuteBtn = document.getElementById('musicMuteBtn');
-        const sfxMuteBtn = document.getElementById('sfxMuteBtn');
-        if (musicMuteBtn) updateMuteButtonIcon(musicMuteBtn, false);
-        if (sfxMuteBtn) updateMuteButtonIcon(sfxMuteBtn, false);
 
         // Back to the classic palette (recolors the live stack too)
         selectPalette('classic');
