@@ -795,12 +795,15 @@ function updateCanvasSize() {
         canvas.style.height = '';
     }
     
-    // Constrain mode menu to canvas width so buttons don't overflow
+    // Constrain mode menu to canvas width so buttons don't overflow.
+    // The -8vh lifts the menu slightly above true center (this inline
+    // transform overrides any CSS transform on .mode-menu, so the offset
+    // must live here).
     const modeMenu = document.getElementById('modeMenu');
     if (modeMenu) {
         modeMenu.style.maxWidth = canvas.width + 'px';
         modeMenu.style.left = '50%';
-        modeMenu.style.transform = 'translateX(-50%)';
+        modeMenu.style.transform = 'translate(-50%, -8vh)';
     }
     
     // Update next piece canvas to be responsive

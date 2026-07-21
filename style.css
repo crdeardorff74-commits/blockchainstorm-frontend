@@ -2285,9 +2285,9 @@
             box-sizing: border-box;
             pointer-events: none;
             z-index: 10; /* Ensure tooltips appear above left panel */
-            /* Sit the centered menu slightly above true center on every
-               device/orientation */
-            transform: translateY(-8vh);
+            /* NOTE: don't set transform here — updateCanvasSize() in game.js
+               stamps an inline transform on #modeMenu (centering + the -8vh
+               above-center lift), which overrides anything set in CSS */
         }
         .mode-menu.hidden {
             display: none;
