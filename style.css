@@ -1161,8 +1161,11 @@
            The Difficulty and Challenge Mode dropdowns disappear entirely and
            the Skill Level dropdown is replaced by an inline copy of the
            modal's option list, descriptions and all. */
-        .intro-skill-list,
-        .intro-skill-list-label {
+        /* .intro-controls prefix keeps this hide more specific than the
+           generic .selection-options-list { display:flex }, which appears
+           later in the file and would otherwise win the tie */
+        .intro-controls .intro-skill-list,
+        .intro-controls .intro-skill-list-label {
             display: none;
         }
         body.first-time-intro .intro-controls .intro-dropdowns-row,
