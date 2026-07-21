@@ -12993,9 +12993,11 @@ if (introChallengeBtn) {
 }
 
 // ─── First-time intro (any device) ───
-// Until a first game has been played (tantro_hints_shown, set by HintSystem),
-// the intro drops the Difficulty/Challenge dropdowns and shows the skill
-// level as an inline option list instead of a dropdown (CSS: .first-time-intro).
+// Until a first game has actually been finished (tantro_hints_shown — set by
+// HintSystem at game over or after 20 placed pieces), the intro drops the
+// Difficulty/Challenge dropdowns and shows the skill level as an inline
+// option list instead of a dropdown (CSS: .first-time-intro). Deliberate:
+// someone who bailed mid-first-game should return to the simple intro.
 (function initFirstTimeIntro() {
     let firstTime = false;
     try {
