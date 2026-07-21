@@ -140,7 +140,11 @@ const HintSystem = (() => {
     function dismissHint() {
         if (currentHint) {
             if (currentHint._timeout) clearTimeout(currentHint._timeout);
-            currentHint.style.animation = 'hintFadeOut 0.3s ease-in forwards';
+            // Portrait bottom-anchors the popup with a translateX-only
+            // transform, so it needs the matching keyframes (see style.css)
+            const portrait = window.matchMedia('(orientation: portrait)').matches;
+            currentHint.style.animation = (portrait ? 'hintFadeOutPortrait' : 'hintFadeOut')
+                + ' 0.3s ease-in forwards';
             const el = currentHint;
             setTimeout(() => el.remove(), 300);
             currentHint = null;
@@ -13304,9 +13308,13 @@ if (startOverlay) {
                 btn.type = 'button';
                 btn.id = 'installAppBtn';
                 btn.textContent = t('intro.installApp');
+                // margin:0 beats the global `button { margin-top: 20px }`
+                // rule, which otherwise shoves the button off-center in the
+                // shrink-wrapped hint box
                 btn.style.cssText = 'cursor:pointer;font:inherit;font-weight:bold;'
                     + 'color:#0a0a2e;background:#FFD700;border:none;'
-                    + 'border-radius:5px;padding:6px 14px;';
+                    + 'border-radius:5px;padding:6px 14px;margin:0;'
+                    + 'display:block;margin-left:auto;margin-right:auto;';
                 btn.addEventListener('click', async () => {
                     const p = window.__deferredInstallPrompt;
                     if (!p) return;

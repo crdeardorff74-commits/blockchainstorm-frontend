@@ -162,6 +162,14 @@
             max-height: 100%;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
+        /* Main menu (any device): the empty well shouldn't outline itself
+           behind the menu. transparent border (not none) keeps the layout
+           box identical, and the transition above fades it back in at
+           game start. */
+        .main-area:has(.mode-menu:not(.hidden)) #gameCanvas {
+            border-color: transparent;
+            box-shadow: none;
+        }
         .vineOverlay {
             border: none !important;
             box-shadow: none !important;
@@ -1464,6 +1472,12 @@
                 margin-top: 1vh;
                 max-width: none;
             }
+        }
+        /* Phone/tablet mode: the Controls column configures keyboard
+           bindings — meaningless on touch. (tablet-mode drops when a
+           gamepad connects, so controller users get the column back.) */
+        body.tablet-mode .settings-column-right {
+            display: none;
         }
         .settings-title {
             font-size: 20px;
@@ -3677,6 +3691,9 @@
                 border-radius: 0.8vh;
                 border-left: 1px solid rgba(255, 255, 255, 0.08);
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
+                /* the first-time hint popup anchors to this strip and rises
+                   above it — don't clip it (base .rules-panel hides overflow) */
+                overflow: visible;
             }
             /* Player-collapsed histogram strip (chevron toggle) — the well's
                height budget in updateCanvasSize() grows to match. The Now
@@ -3740,15 +3757,38 @@
                 top: 0.8vh;
                 right: 2.5vw;
             }
+            /* Main menu: the HUD strip (score / events / next pieces) is
+               gameplay chrome — keep the portrait menu clean. Extra class
+               weight so this outranks the strip's grid rules above. */
+            .game-container:has(.mode-menu:not(.hidden)) .side-panel,
+            body.tablet-mode .game-container:has(.mode-menu:not(.hidden)) .side-panel {
+                display: none;
+            }
             /* First-time hints anchor to the rules panel, which in portrait is
-               the short histogram strip — sit lower over it, and drop the ▶
-               dismiss-arrow row to keep the popup compact */
+               the short histogram strip — pin them to its bottom edge so they
+               cover as little of the well as possible, and replace the
+               trailing ▶ with a ▲ above the text pointing up at the well.
+               translateX-only transform + the *Portrait fade keyframes keep
+               the bottom anchoring (the shared keyframes bake in the
+               landscape -50% vertical centering); dismissHint() picks the
+               matching fade-out by orientation. */
             .hint-popup {
-                top: 55%;
+                top: auto;
+                bottom: 0.5vh;
                 padding: 1.5vh 3vw;
+                width: 92%;
+                transform: translateX(-50%);
+                animation: hintFadeInPortrait 0.4s ease-out;
             }
             .hint-popup::after {
                 display: none;
+            }
+            .hint-popup::before {
+                content: '▲';
+                display: block;
+                margin-bottom: 1vh;
+                font-size: max(1.3vh, 10px);
+                color: rgba(255, 215, 0, 0.5);
             }
 
             /* ── Portrait info views (How to Play / Leaderboards) ──
@@ -4030,6 +4070,47 @@
             }
         }
 
+        /* Portrait (any pointer): the base 50vh width clamp and the phone
+           block's 52vw above are landscape-minded — in portrait they squeeze
+           the popup while the 3-column grid's long labels (WHATSAPP,
+           COPY LINK) force a wider minimum, overflowing the box. Span the
+           screen width instead, let grid columns actually shrink
+           (minmax(0,1fr)), and cap label size by vw so text never outgrows
+           its column. */
+        @media (orientation: portrait) {
+            .share-popup {
+                max-width: 92vw;
+                max-height: 94vh;
+                max-height: 94dvh;
+                overflow-y: auto;
+            }
+            .share-subtitle { white-space: normal; }
+            .share-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .share-btn { min-width: 0; }
+            .share-btn span { font-size: min(1.6vh, 2.8vw); }
+        }
+        /* Portrait phones: re-derive the coarse-pointer sizes above for
+           portrait vh (about double a landscape vh), and bring the ✕ back
+           inside the popup (the hang-outside trick needs overflow visible,
+           which the scrollable portrait popup no longer has) */
+        @media (pointer: coarse) and (max-width: 1024px) and (orientation: portrait) {
+            .share-popup { padding: 3vh 5vw; }
+            .share-close {
+                top: 0.5vh !important;
+                right: 2vw !important;
+                font-size: 3.6vh !important;
+                line-height: 1 !important;
+            }
+            .share-emoji { font-size: 4.5vh; margin-bottom: 1vh; }
+            .share-title { font-size: 2.4vh; }
+            .share-subtitle { font-size: 1.7vh; margin-bottom: 2vh; }
+            .share-grid { gap: 1.5vh 2.5vw; }
+            .share-btn { padding: 1.8vh 0; }
+            .share-btn svg { width: 3.5vh; height: 3.5vh; }
+            .share-dismiss { font-size: 1.5vh; }
+            .share-donate { font-size: 1.5vh; max-width: 70vw; }
+        }
+
         /* First-time player hint popup */
         .hint-popup {
             position: absolute;
@@ -4067,6 +4148,17 @@
         @keyframes hintFadeOut {
             0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        }
+        /* Portrait variants: the popup is bottom-anchored there, so the
+           transform must stay translateX-only (see the portrait .hint-popup
+           rules) */
+        @keyframes hintFadeInPortrait {
+            0% { opacity: 0; transform: translateX(-50%) scale(0.9); }
+            100% { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+        @keyframes hintFadeOutPortrait {
+            0% { opacity: 1; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) scale(0.9); }
         }
         
         /* Phone credits and game-over adjustments */
