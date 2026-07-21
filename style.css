@@ -1499,7 +1499,6 @@
         .settings-option {
             margin-bottom: 0.15vh;
             padding: 0.55vh 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
         .settings-option:last-child {
             border-bottom: none;
@@ -1640,7 +1639,7 @@
         .settings-close-btn {
             width: 100%;
             margin-top: 1.2vh;
-            padding: 8px 16px;
+            padding: 11px 16px;
             font-size: 14px;
             background: #3d7dd4;
             color: white;
@@ -1703,7 +1702,7 @@
             }
             .settings-close-btn {
                 margin-top: 0.5vh;
-                padding: 6px 14px;
+                padding: 9px 14px;
             }
         }
         @media (max-height: 700px) {
@@ -1720,7 +1719,7 @@
                 padding: 0.8vh 0;
             }
             .settings-close-btn {
-                padding: 5px 12px;
+                padding: 8px 12px;
                 font-size: 12px;
                 margin-top: 0.4vh;
             }
@@ -1752,7 +1751,7 @@
                 font-size: 11px;
             }
             .settings-close-btn {
-                padding: 4px 10px;
+                padding: 7px 10px;
                 font-size: 11px;
                 margin-top: 0.3vh;
             }
