@@ -105,6 +105,10 @@ const SaveGame = (() => {
             speedBonusTotal: speedBonusTotal,
             speedBonusPieceCount: speedBonusPieceCount,
             speedBonusAverage: speedBonusAverage,
+            // Music on/off ('none' = off) is NOT otherwise persisted — the
+            // intro toggle resets to ON every page load, which would
+            // silently re-enable music on a resumed game.
+            musicValue: (musicSelect && typeof musicSelect.value === 'string') ? musicSelect.value : null,
             elapsedMs: now - gameStartTime,
             pieceElapsedMs: pieceSpawnTime > 0 ? now - pieceSpawnTime : 0,
             recorder: (typeof GameRecorder !== 'undefined' && GameRecorder.snapshot)
@@ -255,6 +259,16 @@ const SaveGame = (() => {
         const snap = load();
         if (!snap) { refreshResumeUI(); return; }
         if (gameRunning) return;
+        // Restore the music on/off state the game was paused with, BEFORE
+        // the intro-dismissal flow reads musicSelect (it starts menu music
+        // for non-'none' values). Skipped if the saved value no longer
+        // exists in the dropdown (e.g. a retired playlist option).
+        if (typeof snap.musicValue === 'string' && musicSelect &&
+            Array.from(musicSelect.options).some(o => o.value === snap.musicValue)) {
+            musicSelect.value = snap.musicValue;
+            const introMusic = document.getElementById('introMusicCheckbox');
+            if (introMusic) introMusic.checked = snap.musicValue !== 'none';
+        }
         const overlay = document.getElementById('startOverlay');
         const introVisible = overlay && overlay.style.display !== 'none' &&
             window.getComputedStyle(overlay).display !== 'none';
@@ -279,9 +293,14 @@ const SaveGame = (() => {
             if (!snap) continue;
             const detailEl = document.getElementById(prefix + 'ResumeDetail');
             if (detailEl) {
-                let text = 'Score: ' + snap.score.toLocaleString() + ' · Level: ' + snap.level;
+                // Same ₿ format as the HUD score display (formatAsBitcoin
+                // is a game.js top-level function, hoisted before we run)
+                const scoreText = (typeof formatAsBitcoin === 'function')
+                    ? formatAsBitcoin(snap.score)
+                    : String(snap.score);
+                let text = 'Score: ' + scoreText + ' · Level: ' + snap.level;
                 try {
-                    text = I18n.t('menu.resumeDetail', { score: snap.score.toLocaleString(), level: snap.level });
+                    text = I18n.t('menu.resumeDetail', { score: scoreText, level: snap.level });
                 } catch (e) { /* i18n not ready — English fallback above */ }
                 detailEl.textContent = text;
             }
