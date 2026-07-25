@@ -260,6 +260,21 @@ const SaveGame = (() => {
         drawNextPiece();
     }
 
+    // Music intent tracking: the intro toggle resets to ON every page
+    // load, so its DEFAULT state is not a preference — but a toggle (or
+    // settings-dropdown change) the player makes THIS session is, and it
+    // must outrank the snapshot's saved music state on resume. Without
+    // this, turning music off at the intro and hitting Resume would get
+    // overridden by a save that recorded music ON.
+    let musicTouchedThisSession = false;
+    (function watchMusicIntent() {
+        const introMusic = document.getElementById('introMusicCheckbox');
+        if (introMusic) introMusic.addEventListener('change', () => { musicTouchedThisSession = true; });
+        if (typeof musicSelect !== 'undefined' && musicSelect) {
+            musicSelect.addEventListener('change', () => { musicTouchedThisSession = true; });
+        }
+    })();
+
     /**
      * Resume the saved game (from the intro screen or the mode menu).
      * Intro-screen resumes route through dismissIntroScreen so they get
@@ -274,9 +289,12 @@ const SaveGame = (() => {
         if (gameRunning) return;
         // Restore the music on/off state the game was paused with, BEFORE
         // the intro-dismissal flow reads musicSelect (it starts menu music
-        // for non-'none' values). Skipped if the saved value no longer
-        // exists in the dropdown (e.g. a retired playlist option).
-        if (typeof snap.musicValue === 'string' && musicSelect &&
+        // for non-'none' values). Skipped when the player already touched
+        // a music control this session (their gesture wins), or if the
+        // saved value no longer exists in the dropdown (e.g. a retired
+        // playlist option).
+        if (!musicTouchedThisSession &&
+            typeof snap.musicValue === 'string' && musicSelect &&
             Array.from(musicSelect.options).some(o => o.value === snap.musicValue)) {
             musicSelect.value = snap.musicValue;
             const introMusic = document.getElementById('introMusicCheckbox');
