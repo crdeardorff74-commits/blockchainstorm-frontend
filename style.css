@@ -1244,6 +1244,13 @@
             margin-top: 0;
             padding: 8px 10px;
         }
+        /* SFX's short label lets its toggle shrink to content, freeing
+           row width for Music and (especially) Full Screen */
+        .intro-toggles-row .intro-toggle-compact {
+            flex: 0 0 auto;
+            gap: 8px;
+            padding: 8px 8px;
+        }
         .login-btn {
             position: absolute;
             top: 20px;
