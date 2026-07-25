@@ -13649,6 +13649,14 @@ if (startOverlay) {
         if (modeMenuEl) modeMenuEl.classList.add('hidden');
         // Fade overlay out visually but keep it in the DOM for 400ms to absorb
         // ghost taps that iOS generates after touchend (~300ms delay).
+        if (resumeSnap) {
+            // The overlay's opaque black body dips the whole screen to
+            // black mid-fade. Invisible on fresh starts (an empty well is
+            // near-black anyway), but a resumed game's full board pops in
+            // after the dip — so let the restored game show through
+            // immediately and fade only the intro CONTENT out.
+            startOverlay.style.background = 'transparent';
+        }
         startOverlay.style.opacity = '0';
         startOverlay.style.transition = 'opacity 0.15s';
         // Clear SW refresh guard so future updates can auto-refresh
