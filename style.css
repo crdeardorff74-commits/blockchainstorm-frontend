@@ -1251,6 +1251,27 @@
             gap: 8px;
             padding: 8px 8px;
         }
+        /* The switch's default 12px right margin is dead space inside the
+           tight three-up row — reclaim it in all three toggles */
+        .intro-toggles-row .intro-toggle .toggle-switch {
+            margin-right: 0;
+        }
+        /* Miniature switch for the compact SFX toggle (base is 36x20 with
+           a 14px knob travelling 16px; this is 28x16 / 12px knob / 12px
+           travel, keeping the same 2-3px inset proportions) */
+        .intro-toggle-compact .toggle-switch {
+            width: 28px;
+            height: 16px;
+        }
+        .intro-toggle-compact .toggle-slider:before {
+            height: 12px;
+            width: 12px;
+            left: 2px;
+            bottom: 2px;
+        }
+        .intro-toggle-compact input:checked + .toggle-slider:before {
+            transform: translateX(12px);
+        }
         .login-btn {
             position: absolute;
             top: 20px;
