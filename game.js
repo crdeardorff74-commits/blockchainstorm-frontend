@@ -13522,19 +13522,37 @@ if (startOverlay) {
         }
     })();
     
-    // Sync intro music toggle with settings music select on load
+    // Sync intro music toggle with settings music select on load, and
+    // persist the player's choice across sessions — historically the
+    // dropdown (and therefore the intro toggle) reset to the HTML default
+    // of ON every page load.
     if (introMusicCheckbox && musicSelect) {
+        // Restore last session's choice BEFORE the initial toggle sync.
+        // Skipped if the stored value no longer exists in the dropdown.
+        try {
+            const savedMusic = localStorage.getItem('tantro_setting_musicSelect');
+            if (savedMusic && Array.from(musicSelect.options).some(o => o.value === savedMusic)) {
+                musicSelect.value = savedMusic;
+            }
+        } catch (e) { /* private mode */ }
+        const persistMusicChoice = () => {
+            try { localStorage.setItem('tantro_setting_musicSelect', musicSelect.value); }
+            catch (e) { /* private mode / quota */ }
+        };
+
         // Sync initial state: checked = any music, unchecked = none
         introMusicCheckbox.checked = musicSelect.value !== 'none';
-        
+
         // When intro toggle changes, sync to settings
         introMusicCheckbox.addEventListener('change', () => {
             musicSelect.value = introMusicCheckbox.checked ? 'game_playlist' : 'none';
+            persistMusicChoice();
         });
-        
+
         // When settings select changes, sync back to intro toggle
         musicSelect.addEventListener('change', () => {
             introMusicCheckbox.checked = musicSelect.value !== 'none';
+            persistMusicChoice();
         });
     }
     // Sync skill level selectors (intro, settings)

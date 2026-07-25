@@ -108,10 +108,9 @@ const SaveGame = (() => {
             speedBonusTotal: speedBonusTotal,
             speedBonusPieceCount: speedBonusPieceCount,
             speedBonusAverage: speedBonusAverage,
-            // Music on/off ('none' = off) is NOT otherwise persisted — the
-            // intro toggle resets to ON every page load, which would
-            // silently re-enable music on a resumed game.
-            musicValue: (musicSelect && typeof musicSelect.value === 'string') ? musicSelect.value : null,
+            // (Music on/off is NOT part of the snapshot: the dropdown is
+            // persisted globally by game.js as tantro_setting_musicSelect,
+            // covering fresh sessions and resumes alike.)
             // Starfield journey (sun shrink progress + which planets have
             // already flown by) — without it a resume replays the whole
             // trip: full-size sun and every passed planet at once.
@@ -264,23 +263,6 @@ const SaveGame = (() => {
     }
 
     /**
-     * At page load, make the music controls SHOW the saved game's music
-     * state (the intro toggle otherwise resets to ON every load). From
-     * then on the visible controls are the single source of truth: the
-     * player can flip them before resuming, and resume simply plays
-     * whatever they show — no hidden state to fight the UI.
-     */
-    function syncMusicControlsFromSave() {
-        const snap = load();
-        if (!snap || typeof snap.musicValue !== 'string') return;
-        if (!musicSelect) return;
-        if (!Array.from(musicSelect.options).some(o => o.value === snap.musicValue)) return;
-        musicSelect.value = snap.musicValue;
-        const introMusic = document.getElementById('introMusicCheckbox');
-        if (introMusic) introMusic.checked = snap.musicValue !== 'none';
-    }
-
-    /**
      * Resume the saved game (from the intro screen or the mode menu).
      * Intro-screen resumes route through dismissIntroScreen so they get
      * the same audio-blessing/music/fullscreen treatment as a fresh
@@ -292,9 +274,9 @@ const SaveGame = (() => {
         const snap = load();
         if (!snap) { refreshResumeUI(); return; }
         if (gameRunning) return;
-        // No music handling here: syncMusicControlsFromSave() already made
-        // the visible controls reflect the saved state at page load, and
-        // any toggle the player made since is exactly what should play.
+        // No music handling here: game.js persists the music dropdown
+        // globally (tantro_setting_musicSelect) and restored it at load,
+        // so the visible controls already say what should play.
         const overlay = document.getElementById('startOverlay');
         const introVisible = overlay && overlay.style.display !== 'none' &&
             window.getComputedStyle(overlay).display !== 'none';
@@ -370,7 +352,6 @@ const SaveGame = (() => {
         }
     }
     refreshResumeUI();
-    syncMusicControlsFromSave();
     // Repaint after I18n.init picks the player's language (i18n.js
     // registered its DOMContentLoaded listener first, so it runs first) —
     // the detail line above may have painted with the English fallback.
