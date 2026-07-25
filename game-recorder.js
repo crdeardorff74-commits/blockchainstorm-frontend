@@ -642,6 +642,45 @@ const GameRecorder = (() => {
     }
     
     /**
+     * Snapshot the in-progress recording for the paused-game save
+     * (SaveGame module). Absolute clock anchors are converted to elapsed
+     * durations so restoreSnapshot() can re-anchor them to the resuming
+     * session's clock — time the player spent away must not count toward
+     * the recording's timeline.
+     * @returns {Object|null} Serializable snapshot, or null if not recording.
+     */
+    function snapshot() {
+        if (!isRecording || !recording) return null;
+        const now = Date.now();
+        return {
+            recording: recording,
+            currentPieceIndex: currentPieceIndex,
+            totalElapsedMs: now - recording.startTime,
+            pieceElapsedMs: currentPieceSpawnTime > 0 ? (now - currentPieceSpawnTime) : 0
+        };
+    }
+
+    /**
+     * Restore a snapshot() result, replacing any recording in progress
+     * (startGame begins a fresh recording before the SaveGame resume path
+     * overlays the saved one). Re-anchors startTime / piece spawn time so
+     * relative event times continue seamlessly from the saved durations.
+     * @param {Object} snap - A snapshot() result (possibly JSON round-tripped).
+     * @returns {boolean} True if the snapshot was restored.
+     */
+    function restoreSnapshot(snap) {
+        if (!snap || !snap.recording || !Array.isArray(snap.recording.pieceData)) return false;
+        const now = Date.now();
+        recording = snap.recording;
+        currentPieceIndex = typeof snap.currentPieceIndex === 'number' ? snap.currentPieceIndex : -1;
+        recording.startTime = now - (snap.totalElapsedMs || 0);
+        currentPieceSpawnTime = now - (snap.pieceElapsedMs || 0);
+        isRecording = true;
+        Logger.info('📹 Recording restored from paused-game save:', recording.pieceData.length, 'pieces');
+        return true;
+    }
+
+    /**
      * Get the current in-progress recording object for inspection.
      * Returns null if no recording is active.
      * @returns {Object|null} The current recording object, or null.
@@ -723,6 +762,8 @@ const GameRecorder = (() => {
         submitRecording,
         isActive,
         addAIShadow,
+        snapshot,
+        restoreSnapshot,
         getRecording,
         getCurrentPieceIndex,
         compressBoard

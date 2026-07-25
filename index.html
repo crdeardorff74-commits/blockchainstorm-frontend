@@ -200,6 +200,15 @@
                     </div>
                 </label>
             </div>
+            <!-- RESUME GAME row — hidden unless a paused-game snapshot
+                 exists (save-game.js toggles it; twin of the mode menu's) -->
+            <div class="menu-resume-row" id="introResumeRow" style="display: none;">
+                <button class="menu-resume-game-btn" id="introResumeGameBtn">
+                    <span data-i18n="menu.resumeGame">▶ Resume Game</span>
+                    <span class="menu-resume-detail" id="introResumeDetail"></span>
+                </button>
+                <button class="menu-resume-discard-btn" id="introResumeDiscardBtn" aria-label="Discard saved game">&times;</button>
+            </div>
             <button class="start-game-btn" id="startGameBtn" data-i18n="intro.startGame">▶ Start Game</button>
             <div id="fullscreenHint" style="display: none; margin-top: max(1.5vh, 12px); padding: 8px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 6px; font-size: 12px; color: #FFD700; text-align: center; line-height: 1.4; white-space: nowrap;"></div>
         </div>
@@ -317,6 +326,16 @@
                     <div class="menu-dropdown-wrapper">
                         <div class="menu-dropdown-label" data-i18n="mode.challengeModes">Challenge Mode(s)</div>
                         <button id="challengeSelectBtn" class="menu-dropdown-btn" data-i18n="challenge.normal">Normal</button>
+                    </div>
+
+                    <!-- RESUME GAME row — hidden unless a paused-game
+                         snapshot exists (save-game.js toggles it) -->
+                    <div class="menu-resume-row" id="menuResumeRow" style="display: none;">
+                        <button class="menu-resume-game-btn" id="menuResumeGameBtn">
+                            <span data-i18n="menu.resumeGame">▶ Resume Game</span>
+                            <span class="menu-resume-detail" id="menuResumeDetail"></span>
+                        </button>
+                        <button class="menu-resume-discard-btn" id="menuResumeDiscardBtn" aria-label="Discard saved game">&times;</button>
                     </div>
 
                     <!-- START GAME button -->
@@ -1341,6 +1360,7 @@
 	<script src="touch-controls.js"></script>
 	<script src="gamepad.js"></script>
 	<script src="game.js"></script>
+	<script src="save-game.js"></script>
 	<script src="settings-sync.js"></script>
 	
 	<script>

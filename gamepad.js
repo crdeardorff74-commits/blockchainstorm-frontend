@@ -519,6 +519,11 @@ const controller = {
             const diffBtn = document.getElementById('introDifficultyBtn');
             const challengeBtn = document.getElementById('introChallengeBtn');
             const startBtn = document.getElementById('startGameBtn');
+            const introResumeRow = document.getElementById('introResumeRow');
+            const introResumeBtn = document.getElementById('introResumeGameBtn');
+            const introDiscardBtn = document.getElementById('introResumeDiscardBtn');
+            // Only when a paused-game save exists (save-game.js shows the row)
+            const introResumeVisible = introResumeRow && introResumeRow.style.display !== 'none';
 
             if (document.body.classList.contains('first-time-intro')) {
                 // Simplified first-time intro: inline skill options instead of
@@ -535,9 +540,14 @@ const controller = {
             const toggles = document.querySelectorAll('.intro-toggles-row .intro-toggle');
             toggles.forEach(t => items.push(t));
 
+            if (introResumeVisible && introResumeBtn) items.push(introResumeBtn);
+            if (introResumeVisible && introDiscardBtn) items.push(introDiscardBtn);
             if (startBtn) items.push(startBtn);
 
-            return { id: 'intro', items, defaultIndex: items.length - 1 }; // Default to Start Game
+            // Default to RESUME GAME when a save is waiting, else Start Game
+            const introDefault = (introResumeVisible && introResumeBtn)
+                ? items.indexOf(introResumeBtn) : items.length - 1;
+            return { id: 'intro', items, defaultIndex: introDefault };
         }
         
         // Portrait full-screen info view (How to Play / Leaderboards) — only
@@ -558,20 +568,28 @@ const controller = {
             const skillBtn = document.getElementById('skillLevelMenuBtn');
             const diffBtn = document.getElementById('difficultyMenuBtn');
             const challengeBtn = document.getElementById('challengeSelectBtn');
+            const resumeRow = document.getElementById('menuResumeRow');
+            const resumeBtn = document.getElementById('menuResumeGameBtn');
+            const resumeDiscardBtn = document.getElementById('menuResumeDiscardBtn');
             const startBtn = document.getElementById('menuStartGameBtn');
             const howToBtn = document.getElementById('menuHowToPlayBtn');
             const lbBtn = document.getElementById('menuLeaderboardsBtn');
+            // Only when a paused-game save exists (save-game.js shows the row)
+            const resumeVisible = resumeRow && resumeRow.style.display !== 'none';
 
             if (skillBtn) items.push(skillBtn);
             if (diffBtn) items.push(diffBtn);
             if (challengeBtn) items.push(challengeBtn);
+            if (resumeVisible && resumeBtn) items.push(resumeBtn);
+            if (resumeVisible && resumeDiscardBtn) items.push(resumeDiscardBtn);
             if (startBtn) items.push(startBtn);
             // Portrait-only info buttons (display:none in landscape)
             if (howToBtn && window.getComputedStyle(howToBtn).display !== 'none') items.push(howToBtn);
             if (lbBtn && window.getComputedStyle(lbBtn).display !== 'none') items.push(lbBtn);
 
-            // Default to START GAME
-            return { id: 'modeMenu', items, defaultIndex: startBtn ? items.indexOf(startBtn) : items.length - 1 };
+            // Default to RESUME GAME when a save is waiting, else START GAME
+            const defaultBtn = (resumeVisible && resumeBtn) ? resumeBtn : startBtn;
+            return { id: 'modeMenu', items, defaultIndex: defaultBtn ? items.indexOf(defaultBtn) : items.length - 1 };
         }
         
         return null; // No menu screen active

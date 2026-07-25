@@ -28,6 +28,7 @@ const I18n = (() => {
     // ─── Translation Dictionaries ───
     const translations = {
         en: {
+            'menu.resumeGame': '▶ Resume Game', 'menu.resumeDetail': 'Score: {score} · Level: {level}', 'menu.resumeDiscard': 'Discard saved game',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Open the full app",
             'redirect.body': "For the best experience — and to add the game to your home screen — open the full version.",
@@ -301,6 +302,7 @@ const I18n = (() => {
             'hint.blackHole': 'Completely surround one color blob with another for a BLACK HOLE bonus',
         },
         es: {
+            'menu.resumeGame': '▶ Reanudar Juego', 'menu.resumeDetail': 'Puntuación: {score} · Nivel: {level}', 'menu.resumeDiscard': 'Descartar partida guardada',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Abre la app completa",
             'redirect.body': "Para una mejor experiencia, y para añadir el juego a tu pantalla de inicio, abre la versión completa.",
@@ -513,6 +515,7 @@ const I18n = (() => {
             'hint.blackHole': 'Rodea completamente un grupo de color con otro para un bonus de AGUJERO NEGRO',
         },
         fr: {
+            'menu.resumeGame': '▶ Reprendre la Partie', 'menu.resumeDetail': 'Score : {score} · Niveau : {level}', 'menu.resumeDiscard': 'Supprimer la partie sauvegardée',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Ouvrir l'appli complète",
             'redirect.body': "Pour une meilleure expérience, et pour ajouter le jeu à votre écran d'accueil, ouvrez la version complète.",
@@ -725,6 +728,7 @@ const I18n = (() => {
             'hint.blackHole': 'Entourez complètement un groupe de couleur avec un autre pour un bonus TROU NOIR',
         },
         de: {
+            'menu.resumeGame': '▶ Spiel Fortsetzen', 'menu.resumeDetail': 'Punkte: {score} · Level: {level}', 'menu.resumeDiscard': 'Gespeichertes Spiel verwerfen',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Vollständige App öffnen",
             'redirect.body': "Für das beste Erlebnis – und um das Spiel zum Startbildschirm hinzuzufügen – öffne die vollständige Version.",
@@ -937,6 +941,7 @@ const I18n = (() => {
             'hint.blackHole': 'Umschließe eine Farbgruppe vollständig mit einer anderen für einen SCHWARZES-LOCH-Bonus',
         },
         pt: {
+            'menu.resumeGame': '▶ Retomar Jogo', 'menu.resumeDetail': 'Pontuação: {score} · Nível: {level}', 'menu.resumeDiscard': 'Descartar jogo salvo',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Abrir o app completo",
             'redirect.body': "Para a melhor experiência, e para adicionar o jogo à tela inicial, abra a versão completa.",
@@ -1031,6 +1036,7 @@ const I18n = (() => {
             'hint.blackHole': 'Cerque completamente um grupo de cor com outro para um bônus de BURACO NEGRO',
         },
         ja: {
+            'menu.resumeGame': '▶ ゲーム再開', 'menu.resumeDetail': 'スコア: {score} · レベル: {level}', 'menu.resumeDiscard': '保存したゲームを破棄',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "フルアプリを開く",
             'redirect.body': "最高の体験のために、そしてゲームをホーム画面に追加するには、フルバージョンを開いてください。",
@@ -1119,6 +1125,7 @@ const I18n = (() => {
             'hint.blackHole': 'あるカラーブロブを別のブロブで完全に囲んでBLACK HOLEボーナスを獲得',
         },
         ko: {
+            'menu.resumeGame': '▶ 게임 재개', 'menu.resumeDetail': '점수: {score} · 레벨: {level}', 'menu.resumeDiscard': '저장된 게임 삭제',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "전체 앱 열기",
             'redirect.body': "최상의 경험을 위해, 그리고 게임을 홈 화면에 추가하려면 전체 버전을 여세요.",
@@ -1196,6 +1203,7 @@ const I18n = (() => {
             'hint.blackHole': '하나의 색상 블롭을 다른 블롭으로 완전히 둘러싸면 BLACK HOLE 보너스를 획득합니다',
         },
         zh: {
+            'menu.resumeGame': '▶ 继续游戏', 'menu.resumeDetail': '分数: {score} · 等级: {level}', 'menu.resumeDiscard': '删除已保存的游戏',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "打开完整应用",
             'redirect.body': "为获得最佳体验，并将游戏添加到主屏幕，请打开完整版本。",
@@ -1273,6 +1281,7 @@ const I18n = (() => {
             'hint.blackHole': '用一种颜色完全包围另一种颜色获得BLACK HOLE奖励',
         },
         ru: {
+            'menu.resumeGame': '▶ Продолжить Игру', 'menu.resumeDetail': 'Счёт: {score} · Уровень: {level}', 'menu.resumeDiscard': 'Удалить сохранённую игру',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Открыть полное приложение",
             'redirect.body': "Для лучшего опыта и чтобы добавить игру на главный экран, откройте полную версию.",
@@ -1359,6 +1368,7 @@ const I18n = (() => {
             'hint.blackHole': 'Полностью окружите одну цветную группу другой для бонуса ЧЁРНАЯ ДЫРА',
         },
         it: {
+            'menu.resumeGame': '▶ Riprendi Partita', 'menu.resumeDetail': 'Punteggio: {score} · Livello: {level}', 'menu.resumeDiscard': 'Elimina partita salvata',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Apri l'app completa",
             'redirect.body': "Per la migliore esperienza, e per aggiungere il gioco alla schermata Home, apri la versione completa.",
@@ -1425,6 +1435,7 @@ const I18n = (() => {
             'hint.blackHole': 'Circonda completamente un gruppo di colore con un altro per un bonus BUCO NERO',
         },
         nl: {
+            'menu.resumeGame': '▶ Spel Hervatten', 'menu.resumeDetail': 'Score: {score} · Level: {level}', 'menu.resumeDiscard': 'Opgeslagen spel verwijderen',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Open de volledige app",
             'redirect.body': "Voor de beste ervaring — en om het spel aan je beginscherm toe te voegen — open je de volledige versie.",
@@ -1616,6 +1627,7 @@ const I18n = (() => {
             'planet.gTypeStar': 'G-type ster',
         },
         pl: {
+            'menu.resumeGame': '▶ Wznów Grę', 'menu.resumeDetail': 'Wynik: {score} · Poziom: {level}', 'menu.resumeDiscard': 'Odrzuć zapisaną grę',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Otwórz pełną aplikację",
             'redirect.body': "Aby uzyskać najlepsze wrażenia i dodać grę do ekranu głównego, otwórz pełną wersję.",
@@ -1808,6 +1820,7 @@ const I18n = (() => {
             'planet.gTypeStar': 'Gwiazda typu G',
         },
         tr: {
+            'menu.resumeGame': '▶ Oyuna Devam Et', 'menu.resumeDetail': 'Skor: {score} · Seviye: {level}', 'menu.resumeDiscard': 'Kayıtlı oyunu sil',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Tam uygulamayı aç",
             'redirect.body': "En iyi deneyim için ve oyunu ana ekranınıza eklemek için tam sürümü açın.",
@@ -2000,6 +2013,7 @@ const I18n = (() => {
             'planet.gTypeStar': 'G tipi yıldız',
         },
         ar: {
+            'menu.resumeGame': '▶ استئناف اللعبة', 'menu.resumeDetail': 'النقاط: {score} · المستوى: {level}', 'menu.resumeDiscard': 'حذف اللعبة المحفوظة',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "افتح التطبيق الكامل",
             'redirect.body': "للحصول على أفضل تجربة، ولإضافة اللعبة إلى الشاشة الرئيسية، افتح النسخة الكاملة.",
@@ -2192,6 +2206,7 @@ const I18n = (() => {
             'planet.gTypeStar': 'نجم من النوع G',
         },
         hi: {
+            'menu.resumeGame': '▶ खेल जारी रखें', 'menu.resumeDetail': 'स्कोर: {score} · स्तर: {level}', 'menu.resumeDiscard': 'सहेजा गया खेल हटाएं',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "पूरा ऐप खोलें",
             'redirect.body': "सर्वोत्तम अनुभव के लिए, और गेम को अपनी होम स्क्रीन पर जोड़ने के लिए, पूरा संस्करण खोलें।",

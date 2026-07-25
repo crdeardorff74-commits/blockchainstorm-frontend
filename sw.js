@@ -19,6 +19,7 @@ const CORE_ASSETS = [
     '/i18n.js',
     '/leaderboard.js',
     '/render-utils.js',
+    '/save-game.js',
     '/settings-sync.js',
     '/starfield.js',
     '/storm-effects.js',

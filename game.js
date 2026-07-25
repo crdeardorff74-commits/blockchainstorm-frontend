@@ -5629,6 +5629,8 @@ function togglePause() {
             stopMusic();
         }
     }
+    // Paused-game persistence: snapshot on pause, spend the save on unpause
+    if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
 }
 
 let faceOpacity = 0.33; // Default 33% opacity
@@ -9798,6 +9800,9 @@ async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
+    // Finished HUMAN games aren't resumable; an AI demo's game-over must
+    // not clear a human player's paused-game save.
+    if (typeof SaveGame !== 'undefined' && !aiModeEnabled) SaveGame.clear();
     HintSystem.onGameEnd();
     // CrazyGames lifecycle (no-op if gameplayStart never fired, e.g. AI games)
     if (typeof CgSdk !== 'undefined') CgSdk.gameplayStop();
@@ -10996,7 +11001,34 @@ function update(time = 0) {
     gameLoop = requestAnimationFrame(update);
 }
 
-function startGame(mode) {
+// resumeSave: optional paused-game snapshot from SaveGame (save-game.js).
+// When present, the full normal init below still runs — wiring every
+// module for the saved difficulty/challenge set — then SaveGame.applySnapshot
+// overlays the saved board/pieces/score/recording just before the loop starts.
+function startGame(mode, resumeSave) {
+    // Starting a fresh human game abandons any paused-game save (the
+    // Resume card was right there on the menu). AI/tuning starts leave it
+    // alone — the AI demo loop must never eat a human player's save.
+    if (typeof SaveGame !== 'undefined' && !resumeSave && !aiModeEnabled) {
+        SaveGame.clear();
+    }
+    // Resumed games restore the skill level and challenge set they were
+    // started with (they feed challenge intensity, the recording config,
+    // and the /started analytics payload below — so set them FIRST). The
+    // menu checkboxes keep driving fresh games only; the re-derive block
+    // further down is skipped when resuming.
+    if (resumeSave) {
+        if (resumeSave.skillLevel) {
+            skillLevel = resumeSave.skillLevel;
+            // Keep the persisted pick and the menu button in step so the
+            // NEXT fresh game doesn't silently inherit a mismatched label
+            try { localStorage.setItem('skillLevel', skillLevel); } catch (e) { /* private mode */ }
+            if (typeof updateSkillLevelButton === 'function') updateSkillLevelButton();
+        }
+        activeChallenges.clear();
+        (Array.isArray(resumeSave.challenges) ? resumeSave.challenges : []).forEach(c => activeChallenges.add(c));
+        challengeMode = resumeSave.challengeMode || 'normal';
+    }
     // CrazyGames lifecycle: human games only — the AI demo loop and replays
     // aren't player gameplay (replays never route through startGame at all)
     if (typeof CgSdk !== 'undefined' && !aiModeEnabled) {
@@ -11188,19 +11220,25 @@ function startGame(mode) {
     currentPiece = null;
     nextPieceQueue = [];
     
-    // CRITICAL: Re-derive challenge state from checkbox UI to prevent stale carryover
-    activeChallenges.clear();
-    document.querySelectorAll('.combo-checkbox-option input[type="checkbox"]:checked').forEach(cb => {
-        activeChallenges.add(cb.value);
-    });
-    if (activeChallenges.size === 0) {
-        challengeMode = 'normal';
-    } else if (activeChallenges.size === 1) {
-        challengeMode = Array.from(activeChallenges)[0];
+    if (resumeSave) {
+        // Resume: challenge state was already restored from the save at
+        // the top of startGame — don't let the checkboxes overwrite it.
+        Logger.debug('🎮 Challenge state from paused-game save:', challengeMode, Array.from(activeChallenges));
     } else {
-        challengeMode = 'combo';
+        // CRITICAL: Re-derive challenge state from checkbox UI to prevent stale carryover
+        activeChallenges.clear();
+        document.querySelectorAll('.combo-checkbox-option input[type="checkbox"]:checked').forEach(cb => {
+            activeChallenges.add(cb.value);
+        });
+        if (activeChallenges.size === 0) {
+            challengeMode = 'normal';
+        } else if (activeChallenges.size === 1) {
+            challengeMode = Array.from(activeChallenges)[0];
+        } else {
+            challengeMode = 'combo';
+        }
+        Logger.debug('🎮 Challenge state from checkboxes:', challengeMode, Array.from(activeChallenges));
     }
-    Logger.debug('🎮 Challenge state from checkboxes:', challengeMode, Array.from(activeChallenges));
     applyChallengeMode(challengeMode);
     
     // CRITICAL: Clear any keyboard state from previous game
@@ -11467,9 +11505,10 @@ function startGame(mode) {
         });
     }
     
-    // Lattice mode: Pre-fill bottom half with random blocks
+    // Lattice mode: Pre-fill bottom half with random blocks (skipped when
+    // resuming — the saved board and lattice grid are restored below)
     const isLatticeMode = challengeMode === 'lattice' || activeChallenges.has('lattice');
-    if (isLatticeMode && window.ChallengeEffects && ChallengeEffects.Lattice) {
+    if (!resumeSave && isLatticeMode && window.ChallengeEffects && ChallengeEffects.Lattice) {
         ChallengeEffects.Lattice.fillBoard(board, isRandomBlock, randomColor);
     }
     
@@ -11511,16 +11550,23 @@ function startGame(mode) {
     
     // Update music dropdown purge indicators
     updateMusicDropdownPurgeIndicators();
-    
-    startMusic(gameMode, musicSelect);
-    
-    
-    // Update song display after a short delay (to let audio load)
-    setTimeout(() => {
-        const songInfo = getCurrentSongInfo();
-        if (songInfo) updateSongInfoDisplay(songInfo);
-    }, 100);
-    
+
+    if (resumeSave && typeof SaveGame !== 'undefined') {
+        // Overlay the paused-game snapshot on the freshly initialized
+        // game: board grids, pieces, score/level, counters, recording.
+        // Music is NOT started here — SaveGame.resume() lands the game in
+        // the paused state, and every unpause path starts music itself.
+        SaveGame.applySnapshot(resumeSave);
+    } else {
+        startMusic(gameMode, musicSelect);
+
+        // Update song display after a short delay (to let audio load)
+        setTimeout(() => {
+            const songInfo = getCurrentSongInfo();
+            if (songInfo) updateSongInfoDisplay(songInfo);
+        }, 100);
+    }
+
     update();
 }
 
@@ -11561,6 +11607,7 @@ document.addEventListener('keydown', e => {
         if (paused && !GameReplay.isActive()) {
             e.preventDefault();
             paused = false; StarfieldSystem.setPaused(false);
+            if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
             settingsBtn.classList.add('hidden-during-play');
             // Show pause button again (only in tablet mode)
             const pauseBtn = document.getElementById('pauseBtn');
@@ -11597,6 +11644,7 @@ document.addEventListener('keydown', e => {
             paused = true; StarfieldSystem.setPaused(true);
             justPaused = true;
             setTimeout(() => { justPaused = false; }, 300);
+            if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
             settingsBtn.classList.remove('hidden-during-play');
             // Hide pause button while paused
             const pauseBtn = document.getElementById('pauseBtn');
@@ -11779,6 +11827,13 @@ document.addEventListener('keydown', e => {
         }
         if (e.key === 'Enter') {
             e.preventDefault();
+            // A Tab-focused Resume/discard button wins over the default
+            // start-a-fresh-game Enter (which would clear the saved game)
+            const focused = document.activeElement;
+            if (focused && (focused.id === 'menuResumeGameBtn' || focused.id === 'menuResumeDiscardBtn')) {
+                focused.click();
+                return;
+            }
             closeAllMenuPopups();
             const mode = modeButtonsArray[selectedModeIndex].getAttribute('data-mode');
             startGame(mode);
@@ -12302,6 +12357,7 @@ settingsBtn.addEventListener('click', () => {
         paused = true; StarfieldSystem.setPaused(true);
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300);
+        if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
         // Hide pause button while settings is open
         const pauseBtn = document.getElementById('pauseBtn');
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -12321,6 +12377,7 @@ settingsCloseBtn.addEventListener('click', () => {
     settingsOverlay.style.display = 'none';
     if (gameRunning && !wasPausedBeforeSettings) {
         paused = false; StarfieldSystem.setPaused(false);
+        if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
         // Show pause button again (only in tablet mode)
         const pauseBtn = document.getElementById('pauseBtn');
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
@@ -13524,9 +13581,12 @@ if (startOverlay) {
         });
     }
     
-    // Start Game button handler
+    // Start Game button handler. resumeSnap (optional): a paused-game save
+    // from SaveGame — the intro's Resume button enters here so the resume
+    // gets the same audio-blessing/music/fullscreen treatment as a fresh
+    // start, then resumes instead of starting a new game.
     let introScreenDismissed = false;
-    const dismissIntroScreen = function() {
+    const dismissIntroScreen = function(resumeSnap) {
         // Guard against double-fire (touchend + synthetic click on iOS)
         if (introScreenDismissed) return;
         introScreenDismissed = true;
@@ -13592,16 +13652,25 @@ if (startOverlay) {
         startOverlay.style.transition = 'opacity 0.15s';
         // Clear SW refresh guard so future updates can auto-refresh
         try { sessionStorage.removeItem('tantro_sw_refreshed'); } catch(e) {}
-        // Start game immediately
-        const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
-        startGame(mode);
+        // Start game immediately — or restore the paused-game save, landing
+        // in the paused state so the player unpauses when ready
+        if (resumeSnap) {
+            startGame(resumeSnap.gameMode, resumeSnap);
+            if (!paused) togglePause();
+        } else {
+            const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
+            startGame(mode);
+        }
         setTimeout(() => {
             startOverlay.style.display = 'none';
             window._dismissingIntro = false;
         }, 400);
-        
+
     }
-    
+    // save-game.js routes intro-screen resumes through the full dismissal
+    // flow above (audio blessing, music, fullscreen, overlay fade)
+    window.dismissIntroScreen = dismissIntroScreen;
+
     if (startGameBtn) {
         startGameBtn.addEventListener('click', (e) => {
             _audioDbg('startGameBtn CLICK fired');
@@ -13644,6 +13713,13 @@ document.addEventListener('keydown', (e) => {
         // Only start on Enter or Space key
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
+            // A Tab-focused Resume/discard button wins over the default
+            // start-a-fresh-game shortcut (which would clear the saved game)
+            const focused = document.activeElement;
+            if (focused && (focused.id === 'introResumeGameBtn' || focused.id === 'introResumeDiscardBtn')) {
+                focused.click();
+                return;
+            }
             const startGameBtn = document.getElementById('startGameBtn');
             if (startGameBtn) {
                 startGameBtn.click();
