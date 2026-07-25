@@ -13555,6 +13555,22 @@ if (startOverlay) {
             persistMusicChoice();
         });
     }
+
+    // Intro SFX toggle mirrors the persisted SFX mute state (audio.js owns
+    // tantro_sfxMuted; the in-game volume panel's mute button shares it)
+    const introSfxCheckbox = document.getElementById('introSfxCheckbox');
+    if (introSfxCheckbox) {
+        introSfxCheckbox.checked = typeof isSfxMuted === 'function' ? !isSfxMuted() : true;
+        introSfxCheckbox.addEventListener('change', () => {
+            if (typeof setSfxMuted === 'function') setSfxMuted(!introSfxCheckbox.checked);
+            // Keep the volume panel's mute icon in step (it only exists
+            // once createVolumeControls has run)
+            const sfxBtn = document.getElementById('sfxMuteBtn');
+            if (sfxBtn && typeof isSfxMuted === 'function') {
+                updateMuteButtonIcon(sfxBtn, isSfxMuted());
+            }
+        });
+    }
     // Sync skill level selectors (intro, settings)
     const introSkillLevelSelect = document.getElementById('introSkillLevelSelect');
     const skillLevelSelect = document.getElementById('skillLevelSelect');

@@ -29,6 +29,7 @@ const I18n = (() => {
     const translations = {
         en: {
             'menu.resumeGame': '▶ Resume Game', 'menu.resumeDetail': 'Score: {score} · Level: {level}', 'menu.resumeDiscard': 'Discard saved game',
+            'intro.sfx': 'SFX',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Open the full app",
             'redirect.body': "For the best experience — and to add the game to your home screen — open the full version.",
@@ -303,6 +304,7 @@ const I18n = (() => {
         },
         es: {
             'menu.resumeGame': '▶ Reanudar Juego', 'menu.resumeDetail': 'Puntuación: {score} · Nivel: {level}', 'menu.resumeDiscard': 'Descartar partida guardada',
+            'intro.sfx': 'Efectos',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Abre la app completa",
             'redirect.body': "Para una mejor experiencia, y para añadir el juego a tu pantalla de inicio, abre la versión completa.",
@@ -516,6 +518,7 @@ const I18n = (() => {
         },
         fr: {
             'menu.resumeGame': '▶ Reprendre la Partie', 'menu.resumeDetail': 'Score : {score} · Niveau : {level}', 'menu.resumeDiscard': 'Supprimer la partie sauvegardée',
+            'intro.sfx': 'Effets',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Ouvrir l'appli complète",
             'redirect.body': "Pour une meilleure expérience, et pour ajouter le jeu à votre écran d'accueil, ouvrez la version complète.",
@@ -729,6 +732,7 @@ const I18n = (() => {
         },
         de: {
             'menu.resumeGame': '▶ Spiel Fortsetzen', 'menu.resumeDetail': 'Punkte: {score} · Level: {level}', 'menu.resumeDiscard': 'Gespeichertes Spiel verwerfen',
+            'intro.sfx': 'Effekte',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Vollständige App öffnen",
             'redirect.body': "Für das beste Erlebnis – und um das Spiel zum Startbildschirm hinzuzufügen – öffne die vollständige Version.",
@@ -942,6 +946,7 @@ const I18n = (() => {
         },
         pt: {
             'menu.resumeGame': '▶ Retomar Jogo', 'menu.resumeDetail': 'Pontuação: {score} · Nível: {level}', 'menu.resumeDiscard': 'Descartar jogo salvo',
+            'intro.sfx': 'Efeitos',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Abrir o app completo",
             'redirect.body': "Para a melhor experiência, e para adicionar o jogo à tela inicial, abra a versão completa.",
@@ -1037,6 +1042,7 @@ const I18n = (() => {
         },
         ja: {
             'menu.resumeGame': '▶ ゲーム再開', 'menu.resumeDetail': 'スコア: {score} · レベル: {level}', 'menu.resumeDiscard': '保存したゲームを破棄',
+            'intro.sfx': '効果音',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "フルアプリを開く",
             'redirect.body': "最高の体験のために、そしてゲームをホーム画面に追加するには、フルバージョンを開いてください。",
@@ -1126,6 +1132,7 @@ const I18n = (() => {
         },
         ko: {
             'menu.resumeGame': '▶ 게임 재개', 'menu.resumeDetail': '점수: {score} · 레벨: {level}', 'menu.resumeDiscard': '저장된 게임 삭제',
+            'intro.sfx': '효과음',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "전체 앱 열기",
             'redirect.body': "최상의 경험을 위해, 그리고 게임을 홈 화면에 추가하려면 전체 버전을 여세요.",
@@ -1204,6 +1211,7 @@ const I18n = (() => {
         },
         zh: {
             'menu.resumeGame': '▶ 继续游戏', 'menu.resumeDetail': '分数: {score} · 等级: {level}', 'menu.resumeDiscard': '删除已保存的游戏',
+            'intro.sfx': '音效',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "打开完整应用",
             'redirect.body': "为获得最佳体验，并将游戏添加到主屏幕，请打开完整版本。",
@@ -1282,6 +1290,7 @@ const I18n = (() => {
         },
         ru: {
             'menu.resumeGame': '▶ Продолжить Игру', 'menu.resumeDetail': 'Счёт: {score} · Уровень: {level}', 'menu.resumeDiscard': 'Удалить сохранённую игру',
+            'intro.sfx': 'Эффекты',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Открыть полное приложение",
             'redirect.body': "Для лучшего опыта и чтобы добавить игру на главный экран, откройте полную версию.",
@@ -1369,6 +1378,7 @@ const I18n = (() => {
         },
         it: {
             'menu.resumeGame': '▶ Riprendi Partita', 'menu.resumeDetail': 'Punteggio: {score} · Livello: {level}', 'menu.resumeDiscard': 'Elimina partita salvata',
+            'intro.sfx': 'Effetti',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Apri l'app completa",
             'redirect.body': "Per la migliore esperienza, e per aggiungere il gioco alla schermata Home, apri la versione completa.",
@@ -1436,6 +1446,7 @@ const I18n = (() => {
         },
         nl: {
             'menu.resumeGame': '▶ Spel Hervatten', 'menu.resumeDetail': 'Score: {score} · Level: {level}', 'menu.resumeDiscard': 'Opgeslagen spel verwijderen',
+            'intro.sfx': 'Effecten',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Open de volledige app",
             'redirect.body': "Voor de beste ervaring — en om het spel aan je beginscherm toe te voegen — open je de volledige versie.",
@@ -1628,6 +1639,7 @@ const I18n = (() => {
         },
         pl: {
             'menu.resumeGame': '▶ Wznów Grę', 'menu.resumeDetail': 'Wynik: {score} · Poziom: {level}', 'menu.resumeDiscard': 'Odrzuć zapisaną grę',
+            'intro.sfx': 'Efekty',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Otwórz pełną aplikację",
             'redirect.body': "Aby uzyskać najlepsze wrażenia i dodać grę do ekranu głównego, otwórz pełną wersję.",
@@ -1821,6 +1833,7 @@ const I18n = (() => {
         },
         tr: {
             'menu.resumeGame': '▶ Oyuna Devam Et', 'menu.resumeDetail': 'Skor: {score} · Seviye: {level}', 'menu.resumeDiscard': 'Kayıtlı oyunu sil',
+            'intro.sfx': 'Efektler',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "Tam uygulamayı aç",
             'redirect.body': "En iyi deneyim için ve oyunu ana ekranınıza eklemek için tam sürümü açın.",
@@ -2014,6 +2027,7 @@ const I18n = (() => {
         },
         ar: {
             'menu.resumeGame': '▶ استئناف اللعبة', 'menu.resumeDetail': 'النقاط: {score} · المستوى: {level}', 'menu.resumeDiscard': 'حذف اللعبة المحفوظة',
+            'intro.sfx': 'المؤثرات',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "افتح التطبيق الكامل",
             'redirect.body': "للحصول على أفضل تجربة، ولإضافة اللعبة إلى الشاشة الرئيسية، افتح النسخة الكاملة.",
@@ -2207,6 +2221,7 @@ const I18n = (() => {
         },
         hi: {
             'menu.resumeGame': '▶ खेल जारी रखें', 'menu.resumeDetail': 'स्कोर: {score} · स्तर: {level}', 'menu.resumeDiscard': 'सहेजा गया खेल हटाएं',
+            'intro.sfx': 'ध्वनि प्रभाव',
             // Home-screen redirect overlay (platform-redirect.js)
             'redirect.title': "पूरा ऐप खोलें",
             'redirect.body': "सर्वोत्तम अनुभव के लिए, और गेम को अपनी होम स्क्रीन पर जोड़ने के लिए, पूरा संस्करण खोलें।",
