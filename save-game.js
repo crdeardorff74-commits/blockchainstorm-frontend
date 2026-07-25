@@ -260,20 +260,22 @@ const SaveGame = (() => {
         drawNextPiece();
     }
 
-    // Music intent tracking: the intro toggle resets to ON every page
-    // load, so its DEFAULT state is not a preference — but a toggle (or
-    // settings-dropdown change) the player makes THIS session is, and it
-    // must outrank the snapshot's saved music state on resume. Without
-    // this, turning music off at the intro and hitting Resume would get
-    // overridden by a save that recorded music ON.
-    let musicTouchedThisSession = false;
-    (function watchMusicIntent() {
+    /**
+     * At page load, make the music controls SHOW the saved game's music
+     * state (the intro toggle otherwise resets to ON every load). From
+     * then on the visible controls are the single source of truth: the
+     * player can flip them before resuming, and resume simply plays
+     * whatever they show — no hidden state to fight the UI.
+     */
+    function syncMusicControlsFromSave() {
+        const snap = load();
+        if (!snap || typeof snap.musicValue !== 'string') return;
+        if (!musicSelect) return;
+        if (!Array.from(musicSelect.options).some(o => o.value === snap.musicValue)) return;
+        musicSelect.value = snap.musicValue;
         const introMusic = document.getElementById('introMusicCheckbox');
-        if (introMusic) introMusic.addEventListener('change', () => { musicTouchedThisSession = true; });
-        if (typeof musicSelect !== 'undefined' && musicSelect) {
-            musicSelect.addEventListener('change', () => { musicTouchedThisSession = true; });
-        }
-    })();
+        if (introMusic) introMusic.checked = snap.musicValue !== 'none';
+    }
 
     /**
      * Resume the saved game (from the intro screen or the mode menu).
@@ -287,19 +289,9 @@ const SaveGame = (() => {
         const snap = load();
         if (!snap) { refreshResumeUI(); return; }
         if (gameRunning) return;
-        // Restore the music on/off state the game was paused with, BEFORE
-        // the intro-dismissal flow reads musicSelect (it starts menu music
-        // for non-'none' values). Skipped when the player already touched
-        // a music control this session (their gesture wins), or if the
-        // saved value no longer exists in the dropdown (e.g. a retired
-        // playlist option).
-        if (!musicTouchedThisSession &&
-            typeof snap.musicValue === 'string' && musicSelect &&
-            Array.from(musicSelect.options).some(o => o.value === snap.musicValue)) {
-            musicSelect.value = snap.musicValue;
-            const introMusic = document.getElementById('introMusicCheckbox');
-            if (introMusic) introMusic.checked = snap.musicValue !== 'none';
-        }
+        // No music handling here: syncMusicControlsFromSave() already made
+        // the visible controls reflect the saved state at page load, and
+        // any toggle the player made since is exactly what should play.
         const overlay = document.getElementById('startOverlay');
         const introVisible = overlay && overlay.style.display !== 'none' &&
             window.getComputedStyle(overlay).display !== 'none';
@@ -375,6 +367,7 @@ const SaveGame = (() => {
         }
     }
     refreshResumeUI();
+    syncMusicControlsFromSave();
     // Repaint after I18n.init picks the player's language (i18n.js
     // registered its DOMContentLoaded listener first, so it runs first) —
     // the detail line above may have painted with the English fallback.
