@@ -13516,9 +13516,14 @@ if (startOverlay) {
         // toggle doesn't make sense there (iOS can't; Android users get the
         // install-app hint instead). Fullscreen still defaults ON above so
         // Android browsers that support it enter fullscreen at game start.
+        // The row gets a two-up class: with edge-pinning (space-between)
+        // two pills would leave a chasm in the middle — CSS spreads them
+        // evenly instead.
         if (DeviceDetection.isMobile) {
             const fsToggle = document.getElementById('introFullscreenToggle');
             if (fsToggle) fsToggle.style.display = 'none';
+            const togglesRow = document.querySelector('.intro-toggles-row');
+            if (togglesRow) togglesRow.classList.add('intro-toggles-two-up');
         }
     })();
     

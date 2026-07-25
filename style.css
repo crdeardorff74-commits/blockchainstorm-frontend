@@ -1239,6 +1239,12 @@
             margin-top: max(2.2vh, 14px);
             margin-bottom: max(0.5vh, 4px);
         }
+        /* Phones hide the Full Screen toggle (game.js adds this class):
+           with only two pills, edge-pinning reads as a hole in the middle —
+           distribute the leftover width evenly around them instead */
+        .intro-toggles-row.intro-toggles-two-up {
+            justify-content: space-evenly;
+        }
         /* Each toggle hugs its content — no dead space between label and
            switch; the row's leftover width sits BETWEEN the pills instead */
         .intro-toggles-row .intro-toggle {
