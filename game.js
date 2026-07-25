@@ -11554,18 +11554,19 @@ function startGame(mode, resumeSave) {
     if (resumeSave && typeof SaveGame !== 'undefined') {
         // Overlay the paused-game snapshot on the freshly initialized
         // game: board grids, pieces, score/level, counters, recording.
-        // Music is NOT started here — SaveGame.resume() lands the game in
-        // the paused state, and every unpause path starts music itself.
+        // Play continues immediately — SaveGame.resume() restored the
+        // saved music on/off state before we got here, so the normal
+        // startMusic call below respects it.
         SaveGame.applySnapshot(resumeSave);
-    } else {
-        startMusic(gameMode, musicSelect);
-
-        // Update song display after a short delay (to let audio load)
-        setTimeout(() => {
-            const songInfo = getCurrentSongInfo();
-            if (songInfo) updateSongInfoDisplay(songInfo);
-        }, 100);
     }
+
+    startMusic(gameMode, musicSelect);
+
+    // Update song display after a short delay (to let audio load)
+    setTimeout(() => {
+        const songInfo = getCurrentSongInfo();
+        if (songInfo) updateSongInfoDisplay(songInfo);
+    }, 100);
 
     update();
 }
@@ -13652,11 +13653,10 @@ if (startOverlay) {
         startOverlay.style.transition = 'opacity 0.15s';
         // Clear SW refresh guard so future updates can auto-refresh
         try { sessionStorage.removeItem('tantro_sw_refreshed'); } catch(e) {}
-        // Start game immediately — or restore the paused-game save, landing
-        // in the paused state so the player unpauses when ready
+        // Start game immediately — or restore the paused-game save and
+        // continue play right where it left off
         if (resumeSnap) {
             startGame(resumeSnap.gameMode, resumeSnap);
-            if (!paused) togglePause();
         } else {
             const mode = modeButtonsArray[selectedModeIndex]?.getAttribute('data-mode') || 'downpour';
             startGame(mode);

@@ -11,12 +11,12 @@
  *   - written every time the game becomes paused (P/Escape/pause button,
  *     tap, gamepad, or opening Settings mid-game) — game.js calls
  *     SaveGame.onPauseChanged() at every pause-state flip
- *   - cleared on unpause (so the save only exists while paused — no
- *     rewind-scumming), on game over, and when a fresh human game starts
+ *   - cleared on unpause, at the moment a resume restarts play, on game
+ *     over, and when a fresh human game starts — the save never outlives
+ *     the pause it captured, so there's no rewind-scumming
  *   - resume re-enters through startGame(mode, resumeSave); startGame
  *     runs its full normal init, then calls SaveGame.applySnapshot() to
- *     overlay the saved state, and the resume lands in the paused state
- *     so the player can take stock before play continues
+ *     overlay the saved state, and play continues immediately
  *
  * Never saved: AI/tuning games, replays, and moments when a transient
  * animation is in flight (line clears, gravity, weather events, hard
@@ -109,6 +109,11 @@ const SaveGame = (() => {
             // intro toggle resets to ON every page load, which would
             // silently re-enable music on a resumed game.
             musicValue: (musicSelect && typeof musicSelect.value === 'string') ? musicSelect.value : null,
+            // Starfield journey (sun shrink progress + which planets have
+            // already flown by) — without it a resume replays the whole
+            // trip: full-size sun and every passed planet at once.
+            starfield: (typeof StarfieldSystem !== 'undefined' && StarfieldSystem.getJourneySnapshot)
+                ? StarfieldSystem.getJourneySnapshot() : null,
             elapsedMs: now - gameStartTime,
             pieceElapsedMs: pieceSpawnTime > 0 ? now - pieceSpawnTime : 0,
             recorder: (typeof GameRecorder !== 'undefined' && GameRecorder.snapshot)
@@ -212,6 +217,13 @@ const SaveGame = (() => {
         level = snap.level;
         currentGameLevel = snap.currentGameLevel || snap.level;
         StarfieldSystem.setCurrentGameLevel(currentGameLevel);
+        // Restore the journey AFTER startGame's StarfieldSystem.reset() —
+        // otherwise the sun snaps back to full size and every passed
+        // planet starts its fly-by at once. (Old saves without the field
+        // keep the replay behavior — harmless, purely visual.)
+        if (snap.starfield && StarfieldSystem.restoreJourneySnapshot) {
+            StarfieldSystem.restoreJourneySnapshot(snap.starfield);
+        }
         strikeCount = snap.strikeCount || 0;
         tsunamiCount = snap.tsunamiCount || 0;
         blackHoleCount = snap.blackHoleCount || 0;
@@ -252,8 +264,9 @@ const SaveGame = (() => {
      * Resume the saved game (from the intro screen or the mode menu).
      * Intro-screen resumes route through dismissIntroScreen so they get
      * the same audio-blessing/music/fullscreen treatment as a fresh
-     * start. Either way the game lands paused, so the player unpauses
-     * (tap / any key / gamepad) when ready.
+     * start. Play continues immediately, and the save is spent at that
+     * moment — leaving it around would allow rewinding to the old pause
+     * point by killing the tab mid-run.
      */
     function resume() {
         const snap = load();
@@ -276,8 +289,10 @@ const SaveGame = (() => {
             window.dismissIntroScreen(snap);
         } else {
             startGame(snap.gameMode, snap);
-            if (!paused) togglePause();
         }
+        // Spend the save once play has actually restarted (the gameRunning
+        // check covers dismissIntroScreen's double-fire guard bailing out).
+        if (gameRunning) clear();
     }
 
     /**

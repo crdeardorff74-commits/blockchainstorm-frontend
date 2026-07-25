@@ -1918,6 +1918,29 @@ const StarfieldSystem = (function() {
         getPlanets: () => planets,
         getPlanetAnimations: () => planetAnimations,
         setPlanetAnimations: (val) => { planetAnimations = val; },
+
+        // Paused-game save support (save-game.js): capture/restore the
+        // journey so a resumed game doesn't replay the whole trip — the
+        // sun back at full size and every already-passed planet flying
+        // by at once. planetAnimations entries are plain numbers, so the
+        // snapshot is JSON-safe; a mid-flight fly-by resumes where it
+        // froze.
+        getJourneySnapshot: () => ({
+            journeyProgress: journeyProgress,
+            planetAnimations: planetAnimations,
+            asteroidBeltShown: asteroidBeltShown
+        }),
+        restoreJourneySnapshot: (snap) => {
+            if (!snap) return;
+            journeyProgress = snap.journeyProgress || 0;
+            planetAnimations = snap.planetAnimations || {};
+            asteroidBeltShown = !!snap.asteroidBeltShown;
+            // The belt's in-flight asteroids are transient and not saved;
+            // asteroidBeltShown gates it from replaying on resume.
+            asteroidBeltActive = false;
+            asteroidBeltProgress = 0;
+            asteroids = [];
+        },
         
         // Canvas access (if needed externally)
         getCanvas: () => starfieldCanvas,
