@@ -38,7 +38,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <!-- Full-bleed variant: iOS renders transparency as black, so the
+         square space-backdrop crop looks intentional there -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192-maskable.png">
 
     <!-- Capture Android/Chrome's native install prompt as early as possible so
          the intro can offer a one-tap "Install" button instead of manual
@@ -1338,7 +1340,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '4.29';</script>
+	<script>var PAGE_VERSION = '4.30';</script>
 	<script src="config.js"></script>
 	<script src="cg-sdk.js"></script>
 	<script src="i18n.js"></script>
