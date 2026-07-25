@@ -18,10 +18,13 @@
  *     runs its full normal init, then calls SaveGame.applySnapshot() to
  *     overlay the saved state, and play continues immediately
  *
- * Never saved: AI/tuning games, replays, and moments when a transient
- * animation is in flight (line clears, gravity, weather events, hard
- * drops) — restoring half-finished animation state isn't feasible, and
- * those windows last well under a second.
+ * Never saved: AI/tuning games, replays, and moments when an animation
+ * is in flight — restoring half-finished animation state isn't feasible.
+ * game.js keeps that window tiny by DEFERRING pause requests made during
+ * transient animations (line clears, gravity, weather events, hard
+ * drops) until they complete; the exceptions are tornadoes (interactive,
+ * never deferred — pausing one freezes it, unsaveable as before) and the
+ * settings-open pause (must be immediate).
  *
  * Relies on game.js top-level bindings via the shared global lexical
  * scope (classic scripts) — this file must load AFTER game.js.
@@ -35,16 +38,16 @@ const SaveGame = (() => {
     const VALID_MODES = ['drizzle', 'downpour', 'hailstorm', 'blizzard', 'hurricane'];
 
     /**
-     * True while any transient animation owns part of the game state.
-     * Snapshots taken during these windows would restore into a broken
-     * half-animated board, so save() refuses them.
+     * True while any animation owns part of the game state — snapshots
+     * taken then would restore into a broken half-animated board, so
+     * save() refuses them. Rarely hit in practice: game.js DEFERS pause
+     * requests made during transient animations until they complete
+     * (see transientAnimationActive there). The remaining unsaveable
+     * windows are tornadoes (interactive, so never deferred) and the
+     * immediate settings-open pause.
      */
     function animationInFlight() {
-        return animatingLines || pendingLineCheck || gravityAnimating || hardDropping ||
-               tornadoActive || earthquakeActive ||
-               blackHoleActive || blackHoleAnimating ||
-               tsunamiActive || tsunamiAnimating ||
-               volcanoActive || volcanoAnimating;
+        return tornadoActive || transientAnimationActive();
     }
 
     /**

@@ -5585,6 +5585,24 @@ let nervousVibrateOffset = 0; // Current Y offset for nervous mode vibration
 let paused = false; StarfieldSystem.setPaused(false);
 let justPaused = false; // Flag to prevent immediate unpause from tap handler
 
+// True while a transient, SELF-RESOLVING animation owns part of the game
+// state: line clears, gravity, hard drops, and the timed weather events
+// (tsunami ~2s, black hole, volcano, earthquake). A pause requested during
+// one of these is DEFERRED until it completes — update() applies it on the
+// first clean frame — so the paused-game save (save-game.js) captures a
+// resumable board instead of being skipped. Tornadoes are deliberately
+// excluded: the player keeps playing through them, so deferring could
+// force many seconds of unwanted play — a tornado pause freezes mid-event
+// exactly as before (and that moment simply isn't saveable).
+function transientAnimationActive() {
+    return animatingLines || pendingLineCheck || gravityAnimating || hardDropping ||
+           earthquakeActive ||
+           blackHoleActive || blackHoleAnimating ||
+           tsunamiActive || tsunamiAnimating ||
+           volcanoActive || volcanoAnimating;
+}
+let pendingPause = false; // pause requested mid-animation; update() applies it at completion
+
 // Toggle pause state
 function togglePause() {
     if (!gameRunning) return;
@@ -5597,6 +5615,7 @@ function togglePause() {
     if (paused) {
         // Unpause
         paused = false;
+        pendingPause = false;
         StarfieldSystem.setPaused(false);
         if (typeof CgSdk !== 'undefined') CgSdk.overlayResume();
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
@@ -5612,8 +5631,15 @@ function togglePause() {
             }
         }
     } else {
+        // Mid-animation pause is deferred to the first clean frame (a
+        // second press cancels the request). Replays keep instant pause.
+        if (!GameReplay.isActive() && transientAnimationActive()) {
+            pendingPause = !pendingPause;
+            return;
+        }
         // Pause
         paused = true;
+        pendingPause = false;
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
         StarfieldSystem.setPaused(true);
@@ -9800,6 +9826,7 @@ async function gameOver() {
     gameRunning = false; StarfieldSystem.setGameRunning(false);
     setGameInProgress(false); // Notify audio system game ended
     gameOverPending = false; // Reset the pending flag
+    pendingPause = false; // a deferred pause dies with the game (e.g. requested during the fatal line clear)
     // Finished HUMAN games aren't resumable; an AI demo's game-over must
     // not clear a human player's paused-game save.
     if (typeof SaveGame !== 'undefined' && !aiModeEnabled) SaveGame.clear();
@@ -10676,6 +10703,13 @@ function update(time = 0) {
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
 
+    // Deferred pause: requested mid-animation, lands on the first frame
+    // the board is clean so the paused-game save captures resumable state
+    if (pendingPause && !paused && !transientAnimationActive()) {
+        pendingPause = false;
+        togglePause();
+    }
+
     // Deterministic replay mode: process recorded inputs instead of AI or keyboard
     if (GameReplay.isActive()) {
         GameReplay.processInputs();
@@ -10959,6 +10993,23 @@ function update(time = 0) {
         ctx.strokeText(pausedText, canvas.width / 2, canvas.height / 2);
         ctx.fillText(pausedText, canvas.width / 2, canvas.height / 2);
         ctx.restore();
+    } else if (pendingPause) {
+        // Deferred-pause feedback: the pause is armed and lands when the
+        // current animation completes. Same PAUSED text, blinking, WITHOUT
+        // the dark backdrop — the animation underneath is still playing.
+        if (Math.floor(Date.now() / 400) % 2 === 0) {
+            ctx.save();
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.font = `bold ${Math.min(48, canvas.width * 0.18)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const pendingText = typeof I18n !== 'undefined' ? I18n.t('misc.paused') : 'PAUSED';
+            ctx.strokeText(pendingText, canvas.width / 2, canvas.height / 2);
+            ctx.fillText(pendingText, canvas.width / 2, canvas.height / 2);
+            ctx.restore();
+        }
     }
     
     // Draw AI mode indicator
@@ -11317,7 +11368,7 @@ function startGame(mode, resumeSave) {
     animatingLines = false;
     pendingLineCheck = false;
     if (window.ChallengeEffects && ChallengeEffects.YesAnd) ChallengeEffects.YesAnd.reset();
-    paused = false; StarfieldSystem.setPaused(false);
+    paused = false; pendingPause = false; StarfieldSystem.setPaused(false);
     triggeredTsunamis.clear();
     
     // Reset tornado state
@@ -11607,7 +11658,7 @@ document.addEventListener('keydown', e => {
         // But NOT during replay - use replay controls instead
         if (paused && !GameReplay.isActive()) {
             e.preventDefault();
-            paused = false; StarfieldSystem.setPaused(false);
+            paused = false; pendingPause = false; StarfieldSystem.setPaused(false);
             if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
             settingsBtn.classList.add('hidden-during-play');
             // Show pause button again (only in tablet mode)
@@ -11641,8 +11692,14 @@ document.addEventListener('keydown', e => {
         if (e.key === 'p' || e.key === 'P' || e.key === 'Pause' || e.key === 'Break'
             || (e.key === 'Escape' && !aiModeEnabled)) {
             e.preventDefault();
-            
-            paused = true; StarfieldSystem.setPaused(true);
+
+            // Mid-animation pause is deferred to the first clean frame (a
+            // second press cancels the request) — see transientAnimationActive
+            if (!GameReplay.isActive() && transientAnimationActive()) {
+                pendingPause = !pendingPause;
+                return;
+            }
+            paused = true; pendingPause = false; StarfieldSystem.setPaused(true);
             justPaused = true;
             setTimeout(() => { justPaused = false; }, 300);
             if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
@@ -12355,7 +12412,9 @@ playAgainBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', () => {
     wasPausedBeforeSettings = paused;
     if (gameRunning && !paused) {
-        paused = true; StarfieldSystem.setPaused(true);
+        // Settings must pause IMMEDIATELY (its overlay covers the screen),
+        // even mid-animation — that rare pause just isn't saveable.
+        paused = true; pendingPause = false; StarfieldSystem.setPaused(true);
         justPaused = true;
         setTimeout(() => { justPaused = false; }, 300);
         if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
