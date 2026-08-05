@@ -213,19 +213,22 @@ const RenderUtils = (() => {
             renderCtx.shadowColor = glowColor;
             renderCtx.shadowBlur = blockSize * glowRatio * glow;
             renderCtx.strokeStyle = glowColor;
-            renderCtx.lineWidth = Math.max(1, blockSize * 0.08);
+            const lw = Math.max(1, blockSize * 0.08);
+            renderCtx.lineWidth = lw;
             renderCtx.lineCap = 'round';
             renderCtx.lineJoin = 'round';
             renderCtx.globalAlpha = renderCtx.globalAlpha * 0.85 * glow;
+            const ins = lw / 2;
             renderCtx.beginPath();
             positions.forEach(([x, y]) => {
                 const px = Math.round(x * blockSize);
                 const py = Math.round(y * blockSize);
                 const ry = Math.round(y);
-                if (!posSet.has(`${x},${ry - 1}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px + blockSize, py); }
-                if (!posSet.has(`${x},${ry + 1}`)) { renderCtx.moveTo(px, py + blockSize); renderCtx.lineTo(px + blockSize, py + blockSize); }
-                if (!posSet.has(`${x - 1},${ry}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px, py + blockSize); }
-                if (!posSet.has(`${x + 1},${ry}`)) { renderCtx.moveTo(px + blockSize, py); renderCtx.lineTo(px + blockSize, py + blockSize); }
+                const x0 = px, x1 = px + blockSize, y0 = py, y1 = py + blockSize;
+                if (!posSet.has(`${x},${ry - 1}`)) { renderCtx.moveTo(x0, y0 + ins); renderCtx.lineTo(x1, y0 + ins); }
+                if (!posSet.has(`${x},${ry + 1}`)) { renderCtx.moveTo(x0, y1 - ins); renderCtx.lineTo(x1, y1 - ins); }
+                if (!posSet.has(`${x - 1},${ry}`)) { renderCtx.moveTo(x0 + ins, y0); renderCtx.lineTo(x0 + ins, y1); }
+                if (!posSet.has(`${x + 1},${ry}`)) { renderCtx.moveTo(x1 - ins, y0); renderCtx.lineTo(x1 - ins, y1); }
             });
             renderCtx.stroke();
             renderCtx.restore();

@@ -5731,7 +5731,11 @@ let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 // Cost is one blurred stroke PER SHAPE, not per block: shadowBlur is a real
 // gaussian and per-block would be ~200 of them a frame. It's a slider so it
 // can be turned off on slow devices — 0% skips the pass entirely.
-const GLOW_MAX_BLUR_RATIO = 0.55;   // × blockSize at 100%
+// Blur radius as a multiple of blockSize at 100%. Sized so the falloff
+// actually crosses the bevel and dies out around mid-block: the bevel band
+// is 20% of a block, so anything under ~0.5 is entirely hidden underneath
+// it and reads as "the edge got brighter" rather than as a glow.
+const GLOW_MAX_BLUR_RATIO = 1.6;
 let glowStrength = 0.40;            // default 40%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
@@ -6356,19 +6360,26 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         ctx.shadowColor = glowColor;
         ctx.shadowBlur = blockSize * GLOW_MAX_BLUR_RATIO * glowStrength;
         ctx.strokeStyle = glowColor;
-        ctx.lineWidth = Math.max(1, blockSize * 0.08);
+        const lw = Math.max(1, blockSize * 0.08);
+        ctx.lineWidth = lw;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.globalAlpha = ctx.globalAlpha * 0.85 * glowStrength;
+        // Inset each edge inward by half the line width so the WHOLE stroke
+        // lands inside the clip. Centred on the boundary, half of it (and
+        // half its blur) was being clipped away — which is why the first
+        // version read as a thin band hugging the edge instead of a glow.
+        const ins = lw / 2;
         ctx.beginPath();
         positions.forEach(([x, y]) => {
             const px = Math.round(x * blockSize);
             const py = Math.round(y * blockSize);
             const ry = Math.round(y);
-            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(px, py); ctx.lineTo(px + blockSize, py); }
-            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(px, py + blockSize); ctx.lineTo(px + blockSize, py + blockSize); }
-            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(px, py); ctx.lineTo(px, py + blockSize); }
-            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(px + blockSize, py); ctx.lineTo(px + blockSize, py + blockSize); }
+            const x0 = px, x1 = px + blockSize, y0 = py, y1 = py + blockSize;
+            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(x0, y0 + ins); ctx.lineTo(x1, y0 + ins); }
+            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(x0, y1 - ins); ctx.lineTo(x1, y1 - ins); }
+            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(x0 + ins, y0); ctx.lineTo(x0 + ins, y1); }
+            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(x1 - ins, y0); ctx.lineTo(x1 - ins, y1); }
         });
         ctx.stroke();
         ctx.restore();
