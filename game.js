@@ -5747,7 +5747,11 @@ const GLOW_REACH_RATIO = 1.1;
 // Per-side weights mirror the bevel's own light direction (top brightest,
 // bottom darkest). Weighting all four sides equally made every bevel edge
 // read the same and flattened the 3D look the bevels exist to create.
-const GLOW_SIDE_WEIGHT = { T: 1.0, L: 0.8, R: 0.5, B: 0.35 };
+// Kept a narrow spread on purpose: under 'lighten' the only remaining
+// discontinuity where two bands meet is the DIFFERENCE between their
+// weights, so a wide spread reintroduces visible corner seams. The bevels
+// themselves now carry most of the light direction.
+const GLOW_SIDE_WEIGHT = { T: 1.0, L: 0.85, R: 0.6, B: 0.45 };
 let glowStrength = 0.40;            // default 40%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
@@ -6049,27 +6053,33 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
 
     const has = (x, y) => posSet.has(`${x},${y}`);
     const groups = new Map();
-    const add = (side, key, v, from, to, fixedPx, capStart, capEnd) => {
+    const add = (side, key, v, from, to, fixedPx) => {
         const k = side + '|' + key;
         let arr = groups.get(k);
         if (!arr) { arr = []; groups.set(k, arr); }
-        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx, capStart: capStart, capEnd: capEnd });
+        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx });
     };
     positions.forEach(([x, y]) => {
         const ry = Math.round(y);                    // adjacency/grouping only
         const px = Math.round(x * blockSize);        // real pixels, may be mid-cell
         const py = Math.round(y * blockSize);
-        const openL = !has(x - 1, ry), openR = !has(x + 1, ry);
-        const openT = !has(x, ry - 1), openB = !has(x, ry + 1);
-        // capStart/capEnd mark the ends that abut a PERPENDICULAR exposed
-        // edge, i.e. a corner where that side's own bevel already sits.
-        if (openT) add('T', ry, x, px, px + blockSize, py + inset, openL, openR);
-        if (openB) add('B', ry, x, px, px + blockSize, py + blockSize - inset, openL, openR);
-        if (openL) add('L', x, ry, py, py + blockSize, px + inset, openT, openB);
-        if (openR) add('R', x, ry, py, py + blockSize, px + blockSize - inset, openT, openB);
+        // Bands span the FULL block edge. They are deliberately allowed to
+        // overlap in corners: pulling their ends back instead left a hard
+        // vertical/horizontal cut where each band began, and those cuts are
+        // the rectangular seams that showed up inside blobs. The caller's
+        // clip keeps the bevel clean, and 'lighten' below keeps the overlap
+        // from doubling up.
+        if (!has(x, ry - 1)) add('T', ry, x, px, px + blockSize, py + inset);
+        if (!has(x, ry + 1)) add('B', ry, x, px, px + blockSize, py + blockSize - inset);
+        if (!has(x - 1, ry)) add('L', x, ry, py, py + blockSize, px + inset);
+        if (!has(x + 1, ry)) add('R', x, ry, py, py + blockSize, px + blockSize - inset);
     });
 
-    ctx.globalCompositeOperation = 'lighter';
+    // 'lighten' (per-channel max), NOT 'lighter' (add). Bands overlap near
+    // every corner, and adding made those overlaps a bright rectangle whose
+    // straight sides read as blocky seams. max() of two smooth gradients is
+    // itself smooth, so overlaps blend into a chamfer instead.
+    ctx.globalCompositeOperation = 'lighten';
     groups.forEach((items, k) => {
         const side = k.charAt(0);
         const weight = GLOW_SIDE_WEIGHT[side] || 0;
@@ -6079,11 +6089,7 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
         let start = items[0], prev = items[0];
         for (let i = 1; i <= items.length; i++) {
             if (i < items.length && items[i].v === prev.v + 1) { prev = items[i]; continue; }
-            // Only the run's own ends can sit in a corner; everything
-            // between them is mid-edge and needs no pull-back.
-            const from = start.from + (start.capStart ? inset : 0);
-            const to = prev.to - (prev.capEnd ? inset : 0);
-            paintGlowBand(ctx, side, start.fixedPx, from, to, reach, cr, cg, cb, alpha);
+            paintGlowBand(ctx, side, start.fixedPx, start.from, prev.to, reach, cr, cg, cb, alpha);
             if (i < items.length) { start = items[i]; prev = items[i]; }
         }
     });
@@ -6485,12 +6491,23 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // the corners.
     if (glowStrength > 0 && !useSilver) {
         ctx.save();
-        // Clip to the shape: the glow's strokes are centred on the boundary,
-        // so this discards their outer half and leaves an inward band.
+        // Clip to the shape's FACE — each block inset by the bevel width on
+        // whichever sides are exposed. Clipping to the whole block instead
+        // meant a band running the length of one edge painted over the
+        // PERPENDICULAR bevel where they meet at a corner. Doing it here
+        // rather than by trimming band ends matters: trimmed ends left a
+        // hard cut inside the blob, which is what the blocky seams were.
         // Overlapping rects are fine — nonzero winding unions them.
         ctx.beginPath();
         positions.forEach(([x, y]) => {
-            ctx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
+            const ry = Math.round(y);
+            const px = Math.round(x * blockSize);
+            const py = Math.round(y * blockSize);
+            const l = posSet.has(`${x - 1},${ry}`) ? 0 : b;
+            const t = posSet.has(`${x},${ry - 1}`) ? 0 : b;
+            const r = posSet.has(`${x + 1},${ry}`) ? 0 : b;
+            const bt = posSet.has(`${x},${ry + 1}`) ? 0 : b;
+            ctx.rect(px + l, py + t, blockSize - l - r, blockSize - t - bt);
         });
         ctx.clip();
         paintRimGlow(ctx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glowStrength, b);
