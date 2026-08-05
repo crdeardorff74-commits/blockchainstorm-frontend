@@ -842,6 +842,13 @@
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <label style="display: block; margin-bottom: 2px;">
+                        <span data-i18n="settings.glow">Glow:</span> <span id="glowDisplay" style="color: #aaa;">40%</span>
+                    </label>
+                    <input type="range" id="glowSlider" min="0" max="100" step="1" value="40"
+                           style="width: 100%; cursor: pointer;">
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <label style="display: block; margin-bottom: 2px;">
                         <span data-i18n="settings.borderBrightness">Border:</span> <span id="borderBrightnessDisplay" style="color: #aaa;">115%</span>
                     </label>
                     <input type="range" id="borderBrightnessSlider" min="30" max="200" step="1" value="115"
@@ -853,17 +860,14 @@
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <label style="display: block; margin-bottom: 2px;">
-                        <span data-i18n="settings.texture">Texture:</span> <span id="textureDisplay" style="color: #aaa;">33%</span>
+                        <span data-i18n="settings.borderThickness">Thickness:</span> <span id="borderThicknessDisplay" style="color: #aaa;">20%</span>
                     </label>
-                    <input type="range" id="textureSlider" min="0" max="100" step="1" value="33"
+                    <input type="range" id="borderThicknessSlider" min="5" max="40" step="1" value="20"
                            style="width: 100%; cursor: pointer;">
-                </div>
-                <div style="flex: 1; min-width: 0;">
-                    <label style="display: block; margin-bottom: 2px;">
-                        <span data-i18n="settings.glow">Glow:</span> <span id="glowDisplay" style="color: #aaa;">40%</span>
-                    </label>
-                    <input type="range" id="glowSlider" min="0" max="100" step="1" value="40"
-                           style="width: 100%; cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 4px;">
+                        <span data-i18n="settings.thin">Thin</span>
+                        <span data-i18n="settings.thick">Thick</span>
+                    </div>
                 </div>
             </div>
             

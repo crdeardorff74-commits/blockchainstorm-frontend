@@ -5709,13 +5709,11 @@ function togglePause() {
 let faceOpacity = 0.33; // Default 33% opacity
 let borderBrightness = 1.15; // Multiplier on the bevel-edge shades (100% = classic look; default 115%)
 
-// ── Brushed-metal texture on piece/stack faces ──
-// Controlled by the Texture slider in Settings: the slider's percentage
-// scales BRUSHED_METAL_MAX_STRENGTH (the overlay alpha at 100%); 0%
-// disables the effect entirely. Also scaled by faceOpacity at draw time so
-// translucent faces get proportionally subtler brushing.
-const BRUSHED_METAL_MAX_STRENGTH = 0.35;
-let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
+// Bevel width as a fraction of a block, driven by the Border Thickness
+// slider. 0.2 is the long-standing look. Anything that measures the bevel
+// (the rim glow's face inset, the inner-corner punch-outs) derives from the
+// same `b` in drawSolidShape, so they follow this automatically.
+let borderThickness = 0.2;
 
 // ─── Neon rim glow (the Glow slider) ───
 // Light falling INWARD from a shape's edge, so a blob reads bright at its
@@ -5741,40 +5739,6 @@ const GLOW_REACH_RATIO = 1.1;
 // step wherever two differently-weighted edges met.
 let glowStrength = 0.40;            // default 40%
 
-// Lazily-built streak tile, plus one CanvasPattern per rendering context
-// (the well and the next-piece canvas each need their own pattern).
-let _brushedTile = null;
-const _brushedPatterns = new WeakMap();
-
-function getBrushedPattern(renderCtx) {
-    if (brushedMetalStrength <= 0) return null;
-    if (!_brushedTile) {
-        const tile = document.createElement('canvas');
-        tile.width = 64;
-        tile.height = 64;
-        const tc = tile.getContext('2d');
-        // Horizontal brushing: every row is a faint 1px streak, half
-        // lightening and half darkening, with brightness varying row to
-        // row (heavier weight on near-invisible streaks so the grain
-        // reads as texture, not stripes)
-        for (let row = 0; row < tile.height; row++) {
-            const v = Math.random();
-            const light = v > 0.5;
-            const a = Math.pow(Math.abs(v - 0.5) * 2, 1.5) * 0.9;
-            tc.fillStyle = light
-                ? `rgba(255,255,255,${a.toFixed(3)})`
-                : `rgba(0,0,0,${a.toFixed(3)})`;
-            tc.fillRect(0, row, tile.width, 1);
-        }
-        _brushedTile = tile;
-    }
-    let pattern = _brushedPatterns.get(renderCtx);
-    if (!pattern) {
-        pattern = renderCtx.createPattern(_brushedTile, 'repeat');
-        _brushedPatterns.set(renderCtx, pattern);
-    }
-    return pattern;
-}
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
@@ -6046,7 +6010,6 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
     // straight over the inner-corner bevels.
     const rects = [];
     const notches = [];
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     positions.forEach(([x, y]) => {
         const ry = Math.round(y);                 // adjacency only
         const px = Math.round(x * blockSize);     // real pixels, may be mid-cell
@@ -6066,17 +6029,37 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
         rects.push([rx, rry, w, h]);
         if (inset > 0) {
             const far = blockSize - inset;
-            if (T && L && !posSet.has(`${x - 1},${ry - 1}`)) notches.push([px, py]);
-            if (T && R && !posSet.has(`${x + 1},${ry - 1}`)) notches.push([px + far, py]);
-            if (B && L && !posSet.has(`${x - 1},${ry + 1}`)) notches.push([px, py + far]);
-            if (B && R && !posSet.has(`${x + 1},${ry + 1}`)) notches.push([px + far, py + far]);
+            if (T && L && !posSet.has(`${x - 1},${ry - 1}`)) notches.push([px, py, inset]);
+            if (T && R && !posSet.has(`${x + 1},${ry - 1}`)) notches.push([px + far, py, inset]);
+            if (B && L && !posSet.has(`${x - 1},${ry + 1}`)) notches.push([px, py + far, inset]);
+            if (B && R && !posSet.has(`${x + 1},${ry + 1}`)) notches.push([px + far, py + far, inset]);
         }
-        if (rx < minX) minX = rx;
-        if (rry < minY) minY = rry;
-        if (rx + w > maxX) maxX = rx + w;
-        if (rry + h > maxY) maxY = rry + h;
     });
-    if (rects.length === 0) return;
+    paintRimGlowRects(ctx, rects, notches, color, strength, reach);
+}
+
+/**
+ * The offscreen-layer machinery behind paintRimGlow, over plain rectangles.
+ *
+ * Split out so anything drawn as beveled rectangles can share it — the
+ * histogram bars call it directly (histogram.js) with the single face rect
+ * of each bar, which is why they now glow like the pieces do.
+ *
+ * `rects` are FACE rects (already inset by the bevel), `notches` are
+ * [x, y, size] squares to punch back out at inner corners, and `reach` is
+ * how far the rim fades inward, in pixels.
+ */
+function paintRimGlowRects(ctx, rects, notches, color, strength, reach) {
+    if (!(strength > 0) || !rects || rects.length === 0 || !(reach >= 1)) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < rects.length; i++) {
+        const rc = rects[i];
+        if (rc[0] < minX) minX = rc[0];
+        if (rc[1] < minY) minY = rc[1];
+        if (rc[0] + rc[2] > maxX) maxX = rc[0] + rc[2];
+        if (rc[1] + rc[3] > maxY) maxY = rc[1] + rc[3];
+    }
 
     // shadowBlur's Gaussian has sigma = blur/2 and dies out around 1.5
     // sigma, so this is what makes the rim fade out at roughly `reach`.
@@ -6117,11 +6100,11 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
 
     // 1b. punch the inner-corner squares back out, so the two 45° triangles
     // drawSolidShape draws there stay visible instead of being glowed over.
-    if (notches.length > 0) {
+    if (notches && notches.length > 0) {
         g.globalCompositeOperation = 'destination-out';
         g.beginPath();
         for (let i = 0; i < notches.length; i++) {
-            g.rect(notches[i][0] + ox, notches[i][1] + oy, inset, inset);
+            g.rect(notches[i][0] + ox, notches[i][1] + oy, notches[i][2], notches[i][2]);
         }
         g.fill();
     }
@@ -6168,7 +6151,10 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // Round Y positions for adjacency checking to handle fractional positions during animations
     // This prevents segmentation when blocks are pushed to fractional Y coordinates
     const posSet = new Set(positions.map(p => `${p[0]},${Math.round(p[1])}`));
-    const b = Math.floor(blockSize * 0.2);
+    // Bevel width, from the Border Thickness setting. Clamped to leave a
+    // face: two bevels plus something between them must fit in a block.
+    const b = Math.max(1, Math.min(Math.floor(blockSize * 0.45),
+                                   Math.floor(blockSize * borderThickness)));
 
     // Create edge colors from the base color - just the 5 colors total
     // Parse the base color and create lighter/darker versions
@@ -6231,23 +6217,6 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         ctx.globalAlpha = currentAlpha * faceOpacity;
         ctx.fillStyle = color;
         ctx.fillRect(px, py, blockSize, blockSize);
-        // Experimental brushed-metal grain over the face (edges draw on top
-        // afterwards, so the border zone stays clean). The translate anchors
-        // the pattern to the block itself — patterns live in the coordinate
-        // space of the context, so without it the grain stays fixed to the
-        // canvas and falling pieces look like they slide over a static
-        // background texture.
-        if (brushedMetalStrength > 0) {
-            const brushedPattern = getBrushedPattern(ctx);
-            if (brushedPattern) {
-                ctx.save();
-                ctx.globalAlpha = currentAlpha * faceOpacity * brushedMetalStrength;
-                ctx.translate(px, py);
-                ctx.fillStyle = brushedPattern;
-                ctx.fillRect(0, 0, blockSize, blockSize);
-                ctx.restore();
-            }
-        }
         ctx.globalAlpha = currentAlpha; // Restore to parent's alpha
 
         // Draw edges with gradients for depth
@@ -12792,11 +12761,11 @@ if (borderBrightnessSlider) {
     });
 }
 
-const textureSlider = document.getElementById('textureSlider');
-if (textureSlider) {
-    textureSlider.addEventListener('input', (e) => {
-        brushedMetalStrength = (parseFloat(e.target.value) / 100) * BRUSHED_METAL_MAX_STRENGTH;
-        const display = document.getElementById('textureDisplay');
+const borderThicknessSlider = document.getElementById('borderThicknessSlider');
+if (borderThicknessSlider) {
+    borderThicknessSlider.addEventListener('input', (e) => {
+        borderThickness = parseFloat(e.target.value) / 100;
+        const display = document.getElementById('borderThicknessDisplay');
         if (display) {
             display.textContent = `${e.target.value}%`;
         }
@@ -12840,8 +12809,8 @@ if (settingsResetBtn) {
         // is playing, and they're preferences, not tuning to "fix"
         setSlider('opacitySlider', 33);
         setSlider('borderBrightnessSlider', 115);
-        setSlider('textureSlider', 33);
         setSlider('glowSlider', 40);
+        setSlider('borderThicknessSlider', 20);
         setSlider('starSpeedSlider', 1);
         setSlider('aiSpeedSlider', 5);
 

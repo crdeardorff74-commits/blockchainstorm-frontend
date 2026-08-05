@@ -52,7 +52,12 @@ const RenderUtils = (() => {
         renderCtx.save();
         
         const posSet = new Set(positions.map(p => `${p[0]},${Math.round(p[1])}`));
-        const b = Math.floor(blockSize * 0.2);
+        // Bevel width — mirrors game.js's drawSolidShape, reading the
+        // Border Thickness setting through the same `typeof` guard this
+        // file uses for borderBrightness.
+        const bt = (typeof borderThickness !== 'undefined') ? borderThickness : 0.2;
+        const b = Math.max(1, Math.min(Math.floor(blockSize * 0.45),
+                                       Math.floor(blockSize * bt)));
 
         // Inner rim glow is drawn AFTER the blocks — see the end of this
         // function, and the reasoning in game.js's drawSolidShape.

@@ -187,6 +187,39 @@ const Histogram = (() => {
     }
 
     /**
+     * Bevel scale from the Border Thickness setting, normalised so the
+     * long-standing 20% reads as 1.0. The bars keep their own base sizes
+     * (they are far thinner than a block, so a raw block fraction would
+     * swallow them) and are just scaled by this.
+     */
+    function bevelScale() {
+        const bt = (typeof borderThickness !== 'undefined') ? borderThickness : 0.2;
+        return bt / 0.2;
+    }
+
+    /**
+     * Inner rim glow for one beveled bar, matching the game pieces.
+     *
+     * Reuses game.js's `paintRimGlowRects` rather than reimplementing it —
+     * a bar is just a single face rect (the bar inset by its bevel on all
+     * four sides) with no inner corners. Read through `typeof` guards like
+     * `borderBrightness` above, since this module is loaded before game.js.
+     *
+     * `reach` scales with the bar's SHORT side: these bars are thin, and a
+     * reach sized off the long side would flood a whole bar with glow.
+     */
+    function drawBarGlow(x, y, w, h, b, color) {
+        const strength = (typeof glowStrength !== 'undefined') ? glowStrength : 0;
+        if (!(strength > 0) || typeof paintRimGlowRects !== 'function') return;
+        const fw = w - b * 2, fh = h - b * 2;
+        if (fw <= 0 || fh <= 0) return;
+        const ratio = (typeof GLOW_REACH_RATIO !== 'undefined') ? GLOW_REACH_RATIO : 1.1;
+        const reach = Math.min(fw, fh) * ratio * strength;
+        if (reach < 1) return;
+        paintRimGlowRects(ctx, [[x + b, y + b, fw, fh]], null, color, strength, reach);
+    }
+
+    /**
      * Adjust color brightness
      */
     function adjustBrightness(color, factor) {
@@ -341,7 +374,7 @@ const Histogram = (() => {
      * with the bevel scaled down to the thin row height
      */
     function drawHorizontalBar(x, y, w, h, edgeBase, faceColor, faceAlpha) {
-        const b = Math.max(2, Math.min(5, Math.round(h * 0.3)));
+        const b = Math.max(2, Math.min(Math.floor(h * 0.45), Math.round(h * 0.3 * bevelScale())));
 
         // Main face
         ctx.save();
@@ -387,6 +420,7 @@ const Histogram = (() => {
 
         // Corners
         drawBarCorners(x, y, w, h, b, topColor, leftColor, bottomColor, rightColor);
+        drawBarGlow(x, y, w, h, b, edgeBase);
     }
     
     /**
@@ -436,7 +470,7 @@ const Histogram = (() => {
         }
         
         // Draw bar with beveled edges (replicating color histogram approach exactly)
-        const sb = Math.max(2, Math.round(4 * sf));
+        const sb = Math.max(2, Math.round(4 * sf * bevelScale()));
         if (barActualWidth > sb * 2) {
             // Convert RGB to hex for adjustBrightness
             function rgbToHex(r, g, b) {
@@ -490,6 +524,7 @@ const Histogram = (() => {
             
             // Corners
             drawBarCorners(barStartX, barY, barActualWidth, barHeight, sb, topColor, leftColor, bottomColor, rightColor);
+            drawBarGlow(barStartX, barY, barActualWidth, barHeight, sb, hexColor);
         } else if (barActualWidth > 0) {
             // Bar too small for bevels, just draw simple filled rect
             ctx.save();
@@ -557,7 +592,7 @@ const Histogram = (() => {
         if (scoreHistogramBar > 0) {
             const silverColor = '#FAFAFA';
             const goldColor = '#FFD700';
-            const b = Math.max(3, Math.round(6 * sf));
+            const b = Math.max(3, Math.round(6 * sf * bevelScale()));
             
             const minBarHeight = b * 2;
             const barHeight = Math.max(minBarHeight, (scoreHistogramBar / scoreHistogramMaxScale) * graphHeight);
@@ -607,6 +642,7 @@ const Histogram = (() => {
             
             // Corners (gold)
             drawBarCorners(x, y, scoreBarWidth, barHeight, b, topGold, leftGold, bottomGold, rightGold);
+            drawBarGlow(x, y, scoreBarWidth, barHeight, b, goldColor);
             
             // Bitcoin symbol above bar (gold)
             const bitcoinY = y - 15 * sf;
@@ -677,7 +713,7 @@ const Histogram = (() => {
         // Draw bars
         colors.forEach((color, index) => {
             const blockSize = Math.round(actualBarWidth);
-            const b = Math.max(3, Math.round(7 * sf)); // Scaled bevel size
+            const b = Math.max(3, Math.round(7 * sf * bevelScale())); // Scaled bevel size
             
             const minBarHeight = b * 2;
             const barHeight = Math.round(Math.max(minBarHeight, (histogramBars[color] / histogramMaxScale) * graphHeight));
@@ -727,6 +763,7 @@ const Histogram = (() => {
             
             // Corners
             drawBarCorners(x, y, blockSize, barHeight, b, topColor, leftColor, bottomColor, rightColor);
+            drawBarGlow(x, y, blockSize, barHeight, b, color);
         });
     }
     
