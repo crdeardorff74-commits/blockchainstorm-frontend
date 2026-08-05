@@ -2,6 +2,13 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-08-05 — Release v4.31 (CrazyGames engagement instrumentation, batches 1–3 + conversion fix)
+- **Ships the whole pre-submission analytics set** built this session — see the four entries below for the reasoning behind each piece. New file `analytics.js` (in `sw.js` CORE_ASSETS); `game.js`, `touch-controls.js`, `index.html`, `sw.js` all changed.
+- **The version bump is what makes this reach players**: `analytics.js` is a NEW file and `sw.js` serves cache-first, so without a cache-bust existing installs would keep running v4.30 and record nothing.
+- Back end + admin site were deployed separately and are already live; this zip is the last piece.
+- **Not browser-verified per rule 0.** Worth exercising on the user's test pass: all three input methods (swipe / on-screen buttons / keyboard), one game played to game over and one abandoned mid-game, and a menu surface or two — then checking the admin Engagement panel shows a plausible row for each. Test traffic is removable afterwards via `POST /api/admin/wipe-session-visits`.
+- Remaining `CRAZYGAMES.md` §8 checklist items are outside this zip: the dated deploy log, verifying `IS_CRAZYGAMES` behaviour on a `*.game-files.crazygames.com` preview build, and deciding in advance what each trial score would mean.
+
 ## 2026-08-05 — Conversion denominator: page-load record
 - **`Analytics.recordPageLoad(ctx)`** fires immediately at load, NOT waiting for an interaction — the visit POST is gated on one, so it can never see someone who loads and leaves. Called from game.js's visit-tracking block (device/OS classification already lives there); the visit POST now also carries `Analytics.getLoadId()`.
 - **`page_visits` behaviour is completely unchanged** — the interaction gate stays, so the historical start rate remains comparable. See the back-end NOTES for why merging the two would be a mistake.
