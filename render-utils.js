@@ -199,24 +199,10 @@ const RenderUtils = (() => {
         // Inner rim glow — mirrors game.js's drawSolidShape exactly (see the
         // reasoning there). Present so leaderboard replays and the
         // next-piece preview don't render flat beside live play.
+        // No clip needed — paintRimGlow builds its own layer from the face
+        // silhouette. See the reasoning in game.js.
         if (glow > 0 && !useSilver && typeof paintRimGlow === 'function') {
-            // Clip to the FACE (block inset by the bevel on exposed sides) —
-            // mirrors game.js's drawSolidShape; see the reasoning there.
-            renderCtx.save();
-            renderCtx.beginPath();
-            positions.forEach(([x, y]) => {
-                const ry = Math.round(y);
-                const px = Math.round(x * blockSize);
-                const py = Math.round(y * blockSize);
-                const l = posSet.has(`${x - 1},${ry}`) ? 0 : b;
-                const t = posSet.has(`${x},${ry - 1}`) ? 0 : b;
-                const r = posSet.has(`${x + 1},${ry}`) ? 0 : b;
-                const bt = posSet.has(`${x},${ry + 1}`) ? 0 : b;
-                renderCtx.rect(px + l, py + t, blockSize - l - r, blockSize - t - bt);
-            });
-            renderCtx.clip();
             paintRimGlow(renderCtx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glow, b);
-            renderCtx.restore();
         }
 
         renderCtx.restore();

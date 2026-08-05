@@ -5733,25 +5733,12 @@ let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 // devices — 0% skips the pass (and its clip) entirely.
 // How far the glow reaches inward, as a multiple of blockSize at 100%.
 const GLOW_REACH_RATIO = 1.1;
-// Falloff is a real canvas gradient per edge run.
-//
-// Two rejected approaches, both of which shipped and were visibly wrong:
-//   - shadowBlur: a Gaussian CONSERVES ENERGY, so blurring a 2.4px stroke
-//     over a 19px radius left a peak of ~3% after alpha — invisible — while
-//     the unblurred stroke under it still drew as a hard line.
-//   - stacked strokes of decreasing width: bright enough, but only N steps,
-//     and the steps were plainly visible as bands.
-// A gradient is smooth by construction, cheaper than either, and lets each
-// side carry its own weight (below).
-//
-// Per-side weights mirror the bevel's own light direction (top brightest,
-// bottom darkest). Weighting all four sides equally made every bevel edge
-// read the same and flattened the 3D look the bevels exist to create.
-// Kept a narrow spread on purpose: under 'lighten' the only remaining
-// discontinuity where two bands meet is the DIFFERENCE between their
-// weights, so a wide spread reintroduces visible corner seams. The bevels
-// themselves now carry most of the light direction.
-const GLOW_SIDE_WEIGHT = { T: 1.0, L: 0.85, R: 0.6, B: 0.45 };
+// The falloff is a distance field built on an offscreen layer and
+// composited once — see paintRimGlow for how, and for the four per-edge
+// approaches that were tried first and why each one left a visible seam.
+// The glow is isotropic: the bevel carries the light direction, and every
+// attempt to give the glow its own directional weighting reintroduced a
+// step wherever two differently-weighted edges met.
 let glowStrength = 0.40;            // default 40%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
@@ -5999,131 +5986,144 @@ function adjustBrightness(color, factor) {
 }
 
 /**
- * Paint the inward rim glow for one shape: light falling in from each
- * exposed edge, brightest at the rim, gone by `reach` inward.
+ * Paint the inward rim glow for one shape: light falling in from the
+ * shape's edge, brightest at the rim, gone by `reach` inward.
  *
- * Defined once here and called by render-utils.js through the same `typeof`
- * guard it uses for borderBrightness — too much logic to keep duplicated in
- * the two drawSolidShape copies.
+ * Defined once here; render-utils.js calls it through the same `typeof`
+ * guard it uses for borderBrightness.
  *
- * Three things here are load-bearing, each of which was a bug first:
+ * HOW IT WORKS — a distance field on an offscreen layer, not per-edge
+ * geometry. Everything is composited ONCE, which is the whole point: four
+ * previous attempts all failed on the same rock, which is that any
+ * per-edge approach has to decide what happens where two edges' bands
+ * meet, and every answer to that leaves a visible artefact.
  *
- * 1. A canvas GRADIENT per edge run, not shadowBlur and not stacked
- *    strokes. shadowBlur was invisible (a Gaussian conserves energy, so a
- *    thin stroke blurred wide peaks at ~3% after alpha, while the unblurred
- *    stroke under it still read as a hard line). Stacked strokes were
- *    bright but banded — only N steps, and the steps showed.
+ *   1. Fill the shape's FACE silhouette (each block inset by the bevel on
+ *      whichever sides are exposed, so the bevel is never touched).
+ *   2. Erase the interior with `destination-out` using a BLURRED copy of
+ *      that same silhouette. Where the blur is opaque — deep inside — the
+ *      fill is fully erased; near the edge it is only partly erased. What
+ *      survives is exactly 1 - blur(silhouette): a smooth rim that decays
+ *      inward, identical all the way round, with no seams and no corner
+ *      cases, on any shape however concave.
+ *   3. Composite that layer onto the target once, additively.
  *
- * 2. Every pixel coordinate comes from the block's REAL position. `ry` (the
- *    rounded row) is used ONLY for adjacency tests and run grouping.
- *    Deriving pixels from `ry` quantised the glow to whole cells, so a
- *    falling piece's glow sat still and jumped a row at a time while the
- *    piece itself moved smoothly.
+ * The blurred copy is produced as a SHADOW (the shape is drawn far off the
+ * scratch canvas and its shadow offset back into place) rather than with
+ * `ctx.filter = 'blur()'`, which Safari only supports from 17.
  *
- * 3. Collinear exposed edges are MERGED into maximal runs, so a long edge
- *    is one band rather than one per block — otherwise the per-block bands
- *    overlap at every interior seam and additive blending beads the edge.
+ * The layer is confined to the face silhouette by construction, so callers
+ * do NOT need to clip.
  *
- * Bands are drawn inward from the boundary and the caller clips to the
- * shape, so nothing spills onto the background and a blob's middle is never
- * lifted.
+ * REJECTED, with reasons, so none of these gets tried again:
+ *   - shadowBlur on a thin perimeter stroke: invisible. A Gaussian
+ *     conserves energy, so a 2.4px line blurred over 19px peaks at ~3%
+ *     after alpha, while the unblurred stroke under it still reads as a
+ *     hard line.
+ *   - Stacked strokes of decreasing width: bright, but N steps and the
+ *     banding showed.
+ *   - Per-edge gradient bands, added: bands overlap near corners and the
+ *     sum made a bright rectangle with straight sides.
+ *   - Per-edge gradient bands, max()-blended: subtler, but the weight
+ *     difference between adjacent sides still stepped at every corner.
  */
+let _glowCanvas = null;
+let _glowCtx = null;
+
 function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel) {
     if (!(strength > 0) || positions.length === 0) return;
     const reach = blockSize * GLOW_REACH_RATIO * strength;
     if (reach < 1) return;
-    // The bevel owns the outer `bevel` px of every exposed edge. Starting
-    // the glow at the block boundary put its BRIGHTEST point on top of the
-    // bevel and flooded all four of its shades to the same value — the
-    // bevels stopped reading as bevels and became a uniform thick outline.
-    // Every band therefore starts at the bevel's INNER edge, and its ends
-    // are pulled back by the same amount wherever a perpendicular bevel
-    // occupies that corner.
     const inset = Math.max(0, bevel || 0);
 
-    // rgba() stops need the channels, so parse the hex once per shape.
-    let cr = 255, cg = 255, cb = 255;
-    if (typeof color === 'string' && color.charAt(0) === '#' && color.length >= 7) {
-        const pr = parseInt(color.substr(1, 2), 16);
-        const pg = parseInt(color.substr(3, 2), 16);
-        const pb = parseInt(color.substr(5, 2), 16);
-        if (!isNaN(pr) && !isNaN(pg) && !isNaN(pb)) { cr = pr; cg = pg; cb = pb; }
-    }
-    const peak = 0.9 * strength * ctx.globalAlpha;
-
-    const has = (x, y) => posSet.has(`${x},${y}`);
-    const groups = new Map();
-    const add = (side, key, v, from, to, fixedPx) => {
-        const k = side + '|' + key;
-        let arr = groups.get(k);
-        if (!arr) { arr = []; groups.set(k, arr); }
-        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx });
-    };
+    // Face rects: the block minus the bevel on each EXPOSED side. Interior
+    // sides keep their full extent so adjacent blocks' faces join up.
+    const rects = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     positions.forEach(([x, y]) => {
-        const ry = Math.round(y);                    // adjacency/grouping only
-        const px = Math.round(x * blockSize);        // real pixels, may be mid-cell
+        const ry = Math.round(y);                 // adjacency only
+        const px = Math.round(x * blockSize);     // real pixels, may be mid-cell
         const py = Math.round(y * blockSize);
-        // Bands span the FULL block edge. They are deliberately allowed to
-        // overlap in corners: pulling their ends back instead left a hard
-        // vertical/horizontal cut where each band began, and those cuts are
-        // the rectangular seams that showed up inside blobs. The caller's
-        // clip keeps the bevel clean, and 'lighten' below keeps the overlap
-        // from doubling up.
-        if (!has(x, ry - 1)) add('T', ry, x, px, px + blockSize, py + inset);
-        if (!has(x, ry + 1)) add('B', ry, x, px, px + blockSize, py + blockSize - inset);
-        if (!has(x - 1, ry)) add('L', x, ry, py, py + blockSize, px + inset);
-        if (!has(x + 1, ry)) add('R', x, ry, py, py + blockSize, px + blockSize - inset);
+        const l = posSet.has(`${x - 1},${ry}`) ? 0 : inset;
+        const t = posSet.has(`${x},${ry - 1}`) ? 0 : inset;
+        const r = posSet.has(`${x + 1},${ry}`) ? 0 : inset;
+        const bm = posSet.has(`${x},${ry + 1}`) ? 0 : inset;
+        const w = blockSize - l - r;
+        const h = blockSize - t - bm;
+        if (w <= 0 || h <= 0) return;
+        const rx = px + l, rry = py + t;
+        rects.push([rx, rry, w, h]);
+        if (rx < minX) minX = rx;
+        if (rry < minY) minY = rry;
+        if (rx + w > maxX) maxX = rx + w;
+        if (rry + h > maxY) maxY = rry + h;
     });
+    if (rects.length === 0) return;
 
-    // 'lighten' (per-channel max), NOT 'lighter' (add). Bands overlap near
-    // every corner, and adding made those overlaps a bright rectangle whose
-    // straight sides read as blocky seams. max() of two smooth gradients is
-    // itself smooth, so overlaps blend into a chamfer instead.
-    ctx.globalCompositeOperation = 'lighten';
-    groups.forEach((items, k) => {
-        const side = k.charAt(0);
-        const weight = GLOW_SIDE_WEIGHT[side] || 0;
-        if (weight <= 0) return;
-        const alpha = peak * weight;
-        items.sort((m, n) => m.v - n.v);
-        let start = items[0], prev = items[0];
-        for (let i = 1; i <= items.length; i++) {
-            if (i < items.length && items[i].v === prev.v + 1) { prev = items[i]; continue; }
-            paintGlowBand(ctx, side, start.fixedPx, start.from, prev.to, reach, cr, cg, cb, alpha);
-            if (i < items.length) { start = items[i]; prev = items[i]; }
-        }
-    });
-}
+    // shadowBlur's Gaussian has sigma = blur/2 and dies out around 1.5
+    // sigma, so this is what makes the rim fade out at roughly `reach`.
+    const blur = Math.max(2, reach * 1.35);
+    const pad = Math.ceil(blur) + 4;
+    const w = Math.ceil(maxX - minX) + pad * 2;
+    const h = Math.ceil(maxY - minY) + pad * 2;
+    if (w <= 0 || h <= 0) return;
 
-/**
- * One gradient band, running inward from an edge at `fixedPx` and spanning
- * `from`..`to` along it. Stops are eased rather than linear so the falloff
- * reads like light instead of a ramp.
- */
-function paintGlowBand(ctx, side, fixedPx, from, to, reach, r, g, b, alpha) {
-    const span = to - from;
-    if (span <= 0) return;
-    const head = `rgba(${r}, ${g}, ${b}, `;
-    let grad, x, y, w, h;
-    if (side === 'T') {
-        grad = ctx.createLinearGradient(0, fixedPx, 0, fixedPx + reach);
-        x = from; y = fixedPx; w = span; h = reach;
-    } else if (side === 'B') {
-        grad = ctx.createLinearGradient(0, fixedPx, 0, fixedPx - reach);
-        x = from; y = fixedPx - reach; w = span; h = reach;
-    } else if (side === 'L') {
-        grad = ctx.createLinearGradient(fixedPx, 0, fixedPx + reach, 0);
-        x = fixedPx; y = from; w = reach; h = span;
-    } else {
-        grad = ctx.createLinearGradient(fixedPx, 0, fixedPx - reach, 0);
-        x = fixedPx - reach; y = from; w = reach; h = span;
+    if (!_glowCanvas) {
+        _glowCanvas = document.createElement('canvas');
+        _glowCtx = _glowCanvas.getContext('2d');
     }
-    grad.addColorStop(0, head + alpha.toFixed(4) + ')');
-    grad.addColorStop(0.25, head + (alpha * 0.45).toFixed(4) + ')');
-    grad.addColorStop(0.55, head + (alpha * 0.15).toFixed(4) + ')');
-    grad.addColorStop(1, head + '0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, w, h);
+    // Grow-only: resizing clears the canvas, so avoid doing it every frame.
+    if (_glowCanvas.width < w || _glowCanvas.height < h) {
+        _glowCanvas.width = Math.max(_glowCanvas.width, w);
+        _glowCanvas.height = Math.max(_glowCanvas.height, h);
+    }
+    const g = _glowCtx;
+    if (!g) return;
+
+    const ox = pad - minX, oy = pad - minY;   // shape -> scratch offset
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, w, h);
+
+    // 1. the face silhouette
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.shadowColor = 'rgba(0, 0, 0, 0)';
+    g.shadowBlur = 0;
+    g.shadowOffsetX = 0;
+    g.fillStyle = color;
+    g.beginPath();
+    for (let i = 0; i < rects.length; i++) {
+        g.rect(rects[i][0] + ox, rects[i][1] + oy, rects[i][2], rects[i][3]);
+    }
+    g.fill();
+
+    // 2. erase the interior with a blurred copy of the same silhouette.
+    // The silhouette is drawn `shift` to the left — entirely off the
+    // scratch canvas — and its shadow is offset back by the same amount,
+    // so only the blurred version lands.
+    const shift = w + pad + 32;
+    g.globalCompositeOperation = 'destination-out';
+    g.shadowColor = '#000';
+    g.shadowBlur = blur;
+    g.shadowOffsetX = shift;
+    g.beginPath();
+    for (let i = 0; i < rects.length; i++) {
+        g.rect(rects[i][0] + ox - shift, rects[i][1] + oy, rects[i][2], rects[i][3]);
+    }
+    g.fill();
+    g.shadowBlur = 0;
+    g.shadowOffsetX = 0;
+    g.shadowColor = 'rgba(0, 0, 0, 0)';
+    g.globalCompositeOperation = 'source-over';
+
+    // 3. one composite. The surviving rim peaks at ~0.5 where the blur is
+    // half-covered (the face boundary), hence the 2x to normalise it back
+    // to the requested strength.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = ctx.globalAlpha * Math.min(1, 2 * 0.9 * strength);
+    ctx.drawImage(_glowCanvas, 0, 0, w, h, minX - pad, minY - pad, w, h);
+    ctx.restore();
 }
 
 function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold = false, faceOpacity = 1.0, useSilver = false) {
@@ -6489,29 +6489,10 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // emitted as separate subpaths, so with the default butt caps every
     // convex corner lost half a line width and the glow visibly broke at
     // the corners.
+    // No clip needed: the glow layer is built from the face silhouette, so
+    // it cannot paint over the bevel or outside the shape.
     if (glowStrength > 0 && !useSilver) {
-        ctx.save();
-        // Clip to the shape's FACE — each block inset by the bevel width on
-        // whichever sides are exposed. Clipping to the whole block instead
-        // meant a band running the length of one edge painted over the
-        // PERPENDICULAR bevel where they meet at a corner. Doing it here
-        // rather than by trimming band ends matters: trimmed ends left a
-        // hard cut inside the blob, which is what the blocky seams were.
-        // Overlapping rects are fine — nonzero winding unions them.
-        ctx.beginPath();
-        positions.forEach(([x, y]) => {
-            const ry = Math.round(y);
-            const px = Math.round(x * blockSize);
-            const py = Math.round(y * blockSize);
-            const l = posSet.has(`${x - 1},${ry}`) ? 0 : b;
-            const t = posSet.has(`${x},${ry - 1}`) ? 0 : b;
-            const r = posSet.has(`${x + 1},${ry}`) ? 0 : b;
-            const bt = posSet.has(`${x},${ry + 1}`) ? 0 : b;
-            ctx.rect(px + l, py + t, blockSize - l - r, blockSize - t - bt);
-        });
-        ctx.clip();
         paintRimGlow(ctx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glowStrength, b);
-        ctx.restore();
     }
 
     ctx.restore();
