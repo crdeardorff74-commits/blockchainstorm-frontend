@@ -57,7 +57,6 @@ const RenderUtils = (() => {
         // Inner rim glow is drawn AFTER the blocks — see the end of this
         // function, and the reasoning in game.js's drawSolidShape.
         const glow = (typeof glowStrength !== 'undefined') ? glowStrength : 0;
-        const glowRatio = (typeof GLOW_MAX_BLUR_RATIO !== 'undefined') ? GLOW_MAX_BLUR_RATIO : 0.55;
 
         let topColor, leftColor, bottomColor, rightColor;
         
@@ -200,37 +199,14 @@ const RenderUtils = (() => {
         // Inner rim glow — mirrors game.js's drawSolidShape exactly (see the
         // reasoning there). Present so leaderboard replays and the
         // next-piece preview don't render flat beside live play.
-        if (glow > 0 && !useSilver) {
-            const glowColor = useGold ? '#FFD700' : color;
+        if (glow > 0 && !useSilver && typeof paintRimGlow === 'function') {
             renderCtx.save();
             renderCtx.beginPath();
             positions.forEach(([x, y]) => {
                 renderCtx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
             });
             renderCtx.clip();
-
-            renderCtx.globalCompositeOperation = 'lighter';
-            renderCtx.shadowColor = glowColor;
-            renderCtx.shadowBlur = blockSize * glowRatio * glow;
-            renderCtx.strokeStyle = glowColor;
-            const lw = Math.max(1, blockSize * 0.08);
-            renderCtx.lineWidth = lw;
-            renderCtx.lineCap = 'round';
-            renderCtx.lineJoin = 'round';
-            renderCtx.globalAlpha = renderCtx.globalAlpha * 0.85 * glow;
-            const ins = lw / 2;
-            renderCtx.beginPath();
-            positions.forEach(([x, y]) => {
-                const px = Math.round(x * blockSize);
-                const py = Math.round(y * blockSize);
-                const ry = Math.round(y);
-                const x0 = px, x1 = px + blockSize, y0 = py, y1 = py + blockSize;
-                if (!posSet.has(`${x},${ry - 1}`)) { renderCtx.moveTo(x0, y0 + ins); renderCtx.lineTo(x1, y0 + ins); }
-                if (!posSet.has(`${x},${ry + 1}`)) { renderCtx.moveTo(x0, y1 - ins); renderCtx.lineTo(x1, y1 - ins); }
-                if (!posSet.has(`${x - 1},${ry}`)) { renderCtx.moveTo(x0 + ins, y0); renderCtx.lineTo(x0 + ins, y1); }
-                if (!posSet.has(`${x + 1},${ry}`)) { renderCtx.moveTo(x1 - ins, y0); renderCtx.lineTo(x1 - ins, y1); }
-            });
-            renderCtx.stroke();
+            paintRimGlow(renderCtx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glow);
             renderCtx.restore();
         }
 

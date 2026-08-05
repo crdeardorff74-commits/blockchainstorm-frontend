@@ -5728,14 +5728,20 @@ let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 // WORSE, because brighter at the same saturation is exactly what "washed
 // out" means. Lighting only the rim leaves hue and mid-blob depth alone.
 //
-// Cost is one blurred stroke PER SHAPE, not per block: shadowBlur is a real
-// gaussian and per-block would be ~200 of them a frame. It's a slider so it
-// can be turned off on slow devices — 0% skips the pass entirely.
-// Blur radius as a multiple of blockSize at 100%. Sized so the falloff
-// actually crosses the bevel and dies out around mid-block: the bevel band
-// is 20% of a block, so anything under ~0.5 is entirely hidden underneath
-// it and reads as "the edge got brighter" rather than as a glow.
-const GLOW_MAX_BLUR_RATIO = 1.6;
+// Cost is a handful of plain strokes PER SHAPE, not per block, and no
+// shadow filter at all. It's a slider so it can be turned off on slow
+// devices — 0% skips the pass (and its clip) entirely.
+// How far the glow reaches inward, as a multiple of blockSize at 100%.
+const GLOW_REACH_RATIO = 1.1;
+// The falloff is built from this many stacked strokes of decreasing width
+// rather than from shadowBlur. Reason (learned the hard way, twice):
+// a Gaussian CONSERVES ENERGY, so blurring a 2.4px line over a 19px radius
+// drops its peak to ~10% of the stroke and ~3% after alpha — invisible,
+// while the unblurred stroke underneath still reads as a hard line. That is
+// exactly what "no inward glow, the outer one looks like a solid line"
+// looked like. Stacked bands put the amplitude where it's wanted and are
+// cheaper than a shadow besides.
+const GLOW_LAYERS = 5;
 let glowStrength = 0.40;            // default 40%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
@@ -5980,6 +5986,90 @@ function adjustBrightness(color, factor) {
     
     // Convert back to hex
     return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Paint the inward rim glow for one shape.
+ *
+ * Lives here as a single shared function (render-utils.js calls it through
+ * the same `typeof` guard it uses for borderBrightness) because it is too
+ * much logic to keep duplicated in the two drawSolidShape copies.
+ *
+ * Two non-obvious pieces, both of which were bugs first:
+ *
+ * 1. NO shadowBlur. A Gaussian conserves energy, so blurring a thin stroke
+ *    over a wide radius leaves a peak of ~10% of the stroke — invisible —
+ *    while the unblurred stroke underneath still reads as a hard line. The
+ *    falloff is instead built from GLOW_LAYERS stacked strokes of
+ *    decreasing width: additively they ramp from full strength at the rim
+ *    to 1/N at the inner limit, and it costs less than one shadow.
+ *
+ * 2. Collinear exposed edges are MERGED into maximal runs. The strokes are
+ *    up to 2*reach wide with round caps, so per-block segments would
+ *    overlap at every interior seam and additive blending would turn each
+ *    seam into a bright bead along an otherwise even edge.
+ *
+ * Strokes are centred on the shape's boundary and the caller's clip keeps
+ * only the inward half, so nothing spills onto the background and the
+ * middle of a blob is never lifted.
+ */
+function paintRimGlow(ctx, positions, posSet, color, blockSize, strength) {
+    if (!(strength > 0) || positions.length === 0) return;
+    const reach = blockSize * GLOW_REACH_RATIO * strength;
+    if (reach < 1) return;
+
+    // Group exposed unit edges by (side, fixed axis), then merge runs.
+    const runs = new Map();
+    const has = (x, y) => posSet.has(`${x},${y}`);
+    const add = (side, fixed, v) => {
+        const k = side + '|' + fixed;
+        let arr = runs.get(k);
+        if (!arr) { arr = []; runs.set(k, arr); }
+        arr.push(v);
+    };
+    positions.forEach(([x, y]) => {
+        const ry = Math.round(y);
+        if (!has(x, ry - 1)) add('T', ry, x);
+        if (!has(x, ry + 1)) add('B', ry, x);
+        if (!has(x - 1, ry)) add('L', x, ry);
+        if (!has(x + 1, ry)) add('R', x, ry);
+    });
+
+    ctx.beginPath();
+    runs.forEach((vs, k) => {
+        const sep = k.indexOf('|');
+        const side = k.slice(0, sep);
+        const fixed = parseInt(k.slice(sep + 1), 10);
+        vs.sort((a, b) => a - b);
+        let start = vs[0], prev = vs[0];
+        for (let i = 1; i <= vs.length; i++) {
+            if (i < vs.length && vs[i] === prev + 1) { prev = vs[i]; continue; }
+            const a = start * blockSize;
+            const bEnd = (prev + 1) * blockSize;
+            if (side === 'T' || side === 'B') {
+                const yy = (side === 'T' ? fixed : fixed + 1) * blockSize;
+                ctx.moveTo(a, yy); ctx.lineTo(bEnd, yy);
+            } else {
+                const xx = (side === 'L' ? fixed : fixed + 1) * blockSize;
+                ctx.moveTo(xx, a); ctx.lineTo(xx, bEnd);
+            }
+            if (i < vs.length) { start = vs[i]; prev = vs[i]; }
+        }
+    });
+
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // Widest band first. Because each successive stroke is narrower, the
+    // layers stack toward the rim: GLOW_LAYERS deep at the edge, one deep
+    // at the inner limit — a linear ramp in GLOW_LAYERS steps.
+    const layerAlpha = ctx.globalAlpha * 0.9 * strength / GLOW_LAYERS;
+    for (let i = GLOW_LAYERS; i >= 1; i--) {
+        ctx.globalAlpha = layerAlpha;
+        ctx.lineWidth = Math.max(1, 2 * reach * i / GLOW_LAYERS);
+        ctx.stroke();
+    }
 }
 
 function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold = false, faceOpacity = 1.0, useSilver = false) {
@@ -6346,42 +6436,16 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // convex corner lost half a line width and the glow visibly broke at
     // the corners.
     if (glowStrength > 0 && !useSilver) {
-        const glowColor = useGold ? '#FFD700' : color;
         ctx.save();
-        // Clip to the shape. Overlapping rects are fine — nonzero winding
-        // unions them.
+        // Clip to the shape: the glow's strokes are centred on the boundary,
+        // so this discards their outer half and leaves an inward band.
+        // Overlapping rects are fine — nonzero winding unions them.
         ctx.beginPath();
         positions.forEach(([x, y]) => {
             ctx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
         });
         ctx.clip();
-
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowColor = glowColor;
-        ctx.shadowBlur = blockSize * GLOW_MAX_BLUR_RATIO * glowStrength;
-        ctx.strokeStyle = glowColor;
-        const lw = Math.max(1, blockSize * 0.08);
-        ctx.lineWidth = lw;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalAlpha = ctx.globalAlpha * 0.85 * glowStrength;
-        // Inset each edge inward by half the line width so the WHOLE stroke
-        // lands inside the clip. Centred on the boundary, half of it (and
-        // half its blur) was being clipped away — which is why the first
-        // version read as a thin band hugging the edge instead of a glow.
-        const ins = lw / 2;
-        ctx.beginPath();
-        positions.forEach(([x, y]) => {
-            const px = Math.round(x * blockSize);
-            const py = Math.round(y * blockSize);
-            const ry = Math.round(y);
-            const x0 = px, x1 = px + blockSize, y0 = py, y1 = py + blockSize;
-            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(x0, y0 + ins); ctx.lineTo(x1, y0 + ins); }
-            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(x0, y1 - ins); ctx.lineTo(x1, y1 - ins); }
-            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(x0 + ins, y0); ctx.lineTo(x0 + ins, y1); }
-            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(x1 - ins, y0); ctx.lineTo(x1 - ins, y1); }
-        });
-        ctx.stroke();
+        paintRimGlow(ctx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glowStrength);
         ctx.restore();
     }
 
