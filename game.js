@@ -5717,15 +5717,16 @@ let borderBrightness = 1.15; // Multiplier on the bevel-edge shades (100% = clas
 const BRUSHED_METAL_MAX_STRENGTH = 0.35;
 let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 
-// ─── Neon bloom (the Glow slider) ───
-// Light SPILL around a shape's outline, drawn onto the background before
-// the blocks themselves. This is what makes the cover art read as neon and
-// the game not: a bevel gives an edge, bloom gives light leaving the edge.
+// ─── Neon rim glow (the Glow slider) ───
+// Light falling INWARD from a shape's edge, so a blob reads bright at its
+// rim and darker toward its middle — the cover art's look. A bevel gives
+// you an edge; this gives you light coming off that edge.
 //
-// Deliberately does NOT touch the face. The earlier attempt at vibrancy
-// brightened the faces additively and looked worse — brighter at the same
-// saturation is exactly "washed out" (see NOTES). Spill lands on the
-// backdrop instead, so hues stay put and only the surround lights up.
+// Drawn after the blocks and clipped to the shape (see drawSolidShape), so
+// it never lifts the middle of a blob. That distinction matters: the
+// reverted first attempt brightened whole faces additively and looked
+// WORSE, because brighter at the same saturation is exactly what "washed
+// out" means. Lighting only the rim leaves hue and mid-blob depth alone.
 //
 // Cost is one blurred stroke PER SHAPE, not per block: shadowBlur is a real
 // gaussian and per-block would be ~200 of them a frame. It's a slider so it
@@ -5991,33 +5992,6 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // This prevents segmentation when blocks are pushed to fractional Y coordinates
     const posSet = new Set(positions.map(p => `${p[0]},${Math.round(p[1])}`));
     const b = Math.floor(blockSize * 0.2);
-
-    // ── Bloom pass ──
-    // Traces only the shape's EXPOSED edges (the same adjacency the bevels
-    // use) and strokes that outline once, blurred and additive. Drawn first
-    // so the blocks paint over the inward half of the halo and only the
-    // outward spill survives — which is what bloom actually looks like.
-    if (glowStrength > 0 && !useSilver) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowColor = useGold ? '#FFD700' : color;
-        ctx.shadowBlur = blockSize * GLOW_MAX_BLUR_RATIO * glowStrength;
-        ctx.strokeStyle = useGold ? '#FFD700' : color;
-        ctx.lineWidth = Math.max(1, blockSize * 0.08);
-        ctx.globalAlpha = ctx.globalAlpha * 0.85 * glowStrength;
-        ctx.beginPath();
-        positions.forEach(([x, y]) => {
-            const px = Math.round(x * blockSize);
-            const py = Math.round(y * blockSize);
-            const ry = Math.round(y);
-            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(px, py); ctx.lineTo(px + blockSize, py); }
-            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(px, py + blockSize); ctx.lineTo(px + blockSize, py + blockSize); }
-            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(px, py); ctx.lineTo(px, py + blockSize); }
-            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(px + blockSize, py); ctx.lineTo(px + blockSize, py + blockSize); }
-        });
-        ctx.stroke();
-        ctx.restore();
-    }
 
     // Create edge colors from the base color - just the 5 colors total
     // Parse the base color and create lighter/darker versions
@@ -6352,6 +6326,53 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
             ctx.fill();
         }
     });
+
+    // ── Inner rim glow ──
+    // Light that falls INWARD from the shape's edge, so a blob reads bright
+    // at its rim and darker toward its middle — the look of the cover art.
+    //
+    // Drawn AFTER the blocks and CLIPPED to the shape, which does three
+    // things at once: the halo lands on top of the bevels so the edges
+    // themselves glow, the outward half of the stroke is clipped away so no
+    // light spills onto the starfield, and nothing brightens the middle of
+    // the blob (the mistake the reverted additive-face pass made).
+    //
+    // lineCap/lineJoin 'round' is not cosmetic: the exposed edges are
+    // emitted as separate subpaths, so with the default butt caps every
+    // convex corner lost half a line width and the glow visibly broke at
+    // the corners.
+    if (glowStrength > 0 && !useSilver) {
+        const glowColor = useGold ? '#FFD700' : color;
+        ctx.save();
+        // Clip to the shape. Overlapping rects are fine — nonzero winding
+        // unions them.
+        ctx.beginPath();
+        positions.forEach(([x, y]) => {
+            ctx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
+        });
+        ctx.clip();
+
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = blockSize * GLOW_MAX_BLUR_RATIO * glowStrength;
+        ctx.strokeStyle = glowColor;
+        ctx.lineWidth = Math.max(1, blockSize * 0.08);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = ctx.globalAlpha * 0.85 * glowStrength;
+        ctx.beginPath();
+        positions.forEach(([x, y]) => {
+            const px = Math.round(x * blockSize);
+            const py = Math.round(y * blockSize);
+            const ry = Math.round(y);
+            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(px, py); ctx.lineTo(px + blockSize, py); }
+            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(px, py + blockSize); ctx.lineTo(px + blockSize, py + blockSize); }
+            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(px, py); ctx.lineTo(px, py + blockSize); }
+            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(px + blockSize, py); ctx.lineTo(px + blockSize, py + blockSize); }
+        });
+        ctx.stroke();
+        ctx.restore();
+    }
 
     ctx.restore();
 }

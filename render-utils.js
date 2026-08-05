@@ -54,34 +54,10 @@ const RenderUtils = (() => {
         const posSet = new Set(positions.map(p => `${p[0]},${Math.round(p[1])}`));
         const b = Math.floor(blockSize * 0.2);
 
-        // Bloom pass — mirrors game.js's drawSolidShape (see the reasoning
-        // there). Present here too so a replay looks like the live game it
-        // is replaying; without it, leaderboard replays render flat beside
-        // the same board played live. Reads game.js's globals with the same
-        // `typeof` guard this file already uses for borderBrightness.
+        // Inner rim glow is drawn AFTER the blocks — see the end of this
+        // function, and the reasoning in game.js's drawSolidShape.
         const glow = (typeof glowStrength !== 'undefined') ? glowStrength : 0;
         const glowRatio = (typeof GLOW_MAX_BLUR_RATIO !== 'undefined') ? GLOW_MAX_BLUR_RATIO : 0.55;
-        if (glow > 0 && !useSilver) {
-            renderCtx.save();
-            renderCtx.globalCompositeOperation = 'lighter';
-            renderCtx.shadowColor = useGold ? '#FFD700' : color;
-            renderCtx.shadowBlur = blockSize * glowRatio * glow;
-            renderCtx.strokeStyle = useGold ? '#FFD700' : color;
-            renderCtx.lineWidth = Math.max(1, blockSize * 0.08);
-            renderCtx.globalAlpha = renderCtx.globalAlpha * 0.85 * glow;
-            renderCtx.beginPath();
-            positions.forEach(([x, y]) => {
-                const px = Math.round(x * blockSize);
-                const py = Math.round(y * blockSize);
-                const ry = Math.round(y);
-                if (!posSet.has(`${x},${ry - 1}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px + blockSize, py); }
-                if (!posSet.has(`${x},${ry + 1}`)) { renderCtx.moveTo(px, py + blockSize); renderCtx.lineTo(px + blockSize, py + blockSize); }
-                if (!posSet.has(`${x - 1},${ry}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px, py + blockSize); }
-                if (!posSet.has(`${x + 1},${ry}`)) { renderCtx.moveTo(px + blockSize, py); renderCtx.lineTo(px + blockSize, py + blockSize); }
-            });
-            renderCtx.stroke();
-            renderCtx.restore();
-        }
 
         let topColor, leftColor, bottomColor, rightColor;
         
@@ -220,7 +196,41 @@ const RenderUtils = (() => {
                 renderCtx.fill();
             }
         });
-        
+
+        // Inner rim glow — mirrors game.js's drawSolidShape exactly (see the
+        // reasoning there). Present so leaderboard replays and the
+        // next-piece preview don't render flat beside live play.
+        if (glow > 0 && !useSilver) {
+            const glowColor = useGold ? '#FFD700' : color;
+            renderCtx.save();
+            renderCtx.beginPath();
+            positions.forEach(([x, y]) => {
+                renderCtx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
+            });
+            renderCtx.clip();
+
+            renderCtx.globalCompositeOperation = 'lighter';
+            renderCtx.shadowColor = glowColor;
+            renderCtx.shadowBlur = blockSize * glowRatio * glow;
+            renderCtx.strokeStyle = glowColor;
+            renderCtx.lineWidth = Math.max(1, blockSize * 0.08);
+            renderCtx.lineCap = 'round';
+            renderCtx.lineJoin = 'round';
+            renderCtx.globalAlpha = renderCtx.globalAlpha * 0.85 * glow;
+            renderCtx.beginPath();
+            positions.forEach(([x, y]) => {
+                const px = Math.round(x * blockSize);
+                const py = Math.round(y * blockSize);
+                const ry = Math.round(y);
+                if (!posSet.has(`${x},${ry - 1}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px + blockSize, py); }
+                if (!posSet.has(`${x},${ry + 1}`)) { renderCtx.moveTo(px, py + blockSize); renderCtx.lineTo(px + blockSize, py + blockSize); }
+                if (!posSet.has(`${x - 1},${ry}`)) { renderCtx.moveTo(px, py); renderCtx.lineTo(px, py + blockSize); }
+                if (!posSet.has(`${x + 1},${ry}`)) { renderCtx.moveTo(px + blockSize, py); renderCtx.lineTo(px + blockSize, py + blockSize); }
+            });
+            renderCtx.stroke();
+            renderCtx.restore();
+        }
+
         renderCtx.restore();
     }
     
