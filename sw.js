@@ -11,6 +11,7 @@ const CORE_ASSETS = [
     '/game.js',
     '/ai-player.js',
     '/ai-worker.js',
+    '/analytics.js',
     '/audio.js',
     '/color-palettes.js',
     '/controls-config.js',

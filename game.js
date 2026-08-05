@@ -5618,6 +5618,10 @@ function togglePause() {
         pendingPause = false;
         StarfieldSystem.setPaused(false);
         if (typeof CgSdk !== 'undefined') CgSdk.overlayResume();
+        // Playtime clock follows the same boundary the CG SDK reports, so
+        // our number and theirs measure the same thing. No-op unless a
+        // human game is in progress.
+        if (typeof Analytics !== 'undefined') Analytics.gameResumed();
         if (settingsBtn) settingsBtn.classList.add('hidden-during-play');
         // Show pause button again (only in tablet mode)
         if (pauseBtn && TabletMode.enabled) pauseBtn.style.display = 'block';
@@ -5644,6 +5648,7 @@ function togglePause() {
         setTimeout(() => { justPaused = false; }, 300); // Prevent immediate unpause
         StarfieldSystem.setPaused(true);
         if (typeof CgSdk !== 'undefined') CgSdk.overlayPause();
+        if (typeof Analytics !== 'undefined') Analytics.gamePaused();
         if (settingsBtn) settingsBtn.classList.remove('hidden-during-play');
         // Hide pause button while paused
         if (pauseBtn) pauseBtn.style.display = 'none';
@@ -7455,6 +7460,13 @@ function mergePiece() {
     
     // Notify hint system of piece placement (human games only)
     if (!aiModeEnabled) HintSystem.onPiecePlaced();
+    // Same hook feeds the analytics piece counter and keeps a live
+    // score/lines/level snapshot, so an abandonment beacon can say how far
+    // the player got — not just how long they were here. In-memory only; no
+    // network call on the lock path.
+    if (!aiModeEnabled && typeof Analytics !== 'undefined') {
+        Analytics.piecePlaced({ score: score, lines: lines, level: level });
+    }
     
     // Amnesia mode: stamp placement times for newly placed blocks
     const isAmnesiaMode = challengeMode === 'amnesia' || activeChallenges.has('amnesia');
@@ -9843,6 +9855,13 @@ async function gameOver() {
             method: 'PATCH', silent: true, timeout: 5000
         });
     }
+    // Engagement analytics: upgrades this game's row from in_progress (or
+    // abandoned, if they tabbed away mid-game and came back) to game_over
+    // and stamps the final outcome. Human games only — an AI demo's game
+    // over must not close out a row it never opened.
+    if (!aiModeEnabled && typeof Analytics !== 'undefined') {
+        Analytics.gameEnded({ score: score, lines: lines, level: level });
+    }
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);
     stopMusic();
@@ -11204,6 +11223,17 @@ function startGame(mode, resumeSave) {
             sendStarted();
         } else {
             setTimeout(sendStarted, 1500);
+        }
+        // Engagement analytics: same settings, but a per-game row with a
+        // clock on it. Human games only — an AI demo left running would
+        // otherwise pour attract-mode minutes into the playtime average.
+        // (Replays never reach startGame at all.) No _visitId wait needed:
+        // analytics.js queues until setVisitId lands.
+        if (!aiModeEnabled && typeof Analytics !== 'undefined') {
+            // `resumed` marks a game continued from a paused-game save: its
+            // clock starts at zero here, so its duration is short for a
+            // reason that isn't disengagement. Excludable in analysis.
+            Analytics.gameStarted(Object.assign({ resumed: !!resumeSave }, startedPayload));
         }
     }
 
@@ -13349,6 +13379,10 @@ if (startOverlay) {
     // referrer stay untracked.
     if (_parentTrackFalse) { try { localStorage.setItem('tantro_track_optout', 'true'); } catch(e) {} }
     const _trackingEnabled = !IS_TRACKING_OPTED_OUT && !_parentTrackFalse && !navigator.webdriver;
+    // analytics.js self-initializes at load and can see the localStorage
+    // opt-out and navigator.webdriver on its own, but NOT the itch-embed
+    // parent-frame opt-out evaluated just above — so shut it down here.
+    if (!_trackingEnabled && typeof Analytics !== 'undefined') Analytics.disable();
     let _visitId = null;
     window._visitId = null;
     const _visitLoadTime = Date.now();
@@ -13401,6 +13435,9 @@ if (startOverlay) {
                 _visitId = data.visit_id;
                 window._visitId = data.visit_id;
                 _visitRecorded = true;
+                // Releases anything analytics.js queued before the visit row
+                // existed (a fast tap on a cold Render dyno) and flushes it.
+                if (typeof Analytics !== 'undefined') Analytics.setVisitId(data.visit_id);
             }
         } catch (e) {
             // Non-critical, silently ignore
