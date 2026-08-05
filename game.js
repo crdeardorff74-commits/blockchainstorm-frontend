@@ -1931,8 +1931,45 @@ const BLIZZARD_SHAPES = {
     V: [[1,0,0],[1,0,0],[1,1,1]]          // V shape
 };
 
+// Default palette. 'classicvivid' is 'classic' with the same eight hues at
+// a lower lightness range — Classic's colours are already 89-100% saturated
+// and read pale only because they sit at 68-85% lightness (see NOTES).
+const DEFAULT_PALETTE_ID = 'classicvivid';
+
+// One-time migration of the OLD default to its vivid twin.
+// Why this is needed at all: initColorsFromPalette() below writes
+// `tantro_palette` to localStorage on every single load, so every returning
+// player has 'classic' stored whether they ever chose it or not. Changing
+// DEFAULT_PALETTE_ID alone would therefore reach brand-new browsers only,
+// and everyone who has ever played would silently stay on the old look.
+// The flag makes this run exactly once, so a player who deliberately picks
+// Classic back afterwards keeps it.
+try {
+    if (!localStorage.getItem('tantro_palette_vivid_v1')) {
+        localStorage.setItem('tantro_palette_vivid_v1', 'true');
+        if (localStorage.getItem('tantro_palette') === 'classic') {
+            localStorage.setItem('tantro_palette', DEFAULT_PALETTE_ID);
+        }
+    }
+} catch (e) { /* private mode — new default applies anyway */ }
+
+// Backdrop wash over the play well. Near-neutral ON PURPOSE.
+//
+// The old value was rgba(30, 60, 120, 0.25) — a blue tint. Because block
+// faces draw at ~33% alpha, that wash is roughly two thirds of what you
+// see THROUGH every block, so it laid a blue floor under the whole board.
+// A blue floor raises the minimum RGB channel of warm hues, which is
+// exactly what kills saturation: reds, oranges and yellows suffered most.
+// Neutralising it lifts the vivid yellow's on-screen saturation from ~49%
+// to ~70% without touching a single palette value.
+//
+// Still slightly above the starfield's black so the well reads as a
+// distinct rectangle, and slightly darker overall, which raises contrast
+// against the blocks. Skipped entirely in minimalist mode, as before.
+const WELL_BACKDROP = 'rgba(8, 12, 28, 0.30)';
+
 // Current palette ID - stored in localStorage
-let currentPaletteId = localStorage.getItem('tantro_palette') || 'classic';
+let currentPaletteId = localStorage.getItem('tantro_palette') || DEFAULT_PALETTE_ID;
 
 // Dynamic COLORS and COLOR_SETS based on selected palette
 let COLORS = [];
@@ -1941,13 +1978,15 @@ let COLOR_SETS = {};
 // Initialize colors from palette
 function initColorsFromPalette(paletteId) {
     if (typeof ColorPalettes === 'undefined') {
-        // Fallback to classic colors if ColorPalettes not loaded yet
-        COLORS = ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#85C1E2', '#BB8FCE', '#FFB3D9'];
+        // Emergency fallback if ColorPalettes hasn't loaded. Mirrors
+        // 'classicvivid' in color-palettes.js (the default) — keep the two
+        // in step, or a load-order hiccup silently reverts the look.
+        COLORS = ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#1E9DE3', '#A21BDC', '#FF4DA6'];
         COLOR_SETS = {
-            4: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1'],
-            5: ['#FF6B6B', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-            6: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE'],
-            7: ['#FF6B6B', '#FFA07A', '#F7DC6F', '#52B788', '#45B7D1', '#BB8FCE', '#FFB3D9'],
+            4: ['#FF0505', '#F2C50E', '#16B66C', '#1698B6'],
+            5: ['#FF0505', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC'],
+            6: ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC'],
+            7: ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC', '#FF4DA6'],
             8: COLORS
         };
         return;
@@ -5011,7 +5050,7 @@ function drawEarthquake() {
     } else if (earthquakePhase === 'crack' || earthquakePhase === 'shift') {
         // Clear canvas and draw background (same as drawBoard)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+        ctx.fillStyle = WELL_BACKDROP;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Draw storm particles behind gameplay
@@ -5678,6 +5717,22 @@ let borderBrightness = 1.15; // Multiplier on the bevel-edge shades (100% = clas
 const BRUSHED_METAL_MAX_STRENGTH = 0.35;
 let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 
+// ─── Neon bloom (the Glow slider) ───
+// Light SPILL around a shape's outline, drawn onto the background before
+// the blocks themselves. This is what makes the cover art read as neon and
+// the game not: a bevel gives an edge, bloom gives light leaving the edge.
+//
+// Deliberately does NOT touch the face. The earlier attempt at vibrancy
+// brightened the faces additively and looked worse — brighter at the same
+// saturation is exactly "washed out" (see NOTES). Spill lands on the
+// backdrop instead, so hues stay put and only the surround lights up.
+//
+// Cost is one blurred stroke PER SHAPE, not per block: shadowBlur is a real
+// gaussian and per-block would be ~200 of them a frame. It's a slider so it
+// can be turned off on slow devices — 0% skips the pass entirely.
+const GLOW_MAX_BLUR_RATIO = 0.55;   // × blockSize at 100%
+let glowStrength = 0.40;            // default 40%
+
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
 // (the well and the next-piece canvas each need their own pattern).
 let _brushedTile = null;
@@ -5936,6 +5991,33 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
     // This prevents segmentation when blocks are pushed to fractional Y coordinates
     const posSet = new Set(positions.map(p => `${p[0]},${Math.round(p[1])}`));
     const b = Math.floor(blockSize * 0.2);
+
+    // ── Bloom pass ──
+    // Traces only the shape's EXPOSED edges (the same adjacency the bevels
+    // use) and strokes that outline once, blurred and additive. Drawn first
+    // so the blocks paint over the inward half of the halo and only the
+    // outward spill survives — which is what bloom actually looks like.
+    if (glowStrength > 0 && !useSilver) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowColor = useGold ? '#FFD700' : color;
+        ctx.shadowBlur = blockSize * GLOW_MAX_BLUR_RATIO * glowStrength;
+        ctx.strokeStyle = useGold ? '#FFD700' : color;
+        ctx.lineWidth = Math.max(1, blockSize * 0.08);
+        ctx.globalAlpha = ctx.globalAlpha * 0.85 * glowStrength;
+        ctx.beginPath();
+        positions.forEach(([x, y]) => {
+            const px = Math.round(x * blockSize);
+            const py = Math.round(y * blockSize);
+            const ry = Math.round(y);
+            if (!posSet.has(`${x},${ry - 1}`)) { ctx.moveTo(px, py); ctx.lineTo(px + blockSize, py); }
+            if (!posSet.has(`${x},${ry + 1}`)) { ctx.moveTo(px, py + blockSize); ctx.lineTo(px + blockSize, py + blockSize); }
+            if (!posSet.has(`${x - 1},${ry}`)) { ctx.moveTo(px, py); ctx.lineTo(px, py + blockSize); }
+            if (!posSet.has(`${x + 1},${ry}`)) { ctx.moveTo(px + blockSize, py); ctx.lineTo(px + blockSize, py + blockSize); }
+        });
+        ctx.stroke();
+        ctx.restore();
+    }
 
     // Create edge colors from the base color - just the 5 colors total
     // Parse the base color and create lighter/darker versions
@@ -6389,7 +6471,7 @@ function isBlobEnveloped(innerBlob, outerBlob) {
 function drawCanvasBackground() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!minimalistMode) {
-        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+        ctx.fillStyle = WELL_BACKDROP;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 }
@@ -6399,7 +6481,7 @@ function drawBoard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Then draw the background (matching CSS background transparency) - skip in minimalist mode
     if (!minimalistMode) {
-        ctx.fillStyle = 'rgba(30, 60, 120, 0.25)';
+        ctx.fillStyle = WELL_BACKDROP;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     
@@ -12550,6 +12632,17 @@ if (textureSlider) {
     });
 }
 
+const glowSlider = document.getElementById('glowSlider');
+if (glowSlider) {
+    glowSlider.addEventListener('input', (e) => {
+        glowStrength = parseFloat(e.target.value) / 100;
+        const display = document.getElementById('glowDisplay');
+        if (display) {
+            display.textContent = `${e.target.value}%`;
+        }
+    });
+}
+
 // Reset to Defaults (sits where the Language dropdown used to be; language
 // itself is deliberately NOT reset — it keeps the player's locale). Each
 // control is set to its default and the same events a manual change would
@@ -12577,6 +12670,7 @@ if (settingsResetBtn) {
         setSlider('opacitySlider', 33);
         setSlider('borderBrightnessSlider', 115);
         setSlider('textureSlider', 33);
+        setSlider('glowSlider', 40);
         setSlider('starSpeedSlider', 1);
         setSlider('aiSpeedSlider', 5);
 
@@ -12667,7 +12761,7 @@ if (aiModeToggle) {
                 stopAITuningMode();
             }
             // Restore user's saved palette
-            const savedPalette = localStorage.getItem('tantro_palette') || 'classic';
+            const savedPalette = localStorage.getItem('tantro_palette') || DEFAULT_PALETTE_ID;
             if (savedPalette !== currentPaletteId) {
                 selectPalette(savedPalette);
             }

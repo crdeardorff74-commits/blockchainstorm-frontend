@@ -3,6 +3,11 @@
 
 const ColorPalettes = (() => {
     
+    // Fallback for an unknown/removed palette id. Points at the
+    // current default so a stale saved id lands on what a new
+    // player would see, not on the retired look.
+    const DEFAULT_PALETTE_ID = 'classicvivid';
+
     // Each palette has 8 colors, plus optimized subsets for 4, 5, 6, 7 colors
     // Subsets are chosen to maximize visual diversity (spread across hue/luminance)
     
@@ -465,7 +470,7 @@ const ColorPalettes = (() => {
      * Get palette by ID
      */
     function getPalette(id) {
-        return palettes[id] || palettes['classic'];
+        return palettes[id] || palettes[DEFAULT_PALETTE_ID];
     }
     
     /**
@@ -480,7 +485,7 @@ const ColorPalettes = (() => {
      * Get all colors for a palette
      */
     function getColors(paletteId) {
-        const palette = palettes[paletteId] || palettes['classic'];
+        const palette = palettes[paletteId] || palettes[DEFAULT_PALETTE_ID];
         return palette.colors;
     }
     
@@ -488,7 +493,7 @@ const ColorPalettes = (() => {
      * Get optimized color set for a specific count
      */
     function getColorSet(paletteId, count) {
-        const palette = palettes[paletteId] || palettes['classic'];
+        const palette = palettes[paletteId] || palettes[DEFAULT_PALETTE_ID];
         if (count >= 8 || !palette.sets[count]) {
             return palette.colors;
         }
@@ -499,7 +504,7 @@ const ColorPalettes = (() => {
      * Get all COLOR_SETS for a palette (for game.js compatibility)
      */
     function getColorSets(paletteId) {
-        const palette = palettes[paletteId] || palettes['classic'];
+        const palette = palettes[paletteId] || palettes[DEFAULT_PALETTE_ID];
         return {
             4: palette.sets[4],
             5: palette.sets[5],
