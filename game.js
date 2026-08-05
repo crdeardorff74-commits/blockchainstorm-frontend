@@ -5733,15 +5733,21 @@ let brushedMetalStrength = BRUSHED_METAL_MAX_STRENGTH * 0.33; // default 33%
 // devices — 0% skips the pass (and its clip) entirely.
 // How far the glow reaches inward, as a multiple of blockSize at 100%.
 const GLOW_REACH_RATIO = 1.1;
-// The falloff is built from this many stacked strokes of decreasing width
-// rather than from shadowBlur. Reason (learned the hard way, twice):
-// a Gaussian CONSERVES ENERGY, so blurring a 2.4px line over a 19px radius
-// drops its peak to ~10% of the stroke and ~3% after alpha — invisible,
-// while the unblurred stroke underneath still reads as a hard line. That is
-// exactly what "no inward glow, the outer one looks like a solid line"
-// looked like. Stacked bands put the amplitude where it's wanted and are
-// cheaper than a shadow besides.
-const GLOW_LAYERS = 5;
+// Falloff is a real canvas gradient per edge run.
+//
+// Two rejected approaches, both of which shipped and were visibly wrong:
+//   - shadowBlur: a Gaussian CONSERVES ENERGY, so blurring a 2.4px stroke
+//     over a 19px radius left a peak of ~3% after alpha — invisible — while
+//     the unblurred stroke under it still drew as a hard line.
+//   - stacked strokes of decreasing width: bright enough, but only N steps,
+//     and the steps were plainly visible as bands.
+// A gradient is smooth by construction, cheaper than either, and lets each
+// side carry its own weight (below).
+//
+// Per-side weights mirror the bevel's own light direction (top brightest,
+// bottom darkest). Weighting all four sides equally made every bevel edge
+// read the same and flattened the 3D look the bevels exist to create.
+const GLOW_SIDE_WEIGHT = { T: 1.0, L: 0.8, R: 0.5, B: 0.35 };
 let glowStrength = 0.40;            // default 40%
 
 // Lazily-built streak tile, plus one CanvasPattern per rendering context
@@ -5989,87 +5995,113 @@ function adjustBrightness(color, factor) {
 }
 
 /**
- * Paint the inward rim glow for one shape.
+ * Paint the inward rim glow for one shape: light falling in from each
+ * exposed edge, brightest at the rim, gone by `reach` inward.
  *
- * Lives here as a single shared function (render-utils.js calls it through
- * the same `typeof` guard it uses for borderBrightness) because it is too
- * much logic to keep duplicated in the two drawSolidShape copies.
+ * Defined once here and called by render-utils.js through the same `typeof`
+ * guard it uses for borderBrightness — too much logic to keep duplicated in
+ * the two drawSolidShape copies.
  *
- * Two non-obvious pieces, both of which were bugs first:
+ * Three things here are load-bearing, each of which was a bug first:
  *
- * 1. NO shadowBlur. A Gaussian conserves energy, so blurring a thin stroke
- *    over a wide radius leaves a peak of ~10% of the stroke — invisible —
- *    while the unblurred stroke underneath still reads as a hard line. The
- *    falloff is instead built from GLOW_LAYERS stacked strokes of
- *    decreasing width: additively they ramp from full strength at the rim
- *    to 1/N at the inner limit, and it costs less than one shadow.
+ * 1. A canvas GRADIENT per edge run, not shadowBlur and not stacked
+ *    strokes. shadowBlur was invisible (a Gaussian conserves energy, so a
+ *    thin stroke blurred wide peaks at ~3% after alpha, while the unblurred
+ *    stroke under it still read as a hard line). Stacked strokes were
+ *    bright but banded — only N steps, and the steps showed.
  *
- * 2. Collinear exposed edges are MERGED into maximal runs. The strokes are
- *    up to 2*reach wide with round caps, so per-block segments would
- *    overlap at every interior seam and additive blending would turn each
- *    seam into a bright bead along an otherwise even edge.
+ * 2. Every pixel coordinate comes from the block's REAL position. `ry` (the
+ *    rounded row) is used ONLY for adjacency tests and run grouping.
+ *    Deriving pixels from `ry` quantised the glow to whole cells, so a
+ *    falling piece's glow sat still and jumped a row at a time while the
+ *    piece itself moved smoothly.
  *
- * Strokes are centred on the shape's boundary and the caller's clip keeps
- * only the inward half, so nothing spills onto the background and the
- * middle of a blob is never lifted.
+ * 3. Collinear exposed edges are MERGED into maximal runs, so a long edge
+ *    is one band rather than one per block — otherwise the per-block bands
+ *    overlap at every interior seam and additive blending beads the edge.
+ *
+ * Bands are drawn inward from the boundary and the caller clips to the
+ * shape, so nothing spills onto the background and a blob's middle is never
+ * lifted.
  */
 function paintRimGlow(ctx, positions, posSet, color, blockSize, strength) {
     if (!(strength > 0) || positions.length === 0) return;
     const reach = blockSize * GLOW_REACH_RATIO * strength;
     if (reach < 1) return;
 
-    // Group exposed unit edges by (side, fixed axis), then merge runs.
-    const runs = new Map();
+    // rgba() stops need the channels, so parse the hex once per shape.
+    let cr = 255, cg = 255, cb = 255;
+    if (typeof color === 'string' && color.charAt(0) === '#' && color.length >= 7) {
+        const pr = parseInt(color.substr(1, 2), 16);
+        const pg = parseInt(color.substr(3, 2), 16);
+        const pb = parseInt(color.substr(5, 2), 16);
+        if (!isNaN(pr) && !isNaN(pg) && !isNaN(pb)) { cr = pr; cg = pg; cb = pb; }
+    }
+    const peak = 0.9 * strength * ctx.globalAlpha;
+
     const has = (x, y) => posSet.has(`${x},${y}`);
-    const add = (side, fixed, v) => {
-        const k = side + '|' + fixed;
-        let arr = runs.get(k);
-        if (!arr) { arr = []; runs.set(k, arr); }
-        arr.push(v);
+    const groups = new Map();
+    const add = (side, key, v, from, to, fixedPx) => {
+        const k = side + '|' + key;
+        let arr = groups.get(k);
+        if (!arr) { arr = []; groups.set(k, arr); }
+        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx });
     };
     positions.forEach(([x, y]) => {
-        const ry = Math.round(y);
-        if (!has(x, ry - 1)) add('T', ry, x);
-        if (!has(x, ry + 1)) add('B', ry, x);
-        if (!has(x - 1, ry)) add('L', x, ry);
-        if (!has(x + 1, ry)) add('R', x, ry);
-    });
-
-    ctx.beginPath();
-    runs.forEach((vs, k) => {
-        const sep = k.indexOf('|');
-        const side = k.slice(0, sep);
-        const fixed = parseInt(k.slice(sep + 1), 10);
-        vs.sort((a, b) => a - b);
-        let start = vs[0], prev = vs[0];
-        for (let i = 1; i <= vs.length; i++) {
-            if (i < vs.length && vs[i] === prev + 1) { prev = vs[i]; continue; }
-            const a = start * blockSize;
-            const bEnd = (prev + 1) * blockSize;
-            if (side === 'T' || side === 'B') {
-                const yy = (side === 'T' ? fixed : fixed + 1) * blockSize;
-                ctx.moveTo(a, yy); ctx.lineTo(bEnd, yy);
-            } else {
-                const xx = (side === 'L' ? fixed : fixed + 1) * blockSize;
-                ctx.moveTo(xx, a); ctx.lineTo(xx, bEnd);
-            }
-            if (i < vs.length) { start = vs[i]; prev = vs[i]; }
-        }
+        const ry = Math.round(y);                    // adjacency/grouping only
+        const px = Math.round(x * blockSize);        // real pixels, may be mid-cell
+        const py = Math.round(y * blockSize);
+        if (!has(x, ry - 1)) add('T', ry, x, px, px + blockSize, py);
+        if (!has(x, ry + 1)) add('B', ry, x, px, px + blockSize, py + blockSize);
+        if (!has(x - 1, ry)) add('L', x, ry, py, py + blockSize, px);
+        if (!has(x + 1, ry)) add('R', x, ry, py, py + blockSize, px + blockSize);
     });
 
     ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = color;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    // Widest band first. Because each successive stroke is narrower, the
-    // layers stack toward the rim: GLOW_LAYERS deep at the edge, one deep
-    // at the inner limit — a linear ramp in GLOW_LAYERS steps.
-    const layerAlpha = ctx.globalAlpha * 0.9 * strength / GLOW_LAYERS;
-    for (let i = GLOW_LAYERS; i >= 1; i--) {
-        ctx.globalAlpha = layerAlpha;
-        ctx.lineWidth = Math.max(1, 2 * reach * i / GLOW_LAYERS);
-        ctx.stroke();
+    groups.forEach((items, k) => {
+        const side = k.charAt(0);
+        const weight = GLOW_SIDE_WEIGHT[side] || 0;
+        if (weight <= 0) return;
+        const alpha = peak * weight;
+        items.sort((m, n) => m.v - n.v);
+        let start = items[0], prev = items[0];
+        for (let i = 1; i <= items.length; i++) {
+            if (i < items.length && items[i].v === prev.v + 1) { prev = items[i]; continue; }
+            paintGlowBand(ctx, side, start.fixedPx, start.from, prev.to, reach, cr, cg, cb, alpha);
+            if (i < items.length) { start = items[i]; prev = items[i]; }
+        }
+    });
+}
+
+/**
+ * One gradient band, running inward from an edge at `fixedPx` and spanning
+ * `from`..`to` along it. Stops are eased rather than linear so the falloff
+ * reads like light instead of a ramp.
+ */
+function paintGlowBand(ctx, side, fixedPx, from, to, reach, r, g, b, alpha) {
+    const span = to - from;
+    if (span <= 0) return;
+    const head = `rgba(${r}, ${g}, ${b}, `;
+    let grad, x, y, w, h;
+    if (side === 'T') {
+        grad = ctx.createLinearGradient(0, fixedPx, 0, fixedPx + reach);
+        x = from; y = fixedPx; w = span; h = reach;
+    } else if (side === 'B') {
+        grad = ctx.createLinearGradient(0, fixedPx, 0, fixedPx - reach);
+        x = from; y = fixedPx - reach; w = span; h = reach;
+    } else if (side === 'L') {
+        grad = ctx.createLinearGradient(fixedPx, 0, fixedPx + reach, 0);
+        x = fixedPx; y = from; w = reach; h = span;
+    } else {
+        grad = ctx.createLinearGradient(fixedPx, 0, fixedPx - reach, 0);
+        x = fixedPx - reach; y = from; w = reach; h = span;
     }
+    grad.addColorStop(0, head + alpha.toFixed(4) + ')');
+    grad.addColorStop(0.25, head + (alpha * 0.45).toFixed(4) + ')');
+    grad.addColorStop(0.55, head + (alpha * 0.15).toFixed(4) + ')');
+    grad.addColorStop(1, head + '0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
 }
 
 function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold = false, faceOpacity = 1.0, useSilver = false) {
