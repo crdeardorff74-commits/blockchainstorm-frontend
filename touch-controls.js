@@ -151,6 +151,11 @@ const SwipeControls = {
         if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'LABEL' || tag === 'A') return;
         if (e.target.closest('.settings-panel, .start-overlay, .name-entry-overlay, #gameOver, .leaderboard-overlay')) return;
         
+        // Input-mix analytics. Placed AFTER the UI-element and
+        // game-running guards above, so it only counts touches that are
+        // actually playing the game — not taps on buttons or overlays.
+        if (typeof Analytics !== 'undefined') Analytics.control('src_touch');
+
         e.preventDefault();
         const touch = e.touches[0];
         this.startX = touch.clientX;
@@ -401,7 +406,13 @@ function initTouchControls() {
         
         const startRepeat = (e) => {
             e.preventDefault();
-            
+
+            // Input-mix analytics: the on-screen D-pad is a distinct input
+            // method from swipe gestures, and worth telling apart — if
+            // tablet-mode players use the buttons and gesture players
+            // don't discover rotation, those need different fixes.
+            if (typeof Analytics !== 'undefined') Analytics.control('src_btn');
+
             // Execute action immediately
             action();
             
@@ -457,8 +468,12 @@ function initTouchControls() {
     // Helper for non-repeating buttons (rotation, hard drop, pause)
     const addTouchAndClick = (element, handler) => {
         if (!element) return;
-        element.addEventListener('touchstart', handler, { passive: false });
-        element.addEventListener('click', handler);
+        const tracked = (e) => {
+            if (typeof Analytics !== 'undefined') Analytics.control('src_btn');
+            handler(e);
+        };
+        element.addEventListener('touchstart', tracked, { passive: false });
+        element.addEventListener('click', tracked);
     };
     
     // Movement buttons with repeat

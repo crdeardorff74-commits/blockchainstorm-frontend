@@ -9242,7 +9242,28 @@ function clearLines() {
     }
 }
 
+// ─── Control-discovery analytics ───
+// Called from the top of every player action (rotate / move / hard drop) to
+// answer one mobile question: did this player ever find the controls? A
+// first game that ended in 20 seconds with zero rotations is a controls
+// failure, and looks identical to "too hard" or "boring" in every other
+// metric we have.
+//
+// TRAP — these action functions are ALSO driven by the AI demo loop and by
+// replay playback, both of which run with gameRunning = true. Recording
+// those would report flawless control discovery for players who never
+// touched anything. Same gate gameOver() uses.
+//
+// Hot path (fires on every single move), so: cheap guards first, and
+// Analytics.control() no-ops after the first occurrence of each token.
+function trackControlAction(token) {
+    if (typeof Analytics === 'undefined') return;
+    if (aiModeEnabled || GameReplay.isActive()) return;
+    Analytics.control(token);
+}
+
 function rotatePiece() {
+    trackControlAction('act_rot');
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
@@ -9297,6 +9318,7 @@ function rotatePiece() {
 }
 
 function rotatePieceCounterClockwise() {
+    trackControlAction('act_rot');
     if (!currentPiece || !currentPiece.shape || !Array.isArray(currentPiece.shape) || currentPiece.shape.length === 0) return;
     if (!currentPiece.shape[0] || !Array.isArray(currentPiece.shape[0]) || currentPiece.shape[0].length === 0) return;
     // Prevent rotation during earthquake shift phase (but allow during replay - board syncs at next piece)
@@ -9355,6 +9377,7 @@ function rotatePieceCounterClockwise() {
 }
 
 function movePiece(dir) {
+    trackControlAction('act_move');
     if (!currentPiece) return;
     // Prevent movement during earthquake shift phase (but allow during replay - board syncs at next piece)
     if (earthquakeActive && earthquakePhase === 'shift' && !GameReplay.isActive()) return;
@@ -9629,6 +9652,7 @@ let hardDropPixelY = 0; // Track pixel position for smooth visual animation
 let hardDropStartY = 0; // Grid Y position when hard drop started
 
 function hardDrop() {
+    trackControlAction('act_hard');
     // During replay, allow hardDrop even if animations are in progress
     // The board will sync at the next piece anyway
     if (!GameReplay.isActive()) {
@@ -11657,6 +11681,14 @@ function startGame(mode, resumeSave) {
 
 // Comprehensive keyboard handler
 document.addEventListener('keydown', e => {
+    // Input-mix analytics: any key pressed while a human game is actually
+    // running counts as "played with the keyboard". Deliberately not
+    // per-action — the action tokens are recorded in the action functions,
+    // which see every input method. Same AI/replay exclusion as those.
+    if (typeof Analytics !== 'undefined' && gameRunning && !paused &&
+        !aiModeEnabled && !GameReplay.isActive()) {
+        Analytics.control('src_kbd');
+    }
     // F11, PageUp, PageDown - Toggle fullscreen (anytime; never on
     // CrazyGames, where custom fullscreen controls are prohibited — their
     // container provides its own)

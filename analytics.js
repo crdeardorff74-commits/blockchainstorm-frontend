@@ -72,6 +72,10 @@ const Analytics = (() => {
     // most once per visit and rides the session sync (which the server
     // OR-merges), so no flag needs its own endpoint or its own retry.
     let flags = {};
+    // Input-discovery tokens, same one-shot-per-visit mechanism as `flags`
+    // but kept in their own set (and their own column) so menu exploration
+    // and control discovery stay separate questions.
+    let controls = {};
     let queue = [];
 
     /**
@@ -226,7 +230,8 @@ const Analytics = (() => {
             playSeconds: secs(playClock.ms()),
             timeToFirstStartSeconds: firstStartMs === null ? null : secs(firstStartMs),
             gamesStarted: gameIndex,
-            flags: Object.keys(flags)
+            flags: Object.keys(flags),
+            controls: Object.keys(controls)
         };
     }
 
@@ -272,6 +277,7 @@ const Analytics = (() => {
         enabled = false;
         queue = [];
         flags = {};
+        controls = {};
         if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
         try { localStorage.removeItem(QUEUE_KEY); } catch (e) { /* private mode */ }
     }
@@ -353,6 +359,31 @@ const Analytics = (() => {
     function flag(name) {
         if (!enabled || !name || flags[name]) return;
         flags[name] = true;
+        syncSession(false);
+    }
+
+    /**
+     * Record an input-discovery token: which input methods the player used
+     * (`src_kbd` / `src_touch` / `src_btn`) and which actions they ever
+     * performed (`act_move` / `act_rot` / `act_hard`).
+     *
+     * The question this answers is a mobile one: a player whose first game
+     * ended in 20 seconds and who never once rotated a piece did not find
+     * the controls — which looks identical to "too hard" or "boring" in
+     * every other metric. Mobile is scored as its own 15 points, so that
+     * distinction decides what to fix.
+     *
+     * Called from hot paths (every move fires this), so the already-seen
+     * check comes first and costs one property lookup; only the FIRST
+     * occurrence of each token does any work.
+     *
+     * `src_pad` is deliberately absent: gamepad use is already recorded by
+     * the older /gamepad endpoint into page_visits.used_gamepad, and the
+     * summary reads it from there rather than double-recording it.
+     */
+    function control(name) {
+        if (!enabled || !name || controls[name]) return;
+        controls[name] = true;
         syncSession(false);
     }
 
@@ -463,13 +494,14 @@ const Analytics = (() => {
             playMs: playClock.ms(),
             firstStartMs: firstStartMs,
             flags: Object.keys(flags),
+            controls: Object.keys(controls),
             queueLength: queue.length,
             queue: queue.slice()
         };
     }
 
     return {
-        init, disable, setVisitId, flag,
+        init, disable, setVisitId, flag, control,
         gameStarted, piecePlaced, gamePaused, gameResumed, gameEnded,
         getState,
         // Exposed for the page-lifecycle tests; game.js does not call these.

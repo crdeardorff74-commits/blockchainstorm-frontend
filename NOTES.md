@@ -2,6 +2,14 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-08-05 — Batch 3: controls discovery (input instrumentation)
+- **`Analytics.control(token)`** — same one-shot-per-visit mechanism as `flag()` but its own set/column, because menu exploration and control discovery are different questions. Tokens: `src_kbd`, `src_touch`, `src_btn`, `act_move`, `act_rot`, `act_hard`.
+- **THE trap, and why this batch was held to last:** the action functions (`rotatePiece`, `rotatePieceCounterClockwise`, `movePiece`, `hardDrop`) are ALSO called by the AI demo loop and by replay playback. Un-gated, an AI demo would report flawless control discovery for a player who never touched anything. All four route through `trackControlAction()`, which carries the same `aiModeEnabled || GameReplay.isActive()` gate `gameOver()` uses. **Never call `Analytics.control()` from an action function directly — go through the helper.**
+- Source tokens are hooked at the INPUT layers instead (keydown in game.js gated on `gameRunning && !paused`, `handleStart` in touch-controls.js *after* its existing UI-element guards, and both button helpers) because those are only ever driven by a real human — no gating needed there.
+- `addTouchAndClick` now wraps its handler to record `src_btn`; checked first that nothing does `removeEventListener` with the original reference (only the document-level gesture handlers are ever removed, via `this._on*`).
+- **Soft drop is deliberately NOT measured.** There's no single `softDrop()` seam — touch has `startSoftDrop`, keyboard mutates `currentPiece.y` inline — so it could only be captured for some input methods, which would read as "keyboard players never soft-drop". Better absent than structurally wrong. Rotate + hard drop are the discovery signals that matter.
+- `src_pad` is NOT recorded client-side: the older `/gamepad` endpoint already sets `page_visits.used_gamepad`, and the summary folds that in server-side rather than double-recording.
+
 ## 2026-08-05 — Batch 2: onboarding-funnel flags
 - **`Analytics.flag(name)`** — records a funnel token once per visit and syncs IMMEDIATELY (a player who opens How to Play and then leaves is exactly who this measures). The whole set rides every later session sync; the server unions it, so no flag needs its own endpoint or retry. Tokens: `intro_shown`, `htp`, `lb`, `settings`, `{skill,diff,chal}_{open,set}`.
 - **One delegated capture-phase click listener** (game.js, just above the first-time-intro block) maps element ids → tokens, mirroring the `data-credit-link` delegate convention rather than editing nine handlers. **To track a new menu surface, add a line to `FUNNEL_CLICK_FLAGS`** — no other file changes. Capture phase so a handler calling stopPropagation can't swallow the measurement; walks up 4 levels rather than `closest('[id]')` because the click usually lands on text inside the button and an unrelated inner id would end the search early.
