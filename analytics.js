@@ -76,6 +76,12 @@ const Analytics = (() => {
     // but kept in their own set (and their own column) so menu exploration
     // and control discovery stay separate questions.
     let controls = {};
+    // Identifies THIS page load. Sent with the load record and again with
+    // the visit POST, so the server can mark the load as having converted
+    // into a real interaction — in either order, any number of times.
+    let loadId = null;
+    let loadRecorded = false;
+    let pendingLoadCtx = null;      // set while waiting out a hidden load
     let queue = [];
 
     /**
@@ -128,7 +134,9 @@ const Analytics = (() => {
             // THAT page load never got a visit row, and this load's visit is
             // a different row. Attaching them here would corrupt games-per-
             // session, so they're dropped rather than misfiled.
-            return parsed.filter(e => e && e.ts > cutoff && e.visitId);
+            // Load records are the exception — they are keyed by their own
+            // client id and belong to no visit, so they stay retryable.
+            return parsed.filter(e => e && e.ts > cutoff && (e.visitId || e.kind === 'load'));
         } catch (e) {
             return [];
         }
@@ -163,6 +171,7 @@ const Analytics = (() => {
     }
 
     function urlFor(entry) {
+        if (entry.kind === 'load') return AppConfig.GAME_API + '/pageload';
         return AppConfig.GAME_API + '/visit/' + entry.visitId +
             (entry.kind === 'game' ? '/game' : '/session');
     }
@@ -174,7 +183,9 @@ const Analytics = (() => {
      * server-side merged away) on the next load.
      */
     function send(entry, final) {
-        if (!entry.visitId) return;
+        // Load records carry their own client id and belong to no visit;
+        // everything else is visit-scoped and cannot be addressed yet.
+        if (!entry.visitId && entry.kind !== 'load') return;
         const url = urlFor(entry);
         const payload = JSON.stringify(entry.body);
 
@@ -218,7 +229,7 @@ const Analytics = (() => {
     function flushQueue(final) {
         if (!enabled) return;
         queue.slice().forEach(e => {
-            if (e.visitId) send(e, final);
+            if (e.visitId || e.kind === 'load') send(e, final);
         });
     }
 
@@ -283,6 +294,36 @@ const Analytics = (() => {
     }
 
     /**
+     * Record that the page was loaded at all — the CrazyGames-comparable
+     * denominator.
+     *
+     * page_visits deliberately requires an interaction ≥1s after load (its
+     * original bot filter), so anyone who loads and leaves without moving
+     * the mouse is missing from every rate built on it. Rather than change
+     * when visit rows are created — which would silently redefine a metric
+     * with thousands of rows of history — this is a separate record, and
+     * the visit POST later marks it as converted.
+     *
+     * Called by game.js, which owns the device/OS classification.
+     *
+     * A load that starts HIDDEN is a prerender or a background tab, not an
+     * impression, so it waits until the page is first actually seen. If
+     * that never happens, nothing is ever sent.
+     */
+    function recordPageLoad(ctx) {
+        if (!enabled || loadRecorded) return;
+        if (isHidden()) { pendingLoadCtx = ctx || {}; return; }
+        pendingLoadCtx = null;
+        loadRecorded = true;
+        const body = ctx || {};
+        body.clientLoadId = loadId;
+        send(enqueue('load', body), false);
+    }
+
+    /** The id for this page load, so game.js can attach it to /visit. */
+    function getLoadId() { return loadId; }
+
+    /**
      * Hand over the visit row id once the page-load POST answers. Anything
      * recorded before that point was queued with a null visitId; stamp it
      * now and flush, so a player who taps Start before the cold dyno replies
@@ -292,7 +333,9 @@ const Analytics = (() => {
         if (!enabled || !id || id < 0) return;
         visitId = id;
         let touched = false;
-        queue.forEach(e => { if (!e.visitId) { e.visitId = id; touched = true; } });
+        queue.forEach(e => {
+            if (!e.visitId && e.kind !== 'load') { e.visitId = id; touched = true; }
+        });
         if (touched) persistQueue();
         flushQueue(false);
     }
@@ -433,6 +476,9 @@ const Analytics = (() => {
 
     function onVisible() {
         visibleClock.start();
+        // A prerendered / background load becomes a real impression the
+        // first time it is actually shown.
+        if (pendingLoadCtx && !loadRecorded) recordPageLoad(pendingLoadCtx);
         if (current) { current.clock.start(); playClock.start(); startHeartbeat(); }
     }
 
@@ -463,6 +509,7 @@ const Analytics = (() => {
             return;
         }
         queue = loadQueue();
+        loadId = uuid();
         if (!isHidden()) visibleClock.start();
 
         if (typeof document !== 'undefined' && document.addEventListener) {
@@ -487,6 +534,8 @@ const Analytics = (() => {
         return {
             enabled: enabled,
             visitId: visitId,
+            loadId: loadId,
+            loadRecorded: loadRecorded,
             gameIndex: gameIndex,
             hasCurrentGame: !!current,
             currentPieces: current ? current.pieces : 0,
@@ -502,6 +551,7 @@ const Analytics = (() => {
 
     return {
         init, disable, setVisitId, flag, control,
+        recordPageLoad, getLoadId,
         gameStarted, piecePlaced, gamePaused, gameResumed, gameEnded,
         getState,
         // Exposed for the page-lifecycle tests; game.js does not call these.

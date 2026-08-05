@@ -13513,7 +13513,11 @@ if (startOverlay) {
                     screenHeight: screen.height,
                     deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
                     os: detectOS(),
-                    sessionId: _sessionId
+                    sessionId: _sessionId,
+                    // Links this visit back to its page load, closing the
+                    // load → interacted → started funnel. Order-independent:
+                    // whichever request lands first creates the row.
+                    clientLoadId: (typeof Analytics !== 'undefined') ? Analytics.getLoadId() : null
                 })
             });
             if (res.ok) {
@@ -13535,6 +13539,23 @@ if (startOverlay) {
         ['mousemove', 'scroll', 'touchstart', 'keydown', 'click'].forEach(evt =>
             document.addEventListener(evt, _recordVisit, { once: false, passive: true })
         );
+        // Record the LOAD itself, immediately and without waiting for an
+        // interaction — the visit row above is gated on one, so it can
+        // never see someone who loads and leaves. That gap is why our
+        // start rate isn't comparable to a conversion figure computed from
+        // impressions. Separate record, so page_visits keeps its meaning
+        // and its history. Device classification is passed from here
+        // because this is where it already lives.
+        if (typeof Analytics !== 'undefined') {
+            Analytics.recordPageLoad({
+                referrer: document.referrer || null,
+                userAgent: navigator.userAgent || null,
+                language: (typeof I18n !== 'undefined' ? I18n.getBrowserLanguage() : navigator.language) || null,
+                deviceType: DeviceDetection.isMobile ? 'phone' : DeviceDetection.isTablet ? 'tablet' : 'desktop',
+                os: detectOS(),
+                sessionId: _sessionId
+            });
+        }
     }
 
     // Get intro screen elements

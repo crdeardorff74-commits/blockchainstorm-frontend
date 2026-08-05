@@ -2,6 +2,12 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-08-05 — Conversion denominator: page-load record
+- **`Analytics.recordPageLoad(ctx)`** fires immediately at load, NOT waiting for an interaction — the visit POST is gated on one, so it can never see someone who loads and leaves. Called from game.js's visit-tracking block (device/OS classification already lives there); the visit POST now also carries `Analytics.getLoadId()`.
+- **`page_visits` behaviour is completely unchanged** — the interaction gate stays, so the historical start rate remains comparable. See the back-end NOTES for why merging the two would be a mistake.
+- **Queue extension worth knowing about:** load entries are the ONE kind with no `visitId`. `loadQueue()` drops null-visitId entries as unresolvable orphans, so load records are explicitly exempted there, in `send()`, in `flushQueue()`, and in `setVisitId()` (which must not stamp them). A new entry kind needs the same four touch points.
+- **Hidden loads are deferred, not dropped**: a prerender or background tab isn't an impression, so the record waits for the first `visibilitychange → visible`. If the page is never seen, nothing is sent.
+
 ## 2026-08-05 — Batch 3: controls discovery (input instrumentation)
 - **`Analytics.control(token)`** — same one-shot-per-visit mechanism as `flag()` but its own set/column, because menu exploration and control discovery are different questions. Tokens: `src_kbd`, `src_touch`, `src_btn`, `act_move`, `act_rot`, `act_hard`.
 - **THE trap, and why this batch was held to last:** the action functions (`rotatePiece`, `rotatePieceCounterClockwise`, `movePiece`, `hardDrop`) are ALSO called by the AI demo loop and by replay playback. Un-gated, an AI demo would report flawless control discovery for a player who never touched anything. All four route through `trackControlAction()`, which carries the same `aiModeEnabled || GameReplay.isActive()` gate `gameOver()` uses. **Never call `Analytics.control()` from an action function directly — go through the helper.**
