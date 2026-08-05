@@ -521,10 +521,38 @@ const ALBUM_QUEUE_KEY = 'tantro_albumPlaylist';
 const ALBUM_ORDER_FINGERPRINT_KEY = 'tantro_albumPlaylistOrderFingerprint';
 
 // Tiny stable fingerprint of an ordered key list — used to detect when an
-// admin reorders the album_intro list so we can throw away the saved
-// in-progress albumPlaylist and rebuild it from the new order.
+// admin edits the album_intro list so we can reconcile the saved
+// in-progress albumPlaylist with the new order.
 function albumOrderFingerprint(orderArr) {
     return (orderArr || []).join('|');
+}
+
+// Reconcile a saved in-progress album playlist with an edited album_intro
+// order. Admin edits NO LONGER restart the playlist (policy dropped
+// 2026-07-26 — every list tweak was resetting the whole player base to
+// song 1). Songs the player already heard stay heard, brand-new songs
+// queue at their curated position, deleted songs drop, and reorders apply
+// only to the unplayed remainder. The old fingerprint doubles as the
+// record of which songs were curated back then — in-old-list but
+// not-in-saved ⇒ played — so no new storage schema is needed. A
+// null/corrupt saved playlist errs toward "played": this path must never
+// force a re-listen.
+function reconcileAlbumPlaylist(saved, oldFingerprint) {
+    const savedArr = Array.isArray(saved) ? saved : [];
+    const oldCurated = new Set((oldFingerprint || '').split('|').filter(id => id));
+    const savedIds = new Set(savedArr);
+    // Curated part: current order, keeping songs still unplayed plus songs
+    // the old list never contained (i.e. newly added).
+    const curatedRemainder = ALBUM_PLAYLIST_ORDER.filter(id =>
+        savedIds.has(id) || !oldCurated.has(id)
+    );
+    // Tail: the player's in-progress shuffled remainder (never-curated
+    // entries), minus anything now promoted into the curated list.
+    const currentCurated = new Set(ALBUM_PLAYLIST_ORDER);
+    const tail = savedArr.filter(id =>
+        !currentCurated.has(id) && !oldCurated.has(id)
+    );
+    return [...curatedRemainder, ...tail];
 }
 const VISIT_COUNT_KEY = 'tantro_visitCount'; // Tracks how many times the player has visited (for intro songs)
 
@@ -1023,32 +1051,33 @@ function initShuffleQueues() {
 
     // Try to load album playlist from localStorage (returning player mid-album).
     // If the SOURCE order (ALBUM_PLAYLIST_ORDER) has changed since we last
-    // saved the playlist, throw the saved one away so the new order takes
-    // effect immediately instead of waiting for the player to finish the
-    // entire old playlist. Only applies when the library is authoritative —
-    // while running on BOOTSTRAP we can't trust the comparison.
+    // saved the playlist, reconcile the saved one with the new order so the
+    // edit takes effect without restarting the player's progress. Only
+    // applies when the library is authoritative — while running on
+    // BOOTSTRAP we can't trust the comparison.
     const savedAlbumPlaylist = localStorage.getItem(ALBUM_QUEUE_KEY);
     if (savedAlbumPlaylist) {
+        let saved = null;
         try {
-            const currentFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
-            const savedFingerprint = localStorage.getItem(ALBUM_ORDER_FINGERPRINT_KEY) || '';
-            if (songLibraryAuthoritative && savedFingerprint && savedFingerprint !== currentFingerprint) {
-                Logger.info('🎵 Album order changed since last visit — rebuilding album playlist');
-                const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER]);
-                const remainingSongs = shuffleArray(getShuffleableGameplaySongIds().filter(id => !excludeFromAlbum.has(id)));
-                albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
-            } else {
-                albumPlaylist = JSON.parse(savedAlbumPlaylist);
-                if (songLibraryAuthoritative) {
-                    albumPlaylist = albumPlaylist.filter(id => allSongs.some(s => s.id === id));
-                }
-            }
-            if (albumPlaylist.length > 0) {
-                Logger.debug('🎵 Loaded album playlist from storage:', albumPlaylist.length, 'songs remaining');
-            }
-        } catch (e) {
+            const parsed = JSON.parse(savedAlbumPlaylist);
+            if (Array.isArray(parsed)) saved = parsed;
+        } catch (e) {}
+        const currentFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
+        const savedFingerprint = localStorage.getItem(ALBUM_ORDER_FINGERPRINT_KEY) || '';
+        if (songLibraryAuthoritative && savedFingerprint && savedFingerprint !== currentFingerprint) {
+            Logger.info('🎵 Album order changed since last visit — reconciling album playlist');
+            albumPlaylist = reconcileAlbumPlaylist(saved, savedFingerprint);
+        } else if (saved) {
+            albumPlaylist = saved;
+        } else {
             Logger.warn('🎵 Failed to parse saved album playlist, clearing');
             albumPlaylist = [];
+        }
+        if (songLibraryAuthoritative) {
+            albumPlaylist = albumPlaylist.filter(id => allSongs.some(s => s.id === id));
+        }
+        if (albumPlaylist.length > 0) {
+            Logger.debug('🎵 Loaded album playlist from storage:', albumPlaylist.length, 'songs remaining');
         }
     }
 
@@ -1491,13 +1520,15 @@ initShuffleQueues();
         const prevGameplayCount = gameplaySongs.length;
         const prevCreditsCount = creditsSongs.length;
         const prevAlbumFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
+        const prevGameplayIds = new Set(gameplaySongs.map(s => s.id));
         loadSongsFromData(data);
         cacheSongs(data);
         songLibraryAuthoritative = true;
         rebuildAllSongs();
         const nextAlbumFingerprint = albumOrderFingerprint(ALBUM_PLAYLIST_ORDER);
         const albumOrderChanged = prevAlbumFingerprint !== nextAlbumFingerprint;
-        patchShuffleQueuesAfterLibraryRefresh(albumOrderChanged);
+        patchShuffleQueuesAfterLibraryRefresh(
+            albumOrderChanged ? prevAlbumFingerprint : null, prevGameplayIds);
         Logger.info('🎵 Background song refresh complete (gameplay '
             + prevGameplayCount + '→' + gameplaySongs.length
             + ', credits ' + prevCreditsCount + '→' + creditsSongs.length
@@ -1508,10 +1539,12 @@ initShuffleQueues();
 // After a fresh library lands, reconcile the running shuffle queues so the
 // currently playing track keeps playing but any *new* songs become reachable
 // and any *removed* songs stop being selected.
-// If albumOrderChanged is true, rebuild the album playlist from the fresh
-// ALBUM_PLAYLIST_ORDER instead of patching in place — used when the admin
-// reorders the album_intro list server-side.
-function patchShuffleQueuesAfterLibraryRefresh(albumOrderChanged) {
+// If prevAlbumFingerprint is non-null, the admin edited the album_intro
+// list server-side — reconcile the in-flight album playlist against that
+// old order (see reconcileAlbumPlaylist) instead of patching in place.
+// prevGameplayIds is the gameplay library as it stood before the refresh,
+// used to tell genuinely-new songs from ones already played.
+function patchShuffleQueuesAfterLibraryRefresh(prevAlbumFingerprint, prevGameplayIds) {
     const validGameplay = new Set(gameplaySongs.map(s => s.id));
     const validCredits  = new Set(creditsSongs.map(s => s.id));
     const validAll      = new Set(allSongs.map(s => s.id));
@@ -1541,23 +1574,27 @@ function patchShuffleQueuesAfterLibraryRefresh(albumOrderChanged) {
         creditsShuffleQueue = [...newCredits.reverse(), ...creditsShuffleQueue];
     }
 
-    if (albumOrderChanged) {
-        // Admin reordered the album_intro list — rebuild the playlist from
-        // scratch using the new order, plus the rest of gameplay shuffled.
-        const excludeFromAlbum = new Set([...ALBUM_PLAYLIST_ORDER]);
-        const remainingSongs = shuffleArray(
-            gameplaySongs.map(s => s.id).filter(id => !excludeFromAlbum.has(id))
-        );
-        albumPlaylist = [...ALBUM_PLAYLIST_ORDER, ...remainingSongs];
-        Logger.info('🎵 Rebuilt album playlist from updated order ('
-            + ALBUM_PLAYLIST_ORDER.length + ' curated + '
-            + remainingSongs.length + ' shuffled)');
-    } else if (albumPlaylist.length) {
-        // Order unchanged — just append any newly-added gameplay songs to
-        // the tail so a player booted from BOOTSTRAP still picks them up.
+    const albumWasInProgress = albumPlaylist.length > 0;
+    if (prevAlbumFingerprint !== null) {
+        // Admin edited the album_intro list — reconcile the in-flight
+        // playlist with the new order instead of rebuilding it, so this
+        // player's progress survives the edit.
+        albumPlaylist = reconcileAlbumPlaylist(albumPlaylist, prevAlbumFingerprint);
+        Logger.info('🎵 Reconciled album playlist with updated order ('
+            + albumPlaylist.length + ' songs remaining)');
+    }
+    if (albumWasInProgress && albumPlaylist.length) {
+        // Append genuinely-new gameplay songs to the tail so a player booted
+        // from BOOTSTRAP still picks them up. "Not in albumPlaylist" alone
+        // would sweep in every song the player has ALREADY heard (they were
+        // shifted off as they played), scheduling re-listens — hence the
+        // check against the pre-refresh library. Skipped when the album was
+        // already finished, so newly-curated songs don't resurrect the whole
+        // shuffled tail behind them.
         const inAlbum = new Set(albumPlaylist);
+        const knownBefore = prevGameplayIds || new Set();
         const newAlbumSongs = shuffleArray(
-            gameplaySongs.map(s => s.id).filter(id => !inAlbum.has(id))
+            gameplaySongs.map(s => s.id).filter(id => !inAlbum.has(id) && !knownBefore.has(id))
         );
         if (newAlbumSongs.length) {
             albumPlaylist = [...albumPlaylist, ...newAlbumSongs];

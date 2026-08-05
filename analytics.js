@@ -68,6 +68,10 @@ const Analytics = (() => {
     let lastSyncedPlayMs = -1;
     let syncStep = 0;               // index into SYNC_STEPS_MS, reset per game
     let heartbeatTimer = null;
+    // Onboarding-funnel flags, as a set-shaped object. Each is recorded at
+    // most once per visit and rides the session sync (which the server
+    // OR-merges), so no flag needs its own endpoint or its own retry.
+    let flags = {};
     let queue = [];
 
     /**
@@ -221,7 +225,8 @@ const Analytics = (() => {
             sessionSeconds: secs(visibleClock.ms()),
             playSeconds: secs(playClock.ms()),
             timeToFirstStartSeconds: firstStartMs === null ? null : secs(firstStartMs),
-            gamesStarted: gameIndex
+            gamesStarted: gameIndex,
+            flags: Object.keys(flags)
         };
     }
 
@@ -266,6 +271,7 @@ const Analytics = (() => {
     function disable() {
         enabled = false;
         queue = [];
+        flags = {};
         if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
         try { localStorage.removeItem(QUEUE_KEY); } catch (e) { /* private mode */ }
     }
@@ -331,6 +337,23 @@ const Analytics = (() => {
             current.stats.lines = stats.lines || 0;
             current.stats.level = stats.level || 1;
         }
+    }
+
+    /**
+     * Record an onboarding-funnel flag (How to Play opened, a picker used,
+     * the first-time intro shown, ...). Answers the question Circuitousness
+     * only found out too late: what fraction of players touch ANY menu
+     * surface at all — there, it was 9.2%, and everything behind the menu
+     * was therefore invisible to 90% of players.
+     *
+     * Syncs immediately on first occurrence rather than waiting for the
+     * next natural sync: someone who opens How to Play and then leaves is
+     * exactly the player this is meant to catch.
+     */
+    function flag(name) {
+        if (!enabled || !name || flags[name]) return;
+        flags[name] = true;
+        syncSession(false);
     }
 
     function gamePaused() {
@@ -439,13 +462,14 @@ const Analytics = (() => {
             visibleMs: visibleClock.ms(),
             playMs: playClock.ms(),
             firstStartMs: firstStartMs,
+            flags: Object.keys(flags),
             queueLength: queue.length,
             queue: queue.slice()
         };
     }
 
     return {
-        init, disable, setVisitId,
+        init, disable, setVisitId, flag,
         gameStarted, piecePlaced, gamePaused, gameResumed, gameEnded,
         getState,
         // Exposed for the page-lifecycle tests; game.js does not call these.

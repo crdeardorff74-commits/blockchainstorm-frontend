@@ -154,6 +154,9 @@ const HintSystem = (() => {
     function onGameStart() {
         Logger.debug('💡 HintSystem.onGameStart, hasShown:', hasShownHints());
         if (hasShownHints()) return;
+        // Marks this visit as travelling the new-player path, so the funnel
+        // can be read for first-timers separately from returning players.
+        if (typeof Analytics !== 'undefined') Analytics.flag('intro_shown');
         hintStep = 0;
         pieceCount = 0;
         // Show first hint after a brief delay so the player can see the board
@@ -13173,6 +13176,57 @@ if (introChallengeBtn) {
         populateComboModal();
         document.getElementById('comboModalOverlay').style.display = 'flex';
     });
+}
+
+// ─── Onboarding-funnel analytics (delegated) ───
+// ONE capture-phase listener instead of touching nine handlers, mirroring
+// the `data-credit-link` delegate: adding a surface later means adding a
+// line to a map here, not editing gameplay code. Capture phase so a
+// handler that stops propagation can't swallow the measurement.
+//
+// What this answers: what fraction of players touch ANY menu surface at
+// all. Circuitousness found only 9.2% ever did, which meant every
+// retention hook behind its menu was invisible to 90% of its players —
+// worth knowing about TANTЯO's menus BEFORE the trial, not after.
+{
+    const FUNNEL_CLICK_FLAGS = {
+        menuHowToPlayBtn:    'htp',
+        menuLeaderboardsBtn: 'lb',
+        settingsBtn:         'settings',
+        skillLevelMenuBtn:   'skill_open',
+        introSkillLevelBtn:  'skill_open',
+        difficultyMenuBtn:   'diff_open',
+        introDifficultyBtn:  'diff_open',
+        challengeSelectBtn:  'chal_open',
+        introChallengeBtn:   'chal_open'
+    };
+    // A choice actually made inside one of the three picker modals — a
+    // stronger signal than merely opening it.
+    const FUNNEL_PICK_FLAGS = {
+        skillLevelModalOverlay: 'skill_set',
+        difficultyModalOverlay: 'diff_set',
+        comboModalOverlay:      'chal_set'
+    };
+    document.addEventListener('click', (e) => {
+        if (typeof Analytics === 'undefined' || !e.target || !e.target.closest) return;
+        const opt = e.target.closest('.selection-option');
+        if (opt) {
+            const overlay = opt.closest('.combo-modal-overlay');
+            if (overlay && FUNNEL_PICK_FLAGS[overlay.id]) {
+                Analytics.flag(FUNNEL_PICK_FLAGS[overlay.id]);
+            }
+        }
+        // Walk a few levels up rather than closest('[id]'): the click may
+        // land on text inside the button, and an unrelated inner id would
+        // otherwise end the search early.
+        let node = e.target;
+        for (let i = 0; node && i < 4; i++, node = node.parentElement) {
+            if (node.id && FUNNEL_CLICK_FLAGS[node.id]) {
+                Analytics.flag(FUNNEL_CLICK_FLAGS[node.id]);
+                break;
+            }
+        }
+    }, true);
 }
 
 // ─── First-time intro (any device) ───
