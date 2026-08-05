@@ -6038,21 +6038,39 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
 
     // Face rects: the block minus the bevel on each EXPOSED side. Interior
     // sides keep their full extent so adjacent blocks' faces join up.
+    //
+    // `notches` are the INNER (concave) corners. drawSolidShape fills a b×b
+    // square there with two 45° triangles — see its `T && L && !TL` block —
+    // and a plain per-side inset can't express that, so those squares are
+    // punched back out of the silhouette below. Without it the glow paints
+    // straight over the inner-corner bevels.
     const rects = [];
+    const notches = [];
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     positions.forEach(([x, y]) => {
         const ry = Math.round(y);                 // adjacency only
         const px = Math.round(x * blockSize);     // real pixels, may be mid-cell
         const py = Math.round(y * blockSize);
-        const l = posSet.has(`${x - 1},${ry}`) ? 0 : inset;
-        const t = posSet.has(`${x},${ry - 1}`) ? 0 : inset;
-        const r = posSet.has(`${x + 1},${ry}`) ? 0 : inset;
-        const bm = posSet.has(`${x},${ry + 1}`) ? 0 : inset;
+        const T = posSet.has(`${x},${ry - 1}`);
+        const B = posSet.has(`${x},${ry + 1}`);
+        const L = posSet.has(`${x - 1},${ry}`);
+        const R = posSet.has(`${x + 1},${ry}`);
+        const l = L ? 0 : inset;
+        const t = T ? 0 : inset;
+        const r = R ? 0 : inset;
+        const bm = B ? 0 : inset;
         const w = blockSize - l - r;
         const h = blockSize - t - bm;
         if (w <= 0 || h <= 0) return;
         const rx = px + l, rry = py + t;
         rects.push([rx, rry, w, h]);
+        if (inset > 0) {
+            const far = blockSize - inset;
+            if (T && L && !posSet.has(`${x - 1},${ry - 1}`)) notches.push([px, py]);
+            if (T && R && !posSet.has(`${x + 1},${ry - 1}`)) notches.push([px + far, py]);
+            if (B && L && !posSet.has(`${x - 1},${ry + 1}`)) notches.push([px, py + far]);
+            if (B && R && !posSet.has(`${x + 1},${ry + 1}`)) notches.push([px + far, py + far]);
+        }
         if (rx < minX) minX = rx;
         if (rry < minY) minY = rry;
         if (rx + w > maxX) maxX = rx + w;
@@ -6096,6 +6114,17 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel)
         g.rect(rects[i][0] + ox, rects[i][1] + oy, rects[i][2], rects[i][3]);
     }
     g.fill();
+
+    // 1b. punch the inner-corner squares back out, so the two 45° triangles
+    // drawSolidShape draws there stay visible instead of being glowed over.
+    if (notches.length > 0) {
+        g.globalCompositeOperation = 'destination-out';
+        g.beginPath();
+        for (let i = 0; i < notches.length; i++) {
+            g.rect(notches[i][0] + ox, notches[i][1] + oy, inset, inset);
+        }
+        g.fill();
+    }
 
     // 2. erase the interior with a blurred copy of the same silhouette.
     // The silhouette is drawn `shift` to the left — entirely off the
