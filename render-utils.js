@@ -8,7 +8,9 @@ const RenderUtils = (() => {
     let nextPiece = null;
     let ctx = null;
     let nextCtx = null;
-    let faceOpacity = 0.33;
+    // Placeholder until configure() supplies the real value; mirrors
+    // SETTING_DEFAULTS.opacitySlider in game.js.
+    let faceOpacity = 0.11;
 
     function init(config) {
         trainingWheelsToggle = config.trainingWheelsToggle;

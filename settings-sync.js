@@ -155,7 +155,14 @@ const SettingsSync = {
         if (typeof ControlsConfig !== 'undefined' && ControlsConfig.getBindings) {
             settings.controlBindings = ControlsConfig.getBindings();
         }
-        
+
+        // Which sliders the player deliberately set. Rides along so the
+        // distinction survives a sync to another device — without it, a
+        // choice made here would look like an untouched default there.
+        if (typeof SettingsDefaults !== 'undefined') {
+            settings._touched = SettingsDefaults.list();
+        }
+
         return settings;
     },
     
@@ -224,13 +231,31 @@ const SettingsSync = {
             'aiSpeedSlider'
         ];
         
+        // Fold in the "player actually chose this" set travelling with the
+        // blob BEFORE restoring, so a choice made on another device is
+        // known here (it syncs via the server; the local copy alone would
+        // strand it on one browser).
+        if (typeof SettingsDefaults !== 'undefined') {
+            SettingsDefaults.merge(settings._touched);
+        }
+
         sliders.forEach(id => {
             const elem = document.getElementById(id);
-            if (elem && settings[id] !== undefined) {
-                elem.value = settings[id];
-                // Trigger input event so game code responds
-                elem.dispatchEvent(new Event('input'));
-            }
+            if (!elem) return;
+            // A stored value is NOT evidence of a preference — a value is
+            // written for every slider whenever any one of them changes. So
+            // restore only what the player deliberately set, and let
+            // everything else follow the current default. That is what
+            // makes changing a default reach existing players.
+            const chosen = (typeof SettingsDefaults === 'undefined')
+                || SettingsDefaults.isTouched(id);
+            let value = chosen ? settings[id] : SettingsDefaults.defaultFor(id);
+            if (value === undefined) value = settings[id];
+            if (value === undefined) return;
+            elem.value = value;
+            // Trigger input event so game code responds. Synthetic, so the
+            // trusted-event hook in game.js will not mark it as chosen.
+            elem.dispatchEvent(new Event('input'));
         });
         
         // Apply volume settings via audio.js localStorage keys

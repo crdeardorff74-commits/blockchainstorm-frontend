@@ -8,7 +8,9 @@ const Histogram = (() => {
     
     // External state (updated via updateConfig)
     let currentColorSet = [];
-    let faceOpacity = 0.33;
+    // Placeholder until updateConfig() supplies the real value; mirrors
+    // SETTING_DEFAULTS.opacitySlider in game.js.
+    let faceOpacity = 0.11;
     let minimalistMode = false;
     let speedBonusAverage = 1.0;
     let gameRunning = false;

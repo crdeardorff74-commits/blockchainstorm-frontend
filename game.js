@@ -5706,14 +5706,41 @@ function togglePause() {
     if (typeof SaveGame !== 'undefined') SaveGame.onPauseChanged();
 }
 
-let faceOpacity = 0.33; // Default 33% opacity
-let borderBrightness = 1.15; // Multiplier on the bevel-edge shades (100% = classic look; default 115%)
+// ─── Look-and-feel defaults ───────────────────────────────────────────
+//
+// THE single source of truth for these sliders' defaults, in slider units.
+// index.html's `value=` attributes mirror these for first paint; keep the
+// two in step.
+//
+// The point of this block is that changing a number here reaches every
+// player who has never deliberately moved that slider, on their next load
+// — even though a value for it is already sitting in their saved settings.
+// See SettingsDefaults below for how "deliberately moved" is decided.
+const SETTING_DEFAULTS = {
+    opacitySlider: 11,
+    glowSlider: 42,
+    borderBrightnessSlider: 130,
+    borderThicknessSlider: 16,
+    starSpeedSlider: 1,
+    aiSpeedSlider: 5
+};
 
-// Bevel width as a fraction of a block, driven by the Border Thickness
-// slider. 0.2 is the long-standing look. Anything that measures the bevel
+// Bump to force EVERY slider back to the defaults above, once, for every
+// player — including those who did set their own. Reserve it for changes
+// that alter the whole look badly enough that an old value would read as
+// broken rather than as a preference.
+//   1 → (implicit) everything before the epoch existed
+//   2 → 2026-08-05: rim glow shipped. It changes the entire dynamic of the
+//       piece rendering, and the old opacity/border values were chosen
+//       against a look that no longer exists.
+const SETTINGS_EPOCH = 2;
+
+let faceOpacity = SETTING_DEFAULTS.opacitySlider / 100;
+let borderBrightness = SETTING_DEFAULTS.borderBrightnessSlider / 100; // multiplier on the bevel shades
+// Bevel width as a fraction of a block. Anything that measures the bevel
 // (the rim glow's face inset, the inner-corner punch-outs) derives from the
 // same `b` in drawSolidShape, so they follow this automatically.
-let borderThickness = 0.2;
+let borderThickness = SETTING_DEFAULTS.borderThicknessSlider / 100;
 
 // ─── Neon rim glow (the Glow slider) ───
 // Light falling INWARD from a shape's edge, so a blob reads bright at its
@@ -5737,7 +5764,86 @@ const GLOW_REACH_RATIO = 1.1;
 // The glow is isotropic: the bevel carries the light direction, and every
 // attempt to give the glow its own directional weighting reintroduced a
 // step wherever two differently-weighted edges met.
-let glowStrength = 0.40;            // default 40%
+let glowStrength = SETTING_DEFAULTS.glowSlider / 100;
+
+// ─── Which settings has the player actually CHOSEN? ───────────────────
+//
+// The problem this solves: settings-sync writes a value for EVERY slider
+// whenever any one of them changes, so a saved blob is not evidence that
+// the player picked anything — everyone has a stored value for everything.
+// Without a record of intent, changing a default reaches nobody but brand
+// new browsers. (Same trap as `tantro_palette`, which is written on every
+// load; see the palette migration note in NOTES.)
+//
+// So intent is recorded separately: a slider counts as chosen only when a
+// REAL user gesture moves it. `event.isTrusted` is what distinguishes that
+// from the synthetic 'input' events fired by settings restore and by Reset
+// to Defaults, both of which must NOT mark anything as chosen.
+//
+// The set rides along inside the settings blob as `_touched`, so it syncs
+// to the server for logged-in players rather than being stranded on the
+// one device where the choice was made.
+const SettingsDefaults = (() => {
+    const TOUCHED_KEY = 'tantro_settings_touched_v1';
+    const EPOCH_KEY = 'tantro_settings_epoch_v1';
+    let touched = new Set();
+
+    try {
+        const raw = localStorage.getItem(TOUCHED_KEY);
+        if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) arr.forEach(id => touched.add(String(id)));
+        }
+    } catch (e) { /* private mode — everything reads as unchosen */ }
+
+    // Epoch bump: forget every recorded choice exactly once, so the new
+    // defaults win even where the player had set their own.
+    try {
+        if (localStorage.getItem(EPOCH_KEY) !== String(SETTINGS_EPOCH)) {
+            touched = new Set();
+            localStorage.setItem(EPOCH_KEY, String(SETTINGS_EPOCH));
+            localStorage.setItem(TOUCHED_KEY, '[]');
+        }
+    } catch (e) { /* private mode */ }
+
+    function persist() {
+        try { localStorage.setItem(TOUCHED_KEY, JSON.stringify(Array.from(touched))); }
+        catch (e) { /* private mode */ }
+    }
+
+    return {
+        /** Has the player deliberately moved this control? */
+        isTouched(id) { return touched.has(id); },
+        /** Record a deliberate move (called from the trusted-event hook). */
+        mark(id) {
+            if (!id || touched.has(id)) return;
+            touched.add(id);
+            persist();
+        },
+        /** Fold in the set travelling with a synced settings blob. */
+        merge(ids) {
+            if (!Array.isArray(ids)) return;
+            let added = false;
+            ids.forEach(id => { if (id && !touched.has(id)) { touched.add(String(id)); added = true; } });
+            if (added) persist();
+        },
+        list() { return Array.from(touched); },
+        /** Reset to Defaults means "I want the defaults" — so, unchosen. */
+        clear(ids) {
+            (ids || Array.from(touched)).forEach(id => touched.delete(id));
+            persist();
+        },
+        defaultFor(id) { return SETTING_DEFAULTS[id]; }
+    };
+})();
+
+// Only a real gesture counts. Capture phase so a handler that stops
+// propagation can't hide the fact that the player moved something.
+document.addEventListener('input', (e) => {
+    if (e && e.isTrusted && e.target && SETTING_DEFAULTS[e.target.id] !== undefined) {
+        SettingsDefaults.mark(e.target.id);
+    }
+}, true);
 
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
@@ -12807,12 +12913,12 @@ if (settingsResetBtn) {
         // Audio settings (playlist, volumes, mutes, instrumental-only) are
         // deliberately left alone — resetting them would interrupt whatever
         // is playing, and they're preferences, not tuning to "fix"
-        setSlider('opacitySlider', 33);
-        setSlider('borderBrightnessSlider', 115);
-        setSlider('glowSlider', 40);
-        setSlider('borderThicknessSlider', 20);
-        setSlider('starSpeedSlider', 1);
-        setSlider('aiSpeedSlider', 5);
+        // Driven by SETTING_DEFAULTS so there is one place to change a
+        // default, and the marks are cleared because "reset to defaults" is
+        // a statement that the player wants whatever the default IS — which
+        // includes future changes to it.
+        Object.keys(SETTING_DEFAULTS).forEach(id => setSlider(id, SETTING_DEFAULTS[id]));
+        SettingsDefaults.clear(Object.keys(SETTING_DEFAULTS));
 
         setCheckbox('stormEffectsToggle', true);
         setCheckbox('cameraOrientationToggle', false);
