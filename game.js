@@ -5894,68 +5894,6 @@ function updateFadingBlocks() {
     }
 }
 
-// ─── Face painting: two passes, not one ───
-// A block's face used to be a single source-over fill at the Piece Opacity
-// setting. That put "more colour" and "more see-through" in direct
-// competition, and colour lost: at 33% over the well's backdrop, #F7DC6F
-// (chroma 136) lands on #59553e — chroma 27. Nearly the whole block was a
-// grey, and all the actual colour lived in the thin bevel.
-//
-// Now the face is a thin source-over BODY pass plus an additive GLOW pass.
-// Additive light never darkens what is behind it, so the starfield shows
-// through MORE than before (13% occlusion at the default setting, down from
-// 33%) while chroma roughly doubles. Same trick the cover art uses:
-// translucent shapes that still glow.
-//
-// The two ratios are complementary by construction:
-//   opacity 0   -> nothing at all
-//   opacity .33 -> body .11, glow .53   (the glass-neon look)
-//   opacity 1   -> body 1, glow 0       (a solid block, nothing to glow through)
-function faceBodyAlpha(opacity) { return opacity * opacity; }
-function faceGlowAlpha(opacity) { return Math.min(1, opacity * (1 - opacity) * 2.4); }
-
-// Lighten toward white in HSL, preserving hue AND saturation.
-//
-// Why not adjustBrightness: it multiplies RGB and clips at 255, so the
-// dominant channel saturates while the others keep climbing and the result
-// drifts toward white — #FF6B6B x1.495 becomes #ff9f9f (chroma 148 -> 96).
-// Worse, on a fully saturated colour it does nothing at all: #00FFFF x1.495
-// is still #00FFFF, so the Neon palette's top bevel was identical to its
-// face and the blocks read flat. This keeps the hue and actually lightens.
-function lightenColor(color, amount) {
-    if (!color || !color.startsWith('#')) return color || '#808080';
-    const hex = color.replace('#', '');
-    let r = parseInt(hex.substring(0, 2), 16) / 255;
-    let g = parseInt(hex.substring(2, 4), 16) / 255;
-    let b = parseInt(hex.substring(4, 6), 16) / 255;
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return '#808080';
-    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    let h = 0, s = 0;
-    const l = (mx + mn) / 2;
-    const d = mx - mn;
-    if (d) {
-        s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
-        h = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? ((b - r) / d + 2) : ((r - g) / d + 4);
-        h /= 6;
-    }
-    const nl = Math.min(1, l + (1 - l) * Math.max(0, Math.min(1, amount)));
-    if (!s) {
-        const v = Math.round(nl * 255);
-        return '#' + [v, v, v].map(x => x.toString(16).padStart(2, '0')).join('');
-    }
-    const q = nl < 0.5 ? nl * (1 + s) : nl + s - nl * s;
-    const p = 2 * nl - q;
-    const ch = (t) => {
-        t = (t + 1) % 1;
-        if (t < 1 / 6) return p + (q - p) * 6 * t;
-        if (t < 0.5) return q;
-        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-        return p;
-    };
-    return '#' + [ch(h + 1 / 3), ch(h), ch(h - 1 / 3)]
-        .map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
-}
-
 function adjustBrightness(color, factor) {
     // Handle non-hex colors (like rgb() strings) by returning them unchanged
     if (!color || !color.startsWith('#')) {
@@ -6021,12 +5959,8 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         // Create lighter shade for top and left (highlighted edges) and
         // darker for bottom and right (shadow edges). borderBrightness (the
         // Border Brightness setting) scales all four uniformly.
-        // Highlights lighten in HSL (hue and saturation preserved); shadows
-        // keep the RGB multiply, which darkens hue-safely. The multiplier is
-        // mapped to a lighten amount so the Border Brightness setting keeps
-        // its meaning: 100% = no lift, 115% (default) = a 0.50 lift.
-        const lightShade = lightenColor(color, 1.3 * borderBrightness - 1);
-        const mediumLightShade = lightenColor(color, 1.15 * borderBrightness - 1);
+        const lightShade = adjustBrightness(color, 1.3 * borderBrightness);
+        const mediumLightShade = adjustBrightness(color, 1.15 * borderBrightness);
 
         const darkShade = adjustBrightness(color, 0.7 * borderBrightness);
         const mediumDarkShade = adjustBrightness(color, 0.85 * borderBrightness);
@@ -6061,12 +5995,7 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
         // Draw main face with optional transparency
         // Multiply faceOpacity with the current globalAlpha (for fade effects)
         const currentAlpha = ctx.globalAlpha;
-        const bodyAlpha = faceBodyAlpha(faceOpacity);
-        const glowAlpha = faceGlowAlpha(faceOpacity);
-        // Pass 1 — BODY. A thin source-over wash: gives the block presence
-        // and lets the brushed-metal grain key off something. Deliberately
-        // much lighter than the old single pass.
-        ctx.globalAlpha = currentAlpha * bodyAlpha;
+        ctx.globalAlpha = currentAlpha * faceOpacity;
         ctx.fillStyle = color;
         ctx.fillRect(px, py, blockSize, blockSize);
         // Experimental brushed-metal grain over the face (edges draw on top
@@ -6079,26 +6008,12 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
             const brushedPattern = getBrushedPattern(ctx);
             if (brushedPattern) {
                 ctx.save();
-                // Rides the body pass, not the whole face: the grain is
-                // neutral grey, so scaling it with the glow would fight the
-                // saturation the glow pass exists to add.
-                ctx.globalAlpha = currentAlpha * bodyAlpha * brushedMetalStrength;
+                ctx.globalAlpha = currentAlpha * faceOpacity * brushedMetalStrength;
                 ctx.translate(px, py);
                 ctx.fillStyle = brushedPattern;
                 ctx.fillRect(0, 0, blockSize, blockSize);
                 ctx.restore();
             }
-        }
-        // Pass 2 — GLOW. Additive, so it adds light rather than replacing
-        // what is behind: this is where the block's colour actually comes
-        // from, and the starfield underneath is never dimmed by it. Drawn
-        // after the grain so the grain doesn't mute it.
-        if (glowAlpha > 0) {
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha = currentAlpha * glowAlpha;
-            ctx.fillStyle = color;
-            ctx.fillRect(px, py, blockSize, blockSize);
-            ctx.globalCompositeOperation = 'source-over';
         }
         ctx.globalAlpha = currentAlpha; // Restore to parent's alpha
 

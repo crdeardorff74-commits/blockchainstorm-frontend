@@ -21,6 +21,37 @@ const ColorPalettes = (() => {
             }
         },
         
+        // Classic's exact 8 hues, tuned for the dark well.
+        //
+        // Classic's colours are NOT low-saturation — most are already at
+        // 89-100% HSL saturation. They read pale because their LIGHTNESS is
+        // 68-85%, and the well then paints them at 33% alpha over a dark
+        // blue-washed backdrop, which lands e.g. #F7DC6F on #59553E: 18%
+        // saturation on screen. The cover art's colours sit at 45-59%
+        // lightness, which is where hues are most vivid.
+        //
+        // So this keeps every hue identical and only shifts the lightness
+        // RANGE down (−0.20, clamped 0.40-0.66) with a 78% saturation floor
+        // for the two muted ones (the green and purple). On-screen
+        // saturation goes from 15-52% to 42-74%, and the luminance spread
+        // actually widens (31-76 vs 58-84), so blobs stay tellable apart —
+        // which matters here, since matching colours IS the mechanic.
+        //
+        // Subset indices mirror 'classic' exactly, so the 4/5/6/7-colour
+        // games make the same choices they always did.
+        'classicvivid': {
+            name: 'Classic Vivid',
+            category: 'Standard',
+            colors: ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#1E9DE3', '#A21BDC', '#FF4DA6'],
+            sets: {
+                4: ['#FF0505', '#F2C50E', '#16B66C', '#1698B6'],
+                5: ['#FF0505', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC'],
+                6: ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC'],
+                7: ['#FF0505', '#FF5714', '#F2C50E', '#16B66C', '#1698B6', '#A21BDC', '#FF4DA6'],
+                8: null
+            }
+        },
+
         // === VIBRANT ===
         'neon': {
             name: 'Neon',
@@ -517,6 +548,3 @@ const ColorPalettes = (() => {
         getCategoryOrder
     };
 })();
-
-// Make available globally
-window.ColorPalettes = ColorPalettes;
