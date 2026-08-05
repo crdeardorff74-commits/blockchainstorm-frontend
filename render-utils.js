@@ -70,8 +70,15 @@ const RenderUtils = (() => {
             // Mirror game.js's drawSolidShape: the Border Brightness setting
             // (game.js global, read at call time) scales all four edge shades
             const bb = (typeof borderBrightness !== 'undefined') ? borderBrightness : 1.0;
-            topColor = adjustBrightness(color, 1.3 * bb);
-            leftColor = adjustBrightness(color, 1.15 * bb);
+            // Highlights lighten in HSL, shadows multiply down — mirrors
+            // game.js's drawSolidShape (see the reasoning there). Guarded
+            // like `borderBrightness` above: this module reaches into
+            // game.js's globals, and falls back to the old RGB multiply if
+            // it is ever loaded without them.
+            const lighten = (typeof lightenColor === 'function')
+                ? lightenColor : (c, a) => adjustBrightness(c, 1 + a);
+            topColor = lighten(color, 1.3 * bb - 1);
+            leftColor = lighten(color, 1.15 * bb - 1);
             bottomColor = adjustBrightness(color, 0.7 * bb);
             rightColor = adjustBrightness(color, 0.85 * bb);
         }
@@ -93,10 +100,25 @@ const RenderUtils = (() => {
             const BL = posSet.has(`${x-1},${ry+1}`);
             const BR = posSet.has(`${x+1},${ry+1}`);
             
+            // Two-pass face — mirrors game.js's drawSolidShape (thin
+            // source-over body + additive glow). Keep the two in step: this
+            // copy renders replays and the next-piece preview, and a
+            // mismatch shows up as replays looking washed out next to live
+            // play of the same board.
             const currentAlpha = renderCtx.globalAlpha;
-            renderCtx.globalAlpha = currentAlpha * opacity;
+            const bodyAlpha = (typeof faceBodyAlpha === 'function')
+                ? faceBodyAlpha(opacity) : opacity * opacity;
+            const glowAlpha = (typeof faceGlowAlpha === 'function')
+                ? faceGlowAlpha(opacity) : Math.min(1, opacity * (1 - opacity) * 2.4);
+            renderCtx.globalAlpha = currentAlpha * bodyAlpha;
             renderCtx.fillStyle = color;
             renderCtx.fillRect(px, py, blockSize, blockSize);
+            if (glowAlpha > 0) {
+                renderCtx.globalCompositeOperation = 'lighter';
+                renderCtx.globalAlpha = currentAlpha * glowAlpha;
+                renderCtx.fillRect(px, py, blockSize, blockSize);
+                renderCtx.globalCompositeOperation = 'source-over';
+            }
             renderCtx.globalAlpha = currentAlpha;
             
             // Top edge
