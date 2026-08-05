@@ -6024,10 +6024,18 @@ function adjustBrightness(color, factor) {
  * shape, so nothing spills onto the background and a blob's middle is never
  * lifted.
  */
-function paintRimGlow(ctx, positions, posSet, color, blockSize, strength) {
+function paintRimGlow(ctx, positions, posSet, color, blockSize, strength, bevel) {
     if (!(strength > 0) || positions.length === 0) return;
     const reach = blockSize * GLOW_REACH_RATIO * strength;
     if (reach < 1) return;
+    // The bevel owns the outer `bevel` px of every exposed edge. Starting
+    // the glow at the block boundary put its BRIGHTEST point on top of the
+    // bevel and flooded all four of its shades to the same value — the
+    // bevels stopped reading as bevels and became a uniform thick outline.
+    // Every band therefore starts at the bevel's INNER edge, and its ends
+    // are pulled back by the same amount wherever a perpendicular bevel
+    // occupies that corner.
+    const inset = Math.max(0, bevel || 0);
 
     // rgba() stops need the channels, so parse the hex once per shape.
     let cr = 255, cg = 255, cb = 255;
@@ -6041,20 +6049,24 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength) {
 
     const has = (x, y) => posSet.has(`${x},${y}`);
     const groups = new Map();
-    const add = (side, key, v, from, to, fixedPx) => {
+    const add = (side, key, v, from, to, fixedPx, capStart, capEnd) => {
         const k = side + '|' + key;
         let arr = groups.get(k);
         if (!arr) { arr = []; groups.set(k, arr); }
-        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx });
+        arr.push({ v: v, from: from, to: to, fixedPx: fixedPx, capStart: capStart, capEnd: capEnd });
     };
     positions.forEach(([x, y]) => {
         const ry = Math.round(y);                    // adjacency/grouping only
         const px = Math.round(x * blockSize);        // real pixels, may be mid-cell
         const py = Math.round(y * blockSize);
-        if (!has(x, ry - 1)) add('T', ry, x, px, px + blockSize, py);
-        if (!has(x, ry + 1)) add('B', ry, x, px, px + blockSize, py + blockSize);
-        if (!has(x - 1, ry)) add('L', x, ry, py, py + blockSize, px);
-        if (!has(x + 1, ry)) add('R', x, ry, py, py + blockSize, px + blockSize);
+        const openL = !has(x - 1, ry), openR = !has(x + 1, ry);
+        const openT = !has(x, ry - 1), openB = !has(x, ry + 1);
+        // capStart/capEnd mark the ends that abut a PERPENDICULAR exposed
+        // edge, i.e. a corner where that side's own bevel already sits.
+        if (openT) add('T', ry, x, px, px + blockSize, py + inset, openL, openR);
+        if (openB) add('B', ry, x, px, px + blockSize, py + blockSize - inset, openL, openR);
+        if (openL) add('L', x, ry, py, py + blockSize, px + inset, openT, openB);
+        if (openR) add('R', x, ry, py, py + blockSize, px + blockSize - inset, openT, openB);
     });
 
     ctx.globalCompositeOperation = 'lighter';
@@ -6067,7 +6079,11 @@ function paintRimGlow(ctx, positions, posSet, color, blockSize, strength) {
         let start = items[0], prev = items[0];
         for (let i = 1; i <= items.length; i++) {
             if (i < items.length && items[i].v === prev.v + 1) { prev = items[i]; continue; }
-            paintGlowBand(ctx, side, start.fixedPx, start.from, prev.to, reach, cr, cg, cb, alpha);
+            // Only the run's own ends can sit in a corner; everything
+            // between them is mid-edge and needs no pull-back.
+            const from = start.from + (start.capStart ? inset : 0);
+            const to = prev.to - (prev.capEnd ? inset : 0);
+            paintGlowBand(ctx, side, start.fixedPx, from, to, reach, cr, cg, cb, alpha);
             if (i < items.length) { start = items[i]; prev = items[i]; }
         }
     });
@@ -6477,7 +6493,7 @@ function drawSolidShape(ctx, positions, color, blockSize = BLOCK_SIZE, useGold =
             ctx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
         });
         ctx.clip();
-        paintRimGlow(ctx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glowStrength);
+        paintRimGlow(ctx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glowStrength, b);
         ctx.restore();
     }
 

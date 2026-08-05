@@ -206,7 +206,7 @@ const RenderUtils = (() => {
                 renderCtx.rect(Math.round(x * blockSize), Math.round(y * blockSize), blockSize, blockSize);
             });
             renderCtx.clip();
-            paintRimGlow(renderCtx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glow);
+            paintRimGlow(renderCtx, positions, posSet, useGold ? '#FFD700' : color, blockSize, glow, b);
             renderCtx.restore();
         }
 
