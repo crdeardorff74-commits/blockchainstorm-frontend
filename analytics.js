@@ -41,15 +41,23 @@ const Analytics = (() => {
     const QUEUE_KEY = 'tantro_analytics_queue_v1';
     const QUEUE_MAX = 50;                       // oldest dropped past this
     const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-    // Heartbeat only exists so a session that dies without firing ANY exit
-    // event (hard crash, OS kill, iOS swipe-away) still lands most of its
-    // playtime. Deliberately sparse: the per-IP rate limiter is shared by
-    // everyone behind a carrier NAT, and event-driven syncs already cover
-    // every normal exit.
-    const HEARTBEAT_MS = 120000;
-    // Skip a heartbeat sync unless at least this much new time accrued —
-    // stops an idle-but-visible tab from re-POSTing an unchanged payload.
-    const MIN_SYNC_DELTA_MS = 5000;
+    // ── Backstop syncs ──
+    // The exit beacon is not guaranteed. Closing the whole BROWSER (rather
+    // than the tab) kills the process that would carry an in-flight
+    // sendBeacon, so a cold Render dyno never receives it; the payload then
+    // waits in the queue until the player's next visit, which may be never.
+    // Crashes, OS kills and iOS swipe-aways lose it the same way.
+    //
+    // So the row is topped up WHILE the game is running, on an escalating
+    // schedule: even a game whose exit is never heard from still carries a
+    // real duration (a lower bound), instead of the 0s it was stamped with
+    // at game start. Early steps are close together because most abandons
+    // happen in the first minute — that is the whole thing being measured.
+    // The schedule then stretches out, because the per-IP rate limiter is
+    // shared by everyone behind a carrier NAT and a long, healthy session
+    // needs no more than a periodic top-up.
+    const HEARTBEAT_TICK_MS = 15000;
+    const SYNC_STEPS_MS = [15000, 30000, 60000, 120000];  // last step repeats
 
     // ── State ────────────────────────────────────────────────────────────
     let enabled = true;
@@ -58,6 +66,7 @@ const Analytics = (() => {
     let current = null;             // the game in progress, or null
     let firstStartMs = null;        // visible-ms elapsed when game 1 started
     let lastSyncedPlayMs = -1;
+    let syncStep = 0;               // index into SYNC_STEPS_MS, reset per game
     let heartbeatTimer = null;
     let queue = [];
 
@@ -293,6 +302,7 @@ const Analytics = (() => {
             current = null;
         }
         gameIndex++;
+        syncStep = 0;   // the close-together early steps matter most per game
         current = {
             id: uuid(),
             index: gameIndex,
@@ -376,10 +386,14 @@ const Analytics = (() => {
         if (!enabled || heartbeatTimer || typeof setInterval !== 'function') return;
         heartbeatTimer = setInterval(() => {
             if (!current || isHidden()) return;
-            if (playClock.ms() - lastSyncedPlayMs < MIN_SYNC_DELTA_MS) return;
+            // Escalating gap, so an idle-but-visible tab never re-POSTs
+            // unchanged state and a long session doesn't chatter.
+            const need = SYNC_STEPS_MS[Math.min(syncStep, SYNC_STEPS_MS.length - 1)];
+            if (playClock.ms() - lastSyncedPlayMs < need) return;
+            syncStep++;
             syncGame('in_progress', false);
             syncSession(false);
-        }, HEARTBEAT_MS);
+        }, HEARTBEAT_TICK_MS);
     }
 
     function stopHeartbeat() {
