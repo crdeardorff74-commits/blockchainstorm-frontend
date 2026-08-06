@@ -2,6 +2,21 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-08-05 — Release v4.34 (music-at-game-over tracking)
+- **Supersedes v4.33, bumped earlier the same day and never zipped.** The last build actually DEPLOYED to players is still **v4.30**, so this one zip carries the entire day: CrazyGames analytics (batches 1-3 + conversion fix), the visual overhaul, `PerfGuard`, and today's music tracking.
+- New since v4.33: `musicOn` on the game-over payload (front-end side of the music-at-game-over metric) and the `isMusicAudible()` helper. The histogram bucket-order fix that shipped alongside it is server + admin only, not in this zip.
+- **Deploy order matters this time.** The back end must go out BEFORE or with this zip — `music_on` is a new column and a new payload field. An old back end would simply ignore `musicOn` (the merge only assigns when the key is present), so nothing breaks, but the metric stays empty until it lands.
+- **The admin site also needs a redeploy**: the ordered-bucket fix for the Game length chart and the new "Ended with music audible" line both live there.
+- **Not browser-verified per rule 0.** Add to the existing test pass: play a game to game over with music ON and another with it OFF, then confirm the admin panel's music line reads 1 of 2. Also confirm the Game length chart now runs shortest-to-longest rather than alphabetically.
+
+## 2026-08-05 — Music-at-game-over tracking + histogram bucket order fix
+- **BUG: the Game length chart was ordered alphabetically** (`0-14s, 1-2m, 10m+, 15-29s, …`). Cause: the histograms are dicts and **Flask's `jsonify` SORTS dict keys**, so the admin panel's `Object.keys(hist)` walked alphabetical order no matter how the dict was built. Fixed server-side by exporting `DURATION_BUCKET_LABELS` as an ordered LIST (which survives serialization) and having the panel iterate that. **Any future ordered data crossing this API must be a list, not dict key order.**
+- **New: `game_results.music_on`** — was gameplay music AUDIBLE when the game ended. Stricter than "a track is selected": muted, volume zero, paused, or no track ever loaded all count as off, because the question is whether the soundtrack is actually reaching people.
+- **Read BEFORE `stopMusic()`**, which runs a few lines later in `gameOver()`. Called any later and the answer is always false. (`setGameInProgress(false)` runs earlier but only sets a flag, so it is safe.)
+- **Only the game-over payload carries `musicOn`** — `in_progress`/`abandoned` payloads omit the key entirely (JSON.stringify drops undefined), and the server assigns only when the key is present. So a backstop sync or a late duplicate beacon can never blank out a recorded value.
+- **The rate is over FINISHED games, never all games.** An abandoned game never reports music state; folding those in would read as "music off" and roughly halve the number. NULL is likewise not "off" — it means the game never got that far. Mutation-verified in the test suite.
+- Column is nullable and added via the startup `ADD COLUMN IF NOT EXISTS` block — no manual migration.
+
 ## 2026-08-05 — Release v4.33 (PerfGuard + Reset-to-Defaults palette fix)
 - **Supersedes v4.32, bumped earlier the same day and never zipped.** This zip therefore still carries everything from v4.31/v4.32 as well: the CrazyGames analytics work (batches 1-3 + the conversion fix) and the whole visual overhaul. The last build actually DEPLOYED to players is v4.30.
 - New since v4.32: `PerfGuard` (automatic effect reduction on slow devices, reported as the `perf_reduced` analytics token) and the Reset-to-Defaults palette fix. Both detailed in the entries below.

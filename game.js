@@ -10274,6 +10274,32 @@ function toggleUIElements(show) {
     }
 }
 
+/**
+ * Is gameplay music actually AUDIBLE right now?
+ *
+ * Deliberately stricter than "a track is selected": a player who muted the
+ * music, dragged the volume to zero, or paused it is not listening to it,
+ * and the whole point of the measurement is whether the soundtrack is
+ * reaching people. Any of those alone would otherwise count as "on".
+ *
+ * Read at game over, which happens BEFORE stopMusic() further down — call
+ * it any later and the answer is always false.
+ */
+function isMusicAudible() {
+    try {
+        if (musicSelect && musicSelect.value === 'none') return false;
+        if (typeof isMusicPaused === 'function' && isMusicPaused()) return false;
+        if (typeof isMusicMuted === 'function' && isMusicMuted()) return false;
+        if (typeof getMusicVolume === 'function' && !(getMusicVolume() > 0)) return false;
+        // No track ever loaded (autoplay blocked, or the fetch failed) —
+        // the selector says "on" but nothing is coming out.
+        if (typeof getCurrentSongInfo === 'function' && !getCurrentSongInfo()) return false;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function gameOver() {
     // Prevent re-entrant calls (multiple game-over checks can fire in quick succession)
     if (gameOverInProgress) {
@@ -10315,7 +10341,10 @@ async function gameOver() {
     // and stamps the final outcome. Human games only — an AI demo's game
     // over must not close out a row it never opened.
     if (!aiModeEnabled && typeof Analytics !== 'undefined') {
-        Analytics.gameEnded({ score: score, lines: lines, level: level });
+        Analytics.gameEnded({
+            score: score, lines: lines, level: level,
+            musicOn: isMusicAudible()
+        });
     }
     document.body.classList.remove('game-running');
     cancelAnimationFrame(gameLoop);

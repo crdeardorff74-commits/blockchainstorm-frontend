@@ -262,6 +262,10 @@ const Analytics = (() => {
             lines: current.stats.lines || 0,
             level: current.stats.level || 1,
             pieces: current.pieces || 0,
+            // Only known at game over, and JSON.stringify drops undefined
+            // keys — so in_progress/abandoned payloads simply omit it and
+            // the server leaves the stored value alone.
+            musicOn: current.musicOn,
             endCause: endCause
         };
     }
@@ -449,6 +453,7 @@ const Analytics = (() => {
             current.stats.score = stats.score != null ? stats.score : current.stats.score;
             current.stats.lines = stats.lines != null ? stats.lines : current.stats.lines;
             current.stats.level = stats.level != null ? stats.level : current.stats.level;
+            if (stats.musicOn != null) current.musicOn = !!stats.musicOn;
         }
         current.clock.stop();
         playClock.stop();
