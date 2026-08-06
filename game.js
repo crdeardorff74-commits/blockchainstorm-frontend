@@ -5845,6 +5845,106 @@ document.addEventListener('input', (e) => {
     }
 }, true);
 
+// ─── Automatic effect reduction on slow devices ───────────────────────
+//
+// The rim glow is the most expensive thing this game draws (an offscreen
+// layer and a blur per shape, per frame). A Settings slider turns it off,
+// but a slider only helps players who go looking for it — and the funnel
+// data this project collects exists precisely because most never open a
+// menu at all. On a weak phone the damage is done in the first thirty
+// seconds, so the game has to notice for itself.
+//
+// Measures the MEDIAN frame time over a window of real gameplay and, if
+// the device cannot hold roughly 45fps, drops the glow and raises the
+// opacity to compensate for the lost definition. Judged once per device
+// and remembered, so it neither re-measures every session nor oscillates.
+const PerfGuard = (() => {
+    const FLAG_KEY = 'tantro_perf_degraded_v1';
+    const WARMUP_FRAMES = 120;   // ignore startup jank: asset decode, first paint, JIT
+    const WINDOW_FRAMES = 120;   // then judge on this many clean frames
+    const SLOW_MS = 22;          // sustained worse than ~45fps
+    const OUTLIER_MS = 500;      // a GC pause or tab switch, not a slow device
+    // What "reduced" means. Opacity goes UP because the faces carry the
+    // piece once the rim light is gone.
+    const REDUCED = { glowSlider: 0, opacitySlider: 33 };
+
+    let phase = 'off';           // off | warmup | sampling | done
+    let warmed = 0;
+    let samples = [];
+
+    function wasJudgedSlow() {
+        try { return localStorage.getItem(FLAG_KEY) === '1'; }
+        catch (e) { return false; }
+    }
+
+    function remember() {
+        // localStorage ONLY, never the synced settings blob: performance is
+        // a property of the device, not of the account. A player on a slow
+        // phone and a fast desktop must not have one drag the other down.
+        try { localStorage.setItem(FLAG_KEY, '1'); } catch (e) { /* private mode */ }
+    }
+
+    function apply() {
+        Object.keys(REDUCED).forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = REDUCED[id];
+            // Synthetic on purpose. The trusted-event hook above must NOT
+            // record this as a player choice — if it did, this device would
+            // be frozen out of every future change to these defaults.
+            el.dispatchEvent(new Event('input'));
+        });
+        // Report it. Called from BOTH paths — the moment the guard fires and
+        // the re-apply on a device already judged slow — so the metric reads
+        // "sessions running reduced", not "sessions where it fired today".
+        // Without this the threshold is unfalsifiable: too eager and mid-range
+        // phones silently lose the glow, too lax and this never runs at all.
+        if (typeof Analytics !== 'undefined') Analytics.control('perf_reduced');
+    }
+
+    return {
+        /** Called when a human game starts. */
+        onGameStart() {
+            phase = 'off';
+            warmed = 0;
+            samples = [];
+            // An explicit choice outranks the guard, in both directions: we
+            // neither measure nor re-apply once the player has set Glow
+            // themselves. Raising it back after a reduction is how they say
+            // "I know, I want it anyway", and it has to stick.
+            if (typeof SettingsDefaults !== 'undefined' && SettingsDefaults.isTouched('glowSlider')) return;
+            if (wasJudgedSlow()) { apply(); return; }
+            phase = 'warmup';
+        },
+
+        /** Called once per rendered frame of real, unpaused human play. */
+        sample(deltaTime) {
+            if (phase === 'warmup') {
+                if (++warmed >= WARMUP_FRAMES) phase = 'sampling';
+                return;
+            }
+            if (phase !== 'sampling') return;
+            if (!(deltaTime > 0) || deltaTime > OUTLIER_MS) return;
+            samples.push(deltaTime);
+            if (samples.length < WINDOW_FRAMES) return;
+
+            phase = 'done';
+            // Median, not mean: a couple of dropped frames shouldn't
+            // condemn a device that is otherwise keeping up.
+            const sorted = samples.slice().sort((a, b) => a - b);
+            const median = sorted[Math.floor(sorted.length / 2)];
+            if (median > SLOW_MS) {
+                Logger.info('⚙️ Reducing effects for performance: median frame '
+                    + median.toFixed(1) + 'ms over ' + WINDOW_FRAMES + ' frames');
+                remember();
+                apply();
+            }
+        },
+
+        isReduced() { return wasJudgedSlow(); }
+    };
+})();
+
 let wasPausedBeforeSettings = false;
 var gameLoop = null;
 let dropCounter = 0;
@@ -11077,6 +11177,13 @@ function update(time = 0) {
     const deltaTime = time - (update.lastTime || 0);
     update.lastTime = time;
 
+    // Frame-time sampling for the automatic effect reduction. Real human
+    // play only: a paused board renders nothing and would read as fast,
+    // and the AI demo and replays aren't the player's device under load.
+    if (!paused && !aiModeEnabled && !GameReplay.isActive()) {
+        PerfGuard.sample(deltaTime);
+    }
+
     // Deferred pause: requested mid-animation, lands on the first frame
     // the board is clean so the paused-game save captures resumable state
     if (pendingPause && !paused && !transientAnimationActive()) {
@@ -11590,6 +11697,9 @@ function startGame(mode, resumeSave) {
             // reason that isn't disengagement. Excludable in analysis.
             Analytics.gameStarted(Object.assign({ resumed: !!resumeSave }, startedPayload));
         }
+        // Re-arm the frame-time guard for this game (and re-apply a
+        // previous reduction). Human games only, same reason as above.
+        if (!aiModeEnabled) PerfGuard.onGameStart();
     }
 
     // Hide leaderboard if it was shown
@@ -12926,8 +13036,11 @@ if (settingsResetBtn) {
         setCheckbox('aiModeToggle', false);
         setCheckbox('introFullscreenCheckbox', DeviceDetection.isMobile);
 
-        // Back to the classic palette (recolors the live stack too)
-        selectPalette('classic');
+        // Back to the DEFAULT palette (recolors the live stack too). Reads
+        // DEFAULT_PALETTE_ID rather than naming a palette: hardcoding
+        // 'classic' here meant Reset to Defaults quietly reverted to the
+        // retired look after the default changed.
+        selectPalette(DEFAULT_PALETTE_ID);
 
         Logger.info('⚙️ Settings reset to defaults');
     });
