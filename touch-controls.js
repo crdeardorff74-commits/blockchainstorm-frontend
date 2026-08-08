@@ -94,7 +94,8 @@ const SwipeControls = {
     tapThreshold: 12,        // Max px movement for a tap
     tapTimeMax: 250,         // Max ms for a tap
     hardDropSpeed: 800,      // Min px/sec for hard drop
-    tapDropRows: 4,          // Tap this many rows below the piece = hard drop
+    dropZoneRows: 3,         // Hard-drop tap zone: bottom N rows of the well
+    dropZoneClearance: 4,    // ...and only if the piece is this many rows above the tap
     softDropInterval: null,
     lastMoveX: 0,            // Track cumulative horizontal movement
     movedColumns: 0,         // How many columns we've moved this gesture
@@ -153,12 +154,16 @@ const SwipeControls = {
         return bottom;
     },
 
-    // True when a tap landed tapDropRows or more rows below the piece.
+    // True when a tap landed in the hard-drop zone: the bottom dropZoneRows
+    // rows of the well, AND with the piece at least dropZoneClearance rows
+    // above that spot. Taps anywhere else — including just under a piece that
+    // is already near the floor — stay rotations, since that's what a player
+    // shuffling a piece into place is asking for.
     // The row comes from the canvas's rendered rect rather than BLOCK_SIZE so
     // the CSS-squashed/scaled challenge modes (thicker, perspective) still map
     // roughly right; Stranger flips the whole page, so the rect's rows run
     // backwards there and the index is inverted back into board space.
-    isTapBelowPiece(clientX, clientY) {
+    isTapInDropZone(clientX, clientY) {
         const canvasEl = document.getElementById('gameCanvas');
         if (!canvasEl || typeof ROWS === 'undefined') return false;
 
@@ -175,7 +180,10 @@ const SwipeControls = {
             tapRow = ROWS - 1 - tapRow;
         }
 
-        return tapRow - bottom >= this.tapDropRows;
+        // Must be inside the well, in its bottom band — a tap past the canvas
+        // edge is on the HUD/histogram, not the board
+        if (tapRow < ROWS - this.dropZoneRows || tapRow > ROWS - 1) return false;
+        return tapRow - bottom >= this.dropZoneClearance;
     },
 
     handleStart(e) {
@@ -252,9 +260,9 @@ const SwipeControls = {
         
         this.stopSoftDrop();
         
-        // Tap = rotate, unless it landed well below the piece = hard drop
+        // Tap = rotate, unless it landed in the bottom-of-well drop zone
         if (dist < this.tapThreshold && elapsed < this.tapTimeMax && this.movedColumns === 0) {
-            if (this.isTapBelowPiece(touch.clientX, touch.clientY)) {
+            if (this.isTapInDropZone(touch.clientX, touch.clientY)) {
                 if (typeof hardDropping !== 'undefined' && hardDropping) return;
                 hardDrop();
                 return;

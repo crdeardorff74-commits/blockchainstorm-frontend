@@ -675,6 +675,11 @@
 		.rules-section div {
 			padding: 0 0 12px;
 		}
+        /* Touch-control list: off by default, switched on only for portrait
+           touch devices in the portrait media query below */
+        #rulesTouchControls {
+            display: none;
+        }
         .tsunami-scoring {
             display: inline-block;
             margin-top: 0.5em;
@@ -4095,6 +4100,13 @@
                 flex: 1 1 auto;
                 min-height: 0;
                 height: auto;
+            }
+            /* The gesture list is the only place a portrait player can learn
+               the controls (the side-panel guide never shows in portrait).
+               .tablet-mode keeps it off a desktop window that merely happens
+               to be taller than it is wide. */
+            body.tablet-mode #rulesTouchControls {
+                display: block;
             }
             /* How to Play view: no dropdown — the content needs no switcher
                (leaderboards have their own menu button). !important beats the

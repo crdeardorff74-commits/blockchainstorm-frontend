@@ -249,6 +249,29 @@
 					But watch out for <i>tornadoes</i> and <i>earthquakes</i>!</span>
                 </div>
                 
+                <!-- Touch controls. Hidden everywhere except portrait on a
+                     touch device (CSS-gated): the landscape gesture guide
+                     lives in the side panel, which portrait never shows, so
+                     phone players otherwise get no control list at all. -->
+                <div class="rules-section" id="rulesTouchControls">
+                    <h3 data-i18n="rules.controlsTitle">👆 Touch Controls</h3>
+                    <div data-i18n-html="rules.controlTapSides">
+                        <strong>👆 Tap left / right side:</strong> Rotate ↺ / ↻
+                    </div>
+                    <div data-i18n-html="rules.controlSwipeSides">
+                        <strong>👈👉 Swipe sideways:</strong> Move the piece
+                    </div>
+                    <div data-i18n-html="rules.controlTapBottom">
+                        <strong>👇 Tap the bottom of the well:</strong> Hard drop — as long as the piece is still well above the spot you tap
+                    </div>
+                    <div data-i18n-html="rules.controlFlickDown">
+                        <strong>👇 Flick down:</strong> Hard drop
+                    </div>
+                    <div style="padding: 0" data-i18n-html="rules.controlHoldDown">
+                        <strong>👇 Drag down and hold:</strong> Soft drop
+                    </div>
+                </div>
+
                 <div class="rules-section">
                     <h3 data-i18n="rules.specialEventsTitle">✨ Special Events</h3>
                     <div data-i18n-html="rules.strike">
@@ -754,7 +777,7 @@
                     <div style="display: inline-grid; grid-template-columns: auto auto; gap: 0.2vh 0.5vw; text-align: left;">
                         <div style="text-align: right;">👆 Tap left:</div><div>Rotate ↺</div>
                         <div style="text-align: right;">👆 Tap right:</div><div>Rotate ↻</div>
-                        <div style="text-align: right;">👇 Tap below piece:</div><div>Hard Drop</div>
+                        <div style="text-align: right;">👇 Tap well bottom:</div><div>Hard Drop</div>
                         <div style="text-align: right;">👈👉 Swipe:</div><div>Move</div>
                         <div style="text-align: right;">👇 Swipe down:</div><div>Hard Drop</div>
                         <div style="text-align: right;">👇 Hold down:</div><div>Soft Drop</div>
