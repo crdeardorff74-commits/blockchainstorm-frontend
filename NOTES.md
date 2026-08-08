@@ -2,11 +2,16 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
-## 2026-08-08 — Release v4.35 (tap-to-hard-drop on touch + portrait control list)
+## 2026-08-08 — Release v4.36 (documentation trim on the v4.35 work)
+- **Supersedes v4.35, bumped earlier the same day.** v4.35's zip went out with `index.html` but WITHOUT `i18n.js` (Windows Explorer wasn't sorting by date as expected, so the file was missed), which showed as raw `rules.controlTapSides`-style keys in How to Play. Both files are in this one — a partial upload of these two looks exactly like a stale service-worker cache from the console, so check the Network tab's `i18n.js` size against the local file before blaming caching.
+- Only change since v4.35: the tap-the-well-bottom line removed from both control guides (see the entry below for why). The gesture itself is unchanged.
+
+## 2026-08-08 — v4.35 (tap-to-hard-drop on touch + portrait control list)
 - **New gesture: tap the bottom of the well = hard drop.** `SwipeControls.isTapInDropZone()` in `touch-controls.js`; two named constants gate it — `dropZoneRows: 3` (tap must land in the well's bottom 3 rows) AND `dropZoneClearance: 4` (piece must still be ≥4 rows above the tapped row). First cut keyed only on "4+ rows below the piece" anywhere in the well; the user rejected it — a player shuffling a piece into place taps just below it constantly and would get drops instead of rotations. Both numbers are tunable in one place if testing says otherwise.
 - Row is derived from `canvas.getBoundingClientRect()`, NOT `BLOCK_SIZE`, so the CSS-squashed/scaled challenge modes still map. Stranger (`html.stranger-mode`, whole page rotated 180°) inverts the index back into board space, so the zone stays ahead of the piece's real fall direction.
 - **Portrait phones had NO control documentation at all** — the gesture guide lives in the side panel, which portrait never renders. Added `#rulesTouchControls` to the How to Play content, CSS-gated to `body.tablet-mode` inside the portrait media query (the `.tablet-mode` half keeps it off a merely-tall desktop window).
-- 6 new `rules.control*` i18n keys added across **all 15 languages**, reusing each locale's existing `controls.hardDrop`/`softDrop` wording. The older side-panel `#gestureGuide` block in `index.html` is still hardcoded English — pre-existing rule-5 debt, worth i18n'ing whole next time it's touched.
+- **The tap-drop is deliberately UNDOCUMENTED.** Flick-down was already the taught hard drop and reads as more intuitive, so listing both just crowded the guide; the tap stays as a discoverable shortcut. `rules.controlTapBottom` was written and then removed from all 15 languages — if it's ever documented again, the section is in the How to Play block and the wording is in this file's history.
+- 5 `rules.control*` i18n keys across **all 15 languages**, reusing each locale's existing `controls.hardDrop`/`softDrop` wording. The older side-panel `#gestureGuide` block in `index.html` is still hardcoded English — pre-existing rule-5 debt, worth i18n'ing whole next time it's touched.
 - **Not browser-verified per rule 0.** Worth exercising on a real phone: tap low in an empty well (should drop), tap just under a piece resting near the floor (should rotate), tap the histogram strip below the canvas (should do neither), and open How to Play in portrait to confirm the new section appears and is translated.
 
 ## 2026-08-05 — Release v4.34 (music-at-game-over tracking)
