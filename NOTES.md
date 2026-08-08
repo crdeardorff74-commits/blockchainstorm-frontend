@@ -2,6 +2,13 @@
 
 Newest entries on top. See universal rule 9 in `../../CLAUDE.md` for what belongs here.
 
+## 2026-08-08 — Release v4.35 (tap-to-hard-drop on touch + portrait control list)
+- **New gesture: tap the bottom of the well = hard drop.** `SwipeControls.isTapInDropZone()` in `touch-controls.js`; two named constants gate it — `dropZoneRows: 3` (tap must land in the well's bottom 3 rows) AND `dropZoneClearance: 4` (piece must still be ≥4 rows above the tapped row). First cut keyed only on "4+ rows below the piece" anywhere in the well; the user rejected it — a player shuffling a piece into place taps just below it constantly and would get drops instead of rotations. Both numbers are tunable in one place if testing says otherwise.
+- Row is derived from `canvas.getBoundingClientRect()`, NOT `BLOCK_SIZE`, so the CSS-squashed/scaled challenge modes still map. Stranger (`html.stranger-mode`, whole page rotated 180°) inverts the index back into board space, so the zone stays ahead of the piece's real fall direction.
+- **Portrait phones had NO control documentation at all** — the gesture guide lives in the side panel, which portrait never renders. Added `#rulesTouchControls` to the How to Play content, CSS-gated to `body.tablet-mode` inside the portrait media query (the `.tablet-mode` half keeps it off a merely-tall desktop window).
+- 6 new `rules.control*` i18n keys added across **all 15 languages**, reusing each locale's existing `controls.hardDrop`/`softDrop` wording. The older side-panel `#gestureGuide` block in `index.html` is still hardcoded English — pre-existing rule-5 debt, worth i18n'ing whole next time it's touched.
+- **Not browser-verified per rule 0.** Worth exercising on a real phone: tap low in an empty well (should drop), tap just under a piece resting near the floor (should rotate), tap the histogram strip below the canvas (should do neither), and open How to Play in portrait to confirm the new section appears and is translated.
+
 ## 2026-08-05 — Release v4.34 (music-at-game-over tracking)
 - **Supersedes v4.33, bumped earlier the same day and never zipped.** The last build actually DEPLOYED to players is still **v4.30**, so this one zip carries the entire day: CrazyGames analytics (batches 1-3 + conversion fix), the visual overhaul, `PerfGuard`, and today's music tracking.
 - New since v4.33: `musicOn` on the game-over payload (front-end side of the music-at-game-over metric) and the `isMusicAudible()` helper. The histogram bucket-order fix that shipped alongside it is server + admin only, not in this zip.
