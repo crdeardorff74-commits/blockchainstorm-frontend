@@ -221,6 +221,25 @@
             <button class="start-game-btn" id="startGameBtn" data-i18n="intro.startGame">▶ Start Game</button>
             <div id="fullscreenHint" style="display: none; margin-top: max(1.5vh, 12px); padding: 8px 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 6px; font-size: 12px; color: #FFD700; text-align: center; line-height: 1.4; white-space: nowrap;"></div>
         </div>
+        <!-- Legal footer, ported from Circuitousness. Real anchor links (not
+             modal-only) so they are visible on the static landing screen —
+             required for ad-network review and basic transparency. The
+             policy links stay clickable everywhere (CG allows policy pages);
+             only the copyright link gets the cg-hide/cg-only split, because
+             official-intelligence.art hosts playable games and a clickable
+             link there risks CG's no-cross-promotion rule. -->
+        <footer class="menu-legal-footer">
+            <nav class="menu-legal-links">
+                <a href="https://official-intelligence.art/privacy" target="_blank" rel="noopener" data-i18n="footer.privacy">Privacy</a>
+                <span class="menu-legal-sep" aria-hidden="true">·</span>
+                <a href="https://official-intelligence.art/terms" target="_blank" rel="noopener" data-i18n="footer.terms">Terms</a>
+                <span class="menu-legal-sep" aria-hidden="true">·</span>
+                <a href="https://official-intelligence.art/about" target="_blank" rel="noopener" data-i18n="footer.about">About</a>
+                <span class="menu-legal-sep" aria-hidden="true">·</span>
+                <a href="mailto:privacy@official-intelligence.art" data-i18n="footer.contact">Contact</a>
+            </nav>
+            <div class="menu-legal-copyright">© 2026 <a href="https://official-intelligence.art/" target="_blank" rel="noopener" class="cg-hide">Official Intelligence</a><span class="cg-only">Official Intelligence</span></div>
+        </footer>
     </div>
     <canvas id="starfield"></canvas>
     <!-- Icon-only: no data-i18n so language switches don't re-add the label -->
@@ -386,6 +405,23 @@
                     <button class="mode-button" data-mode="blizzard">Blizzard</button>
                     <button class="mode-button" data-mode="hurricane">Hurricane</button>
                 </div>
+
+                <!-- Legal footer — same block as the intro screen's (classes
+                     only, no IDs, so the duplication is safe). The © link
+                     keeps the cg-hide/cg-only split for CG's
+                     no-cross-promotion rule. -->
+                <footer class="menu-legal-footer">
+                    <nav class="menu-legal-links">
+                        <a href="https://official-intelligence.art/privacy" target="_blank" rel="noopener" data-i18n="footer.privacy">Privacy</a>
+                        <span class="menu-legal-sep" aria-hidden="true">·</span>
+                        <a href="https://official-intelligence.art/terms" target="_blank" rel="noopener" data-i18n="footer.terms">Terms</a>
+                        <span class="menu-legal-sep" aria-hidden="true">·</span>
+                        <a href="https://official-intelligence.art/about" target="_blank" rel="noopener" data-i18n="footer.about">About</a>
+                        <span class="menu-legal-sep" aria-hidden="true">·</span>
+                        <a href="mailto:privacy@official-intelligence.art" data-i18n="footer.contact">Contact</a>
+                    </nav>
+                    <div class="menu-legal-copyright">© 2026 <a href="https://official-intelligence.art/" target="_blank" rel="noopener" class="cg-hide">Official Intelligence</a><span class="cg-only">Official Intelligence</span></div>
+                </footer>
 
             </div>
             <div class="game-over" id="gameOver">
@@ -1370,7 +1406,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '4.37';</script>
+	<script>var PAGE_VERSION = '4.39';</script>
 	<script src="config.js"></script>
 	<script src="analytics.js"></script>
 	<script src="cg-sdk.js"></script>

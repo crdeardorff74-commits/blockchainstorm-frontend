@@ -457,6 +457,76 @@
         }
         
         
+        /* Legal footer on the intro screen — privacy / terms / about /
+           contact. Ported from Circuitousness (same class names). Deliberately
+           quiet so it doesn't compete with the intro controls, but always
+           visible on the landing screen. */
+        .menu-legal-footer {
+            margin-top: max(1.4vh, 10px);
+            text-align: center;
+            font-size: clamp(0.72rem, 1.6vh, 0.85rem);
+            line-height: 1.6;
+            opacity: 0.78;
+            /* .mode-menu is pointer-events:none with children opting back in
+               — without this the footer links are unclickable on the menu
+               (harmless on the intro overlay, which doesn't do that) */
+            pointer-events: auto;
+        }
+        /* On the MAIN MENU the footer floats in the lower gap, about halfway
+           between the START button and the screen bottom — in flow it would
+           hug the button, because the center-justified menu stack packs its
+           children together. Absolute within .mode-menu (which is
+           position:absolute, full height); the intro screen keeps the
+           in-flow placement from the base rule above. */
+        .mode-menu .menu-legal-footer {
+            position: absolute;
+            /* The -8vh cancels the menu's inline translate(-50%, -8vh) from
+               updateCanvasSize (which lifts the whole menu box, footer's
+               anchor included — plain 12% ended up back under the START
+               button on short embeds). If that lift ever changes in game.js,
+               this term changes with it. Net effect: footer bottom sits
+               ~3.5vh above the well area's true bottom. */
+            bottom: calc(12% - 8vh);
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 92%;
+            margin-top: 0;
+        }
+        .menu-legal-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.4em;
+        }
+        .menu-legal-footer a {
+            color: rgba(255, 255, 255, 0.72);
+            text-decoration: none;
+            transition: color 0.18s ease;
+        }
+        .menu-legal-footer a:hover,
+        .menu-legal-footer a:focus-visible {
+            color: #fff;
+            text-decoration: underline;
+        }
+        .menu-legal-sep {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .menu-legal-copyright {
+            margin-top: 0.35em;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9em;
+        }
+        /* The dev-site link inside the copyright stays as quiet as the text
+           around it (the general footer-a color would make it pop), but keeps
+           its underline so it reads as a link at rest; hover/focus still
+           brightens via the higher-specificity rule above. */
+        .menu-legal-copyright a {
+            color: inherit;
+            text-decoration: underline;
+        }
+
         /* Global custom scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -914,7 +984,12 @@
         .credits-content {
             padding: 20px;
             text-align: center;
-			max-width: 34%;
+            /* Wide enough for a credits row at its natural width (420px role
+               + 40px gap + 250px name = 710px ≈ 45rem). The old 34% cap
+               squeezed the flex columns on anything under ~2100px wide —
+               most visibly the ~1190px CrazyGames embed, where the names
+               column wrapped nearly every line. */
+            max-width: min(45rem, 94vw);
         }
         
         .credits-title {
@@ -2368,7 +2443,12 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         .well-title {
-            font-size: 3.5vh;
+            /* At base size this styles only the MAIN MENU title: the intro
+               title has its own larger .intro-title rule, and the narrow /
+               short / portrait media queries all re-set this later in the
+               file (bare .well-title on purpose — a .mode-menu-scoped bump
+               here would out-specify those shrinks and break them) */
+            font-size: max(4.5vh, 24px);
             font-weight: bold;
             font-family: 'Orbitron', sans-serif;
             background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
@@ -4072,6 +4152,17 @@
                 width: 100%;
                 margin-top: max(2vh, 14px);
                 pointer-events: auto;
+            }
+            /* Portrait: back in flow under the info buttons — the portrait
+               menu stack is tall and the landscape absolute placement
+               (bottom 12% of the well area) risks overlapping it on short
+               screens */
+            .mode-menu .menu-legal-footer {
+                position: static;
+                transform: none;
+                width: auto;
+                max-width: none;
+                margin-top: max(2vh, 14px);
             }
             .menu-info-btn {
                 flex: 1 1 0;
