@@ -94,6 +94,7 @@ const SwipeControls = {
     tapThreshold: 12,        // Max px movement for a tap
     tapTimeMax: 250,         // Max ms for a tap
     hardDropSpeed: 800,      // Min px/sec for hard drop
+    tapDropRows: 4,          // Tap this many rows below the piece = hard drop
     softDropInterval: null,
     lastMoveX: 0,            // Track cumulative horizontal movement
     movedColumns: 0,         // How many columns we've moved this gesture
@@ -142,6 +143,41 @@ const SwipeControls = {
         return strangerActive !== dyslexicActive ? -1 : 1;
     },
     
+    // Bottom-most board row occupied by the falling piece
+    pieceBottomRow() {
+        if (typeof currentPiece === 'undefined' || !currentPiece || !currentPiece.shape) return null;
+        let bottom = null;
+        currentPiece.shape.forEach((row, y) => {
+            if (row.some(v => v)) bottom = currentPiece.y + y;
+        });
+        return bottom;
+    },
+
+    // True when a tap landed tapDropRows or more rows below the piece.
+    // The row comes from the canvas's rendered rect rather than BLOCK_SIZE so
+    // the CSS-squashed/scaled challenge modes (thicker, perspective) still map
+    // roughly right; Stranger flips the whole page, so the rect's rows run
+    // backwards there and the index is inverted back into board space.
+    isTapBelowPiece(clientX, clientY) {
+        const canvasEl = document.getElementById('gameCanvas');
+        if (!canvasEl || typeof ROWS === 'undefined') return false;
+
+        const bottom = this.pieceBottomRow();
+        if (bottom === null) return false;
+
+        const rect = canvasEl.getBoundingClientRect();
+        if (rect.height <= 0) return false;
+        // Only taps over the well count — taps beside it stay rotations
+        if (clientX < rect.left || clientX > rect.right) return false;
+
+        let tapRow = Math.floor((clientY - rect.top) / (rect.height / ROWS));
+        if (document.documentElement.classList.contains('stranger-mode')) {
+            tapRow = ROWS - 1 - tapRow;
+        }
+
+        return tapRow - bottom >= this.tapDropRows;
+    },
+
     handleStart(e) {
         if (typeof isPaused !== 'undefined' && isPaused) return;
         if (typeof gameRunning !== 'undefined' && !gameRunning) return;
@@ -216,8 +252,14 @@ const SwipeControls = {
         
         this.stopSoftDrop();
         
-        // Tap = rotate
+        // Tap = rotate, unless it landed well below the piece = hard drop
         if (dist < this.tapThreshold && elapsed < this.tapTimeMax && this.movedColumns === 0) {
+            if (this.isTapBelowPiece(touch.clientX, touch.clientY)) {
+                if (typeof hardDropping !== 'undefined' && hardDropping) return;
+                hardDrop();
+                return;
+            }
+
             // Tap on left half of screen = rotate CCW, right half = rotate CW
             const screenMidX = window.innerWidth / 2;
             if (touch.clientX < screenMidX * 0.8) {
