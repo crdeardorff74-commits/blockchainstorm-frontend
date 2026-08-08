@@ -2704,7 +2704,16 @@
             color: #e0e0e0;
             overflow-y: auto;
             overflow-x: hidden;
-            height: 100%;
+            /* Fill the leftover column space rather than claiming the panel's
+               FULL height. This is a flex item sitting BELOW the view dropdown,
+               so height:100% made it exactly as tall as the whole panel — the
+               dropdown then pushed its bottom rows outside the panel (which
+               clips), and the board scrolled even when the scores would have
+               fit. min-height:0 is what lets overflow-y scroll the list
+               instead of growing the box. Portrait already carried this fix
+               locally; it belongs on the base rule. */
+            flex: 1 1 auto;
+            min-height: 0;
             pointer-events: auto;
             position: relative;
             z-index: 10;
@@ -2791,10 +2800,33 @@
         }
         
         .leaderboard-table .events-col {
-            width: 18%;
+            /* Wide enough for four events on ONE line (leaderboard.js emits a
+               single nowrap cell now — two-line cells made rows taller and
+               scrolled the board). The width comes out of the dead gap that
+               sat between the Lines column and the replay button. */
+            width: 28%;
+            white-space: nowrap;
             font-size: max(1.05vh, 8px);
             color: #888;
             line-height: 1.35;
+        }
+
+        /* Four fixed slots per row (leaderboard.js emits every slot, empty or
+           not), each an equal share of the cell — so ⚡/🌊/🌋/🕳 form aligned
+           columns down the board instead of packing left per-row */
+        .leaderboard-table .ev-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+        }
+        .leaderboard-table .ev-slot {
+            white-space: nowrap;
+        }
+
+        .leaderboard-table .lines-col {
+            /* Explicit width so the table's leftover space lands in the
+               percentage columns (events, above) instead of pooling in this
+               formerly width-less auto column */
+            width: 11%;
         }
         
         .super-event-glow {

@@ -799,6 +799,28 @@ function updateCanvasSize() {
         canvas.style.height = '';
     }
     
+    // Side panels: size them from the room actually beside the well rather
+    // than a fixed vw. A short, wide window sizes the well off its HEIGHT, so
+    // the well stays narrow while the vw-based panels shrink at the 1200px
+    // breakpoint — that left ~160px of dead margin OUTSIDE each panel while
+    // the next-piece queue ran out of room INSIDE it (the CrazyGames embed,
+    // ~1188x670, clipped the back of the queue). CSS max-width still caps the
+    // result and min-width still floors it. Portrait and narrow layouts are
+    // left to CSS, same as the panel positions further down.
+    const rulesPanel = document.querySelector('.rules-panel');
+    const sidePanel = document.querySelector('.side-panel');
+    const panelGap = vw * 0.025;         // between well and panel
+    const panelOuterMargin = vw * 0.012; // between panel and screen edge
+    if (vw <= 1100 || isPortrait) {
+        if (rulesPanel) rulesPanel.style.width = '';
+        if (sidePanel) sidePanel.style.width = '';
+    } else {
+        const wellWidth = canvas.getBoundingClientRect().width;
+        const roomBesideWell = Math.max(0, (vw - wellWidth) / 2 - panelGap - panelOuterMargin);
+        if (rulesPanel) rulesPanel.style.width = roomBesideWell + 'px';
+        if (sidePanel) sidePanel.style.width = roomBesideWell + 'px';
+    }
+
     // Constrain mode menu to canvas width so buttons don't overflow.
     // The -8vh lifts the menu slightly above true center (this inline
     // transform overrides any CSS transform on .mode-menu, so the offset
@@ -812,8 +834,7 @@ function updateCanvasSize() {
     
     // Update next piece canvas to be responsive
     // Use the side panel's actual width as reference
-    const sidePanelEl = document.querySelector('.side-panel');
-    const sidePanelWidth = sidePanelEl ? sidePanelEl.getBoundingClientRect().width : 220;
+    const sidePanelWidth = sidePanel ? sidePanel.getBoundingClientRect().width : 220;
     let nextDisplaySize;
     if (isPortrait) {
         // Portrait: the next-piece area is the right-hand slot of the HUD row.
@@ -832,7 +853,17 @@ function updateCanvasSize() {
             : Infinity;
         nextDisplaySize = Math.min(160, vh * 0.10, Math.max(60, nextSectionWidth * 0.55), screenRoomCap);
     } else {
-        nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22);
+        // Landscape: the queue recedes to the RIGHT of the front piece and
+        // needs ~2.1x the visible size before it runs off the panel. Same
+        // guard as portrait's screenRoomCap above — without it a narrow panel
+        // clips the back of the queue instead of shrinking it to fit. The
+        // section's own width IS the panel's content width, so this needs no
+        // padding constant and doesn't care where the panel is positioned.
+        const nextSectionEl = document.getElementById('nextPieceSection');
+        const panelRoomCap = nextSectionEl
+            ? Math.max(60, nextSectionEl.getBoundingClientRect().width / 2.1)
+            : Infinity;
+        nextDisplaySize = Math.min(180, sidePanelWidth * 0.8, window.innerHeight * 0.22, panelRoomCap);
     }
     nextDisplayBaseSize = nextDisplaySize;
     const nextDisplayWidth = nextDisplaySize;
@@ -863,12 +894,10 @@ function updateCanvasSize() {
         nextWrapper.style.height = nextDisplayHeight + 'px';
     }
     
-    // Update side panel positions based on canvas width
-    const rulesPanel = document.querySelector('.rules-panel');
-    const sidePanel = document.querySelector('.side-panel');
-    
+    // Update side panel positions based on canvas width (the panels' widths
+    // were set above; rulesPanel/sidePanel/panelGap come from that block)
     const viewportWidth = window.innerWidth;
-    
+
     // At narrow viewports and in portrait (stacked column layout), let CSS
     // flexbox handle layout instead of JS positioning
     if (viewportWidth <= 1100 || isPortrait) {
@@ -878,32 +907,23 @@ function updateCanvasSize() {
         // Use getBoundingClientRect to get the actual rendered size including CSS transforms
         const canvasRect = canvas.getBoundingClientRect();
         const canvasDisplayWidth = canvasRect.width;
-        
-        // Calculate panel width (22vw normal, 33vw tablet mode - 50% wider)
-        const panelWidthPercent = TabletMode.enabled ? 0.33 : 0.22;
-        const panelWidth = viewportWidth * panelWidthPercent;
-        
-        // Desired gap between canvas and panels (2.5vw for better spacing)
-        const desiredGap = viewportWidth * 0.025;
-        
+
         // Calculate how much space is available on each side
-        const totalSpace = viewportWidth - canvasDisplayWidth;
-        const spacePerSide = totalSpace / 2;
-        
-        // Calculate panel positions
-        // Left panel: space on left side - panel width - gap
-        const leftPanelLeft = spacePerSide - panelWidth - desiredGap;
-        
-        // Right panel: same as left (symmetric)
-        const rightPanelRight = spacePerSide - panelWidth - desiredGap;
-        
-        // Position panels (but don't push them off screen)
+        const spacePerSide = (viewportWidth - canvasDisplayWidth) / 2;
+
+        // Each panel is inset from its flow position at the screen edge by
+        // whatever room is left over beside it. MEASURED, not estimated from
+        // a vw fraction — CSS max-width/min-width may have clamped the width
+        // requested above, and an estimate that disagreed with the real width
+        // is what parked the panels ~160px in from the screen edges.
         if (rulesPanel) {
-            rulesPanel.style.left = Math.max(0, leftPanelLeft) + 'px';
+            const w = rulesPanel.getBoundingClientRect().width;
+            rulesPanel.style.left = Math.max(0, spacePerSide - w - panelGap) + 'px';
         }
-        
+
         if (sidePanel) {
-            sidePanel.style.right = Math.max(0, rightPanelRight) + 'px';
+            const w = sidePanel.getBoundingClientRect().width;
+            sidePanel.style.right = Math.max(0, spacePerSide - w - panelGap) + 'px';
         }
     }
     

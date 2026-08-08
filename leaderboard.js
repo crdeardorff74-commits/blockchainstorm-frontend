@@ -225,7 +225,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                     <th class="name">Name</th>
                     <th class="events-col">Events</th>
                     <th class="score">Score</th>
-                    <th>Lines</th>
+                    <th class="lines-col">Lines</th>
                     ${(mode === 'challenge' || mode === 'ai-challenge') ? '<th class="challenges-col">🎯</th>' : ''}
                     <th class="replay-col" title="Watch Replay">▶</th>
                 </tr>
@@ -246,37 +246,32 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
         }
         const rowClass = isPlayerScore ? 'player-score' : '';
         
-        let events = [];
-        if (entry.strikes > 0) events.push(`⚡${entry.strikes}`);
-        if (entry.tsunamis > 0) events.push(`🌊${entry.tsunamis}`);
+        // One fixed slot per event type, present even when empty, so the
+        // icons line up in columns down the whole board instead of packing
+        // left per-row. Order: ⚡ 🌊 🕳 🌋 — the .ev-grid CSS gives each slot
+        // an equal share of the cell. (One line per row on purpose: two-line
+        // cells made rows taller and scrolled the board.)
+        let volcanoHtml = '';
         if (entry.volcanoes > 0) {
             const superV = entry.superVolcanoes || 0;
-            if (superV > 0) {
-                events.push(`<span class="super-event-glow" title="Supervolcano x2 (${superV})">🌋${entry.volcanoes}</span>`);
-            } else {
-                events.push(`🌋${entry.volcanoes}`);
-            }
+            volcanoHtml = superV > 0
+                ? `<span class="super-event-glow" title="Supervolcano x2 (${superV})">🌋${entry.volcanoes}</span>`
+                : `🌋${entry.volcanoes}`;
         }
+        let blackholeHtml = '';
         if (entry.blackholes > 0) {
             const superBH = entry.supermassiveBlackHoles || 0;
-            if (superBH > 0) {
-                events.push(`<span class="super-event-glow" title="Supermassive Black Hole x2 (${superBH})">🕳️${entry.blackholes}</span>`);
-            } else {
-                events.push(`🕳️${entry.blackholes}`);
-            }
+            blackholeHtml = superBH > 0
+                ? `<span class="super-event-glow" title="Supermassive Black Hole x2 (${superBH})">🕳️${entry.blackholes}</span>`
+                : `🕳️${entry.blackholes}`;
         }
-        
-        // Format events in 2 rows: first 2 on line 1, rest on line 2
-        let eventsHtml = '';
-        if (events.length > 0) {
-            const line1 = events.slice(0, 2).join(' ');
-            const line2 = events.slice(2).join(' ');
-            eventsHtml = `<span style="white-space:nowrap">${line1}</span>`;
-            if (line2) {
-                eventsHtml += `<br><span style="white-space:nowrap">${line2}</span>`;
-            }
-        }
-        const eventsCell = `<td class="events-col">${eventsHtml}</td>`;
+        const eventSlots = [
+            entry.strikes > 0 ? `⚡${entry.strikes}` : '',
+            entry.tsunamis > 0 ? `🌊${entry.tsunamis}` : '',
+            blackholeHtml,
+            volcanoHtml
+        ].map(s => `<span class="ev-slot">${s}</span>`).join('');
+        const eventsCell = `<td class="events-col"><span class="ev-grid">${eventSlots}</span></td>`;
         
         // Build challenges display for challenge mode
         let challengesCell = '';
@@ -317,7 +312,7 @@ async function displayLeaderboard(difficulty, playerScore = null, mode = 'normal
                 <td class="name">${escapeHtml(entry.username)}</td>
                 ${eventsCell}
                 <td class="score">₿${(entry.score / 10000000).toFixed(4)}</td>
-                <td>${entry.lines}</td>
+                <td class="lines-col">${entry.lines}</td>
                 ${challengesCell}
                 ${replayCell}
             </tr>
