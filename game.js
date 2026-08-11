@@ -202,6 +202,196 @@ const HintSystem = (() => {
 })();
 
 // ============================================
+// FIRST-GAME SKILL OFFER
+// ============================================
+// The skill choice used to be asked on the landing screen, before the player
+// had seen a single piece fall: three options described in bullet lists naming
+// Tsunamis, Black Holes and Volcanoes, none of which mean anything yet. Our
+// own funnel says it earned nothing — across a 24h desktop window, 0 of 9
+// sessions opened ANY menu surface, skill picker included. CrazyGames'
+// guidance is blunter: "prioritize visuals and limit the use of text for
+// onboarding".
+//
+// So the ask moves to the first game over, where the player has just watched
+// those events happen. On CrazyGames the landing-screen pickers are hidden
+// outright (see style.css) and this IS the skill choice; elsewhere the intro
+// keeps its picker and this appears only for players who never touched it.
+const PostGameSkillOffer = (() => {
+    const CHOSE_KEY = 'tantro_skillChosen_v1';   // the player picked a skill, ever
+    const SHOWN_KEY = 'tantro_skillOffered_v1';  // this card has already been offered
+    // In-memory mirror of both keys, for browsers where localStorage throws:
+    // private mode, and partitioned third-party iframe storage — which is
+    // where CrazyGames runs us. Without it a write is lost, every read says
+    // "not yet", and the card returns after every single game over.
+    const memory = new Set();
+
+    function get(key) {
+        try {
+            if (localStorage.getItem(key) === '1') return true;
+        } catch (e) { /* storage unavailable — fall through to memory */ }
+        return memory.has(key);
+    }
+
+    function set(key) {
+        memory.add(key);
+        try { localStorage.setItem(key, '1'); } catch (e) { /* private mode */ }
+    }
+
+    function hide() {
+        const el = document.getElementById('postGameSkillOffer');
+        if (el) el.style.display = 'none';
+    }
+
+    function syncSelected() {
+        document.querySelectorAll('#postGameSkillOffer .postgame-skill-chip').forEach(chip => {
+            chip.classList.toggle('selected', chip.dataset.skill === window.skillLevel);
+        });
+    }
+
+    /** Called from setSkillLevel — i.e. any skill pick, from any picker. */
+    function markChosen() { set(CHOSE_KEY); }
+
+    /** Called when the game-over card is shown. Human games only. */
+    function maybeShow() {
+        const el = document.getElementById('postGameSkillOffer');
+        if (!el) return;
+        // Offered once, and never to someone who already made the choice
+        // themselves: on non-CG platforms the intro's picker is still there,
+        // and asking again would read as the game having forgotten.
+        if (get(CHOSE_KEY) || get(SHOWN_KEY)) { hide(); return; }
+        set(SHOWN_KEY);
+        syncSelected();
+        el.style.display = 'block';
+    }
+
+    // Delegated so the chips work regardless of when the card first appears.
+    document.addEventListener('click', (e) => {
+        const chip = (e.target && e.target.closest)
+            ? e.target.closest('#postGameSkillOffer .postgame-skill-chip') : null;
+        if (!chip || !chip.dataset.skill) return;
+        // setSkillLevel is the funnel: it persists the level, updates the rules
+        // panel and the menu buttons, and marks CHOSE_KEY via markChosen().
+        if (window.setSkillLevel) window.setSkillLevel(chip.dataset.skill);
+        // The card deliberately STAYS up — the highlight is the confirmation
+        // that the choice landed and that the next game will use it.
+        syncSelected();
+    });
+
+    return { markChosen, maybeShow, hide };
+})();
+
+// ============================================
+// FIRST-GAME CONTROL GUIDE
+// ============================================
+// Until now the only control documentation was behind How to Play and the side
+// panel's gesture guide. Across a 24h desktop window, 0 of 9 sessions opened
+// How to Play — and one session played a whole game without ever rotating a
+// piece. CrazyGames' quality guidelines ask for the fix directly: "show the
+// user how to control the game with a keyboard overlay or mouse gestures".
+//
+// So: a glyph-forward panel over the board on the first game, gone the moment
+// a control is used. Every string it renders already exists in all 15
+// languages (universal rule 5) — the keyboard labels come from the Controls
+// settings block, the touch lines from the portrait How-to-Play section.
+const ControlHint = (() => {
+    const STORAGE_KEY = 'tantro_controlsShown_v1';
+    const VISIBLE_MS = 8000;
+    let el = null;
+    let timer = null;
+    let active = false;
+    // Fallback for when localStorage throws. Storage can be unavailable in
+    // private mode AND in a partitioned third-party iframe — which is exactly
+    // where CrazyGames runs us, so failing closed here would hide the guide
+    // from the one audience it was built for. Once per page load instead.
+    let memoryShown = false;
+
+    function seen() {
+        try { return localStorage.getItem(STORAGE_KEY) === '1'; }
+        catch (e) { return memoryShown; }
+    }
+
+    function markSeen() {
+        memoryShown = true;
+        try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) { /* private mode */ }
+    }
+
+    // Local, rather than leaning on auth.js/leaderboard.js's global: key names
+    // are read back out of localStorage, so they are untrusted input.
+    function esc(s) {
+        return String(s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    }
+
+    // The FIRST key bound to an action, formatted for display. Live bindings,
+    // so a player who rebound rotate sees their own key.
+    function keyFor(action) {
+        if (typeof ControlsConfig === 'undefined' || !ControlsConfig.keyboard) return '';
+        const keys = ControlsConfig.keyboard[action];
+        if (!keys || !keys.length) return '';
+        return ControlsConfig.formatKeyName(keys[0]);
+    }
+
+    function rowsHtml() {
+        // Touch devices get the gesture guide. These three strings carry their
+        // own <strong> markup and emoji and are inserted as HTML on purpose —
+        // same as the How-to-Play section that already uses them.
+        if (typeof DeviceDetection !== 'undefined' && DeviceDetection.isTouch) {
+            return ['rules.controlSwipeSides', 'rules.controlTapSides', 'rules.controlFlickDown']
+                .map(k => `<div class="control-hint-row">${I18n.t(k)}</div>`).join('');
+        }
+        const moveKeys = [keyFor('moveLeft'), keyFor('moveRight')].filter(Boolean).join(' ');
+        return [
+            [moveKeys,             'controls.move'],
+            [keyFor('rotateCW'),   'controls.rotateCW'],
+            [keyFor('softDrop'),   'controls.softDrop'],
+            [keyFor('hardDrop'),   'controls.hardDrop']
+        ].filter(pair => pair[0]).map(pair =>
+            `<div class="control-hint-row"><span class="control-hint-key">${esc(pair[0])}</span>`
+            + `<span class="control-hint-label">${esc(I18n.t(pair[1]))}</span></div>`
+        ).join('');
+    }
+
+    /** Called when a human game starts. */
+    function onGameStart() {
+        if (active || seen()) return;
+        el = el || document.getElementById('controlHint');
+        if (!el) return;
+        const rows = rowsHtml();
+        if (!rows) return;  // no bindings resolved — show nothing rather than an empty panel
+        el.innerHTML = rows;
+        el.classList.remove('fading');
+        el.style.display = 'block';
+        active = true;
+        // Marked as soon as it's shown, not when it's read: a player who sees
+        // it and leaves has still been shown it, and re-showing on their next
+        // visit would be the game repeating itself.
+        markSeen();
+        timer = setTimeout(dismiss, VISIBLE_MS);
+    }
+
+    /** Hot path — called from trackControlAction on every committed action. */
+    function onControlUsed() {
+        if (active) dismiss();
+    }
+
+    function dismiss() {
+        if (!active) return;
+        active = false;
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (!el) return;
+        const node = el;
+        node.classList.add('fading');
+        setTimeout(() => {
+            // Guard against a new game having re-shown it inside the fade.
+            if (!active) node.style.display = 'none';
+            node.classList.remove('fading');
+        }, 400);
+    }
+
+    return { onGameStart, onControlUsed, dismiss };
+})();
+
+// ============================================
 // DEVICE DETECTION & TABLET MODE SYSTEM - imported from touch-controls.js
 // ============================================
 
@@ -9705,8 +9895,12 @@ function clearLines() {
 // Hot path (fires on every single move), so: cheap guards first, and
 // Analytics.control() no-ops after the first occurrence of each token.
 function trackControlAction(token) {
-    if (typeof Analytics === 'undefined') return;
     if (aiModeEnabled || GameReplay.isActive()) return;
+    // The control guide has done its job the moment a real control is used.
+    // Checked before the Analytics guard so the guide still clears on a build
+    // where tracking is disabled (localhost, DevMode, ?track=false).
+    ControlHint.onControlUsed();
+    if (typeof Analytics === 'undefined') return;
     Analytics.control(token);
 }
 
@@ -10344,6 +10538,9 @@ async function gameOver() {
     // not clear a human player's paused-game save.
     if (typeof SaveGame !== 'undefined' && !aiModeEnabled) SaveGame.clear();
     HintSystem.onGameEnd();
+    // A control guide still on screen at game over never got used — clear it
+    // so it can't sit over the game-over card.
+    ControlHint.dismiss();
     // CrazyGames lifecycle (no-op if gameplayStart never fired, e.g. AI games)
     if (typeof CgSdk !== 'undefined') CgSdk.gameplayStop();
     
@@ -10783,6 +10980,11 @@ function showGameOverScreen() {
 
     // Hide planet stats when showing game over screen
     StarfieldSystem.hidePlanetStats();
+
+    // Offer the skill choice now rather than on the landing screen. Human
+    // games only — an AI demo's game over is not a player's first game.
+    if (!aiModeEnabled) PostGameSkillOffer.maybeShow();
+    else PostGameSkillOffer.hide();
 
     gameOverDiv.style.display = 'block';
     updateShareLinks();
@@ -12129,6 +12331,9 @@ function startGame(mode, resumeSave) {
     
     // Show first-time player hints (human games only)
     if (!aiModeEnabled) HintSystem.onGameStart();
+    // Control guide over the board — first game only, and it clears itself the
+    // moment the player moves, rotates or drops.
+    if (!aiModeEnabled) ControlHint.onGameStart();
     document.body.classList.add('game-running');
     document.body.classList.add('game-started');
     gameOverDiv.style.display = 'none';
@@ -14279,6 +14484,17 @@ if (startOverlay) {
         skillLevel = level;
         window.skillLevel = level; // Expose globally for AI
         localStorage.setItem('skillLevel', level);
+        // Every skill change a PLAYER makes passes through here — the intro's
+        // inline list, the modal, and both selects — and nothing else calls
+        // it (startup reads localStorage and calls updateRulesForSkillLevel
+        // directly). So this is the one honest place to record "they chose",
+        // which suppresses the post-game offer for anyone who already picked.
+        PostGameSkillOffer.markChosen();
+        // Completes the `skill_set` funnel token: the older click listener only
+        // catches picks inside a .combo-modal-overlay, so a first-timer using
+        // the intro's INLINE list recorded nothing. Flags are one-shot per
+        // visit, so the overlap with that listener is free.
+        if (typeof Analytics !== 'undefined') Analytics.flag('skill_set');
         if (introSkillLevelSelect) introSkillLevelSelect.value = level;
         if (skillLevelSelect) skillLevelSelect.value = level;
         updateRulesForSkillLevel(level);

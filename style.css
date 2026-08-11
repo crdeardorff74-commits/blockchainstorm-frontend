@@ -154,6 +154,72 @@
             align-items: center;
             justify-content: center;
         }
+        /* First-game control guide, laid over the top of the board.
+           .main-area is already position: relative, so this anchors to the
+           board column without touching the flex layout.
+           ⚠ pointer-events: none is load-bearing — the guide sits directly
+           over the well, where every tap and swipe lands. Dismissal is by
+           first control use or timeout (game.js ControlHint), never a click
+           on the guide itself. */
+        .control-hint {
+            position: absolute;
+            top: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            pointer-events: none;
+            max-width: 90%;
+            padding: max(1.2vh, 10px) max(1.6vw, 14px);
+            border-radius: 1vh;
+            background: rgba(10, 14, 28, 0.72);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.45);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: max(1.6vh, 12px);
+            line-height: 1.5;
+            text-align: left;
+            animation: controlHintIn 0.35s ease-out;
+        }
+
+        .control-hint.fading {
+            animation: controlHintOut 0.4s ease-in forwards;
+        }
+
+        @keyframes controlHintIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-0.8vh); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        @keyframes controlHintOut {
+            from { opacity: 1; transform: translateX(-50%) translateY(0); }
+            to   { opacity: 0; transform: translateX(-50%) translateY(-0.8vh); }
+        }
+
+        .control-hint-row {
+            display: flex;
+            align-items: center;
+            gap: max(0.8vw, 8px);
+            white-space: nowrap;
+        }
+
+        /* Keycap. Fixed min-width so the labels line up in a column whatever
+           the key names are — 'Space' next to '↑' otherwise ragged. */
+        .control-hint-key {
+            flex: 0 0 auto;
+            min-width: max(4.5vh, 34px);
+            text-align: center;
+            padding: max(0.2vh, 2px) max(0.5vw, 5px);
+            border-radius: 0.5vh;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            font-weight: bold;
+        }
+
+        .control-hint-label {
+            color: rgba(255, 255, 255, 0.75);
+        }
         canvas {
             border: 0.3vh solid rgba(255, 255, 255, 0.5);
             display: block;
@@ -958,7 +1024,61 @@
         .gameover-share-icon:hover svg {
             fill: rgba(255, 255, 255, 0.85);
         }
-        
+
+        /* First-game skill offer — three chips on the game-over card. Shown
+           by game.js showPostGameSkillOffer(), never by CSS alone. Deliberately
+           NAMES ONLY, no bullet lists: the landing screen's explanatory
+           version is what CrazyGames' guidance objects to ("prioritize visuals
+           and limit the use of text for onboarding"), and a player who has
+           just finished a game has seen the events rather than needing them
+           described. */
+        .postgame-skill-offer {
+            margin-top: max(1.6vh, 12px);
+            padding-top: max(1.2vh, 10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .postgame-skill-label {
+            font-size: max(1.5vh, 12px);
+            color: rgba(255, 255, 255, 0.65);
+            margin-bottom: max(0.8vh, 6px);
+        }
+
+        .postgame-skill-chips {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: max(0.8vw, 8px);
+        }
+
+        .postgame-skill-chip {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 999px;
+            padding: max(0.7vh, 6px) max(1.2vw, 12px);
+            font-size: max(1.5vh, 12px);
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .postgame-skill-chip:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        /* The chip matching the live skill level. Set by the same JS that
+           applies the choice, so the card always shows what the next game
+           will actually play as. */
+        .postgame-skill-chip.selected {
+            background: rgba(0, 200, 255, 0.18);
+            border-color: rgba(0, 200, 255, 0.55);
+            color: #fff;
+        }
+
+
         /* End Credits Overlay */
         .credits-overlay {
             position: fixed;
@@ -3780,6 +3900,44 @@
         html.is-crazygames #introFullscreenToggle,
         html.is-crazygames #fullscreenHint {
             display: none !important;
+        }
+        /* ----- CrazyGames landing screen: one button, no configuration -----
+           CG's quality guidelines want new users to "land directly" in
+           gameplay and to "prioritize visuals and limit the use of text for
+           onboarding". The three pickers fail that on both counts, and our own
+           funnel says they earn nothing: across a 24h desktop window, 0 of 9
+           sessions opened ANY menu surface — skill, difficulty, challenge,
+           Settings, How to Play or Leaderboards — and the median landing
+           screen → first game was 2s. So on CG the pickers are pure cost:
+           text and decisions in front of the one screen a reviewer judges.
+           Hidden here, the defaults (Tempest / Downpour / Normal) apply, and
+           first-time players are offered the skill choice after their first
+           game over instead, when the words mean something (see game.js
+           PostGameSkillOffer).
+
+           The Music/SFX toggles go too. Both are MIRRORS of state Settings
+           owns — introMusicCheckbox reads and writes #musicSelect,
+           introSfxCheckbox reads and writes isSfxMuted()/setSfxMuted() — and
+           Settings carries a mute button plus a volume slider for each channel
+           (game.js createVolumeControls, injected at runtime, which is why
+           they aren't in index.html). So nothing is lost by hiding them: no
+           orphaned flag, no stale value, and CG's own SDK mute still applies.
+           What's left on the landing screen is the title, one button and the
+           legal footer. */
+        html.is-crazygames .intro-controls .intro-skill-list,
+        html.is-crazygames .intro-controls .intro-skill-list-label,
+        html.is-crazygames .intro-controls .intro-dropdowns-row,
+        html.is-crazygames .intro-controls .intro-toggles-row,
+        html.is-crazygames .intro-controls > .menu-dropdown-wrapper {
+            display: none !important;
+        }
+        /* With the pickers gone the button is the screen, so let it read as
+           one. Not a fixed px size (universal rule 2) — it scales with the
+           embed, which CG sizes off HEIGHT (~1188x670). */
+        html.is-crazygames .start-game-btn {
+            font-size: max(2.6vh, 18px);
+            padding: max(1.6vh, 12px) max(4vw, 28px);
+            margin-top: max(2vh, 14px);
         }
         /* Inverse of .cg-hide: content that exists ONLY on CrazyGames origins
            (the plain-text credits URL standing in for the clickable dev-site

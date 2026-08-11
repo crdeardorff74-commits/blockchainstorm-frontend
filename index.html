@@ -354,6 +354,19 @@
             <div id="vertigoWrapper">
             <canvas id="gameCanvas" width="350" height="700"></canvas>
             </div>
+            <!-- First-game control guide (game.js ControlHint). Shown over the
+                 board for a player's first game and dismissed the instant they
+                 use a control. CrazyGames asks for exactly this — "show the
+                 user how to control the game with a keyboard overlay or mouse
+                 gestures" — and until now the only control documentation was
+                 behind How to Play, which 0 of 9 sessions in a 24h desktop
+                 window ever opened. A session that played and never rotated a
+                 piece is what that costs.
+                 Rows are built in JS from the LIVE bindings, so a rebound key
+                 shows the key the player actually has. Sibling of
+                 #vertigoWrapper, not a child: the Vertigo challenge rotates
+                 that wrapper and would take the guide with it. -->
+            <div class="control-hint" id="controlHint" style="display: none;" aria-hidden="true"></div>
             <div class="mode-menu" id="modeMenu">
                 <div class="well-title" id="title-tantro" style="display: none;">TANTЯO</div>
                 
@@ -447,6 +460,22 @@
                     <a class="gameover-share-icon" id="goShareCopyLink" href="#" title="Copy Link">
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                     </a>
+                </div>
+                <!-- First-game skill offer (game.js showPostGameSkillOffer).
+                     Hidden until a player who has never picked a skill reaches
+                     their first game over — the first moment "Tsunamis" and
+                     "Black Holes" mean anything, since they've just seen them.
+                     On CrazyGames it replaces the landing-screen picker
+                     entirely (style.css hides those there); elsewhere it only
+                     appears if they never touched the intro's picker.
+                     Reuses the skill modal's i18n keys — no new strings. -->
+                <div class="postgame-skill-offer" id="postGameSkillOffer" style="display: none;">
+                    <div class="postgame-skill-label" data-i18n="intro.skillLevel">🎮 Skill Level</div>
+                    <div class="postgame-skill-chips">
+                        <button class="postgame-skill-chip" data-skill="breeze" data-i18n="skill.breeze.full">🌥️ Breeze</button>
+                        <button class="postgame-skill-chip" data-skill="tempest" data-i18n="skill.tempest.full">🌊 Tempest</button>
+                        <button class="postgame-skill-chip" data-skill="maelstrom" data-i18n="skill.maelstrom.full">🌪️ Maelstrom</button>
+                    </div>
                 </div>
                 <button id="playAgainBtn" data-i18n="gameOver.playAgain">Play Again</button>
             </div>
