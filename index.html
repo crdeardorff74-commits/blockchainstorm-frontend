@@ -461,22 +461,16 @@
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                     </a>
                 </div>
-                <!-- First-game skill offer (game.js showPostGameSkillOffer).
-                     Hidden until a player who has never picked a skill reaches
-                     their first game over — the first moment "Tsunamis" and
-                     "Black Holes" mean anything, since they've just seen them.
-                     On CrazyGames it replaces the landing-screen picker
-                     entirely (style.css hides those there); elsewhere it only
-                     appears if they never touched the intro's picker.
-                     Reuses the skill modal's i18n keys — no new strings. -->
-                <div class="postgame-skill-offer" id="postGameSkillOffer" style="display: none;">
-                    <div class="postgame-skill-label" data-i18n="intro.skillLevel">🎮 Skill Level</div>
-                    <div class="postgame-skill-chips">
-                        <button class="postgame-skill-chip" data-skill="breeze" data-i18n="skill.breeze.full">🌥️ Breeze</button>
-                        <button class="postgame-skill-chip" data-skill="tempest" data-i18n="skill.tempest.full">🌊 Tempest</button>
-                        <button class="postgame-skill-chip" data-skill="maelstrom" data-i18n="skill.maelstrom.full">🌪️ Maelstrom</button>
-                    </div>
-                </div>
+                <!-- NO skill picker here, deliberately. It was built and then
+                     removed: Play Again returns to the main menu, whose Skill
+                     Level button opens a modal that actually EXPLAINS each
+                     level, so a bare row of chips on this card was a worse
+                     copy of the screen one click away — and stripping the
+                     explanations to satisfy CrazyGames' "limit the use of text
+                     for onboarding" is what made it uninformative. The main
+                     menu is already the post-play moment where the words mean
+                     something, on CG as much as anywhere (its pickers are not
+                     hidden there — only the pre-play landing screen's are). -->
                 <button id="playAgainBtn" data-i18n="gameOver.playAgain">Play Again</button>
             </div>
             

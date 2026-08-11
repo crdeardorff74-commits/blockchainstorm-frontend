@@ -202,85 +202,6 @@ const HintSystem = (() => {
 })();
 
 // ============================================
-// FIRST-GAME SKILL OFFER
-// ============================================
-// The skill choice used to be asked on the landing screen, before the player
-// had seen a single piece fall: three options described in bullet lists naming
-// Tsunamis, Black Holes and Volcanoes, none of which mean anything yet. Our
-// own funnel says it earned nothing — across a 24h desktop window, 0 of 9
-// sessions opened ANY menu surface, skill picker included. CrazyGames'
-// guidance is blunter: "prioritize visuals and limit the use of text for
-// onboarding".
-//
-// So the ask moves to the first game over, where the player has just watched
-// those events happen. On CrazyGames the landing-screen pickers are hidden
-// outright (see style.css) and this IS the skill choice; elsewhere the intro
-// keeps its picker and this appears only for players who never touched it.
-const PostGameSkillOffer = (() => {
-    const CHOSE_KEY = 'tantro_skillChosen_v1';   // the player picked a skill, ever
-    const SHOWN_KEY = 'tantro_skillOffered_v1';  // this card has already been offered
-    // In-memory mirror of both keys, for browsers where localStorage throws:
-    // private mode, and partitioned third-party iframe storage — which is
-    // where CrazyGames runs us. Without it a write is lost, every read says
-    // "not yet", and the card returns after every single game over.
-    const memory = new Set();
-
-    function get(key) {
-        try {
-            if (localStorage.getItem(key) === '1') return true;
-        } catch (e) { /* storage unavailable — fall through to memory */ }
-        return memory.has(key);
-    }
-
-    function set(key) {
-        memory.add(key);
-        try { localStorage.setItem(key, '1'); } catch (e) { /* private mode */ }
-    }
-
-    function hide() {
-        const el = document.getElementById('postGameSkillOffer');
-        if (el) el.style.display = 'none';
-    }
-
-    function syncSelected() {
-        document.querySelectorAll('#postGameSkillOffer .postgame-skill-chip').forEach(chip => {
-            chip.classList.toggle('selected', chip.dataset.skill === window.skillLevel);
-        });
-    }
-
-    /** Called from setSkillLevel — i.e. any skill pick, from any picker. */
-    function markChosen() { set(CHOSE_KEY); }
-
-    /** Called when the game-over card is shown. Human games only. */
-    function maybeShow() {
-        const el = document.getElementById('postGameSkillOffer');
-        if (!el) return;
-        // Offered once, and never to someone who already made the choice
-        // themselves: on non-CG platforms the intro's picker is still there,
-        // and asking again would read as the game having forgotten.
-        if (get(CHOSE_KEY) || get(SHOWN_KEY)) { hide(); return; }
-        set(SHOWN_KEY);
-        syncSelected();
-        el.style.display = 'block';
-    }
-
-    // Delegated so the chips work regardless of when the card first appears.
-    document.addEventListener('click', (e) => {
-        const chip = (e.target && e.target.closest)
-            ? e.target.closest('#postGameSkillOffer .postgame-skill-chip') : null;
-        if (!chip || !chip.dataset.skill) return;
-        // setSkillLevel is the funnel: it persists the level, updates the rules
-        // panel and the menu buttons, and marks CHOSE_KEY via markChosen().
-        if (window.setSkillLevel) window.setSkillLevel(chip.dataset.skill);
-        // The card deliberately STAYS up — the highlight is the confirmation
-        // that the choice landed and that the next game will use it.
-        syncSelected();
-    });
-
-    return { markChosen, maybeShow, hide };
-})();
-
-// ============================================
 // FIRST-GAME CONTROL GUIDE
 // ============================================
 // Until now the only control documentation was behind How to Play and the side
@@ -10981,11 +10902,6 @@ function showGameOverScreen() {
     // Hide planet stats when showing game over screen
     StarfieldSystem.hidePlanetStats();
 
-    // Offer the skill choice now rather than on the landing screen. Human
-    // games only — an AI demo's game over is not a player's first game.
-    if (!aiModeEnabled) PostGameSkillOffer.maybeShow();
-    else PostGameSkillOffer.hide();
-
     gameOverDiv.style.display = 'block';
     updateShareLinks();
 
@@ -14484,15 +14400,13 @@ if (startOverlay) {
         skillLevel = level;
         window.skillLevel = level; // Expose globally for AI
         localStorage.setItem('skillLevel', level);
-        // Every skill change a PLAYER makes passes through here — the intro's
-        // inline list, the modal, and both selects — and nothing else calls
-        // it (startup reads localStorage and calls updateRulesForSkillLevel
-        // directly). So this is the one honest place to record "they chose",
-        // which suppresses the post-game offer for anyone who already picked.
-        PostGameSkillOffer.markChosen();
-        // Completes the `skill_set` funnel token: the older click listener only
-        // catches picks inside a .combo-modal-overlay, so a first-timer using
-        // the intro's INLINE list recorded nothing. Flags are one-shot per
+        // Completes the `skill_set` funnel token. Every skill change a PLAYER
+        // makes passes through here — the intro's inline list, the modal, and
+        // both selects — and nothing else calls it (startup reads localStorage
+        // and calls updateRulesForSkillLevel directly), so this is the one
+        // place that sees them all. The older click listener only catches
+        // picks inside a .combo-modal-overlay, so a first-timer using the
+        // intro's INLINE list recorded nothing at all. Flags are one-shot per
         // visit, so the overlap with that listener is free.
         if (typeof Analytics !== 'undefined') Analytics.flag('skill_set');
         if (introSkillLevelSelect) introSkillLevelSelect.value = level;
