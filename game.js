@@ -334,6 +334,55 @@ const ControlHint = (() => {
 })();
 
 // ============================================
+// VISIT-SCOPED API CALLS
+// ============================================
+// Anything PATCHing /api/visit/<id>/… needs the visit id, which arrives
+// asynchronously from the page-load visit POST. A bare `if (window._visitId)`
+// check silently DROPS the call whenever that response is slow, and /started
+// shipped with a single 1500ms retry that had the same outcome one beat later.
+//
+// ⚠ THE BUG THIS FIXES, because it took a per-session admin view to even see:
+// a 2026-08-11 visit played for 9m 55s, cleared 45 lines, and landed its
+// game_results row AND both engagement clocks — yet read as "visited, never
+// started", because /started missed its one window. started_game feeds the
+// start rate, the finish rate's denominator, every referrer/language
+// conversion column and the load-based conversion figure CrazyGames is
+// compared on, so a lost start understates all of them. The bias isn't random
+// either: it lands hardest when the API is slow to answer, which is low-traffic
+// periods and cold dynos — i.e. the beginning of a trial.
+//
+// analytics.js never had this problem: it queues in localStorage and flushes on
+// setVisitId. Same idea here, but IN MEMORY on purpose — these are flags on one
+// visit row, and a queue that outlived the page would attach them to the next
+// visit instead.
+const _visitReadyQueue = [];
+const VISIT_READY_QUEUE_MAX = 64;  // runaway guard; real sessions queue 1–2
+
+/**
+ * Run fn(visitId) now if the visit id is known, otherwise once it arrives.
+ * @param {(visitId: number) => void} fn
+ */
+function whenVisitReady(fn) {
+    if (window._visitId) { fn(window._visitId); return; }
+    // An opted-out browser never gets a visit id, so don't pile up callbacks
+    // for a flush that will never come. (The itch-embed parent-frame opt-out
+    // is evaluated later than this and isn't visible here — those callbacks
+    // just sit in the queue until the cap, which is what the cap is for.)
+    if (typeof IS_TRACKING_OPTED_OUT !== 'undefined' && IS_TRACKING_OPTED_OUT) return;
+    if (_visitReadyQueue.length >= VISIT_READY_QUEUE_MAX) return;
+    _visitReadyQueue.push(fn);
+}
+
+/** Called once, by the visit POST, the moment the row exists. */
+function flushVisitReady(visitId) {
+    while (_visitReadyQueue.length) {
+        const fn = _visitReadyQueue.shift();
+        // One throwing callback must not strand the rest of the funnel.
+        try { fn(visitId); } catch (e) { Logger.debug('whenVisitReady callback failed:', e); }
+    }
+}
+
+// ============================================
 // DEVICE DETECTION & TABLET MODE SYSTEM - imported from touch-controls.js
 // ============================================
 
@@ -10492,11 +10541,11 @@ async function gameOver() {
     // (the gameOverInProgress guard at the top of gameOver() ensures one
     // call per game), so the back-end's finished_count becomes "games
     // completed this session" for the daily summary.
-    if (window._visitId) {
-        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/finished`, {
+    whenVisitReady((visitId) => {
+        apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/finished`, {
             method: 'PATCH', silent: true, timeout: 5000
         });
-    }
+    });
     // Engagement analytics: upgrades this game's row from in_progress (or
     // abandoned, if they tabbed away mid-game and came back) to game_over
     // and stamps the final outcome. Human games only — an AI demo's game
@@ -11858,24 +11907,18 @@ function startGame(mode, resumeSave) {
                         challengeMode !== 'normal' ? [challengeMode] : [],
             gamepad: !!(typeof GamepadController !== 'undefined' && GamepadController.connected)
         };
-        const sendStarted = () => {
-            if (!_visitId) return;
-            apiFetch(`${AppConfig.GAME_API}/visit/${_visitId}/started`, {
+        // Deferred rather than timed: on the very first game a fast tap can
+        // beat the visit POST back, and the old `setTimeout(…, 1500)` simply
+        // lost the start when the response took longer than that. See
+        // whenVisitReady — a 9m 55s session read as "never started" this way.
+        whenVisitReady((visitId) => {
+            apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/started`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 silent: true, timeout: 5000,
                 body: JSON.stringify(startedPayload)
             });
-        };
-        // _visitId is set by the page-load visit POST. On the very first
-        // game a fast tap can beat that response back, so defer once if it
-        // isn't ready yet (mirrors the old intro-dismiss retry). Games 2+
-        // always have it, so they fire immediately.
-        if (_visitId) {
-            sendStarted();
-        } else {
-            setTimeout(sendStarted, 1500);
-        }
+        });
         // Engagement analytics: same settings, but a per-game row with a
         // clock on it. Human games only — an AI demo left running would
         // otherwise pour attract-mode minutes into the playtime average.
@@ -12875,35 +12918,35 @@ function updateShareLinks() {
 }
 
 function trackShareClick(platform) {
-    if (window._visitId) {
-        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/shared`, {
+    whenVisitReady((visitId) => {
+        apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/shared`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ platform: platform }),
             silent: true, timeout: 5000
         });
-    }
+    });
 }
 
 function trackSunoClick(link) {
-    if (window._visitId) {
-        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/suno-clicked`, {
+    whenVisitReady((visitId) => {
+        apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/suno-clicked`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ link: link }),
             silent: true, timeout: 5000
         });
-    }
+    });
 }
 
 function trackAspcaClick() {
-    if (window._visitId) {
-        apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/aspca-clicked`, {
+    whenVisitReady((visitId) => {
+        apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/aspca-clicked`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             silent: true, timeout: 5000
         });
-    }
+    });
 }
 
 function showSharePopup() {
@@ -14174,6 +14217,11 @@ if (startOverlay) {
                 // Releases anything analytics.js queued before the visit row
                 // existed (a fast tap on a cold Render dyno) and flushes it.
                 if (typeof Analytics !== 'undefined') Analytics.setVisitId(data.visit_id);
+                // Same for the funnel endpoints (/started, /finished, /shared,
+                // …), which used to be fire-and-forget and lost whatever fired
+                // before this point. Must stay next to the line above: two
+                // queues waiting on the same event, released together.
+                flushVisitReady(data.visit_id);
             }
         } catch (e) {
             // Non-critical, silently ignore

@@ -96,10 +96,17 @@ const controller = {
         // Update controls display to show controller buttons
         this.updateControlsDisplay();
         
-        // Flag gamepad usage on the visit record
-        if (window._visitId) {
-            apiFetch(`${AppConfig.GAME_API}/visit/${window._visitId}/gamepad`, {
-                method: 'PATCH', silent: true, timeout: 5000
+        // Flag gamepad usage on the visit record. Deferred through game.js's
+        // whenVisitReady rather than checked against window._visitId: a
+        // controller connected before the visit POST answers used to be lost
+        // outright, which understated gamepad use exactly on slow connections.
+        // Guarded on typeof because this file loads BEFORE game.js (see the
+        // header) — by the time a controller connects it is defined.
+        if (typeof whenVisitReady === 'function') {
+            whenVisitReady((visitId) => {
+                apiFetch(`${AppConfig.GAME_API}/visit/${visitId}/gamepad`, {
+                    method: 'PATCH', silent: true, timeout: 5000
+                });
             });
         }
         
