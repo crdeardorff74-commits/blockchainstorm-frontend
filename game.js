@@ -216,9 +216,21 @@ const HintSystem = (() => {
 // settings block, the touch lines from the portrait How-to-Play section.
 const ControlHint = (() => {
     const STORAGE_KEY = 'tantro_controlsShown_v1';
-    const VISIBLE_MS = 8000;
+    // A MINIMUM, not a timeout. The guide stays until the player actually moves
+    // or rotates a piece — someone who hasn't done either still needs it, and
+    // a guide that expires on a clock is guaranteed to be gone for exactly the
+    // player who was reading it slowly. The minimum only matters in the other
+    // direction: a player who acts within the first moment still gets to see
+    // the panel long enough to have read it, rather than a flash.
+    const MIN_VISIBLE_MS = 8000;
+    // Only these two dismiss it. A hard drop proves nothing about the two
+    // things the guide mostly exists to teach, and dropping is also what a
+    // player who hasn't worked out the controls tends to mash. (Soft drop has
+    // no token at all, so it doesn't dismiss either.)
+    const LEARNED = ['act_move', 'act_rot'];
     let el = null;
     let timer = null;
+    let shownAt = 0;
     let active = false;
     // Fallback for when localStorage throws. Storage can be unavailable in
     // private mode AND in a partitioned third-party iframe — which is exactly
@@ -283,16 +295,25 @@ const ControlHint = (() => {
         el.classList.remove('fading');
         el.style.display = 'block';
         active = true;
+        shownAt = Date.now();
         // Marked as soon as it's shown, not when it's read: a player who sees
         // it and leaves has still been shown it, and re-showing on their next
         // visit would be the game repeating itself.
         markSeen();
-        timer = setTimeout(dismiss, VISIBLE_MS);
+        // Deliberately NO dismissal timer here — see MIN_VISIBLE_MS. Nothing
+        // takes the guide off screen but a move, a rotate, or game over.
     }
 
-    /** Hot path — called from trackControlAction on every committed action. */
-    function onControlUsed() {
-        if (active) dismiss();
+    /**
+     * Hot path — called from trackControlAction on every committed action.
+     * @param {string} token one of the act_* control tokens
+     */
+    function onControlUsed(token) {
+        if (!active || LEARNED.indexOf(token) === -1) return;
+        if (timer) return;  // already serving out the minimum
+        const shownFor = Date.now() - shownAt;
+        if (shownFor >= MIN_VISIBLE_MS) dismiss();
+        else timer = setTimeout(dismiss, MIN_VISIBLE_MS - shownFor);
     }
 
     function dismiss() {
@@ -9817,10 +9838,12 @@ function clearLines() {
 // Analytics.control() no-ops after the first occurrence of each token.
 function trackControlAction(token) {
     if (aiModeEnabled || GameReplay.isActive()) return;
-    // The control guide has done its job the moment a real control is used.
-    // Checked before the Analytics guard so the guide still clears on a build
-    // where tracking is disabled (localhost, DevMode, ?track=false).
-    ControlHint.onControlUsed();
+    // The control guide clears once the player moves or rotates — it ignores
+    // the other tokens itself (see LEARNED), so pass the token through rather
+    // than filtering here. Checked before the Analytics guard so it still
+    // clears on a build where tracking is disabled (localhost, DevMode,
+    // ?track=false).
+    ControlHint.onControlUsed(token);
     if (typeof Analytics === 'undefined') return;
     Analytics.control(token);
 }
