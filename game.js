@@ -6059,12 +6059,31 @@ document.addEventListener('input', (e) => {
 // the device cannot hold roughly 45fps, drops the glow and raises the
 // opacity to compensate for the lost definition. Judged once per device
 // and remembered, so it neither re-measures every session nor oscillates.
+//
+// PHONES ONLY (2026-08-19; was every device). Desktop always renders the
+// glow: any desktop GPU can afford it, and the admin data showed the flag
+// accumulating on capable desktops — the measure-every-game-start /
+// flag-forever ratchet meant one throttled window (battery saver, Remote
+// Desktop, a 30Hz output) condemned the browser for life. Those false
+// routes are overwhelmingly desktop/laptop situations; on phones the
+// guard keeps earning its place. Desktops also CLEAR any flag written
+// under the old policy so their glow comes back.
 const PerfGuard = (() => {
     const FLAG_KEY = 'tantro_perf_degraded_v1';
     const WARMUP_FRAMES = 120;   // ignore startup jank: asset decode, first paint, JIT
     const WINDOW_FRAMES = 120;   // then judge on this many clean frames
     const SLOW_MS = 22;          // sustained worse than ~45fps
     const OUTLIER_MS = 500;      // a GC pause or tab switch, not a slow device
+    // A 30fps CEILING imposed from outside reads as "slow" but isn't the
+    // GPU: browser Energy Saver, Remote Desktop, screen recording and 30Hz
+    // displays all pin rAF near 33ms with almost no spread, while a device
+    // genuinely failing to keep up is noisy. A median inside this band
+    // with an interquartile spread this tight is treated as a frame-rate
+    // cap: effects kept, nothing remembered, reported as `perf_cap` so
+    // the rate of it stays observable.
+    const CAP_BAND_LO_MS = 28;
+    const CAP_BAND_HI_MS = 38;
+    const CAP_MAX_SPREAD_MS = 3;
     // What "reduced" means. Opacity goes UP because the faces carry the
     // piece once the rim light is gone.
     const REDUCED = { glowSlider: 0, opacitySlider: 33 };
@@ -6076,6 +6095,18 @@ const PerfGuard = (() => {
     function wasJudgedSlow() {
         try { return localStorage.getItem(FLAG_KEY) === '1'; }
         catch (e) { return false; }
+    }
+
+    function forget() {
+        try { localStorage.removeItem(FLAG_KEY); } catch (e) { /* private mode */ }
+    }
+
+    function isPhone() {
+        // DeviceDetection.isMobile is the phone flag (tablets are
+        // isTablet); detect() runs at page init, well before any game
+        // start. Unknown → not a phone → guard off, which fails toward
+        // rendering the glow.
+        return typeof DeviceDetection !== 'undefined' && !!DeviceDetection.isMobile;
     }
 
     function remember() {
@@ -6109,6 +6140,11 @@ const PerfGuard = (() => {
             phase = 'off';
             warmed = 0;
             samples = [];
+            // Phones only. A desktop also FORGETS any flag written under
+            // the old every-device policy — untouched sliders already
+            // revert to SETTING_DEFAULTS on load, so clearing the flag is
+            // the whole of restoring its glow.
+            if (!isPhone()) { forget(); return; }
             // An explicit choice outranks the guard, in both directions: we
             // neither measure nor re-apply once the player has set Glow
             // themselves. Raising it back after a reduction is how they say
@@ -6133,13 +6169,28 @@ const PerfGuard = (() => {
             // Median, not mean: a couple of dropped frames shouldn't
             // condemn a device that is otherwise keeping up.
             const sorted = samples.slice().sort((a, b) => a - b);
-            const median = sorted[Math.floor(sorted.length / 2)];
-            if (median > SLOW_MS) {
-                Logger.info('⚙️ Reducing effects for performance: median frame '
-                    + median.toFixed(1) + 'ms over ' + WINDOW_FRAMES + ' frames');
-                remember();
-                apply();
+            const q = f => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * f))];
+            const median = q(0.5);
+            if (median <= SLOW_MS) return;
+            // Flat ~30fps = a cap from outside, not a struggling GPU —
+            // see the CAP_* constants. Keep the effects, remember nothing.
+            const spread = q(0.75) - q(0.25);
+            if (median >= CAP_BAND_LO_MS && median <= CAP_BAND_HI_MS
+                    && spread <= CAP_MAX_SPREAD_MS) {
+                Logger.info('⚙️ Frame-rate cap detected (median '
+                    + median.toFixed(1) + 'ms, spread ' + spread.toFixed(1)
+                    + 'ms) — effects kept');
+                if (typeof Analytics !== 'undefined') Analytics.control('perf_cap');
+                return;
             }
+            Logger.info('⚙️ Reducing effects for performance: median frame '
+                + median.toFixed(1) + 'ms over ' + WINDOW_FRAMES + ' frames');
+            // `perf_fired` = judged slow THIS session, distinct from the
+            // `perf_reduced` apply() reports on every reduced session — so
+            // the admin can tell a fresh judgment from an inherited flag.
+            if (typeof Analytics !== 'undefined') Analytics.control('perf_fired');
+            remember();
+            apply();
         },
 
         isReduced() { return wasJudgedSlow(); }
