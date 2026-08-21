@@ -4,7 +4,7 @@
     "description": "A blockchain-themed falling blocks puzzle game with tsunamis, black holes, volcanoes, and more",
     "start_url": "/",
     "display": "fullscreen",
-    "orientation": "landscape",
+    "orientation": "any",
     "background_color": "#0a0a2e",
     "theme_color": "#0a0a2e",
     "categories": ["games", "entertainment"],

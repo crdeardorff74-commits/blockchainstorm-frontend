@@ -1216,11 +1216,26 @@
             z-index: 2000;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            /* SAFE centering: flex-start + grow-only pseudo spacers instead
+               of justify-content:center. A centered flex column that
+               overflows crops BOTH ends with no way to scroll to them — on
+               short/small phones that cropped the install hint (and the
+               legal footer) right off the bottom of the intro (field
+               report, 2026-08-21: budget Android handheld). The spacers
+               absorb free space when everything fits (identical look to
+               center) and collapse to 0 when it doesn't, letting
+               overflow-y:auto expose the whole overlay. */
+            justify-content: flex-start;
+            overflow-y: auto;
             align-items: center;
             gap: 20px;
             padding-bottom: max(8vh, 40px);
             box-sizing: border-box;
+        }
+        .start-overlay::before,
+        .start-overlay::after {
+            content: '';
+            flex: 1 0 0;
         }
         .intro-title.well-title {
             font-size: max(5.5vh, 28px);
