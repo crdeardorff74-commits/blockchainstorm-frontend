@@ -1236,7 +1236,27 @@
         .start-overlay::after {
             content: '';
             flex: 1 0 0;
+            /* Cancel the flex gap each spacer introduces (2 spacers = +40px
+               of phantom content height, which put a scrollbar on windows
+               where the intro used to fit exactly). With these, the
+               spacers are geometrically free: total height is unchanged
+               from the pre-spacer layout whether they grow or collapse. */
+            margin-bottom: -20px;
         }
+        .start-overlay::after {
+            margin-bottom: 0;
+            margin-top: -20px;
+        }
+        /* No scrollbar chrome on the intro, ever — it reads as a layout
+           bug on a screen that's supposed to be a static landing. The
+           overlay still scrolls by touch/wheel when content genuinely
+           overflows (tiny phones — the whole reason overflow-y is auto,
+           not hidden: hidden would re-crop the Install button). */
+        .start-overlay {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .start-overlay::-webkit-scrollbar { display: none; }
         .intro-title.well-title {
             font-size: max(5.5vh, 28px);
             margin-bottom: 0;
