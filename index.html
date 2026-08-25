@@ -12,7 +12,8 @@
     <title>TANTЯO (Tantro) — Free Online Falling Blocks Game</title>
 
 	<meta name="description" content="Play TANTЯO (Tantro), a revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards. Free browser game.">
-	<meta name="keywords" content="Tantro, TANTЯO, Tetris, block puzzle game, falling blocks, free online game, browser game, puzzle game, AI game, space game">
+	<meta name="keywords" content="Tantro, TANTЯO, block puzzle game, falling blocks, free online game, browser game, puzzle game, indie game, solo developer, space game">
+	<meta name="author" content="Christopher Ryan Deardorff">
 	<meta name="robots" content="index, follow">
 	<link rel="canonical" href="https://tantro.official-intelligence.art/">
 
@@ -20,13 +21,13 @@
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="https://tantro.official-intelligence.art/">
 	<meta property="og:title" content="TANTЯO (Tantro) - Free Online Falling Blocks Game">
-	<meta property="og:description" content="A revolutionary twist on classic Tetris. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.">
+	<meta property="og:description" content="A revolutionary twist on classic falling blocks, made by one person. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.">
 	<meta property="og:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
 
 	<!-- Twitter -->
 	<meta name="twitter:card" content="summary_large_image">
 	<meta name="twitter:title" content="TANTЯO (Tantro) - Free Online Falling Blocks Game">
-	<meta name="twitter:description" content="A revolutionary twist on classic Tetris. Journey through the solar system and compete on global leaderboards.">
+	<meta name="twitter:description" content="A revolutionary twist on classic falling blocks, made by one person. Journey through the solar system and compete on global leaderboards.">
 	<meta name="twitter:image" content="https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png">
     
     <!-- iOS Standalone Mode (Add to Home Screen) -->
@@ -66,31 +67,61 @@
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- Structured data: tells search engines TANTЯO is also spelled "Tantro"
-         (the Я is Cyrillic, so an ASCII search wouldn't otherwise match). -->
+    <!-- Structured data. Two jobs: (1) tells search engines TANTЯO is also
+         spelled "Tantro" (the Я is Cyrillic, so an ASCII search wouldn't
+         otherwise match); (2) names the one human who made it.
+
+         The author/publisher used to be an Organization node called "Official
+         Intelligence". That was wrong and actively harmful — there is no
+         organization, and a machine-readable claim that there IS one is exactly
+         the signal an ad-platform misrepresentation check keys on. It is a
+         Person now, with the same @id used on official-intelligence.art and in
+         Circuitousness so all three resolve to a single entity. -->
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
-        "@type": "VideoGame",
-        "name": "TANTЯO",
-        "alternateName": "Tantro",
-        "url": "https://tantro.official-intelligence.art/",
-        "description": "A revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.",
-        "image": "https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png",
-        "genre": ["Puzzle", "Arcade"],
-        "applicationCategory": "Game",
-        "operatingSystem": "Web browser",
-        "gamePlatform": ["Web", "Android", "iOS"],
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
+        "@graph": [
+        {
+            "@type": "Person",
+            "@id": "https://official-intelligence.art/#ryan",
+            "name": "Christopher Ryan Deardorff",
+            "alternateName": ["C. Ryan Deardorff", "Ryan Deardorff", "Digeratist"],
+            "jobTitle": "Independent game developer",
+            "description": "Solo independent developer who designs, builds and publishes free browser games under the personal labels Official Intelligence and Digeratist. Not a company, agency, or organization.",
+            "email": "mailto:privacy@official-intelligence.art",
+            "url": "https://official-intelligence.art/about",
+            "address": { "@type": "PostalAddress", "addressCountry": "US" },
+            "sameAs": [
+                "https://official-intelligence.art/about",
+                "https://digeratist.itch.io",
+                "https://github.com/crdeardorff74-commits"
+            ]
         },
-        "author": {
-            "@type": "Organization",
-            "name": "Official Intelligence",
-            "url": "https://official-intelligence.art/"
+        {
+            "@type": "VideoGame",
+            "name": "TANTЯO",
+            "alternateName": "Tantro",
+            "url": "https://tantro.official-intelligence.art/",
+            "description": "A revolutionary twist on classic falling blocks. Journey through the solar system, survive cosmic disasters, and compete on global leaderboards.",
+            "image": "https://res.cloudinary.com/dzlhmwvlx/image/upload/v1764977477/BLOCKCHaiNSTO%D0%AFM_thumb_pceyvy.png",
+            "genre": ["Puzzle", "Arcade"],
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Web browser",
+            "gamePlatform": ["Web", "Android", "iOS"],
+            "inLanguage": "en",
+            "isAccessibleForFree": true,
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock"
+            },
+            "author": { "@id": "https://official-intelligence.art/#ryan" },
+            "creator": { "@id": "https://official-intelligence.art/#ryan" },
+            "publisher": { "@id": "https://official-intelligence.art/#ryan" },
+            "copyrightHolder": { "@id": "https://official-intelligence.art/#ryan" }
         }
+        ]
     }
     </script>
 </head>
@@ -1429,7 +1460,7 @@
         </div>
     </div>
 	
-	<script>var PAGE_VERSION = '4.41';</script>
+	<script>var PAGE_VERSION = '4.42';</script>
 	<script src="config.js"></script>
 	<script src="analytics.js"></script>
 	<script src="cg-sdk.js"></script>
